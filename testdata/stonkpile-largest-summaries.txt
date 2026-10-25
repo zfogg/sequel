@@ -27,4 +27,3 @@ SELECT … FROM ticker_backtest_results LEFT JOIN sec_tickers WHERE … (SELECT 
 
 10. UpsertTradebotPosition — 2783 SQL bytes (tradebot_execution.sql.go:1595)
 INSERT INTO tradebot_positions VALUES … ON CONFLICT DO UPDATE SET …
-

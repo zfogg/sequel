@@ -41,9 +41,15 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - run: go test ./go -run '^$' -fuzz FuzzSanitizeDoesNotRetainQuotedPayload -fuzztime 10s
-      - run: go test ./go -run '^$' -fuzz FuzzFormatSQL -fuzztime 10s
-      - run: go test ./go -run '^$' -fuzz FuzzSummary -fuzztime 10s
+      - run: go test ./go -run '^$' -fuzz FuzzSanitizeDoesNotRetainQuotedPayload -fuzztime 100000x -parallel 2
+      - run: go test ./go -run '^$' -fuzz FuzzFormatSQL -fuzztime 100000x -parallel 2
+      - run: go test ./go -run '^$' -fuzz FuzzSummary -fuzztime 100000x -parallel 2
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-regressions
+          path: go/testdata/fuzz
+
 
   sanitizer:
     runs-on: ubuntu-latest
