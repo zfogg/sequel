@@ -1,0 +1,238 @@
+[
+  {
+    "query": "CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_string);",
+    "summary": "CREATE INDEX idx_participants_session ON ..."
+  },
+  {
+    "query": "create index idx_participants_session on session_participants(session_id)",
+    "summary": "CREATE INDEX idx_participants_session ON ..."
+  },
+  {
+    "query": "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS public.account_id ON accounts(id) WHERE token='SECRET'",
+    "summary": "CREATE UNIQUE INDEX public.account_id ON ..."
+  },
+  {
+    "query": "CREATE INDEX \"Index Name\" ON \"Table Name\" ((lower(email)))",
+    "summary": "CREATE INDEX \"Index Name\" ON ..."
+  },
+  {
+    "query": "CREATE INDEX ON accounts(id)",
+    "summary": "CREATE"
+  },
+  {
+    "query": "CREATE INDEX 'SECRET' ON accounts(id)",
+    "summary": "CREATE"
+  },
+  {
+    "query": "-- name: FindAccount :one\nSELECT id FROM accounts WHERE token='secret'",
+    "summary": "SELECT … FROM accounts WHERE …"
+  },
+  {
+    "query": "SELECT a.id FROM accounts a JOIN holdings h ON h.account_id=a.id WHERE EXISTS (SELECT 1 FROM orders o WHERE o.account_id=a.id)",
+    "summary": "SELECT … FROM accounts AS a JOIN holdings AS h ON h.account_id=a.id WHERE … EXISTS (SELECT … FROM orders AS o WHERE …)"
+  },
+  {
+    "query": "WITH candidates AS MATERIALIZED (SELECT id FROM signals WHERE id>$1), picked AS (SELECT * FROM candidates) DELETE FROM signals USING picked WHERE signals.id=picked.id",
+    "summary": "WITH candidates AS MATERIALIZED (SELECT … FROM signals WHERE …), picked AS (SELECT … FROM candidates) DELETE FROM signals USING picked WHERE …"
+  },
+  {
+    "query": "WITH RECURSIVE tree(id) AS (SELECT id FROM nodes UNION ALL SELECT n.id FROM nodes n JOIN tree t ON n.parent=t.id) SELECT * FROM tree",
+    "summary": "WITH RECURSIVE tree AS (SELECT … FROM nodes UNION ALL SELECT … FROM nodes AS n JOIN tree AS t ON n.parent=t.id) SELECT … FROM tree"
+  },
+  {
+    "query": "WITH accounts AS (SELECT * FROM accounts) SELECT * FROM accounts",
+    "summary": "WITH accounts AS (SELECT … FROM accounts) SELECT … FROM accounts"
+  },
+  {
+    "query": "WITH requested(id) AS (VALUES (1),(2)) SELECT * FROM requested JOIN accounts USING(id)",
+    "summary": "WITH requested AS (VALUES …) SELECT … FROM requested JOIN accounts USING (id)"
+  },
+  {
+    "query": "SELECT * FROM (accounts a JOIN holdings h ON h.account_id=a.id)",
+    "summary": "SELECT … FROM (accounts AS a JOIN holdings AS h ON h.account_id=a.id)"
+  },
+  {
+    "query": "WITH lock_result AS (SELECT pg_advisory_lock($1)) SELECT * FROM lock_result",
+    "summary": "WITH lock_result AS (SELECT pg_advisory_lock(…)) SELECT … FROM lock_result"
+  },
+  {
+    "query": "WITH x AS (SELECT * FROM public.accounts) SELECT * FROM (WITH x AS (SELECT * FROM holdings) SELECT * FROM x) q JOIN x ON true",
+    "summary": "WITH x AS (SELECT … FROM public.accounts) SELECT … FROM (WITH x AS (SELECT … FROM holdings) SELECT … FROM x) AS q JOIN x ON ?"
+  },
+  {
+    "query": "INSERT INTO results (id) SELECT id FROM signals ON CONFLICT(id) DO UPDATE SET id=excluded.id RETURNING id",
+    "summary": "INSERT INTO results SELECT … FROM signals ON CONFLICT DO UPDATE SET … RETURNING …"
+  },
+  {
+    "query": "INSERT INTO results(id) VALUES($1) ON CONFLICT(id) DO UPDATE SET id=excluded.id WHERE results.id IS DISTINCT FROM excluded.id",
+    "summary": "INSERT INTO results VALUES … ON CONFLICT DO UPDATE SET … WHERE …"
+  },
+  {
+    "query": "WITH gone AS (DELETE FROM events RETURNING *) INSERT INTO archive SELECT * FROM gone",
+    "summary": "WITH gone AS (DELETE FROM events RETURNING …) INSERT INTO archive SELECT … FROM gone"
+  },
+  {
+    "query": "WITH changed AS (UPDATE accounts SET active=true RETURNING *) SELECT * FROM changed",
+    "summary": "WITH changed AS (UPDATE accounts SET … RETURNING …) SELECT … FROM changed"
+  },
+  {
+    "query": "SELECT * FROM accounts UNION SELECT * FROM archived_accounts EXCEPT SELECT * FROM blocked_accounts",
+    "summary": "SELECT … FROM accounts UNION SELECT … FROM archived_accounts EXCEPT SELECT … FROM blocked_accounts"
+  },
+  {
+    "query": "SELECT row_number() OVER (PARTITION BY symbol ORDER BY ts), sum(price) FILTER (WHERE price>0) FROM bars",
+    "summary": "SELECT … OVER (…) FILTER (…) FROM bars"
+  },
+  {
+    "query": "SELECT ratio_now()",
+    "summary": "SELECT ratio_now()"
+  },
+  {
+    "query": "SELECT prepare_signal_grading($1, $2, $3, $4)",
+    "summary": "SELECT prepare_signal_grading(…)"
+  },
+  {
+    "query": "SELECT public.prepare_signal_grading($1, $2)",
+    "summary": "SELECT public.prepare_signal_grading(…)"
+  },
+  {
+    "query": "SELECT pg_try_advisory_lock(hashtextextended($1,0))::bool",
+    "summary": "SELECT pg_try_advisory_lock(…)"
+  },
+  {
+    "query": "SELECT s.id FROM signals s JOIN LATERAL (SELECT * FROM bars WHERE symbol=s.symbol LIMIT 1) b ON true",
+    "summary": "SELECT … FROM signals AS s JOIN LATERAL (SELECT … FROM bars WHERE … LIMIT 1) AS b ON ?"
+  },
+  {
+    "query": "UPDATE accounts SET balance=(SELECT sum(delta) FROM ledger) FROM users WHERE users.id=accounts.id",
+    "summary": "UPDATE accounts SET … (SELECT … FROM ledger) FROM users WHERE …"
+  },
+  {
+    "query": "MERGE INTO inventory i USING changes c ON i.id=c.id WHEN MATCHED THEN UPDATE SET quantity=c.quantity",
+    "summary": "MERGE INTO inventory AS i USING changes AS c ON i.id=c.id WHEN MATCHED THEN UPDATE SET …"
+  },
+  {
+    "query": "EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM bars",
+    "summary": "EXPLAIN ANALYZE SELECT … FROM bars"
+  },
+  {
+    "query": "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true",
+    "summary": "SELECT … FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON ?"
+  },
+  {
+    "query": "SELECT * FROM a, b, c WHERE a.id=b.id",
+    "summary": "SELECT … FROM a, b, c WHERE …"
+  },
+  {
+    "query": "SELECT * FROM read_parquet('secret/path')",
+    "summary": "SELECT … FROM read_parquet(…)"
+  },
+  {
+    "query": "SELECT 'secret FROM passwords' AS value",
+    "summary": "SELECT …"
+  },
+  {
+    "query": "SELECT 'unterminated",
+    "summary": "SQL"
+  },
+  {
+    "query": "EXPLAIN (",
+    "summary": "EXPLAIN"
+  },
+  {
+    "query": "COPY \"public\".\"bars\" FROM STDIN",
+    "summary": "COPY \"public\".\"bars\""
+  },
+  {
+    "query": "INSERT INTO a SELECT unnest($1) ON CONFLICT(id) DO UPDATE SET id=excluded.id",
+    "summary": "INSERT INTO a SELECT unnest(…) ON CONFLICT DO UPDATE SET …"
+  },
+  {
+    "query": "INSERT INTO a SELECT id FROM b WHERE b.active=true ON CONFLICT(id) DO NOTHING RETURNING id",
+    "summary": "INSERT INTO a SELECT … FROM b WHERE … ON CONFLICT DO NOTHING RETURNING …"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT 20 OFFSET 0",
+    "summary": "SELECT … FROM a LIMIT 20 OFFSET 0"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT $1 OFFSET $2",
+    "summary": "SELECT … FROM a LIMIT ? OFFSET ?"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT sqlc.arg(page_size)",
+    "summary": "SELECT … FROM a LIMIT ?"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT (SELECT cap FROM settings LIMIT 1)",
+    "summary": "SELECT … FROM a LIMIT ? (SELECT … FROM settings LIMIT 1)"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT 10 + 777",
+    "summary": "SELECT … FROM a LIMIT ?"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT ALL",
+    "summary": "SELECT … FROM a LIMIT ALL"
+  },
+  {
+    "query": "SELECT * FROM a LIMIT 5, ?",
+    "summary": "SELECT … FROM a LIMIT 5, ?"
+  },
+  {
+    "query": "SELECT * FROM a OFFSET 2 ROWS FETCH NEXT $1 ROWS ONLY",
+    "summary": "SELECT … FROM a OFFSET 2 FETCH NEXT ? ROWS ONLY"
+  },
+  {
+    "query": "SELECT * FROM a FETCH FIRST 3 ROWS WITH TIES",
+    "summary": "SELECT … FROM a FETCH FIRST 3 ROWS WITH TIES"
+  },
+  {
+    "query": "SELECT * FROM a FETCH FIRST ROW ONLY",
+    "summary": "SELECT … FROM a FETCH FIRST 1 ROWS ONLY"
+  },
+  {
+    "query": "UPDATE a SET token='secret' WHERE id=777 ORDER BY id LIMIT ?",
+    "summary": "UPDATE a SET … WHERE … ORDER BY … LIMIT ?"
+  },
+  {
+    "query": "DELETE FROM a WHERE id=777 ORDER BY id LIMIT 5",
+    "summary": "DELETE FROM a WHERE … ORDER BY … LIMIT 5"
+  },
+  {
+    "query": "(SELECT * FROM a LIMIT 1) UNION ALL (SELECT * FROM b LIMIT $1) ORDER BY id LIMIT 10",
+    "summary": "(SELECT … FROM a LIMIT 1) UNION ALL (SELECT … FROM b LIMIT ?) ORDER BY … LIMIT 10"
+  },
+  {
+    "query": "SELECT * FROM a UNION SELECT * FROM b INTERSECT ALL SELECT * FROM c EXCEPT SELECT * FROM d LIMIT ?",
+    "summary": "SELECT … FROM a UNION SELECT … FROM b INTERSECT ALL SELECT … FROM c EXCEPT SELECT … FROM d LIMIT ?"
+  },
+  {
+    "query": "SELECT * FROM a x LEFT JOIN b y ON x.id = y.a_id AND y.secret = 'sentinel' AND y.n >= 987654 AND y.f < .8765 JOIN c z USING (id, tenant_id) LIMIT 5",
+    "summary": "SELECT … FROM a AS x LEFT JOIN b AS y ON x.id = y.a_id AND y.secret = ? AND y.n >= ? AND y.f < ? JOIN c AS z USING (id, tenant_id) LIMIT 5"
+  },
+  {
+    "query": "SELECT * FROM a JOIN b ON CASE WHEN b.n > 123 THEN a.id ELSE b.id END = a.id LEFT JOIN c ON c.id IS NOT DISTINCT FROM b.id",
+    "summary": "SELECT … FROM a JOIN b ON CASE WHEN b.n > ? THEN a.id ELSE b.id END = a.id LEFT JOIN c ON c.id IS NOT DISTINCT FROM b.id"
+  },
+  {
+    "query": "SELECT * FROM a JOIN b ON b.id IN (SELECT id FROM c JOIN d USING(id) LIMIT 1) AND b.ts >= now() - interval 'secret'",
+    "summary": "SELECT … FROM a JOIN b ON b.id IN (SELECT … FROM c JOIN d USING (id) LIMIT 1) AND b.ts >= now() - interval ?"
+  },
+  {
+    "query": "SELECT * FROM a JOIN b ON coalesce(a.id, 444) = b.id, c",
+    "summary": "SELECT … FROM a JOIN b ON coalesce(a.id, ?) = b.id, c"
+  },
+  {
+    "query": "SELECT * FROM a AS \"left\" JOIN b AS \"right\" ON \"left\".\"key\"=\"right\".\"key\" AND b.v=1.23e45::numeric",
+    "summary": "SELECT … FROM a AS \"left\" JOIN b AS \"right\" ON \"left\".\"key\"=\"right\".\"key\" AND b.v=?::numeric"
+  },
+  {
+    "query": "SELECT * FROM a JOIN b ON (b.id=a.id AND (b.x BETWEEN -987 AND +654 OR b.v=$1))",
+    "summary": "SELECT … FROM a JOIN b ON (b.id=a.id AND (b.x BETWEEN -? AND +? OR b.v=?))"
+  },
+  {
+    "query": "SELECT * FROM a JOIN LATERAL (SELECT * FROM b LIMIT $1) AS recent ON true UNION ALL SELECT * FROM c JOIN d USING(id)",
+    "summary": "SELECT … FROM a JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ? UNION ALL SELECT … FROM c JOIN d USING (id)"
+  }
+]

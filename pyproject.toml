@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sequel"
+version = "0.1.0"
+description = "SQL formatting, sanitization and structural summaries from a shared C engine"
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "vendor/UTF8PROC_LICENSE.md"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["sequel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]

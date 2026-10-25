@@ -1,0 +1,191 @@
+static void utf8_cut(char *s, size_t limit) {
+  size_t n = strlen(s);
+  if (n <= limit)
+    return;
+  limit = sequel_utf8_prefix(s, n, limit);
+  s[limit] = 0;
+  while (limit && isspace((unsigned char)s[limit - 1]))
+    s[--limit] = 0;
+}
+static void collapse_in(char *s) {
+  size_t n = strlen(s);
+  for (size_t i = 0; i + 2 < n; ++i) {
+    if (!equal(s + i, 2, "IN") || (i && part((unsigned char)s[i - 1])) || (i + 2 < n && part((unsigned char)s[i + 2])))
+      continue;
+    size_t j = i + 2;
+    while (j < n && isspace((unsigned char)s[j]))
+      ++j;
+    if (j == n || s[j] != '(')
+      continue;
+    size_t k = j + 1, count = 0;
+    bool comma = false;
+    for (;;) {
+      while (k < n && isspace((unsigned char)s[k]))
+        ++k;
+      if (k == n || s[k] != '?')
+        break;
+      ++count;
+      ++k;
+      while (k < n && isspace((unsigned char)s[k]))
+        ++k;
+      if (k < n && s[k] == ',') {
+        comma = true;
+        ++k;
+        continue;
+      }
+      comma = false;
+      break;
+    }
+    if (count > 1 && !comma && k < n && s[k] == ')') {
+      memmove(s + j + 3, s + k + 1, n - k);
+      memcpy(s + j, "(?)", 3);
+      n = strlen(s);
+    }
+  }
+}
+sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags, bool collapse_in_lists, size_t limit,
+                                 char *out, size_t capacity, bool *truncated) {
+  if (!sql || !out || !truncated)
+    return SEQUEL_ERR_NULL;
+  *truncated = false;
+  if (capacity)
+    *out = 0;
+  if (dialect < SEQUEL_GENERIC || dialect > SEQUEL_CLICKHOUSE || capacity == 0 || (flags & ~SEQUEL_SANITIZE_ALL))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!limit)
+    limit = SEQUEL_TEXT_MAX;
+  if (limit >= capacity)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  size_t n = 0;
+  while (n <= INPUT_MAX && sql[n])
+    ++n;
+  if (n > INPUT_MAX)
+    return SEQUEL_ERR_OVERFLOW;
+  if (!sequel_utf8_valid(sql, n))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  char *safe = calloc(n + 1, 1);
+  if (!safe)
+    return SEQUEL_ERR_NOMEM;
+  output text_output = {safe, 0, n + 1};
+  sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!sanitize_policy(sql, n, dialect, false, (flags & SEQUEL_REMOVE_COMMENTS) != 0,
+                       (flags & SEQUEL_REPLACE_LITERALS) != 0, &text_output))
+    goto done;
+  if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
+    collapse_in(safe);
+  *truncated = strlen(safe) > limit;
+  utf8_cut(safe, limit);
+  memcpy(out, safe, strlen(safe) + 1);
+  status = SEQUEL_OK;
+done:
+  free(safe);
+  return status;
+}
+sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
+                                char *out, size_t capacity, bool *truncated) {
+  return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit,
+                                    out, capacity, truncated);
+}
+
+sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out) {
+  if (!out)
+    return SEQUEL_ERR_NULL;
+  memset(out, 0, sizeof(*out));
+  strcpy(out->summary, "SQL");
+  if (!sql)
+    return SEQUEL_ERR_NULL;
+  sequel_options_t o = options ? *options : (sequel_options_t){0};
+  if (o.dialect > SEQUEL_CLICKHOUSE || o.dialect < SEQUEL_GENERIC || o.max_query_text_bytes > SEQUEL_TEXT_MAX)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  size_t n = 0;
+  while (n <= INPUT_MAX && sql[n])
+    ++n;
+  if (n > INPUT_MAX)
+    return SEQUEL_ERR_OVERFLOW;
+  if (!sequel_utf8_valid(sql, n))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  char *safe = calloc(n + 1, 1), *shape = calloc(n + 1, 1);
+  token *tokens = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*tokens));
+  if (!safe || !shape || !tokens) {
+    free(safe);
+    free(shape);
+    free(tokens);
+    return SEQUEL_ERR_NOMEM;
+  }
+  output a = {safe, 0, n + 1}, b = {shape, 0, n + 1};
+  sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!sanitize(sql, n, o.dialect, false, &a) || !sanitize(sql, n, o.dialect, true, &b))
+    goto done;
+  size_t count = tokenize(shape, tokens, n < TOKEN_MAX ? n + 1 : TOKEN_MAX, o.dialect);
+  if (!count) {
+    status = *safe ? SEQUEL_ERR_OVERFLOW : SEQUEL_OK;
+    goto done;
+  }
+  output summary = {out->summary, 0, sizeof(out->summary)};
+  *out->summary = 0;
+  bool mixed_operations = false;
+  for (size_t start = 0; start < count;) {
+    size_t end = start, nesting = 0;
+    for (; end < count; ++end) {
+      if (sym(tokens[end], '('))
+        ++nesting;
+      else if (sym(tokens[end], ')') && nesting)
+        --nesting;
+      else if (!nesting && sym(tokens[end], ';'))
+        break;
+    }
+    if (end > start) {
+      ++out->statement_count;
+      token *statement = tokens + start;
+      size_t length = end - start;
+      size_t op = 0;
+      while (op < length && sym(statement[op], '('))
+        ++op;
+      if (kw(statement[0], "WITH"))
+        for (op = 1; op < length; ++op) {
+          if (sym(statement[op], '(')) {
+            op = close_group(statement, length, op);
+            continue;
+          }
+          if (kw(statement[op], "SELECT") || kw(statement[op], "INSERT") || kw(statement[op], "UPDATE") ||
+              kw(statement[op], "DELETE") || kw(statement[op], "MERGE") || kw(statement[op], "VALUES"))
+            break;
+        }
+      char current_operation[sizeof(out->operation)] = {0};
+      if (op < length && statement[op].word) {
+        output p = {current_operation, 0, sizeof(current_operation)};
+        upper(&p, statement[op]);
+      }
+      if (out->statement_count == 1)
+        strcpy(out->operation, current_operation);
+      else if (strcmp(out->operation, current_operation))
+        mixed_operations = true;
+      if (mixed_operations)
+        *out->operation = 0;
+      if (summary.n)
+        text(&summary, "; ");
+      summarize(&summary, statement, length, 0);
+    }
+    start = end < count ? end + 1 : count;
+  }
+  if (!*out->summary)
+    strcpy(out->summary, "SQL");
+  if (summary.overflow) {
+    utf8_cut(out->summary, SEQUEL_SUMMARY_MAX - 3);
+    strcat(out->summary, "…");
+  }
+  if (!o.keep_in_lists)
+    collapse_in(safe);
+  if (!o.omit_query_text) {
+    size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
+    out->truncated = strlen(safe) > limit;
+    utf8_cut(safe, limit);
+    strcpy(out->text, safe);
+  }
+  status = SEQUEL_OK;
+done:
+  free(safe);
+  free(shape);
+  free(tokens);
+  return status;
+}
