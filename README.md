@@ -7,7 +7,7 @@ and ClickHouse. No database or telemetry runtime is required.
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
-python -m pip install -r tests/requirements-format.txt
+uv pip install --system -r tests/requirements-format.txt
 ctest --test-dir build -C Release --output-on-failure
 cmake --install build --prefix ./install
 ```
@@ -72,8 +72,8 @@ a C compiler but no installed sequel library. Run `go test ./...` from this root
 ## Python
 
 ```sh
-python -m pip install .
-python -m pytest
+uv sync --extra test
+uv run --extra test pytest
 ```
 
 The distribution is `sequel`; its import is `sequel`.
@@ -86,7 +86,7 @@ print(format_sql("select a,b from users", dialect=Dialect.POSTGRESQL))
 ```
 
 Source installs compile the same C engine. Neither binding depends on gotel.
-Gotel retains compatible facades and owns the OpenTelemetry adapters.
+Gotel imports sequel directly and owns the OpenTelemetry adapters.
 
 ## Tests and provenance
 
@@ -95,3 +95,13 @@ The CTest suite owns the formatting, sanitization, ClickHouse, adversarial,
 mutation and production regression corpora, plus API and CLI tests. Go and Python
 own their binding tests here. Former Go summary tables and the complete named
 SQLC corpus also run through the public C API, independently of the bindings.
+
+## Development tools
+
+Run `uv sync --extra test --locked`. The locked development tools include
+clang-format, Ruff and ty; gofmt comes with Go. `uv run python scripts/style.py`
+checks C and Go formatting, Python formatting/lint and types. Add `--fix` to
+apply formatting. CI runs those checks, static/shared C tests, binding tests,
+three Go fuzz targets, and AddressSanitizer/UndefinedBehaviorSanitizer tests.
+After editing native sources, run `uv run python scripts/sync_native.py` to
+refresh cgo's engine fingerprint. Python's uv cache tracks the C sources too.

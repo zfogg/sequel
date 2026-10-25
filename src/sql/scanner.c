@@ -1,7 +1,7 @@
 /* Keep numbers only for the structural parser's row bounds. No such buffer is
  * exported as query text. Both modes scan the entire input before truncation. */
-static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, bool numbers,
-                            bool remove_comments, bool replace_literals, output *b) {
+static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, bool numbers, bool remove_comments,
+                            bool replace_literals, output *b) {
   bool space = false;
   int arrays = 0;
   bool clickhouse_insert = false;
@@ -16,14 +16,18 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
          ((s[i] == '-' && s[i + 1] == '-') || (dialect == SEQUEL_CLICKHOUSE && s[i] == '/' && s[i + 1] == '/'))) ||
         ((dialect == SEQUEL_MYSQL || dialect == SEQUEL_CLICKHOUSE) && s[i] == '#')) {
       size_t start = i;
-      while (i < n && s[i] != '\n') ++i;
+      while (i < n && s[i] != '\n')
+        ++i;
       if (!remove_comments) {
-        if (space && b->n) text(b, " ");
+        if (space && b->n)
+          text(b, " ");
         put(b, s + start, i - start);
         /* Retained line comments must not swallow the following statement. */
-        if (i < n) put(b, s + i++, 1);
+        if (i < n)
+          put(b, s + i++, 1);
         space = false;
-      } else space = true;
+      } else
+        space = true;
       continue;
     }
     if (i + 1 < n && s[i] == '/' && s[i + 1] == '*') {
@@ -41,12 +45,15 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
         } else
           ++i;
       }
-      if (depth) return false;
+      if (depth)
+        return false;
       if (!remove_comments) {
-        if (space && b->n) text(b, " ");
+        if (space && b->n)
+          text(b, " ");
         put(b, s + start, i - start);
         space = false;
-      } else space = true;
+      } else
+        space = true;
       continue;
     }
     if (space && b->n)
@@ -60,7 +67,10 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
           ++k;
         if (k + tag > n)
           return false;
-        if (replace_literals) text(b, "?"); else put(b, s + i, k + tag - i);
+        if (replace_literals)
+          text(b, "?");
+        else
+          put(b, s + i, k + tag - i);
         i = k + tag;
         continue;
       }
@@ -92,7 +102,10 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
       size_t end = quoted(s, n, quote, s[quote], true);
       if (!end)
         return false;
-      if (replace_literals) text(b, "?"); else put(b, s + i, end - i);
+      if (replace_literals)
+        text(b, "?");
+      else
+        put(b, s + i, end - i);
       i = end;
       continue;
     }
@@ -115,7 +128,10 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
       size_t parameter = clickhouse_parameter(s, n, i);
       if (!parameter)
         return false;
-      if (replace_literals) text(b, "?"); else put(b, s + i, parameter - i);
+      if (replace_literals)
+        text(b, "?");
+      else
+        put(b, s + i, parameter - i);
       i = parameter;
       continue;
     }
@@ -127,8 +143,7 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
     } else if ((c == ':' || c == '@' || c == '$') && i + 1 < n && letter((unsigned char)s[i + 1]) &&
                !(c == ':' && i && s[i - 1] == ':')) {
       end = i + 2;
-      while (end < n && part((unsigned char)s[end]) &&
-             !(dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, end)))
+      while (end < n && part((unsigned char)s[end]) && !(dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, end)))
         ++end;
       /* SQLite permits Tcl variable suffixes; remove those rather than emit values. */
       if (c == '$' && dialect == SEQUEL_SQLITE) {
@@ -155,7 +170,10 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
         end = j + 2;
     }
     if (end > i) {
-      if (replace_literals) text(b, "?"); else put(b, s + i, end - i);
+      if (replace_literals)
+        text(b, "?");
+      else
+        put(b, s + i, end - i);
       i = end;
       continue;
     }
@@ -163,15 +181,16 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
       end = dialect_number_end(s, n, i, dialect);
       if (numbers || !replace_literals)
         put(b, s + i, end - i);
+      else if (replace_literals)
+        text(b, "?");
       else
-        if (replace_literals) text(b, "?"); else put(b, s + i, end - i);
+        put(b, s + i, end - i);
       i = end;
       continue;
     }
     if (letter(c) || c >= 128) {
       end = i + 1;
-      while (end < n && part((unsigned char)s[end]) &&
-             !(dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, end)))
+      while (end < n && part((unsigned char)s[end]) && !(dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, end)))
         ++end;
       if (dialect == SEQUEL_CLICKHOUSE) {
         if (equal(s + i, end - i, "INSERT"))
@@ -181,7 +200,8 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
         if (clickhouse_insert && equal(s + i, end - i, "FORMAT"))
           return false;
       }
-      if (replace_literals && (equal(s + i, end - i, "TRUE") || equal(s + i, end - i, "FALSE") || equal(s + i, end - i, "NULL")))
+      if (replace_literals &&
+          (equal(s + i, end - i, "TRUE") || equal(s + i, end - i, "FALSE") || equal(s + i, end - i, "NULL")))
         text(b, "?");
       else
         put(b, s + i, end - i);

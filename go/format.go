@@ -1,7 +1,7 @@
 package sequel
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../include -I${SRCDIR}/../vendor
+#cgo CFLAGS: -I${SRCDIR}/../include -I${SRCDIR}/../third_party
 #include <stdlib.h>
 #include <sequel.h>
 */

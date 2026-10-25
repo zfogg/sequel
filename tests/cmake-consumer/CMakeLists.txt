@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.24)
+project(sequel_consumer LANGUAGES C)
+find_package(sequel CONFIG REQUIRED)
+add_executable(consumer main.c)
+target_link_libraries(consumer PRIVATE sequel::sequel)
+enable_testing()
+add_test(NAME installed-sequel COMMAND consumer)
+if(WIN32)
+  set_property(TEST installed-sequel APPEND PROPERTY ENVIRONMENT_MODIFICATION
+    "PATH=path_list_prepend:$<TARGET_FILE_DIR:sequel::sequel>")
+endif()

@@ -29,18 +29,18 @@ typedef struct stat file_info;
 #endif
 
 #define MAX_SQL (1024 * 1024)
-static const char usage[] =
-    "Usage:\n"
-    "  sequel format [--dialect DIALECT] [SQL]\n"
-    "  sequel format [--dialect DIALECT] --edit-file PATH\n"
-    "  sequel format --embedded [--language LANGUAGE] [--dialect DIALECT] "
-    "FILE\n"
-    "  sequel sanitize [--remove-comments] [--replace-literals] [--dialect DIALECT] [SQL]\n\n"
-    "SQL may be supplied as one argument or piped on stdin.\n"
-    "Dialects: generic, postgresql, sqlite, mysql, duckdb, clickhouse.\n"
-    "Languages (case-insensitive): go, c, c++, cpp, python, javascript, "
-    "typescript, rust, haskell, clojure.\n"
-    "--edit-file preserves newlines, comments, literals and indentation.\n";
+static const char usage[] = "Usage:\n"
+                            "  sequel format [OPTIONS] [SQL | PATH ...]\n"
+                            "  sequel sanitize [OPTIONS] [SQL | PATH ...]\n\n"
+                            "Read piped or redirected stdin when no SQL or paths are supplied.\n"
+                            "Files are read in argument order and results go to stdout by default.\n"
+                            "  --edit-file         Modify each path in place; no stdout output.\n"
+                            "  --embedded          Transform SQL inside host-language source.\n"
+                            "  --language LANGUAGE Set source language for strings or stdin.\n"
+                            "  --dialect DIALECT   generic, postgresql, sqlite, mysql, duckdb, clickhouse.\n"
+                            "Sanitize: --remove-comments and --replace-literals select transformations.\n"
+                            "With neither selection flag, sanitize applies both.\n"
+                            "Languages: go, c, c++, cpp, python, javascript, typescript, rust, haskell, clojure.\n";
 
 static int error(const char *message) {
   fprintf(stderr, "sequel: %s\n", message);
@@ -52,8 +52,7 @@ static int error(const char *message) {
 static wchar_t *wide_path(const char *path) {
   int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);
   wchar_t *wide = n ? malloc((size_t)n * sizeof(*wide)) : NULL;
-  if (wide &&
-      !MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, n)) {
+  if (wide && !MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, n)) {
     free(wide);
     return NULL;
   }
@@ -67,22 +66,17 @@ static FILE *open_input(const char *path) {
 }
 static int create_temp(const char *path) {
   wchar_t *wide = wide_path(path);
-  int fd = wide ? _wopen(wide, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY,
-                         _S_IREAD | _S_IWRITE)
-                : -1;
+  int fd = wide ? _wopen(wide, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE) : -1;
   free(wide);
   return fd;
 }
-static int finish_temp(const char *temp, const char *path, file_info *info,
-                       int failed) {
+static int finish_temp(const char *temp, const char *path, file_info *info, int failed) {
   wchar_t *from = wide_path(temp), *to = wide_path(path);
   if (!from || !to)
     failed = 1;
   if (!failed && _wchmod(from, info->st_mode & (_S_IREAD | _S_IWRITE)))
     failed = 1;
-  if (!failed &&
-      !MoveFileExW(from, to,
-                   MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+  if (!failed && !MoveFileExW(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
     failed = 1;
   if (failed && from) {
     /* A read-only original can reject replacement after chmod of the sibling.
@@ -106,8 +100,7 @@ static int regular_file(const char *path, file_info *info) {
   DWORD attributes = GetFileAttributesW(wide);
   int status = _wstat(wide, info);
   free(wide);
-  if (attributes == INVALID_FILE_ATTRIBUTES ||
-      (attributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)))
+  if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)))
     return 0;
   return status == 0 && (info->st_mode & S_IFMT) == S_IFREG;
 #else
@@ -117,15 +110,13 @@ static int regular_file(const char *path, file_info *info) {
 
 /* Create an exclusive sibling and finish all writes before replacing the
  * original. Failed formatting or writes never truncate the original file. */
-static int replace_file(const char *path, const char *sql, size_t n,
-                        file_info *info) {
+static int replace_file(const char *path, const char *sql, size_t n, file_info *info) {
   char *temp = malloc(strlen(path) + 64);
   if (!temp)
     return error("out of memory");
   int fd = -1;
   for (unsigned i = 0; i < 100; ++i) {
-    snprintf(temp, strlen(path) + 64, "%s.gotel-%ld-%u.tmp", path,
-             (long)getpid(), i);
+    snprintf(temp, strlen(path) + 64, "%s.gotel-%ld-%u.tmp", path, (long)getpid(), i);
 #ifdef _WIN32
     fd = create_temp(temp);
 #else
@@ -169,88 +160,15 @@ static int replace_file(const char *path, const char *sql, size_t n,
   return failed ? error("cannot replace file; original retained") : 0;
 }
 
-static int run(int argc, char **argv) {
-  if (argc == 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))) {
-    fputs(usage, stdout);
-    return 0;
-  }
-  if (argc < 2 ||
-      (strcmp(argv[1], "format") && strcmp(argv[1], "sanitize")))
-    return error(usage);
-  int format = !strcmp(argv[1], "format");
-  const char *dialect = "generic", *path = NULL, *argument = NULL;
-  int options = 1, embedded = 0;
-  unsigned sanitize_flags = 0;
-  const char *language_name = NULL;
-  for (int i = 2; i < argc; ++i) {
-    const char *arg = argv[i];
-    if (options && (!strcmp(arg, "--help") || !strcmp(arg, "-h"))) {
-      fputs(usage, stdout);
-      return 0;
-    }
-    if (options && !strcmp(arg, "--")) {
-      options = 0;
-      continue;
-    }
-    if (options && (!strcmp(arg, "--remove-comments") || !strcmp(arg, "--replace-literals"))) {
-      if (format) return error("sanitization options require sanitize");
-      sanitize_flags |= !strcmp(arg, "--remove-comments") ? SEQUEL_REMOVE_COMMENTS : SEQUEL_REPLACE_LITERALS;
-      continue;
-    }
-    if (options && !strcmp(arg, "--embedded")) {
-      embedded = 1;
-      continue;
-    }
-    if (options && !strcmp(arg, "--language")) {
-      if (++i == argc || !*argv[i])
-        return error("--language requires a value");
-      language_name = argv[i];
-      continue;
-    }
-    if (options && !strncmp(arg, "--language=", 11)) {
-      language_name = arg + 11;
-      continue;
-    }
-    if (options && (!strcmp(arg, "--dialect") || !strcmp(arg, "--edit-file"))) {
-      if (++i == argc || !*argv[i])
-        return error("option requires a value");
-      if (!strcmp(arg, "--dialect"))
-        dialect = argv[i];
-      else if (!format)
-        return error("--edit-file requires sql format");
-      else
-        path = argv[i];
-    } else if (options && !strncmp(arg, "--dialect=", 10))
-      dialect = arg + 10;
-    else if (options && !strncmp(arg, "--edit-file=", 12) && format && arg[12])
-      path = arg + 12;
-    else if (options && arg[0] == '-')
-      return error("unknown option; use -- before SQL starting with '-'");
-    else if (argument)
-      return error("provide one SQL argument");
-    else
-      argument = arg;
-  }
-  if (path && argument)
-    return error("provide SQL or --edit-file, not both");
-  const char *names[] = {"generic", "sqlite", "postgresql",
-                         "duckdb",  "mysql",  "clickhouse"};
-  int d;
-  for (d = 0; d < 6 && strcmp(dialect, names[d]); ++d) {
-  }
-  if (d == 6)
-    return error("unsupported SQL dialect");
-  if ((embedded || language_name) && !format)
-    return error("--embedded requires sql format");
-  if (language_name && !embedded)
-    return error("--language requires --embedded");
-  const char *source_path = path ? path : (embedded ? argument : NULL);
+static int process_input(int format, int d, int embedded, const char *language_name, unsigned sanitize_flags, int edit,
+                         const char *argument, int source_is_path) {
+  const char *source_path = source_is_path ? argument : NULL;
+  const char *path = edit ? source_path : NULL;
   int language = embedded ? embedded_language(language_name, source_path) : 0;
   if (embedded && !language)
-    return error(
-        "unknown source language; use --language "
-        "go|c|c++|cpp|python|javascript|typescript|rust|haskell|clojure");
-  if (embedded)
+    return error("unknown source language; use --language "
+                 "go|c|c++|cpp|python|javascript|typescript|rust|haskell|clojure");
+  if (source_path)
     argument = NULL;
   file_info info;
   FILE *input = stdin;
@@ -290,28 +208,23 @@ static int run(int argc, char **argv) {
     return error("input read error, NUL or SQL exceeds 1 MiB");
   }
   if (embedded) {
-    char *result = format_embedded(sql, language, d);
+    char *result = transform_embedded(sql, language, d, !format, sanitize_flags);
     if (!result) {
       free(sql);
       return error("cannot safely format embedded source (invalid UTF-8, "
                    "malformed source, unsupported template or output limit)");
     }
-    int status =
-        path ? (strcmp(sql, result)
-                    ? replace_file(path, result, strlen(result), &info)
-                    : 0)
-             : (fwrite(result, 1, strlen(result), stdout) != strlen(result) ||
-                        fflush(stdout) != 0
-                    ? error("cannot write stdout")
-                    : 0);
+    int status = path ? (strcmp(sql, result) ? replace_file(path, result, strlen(result), &info) : 0)
+                      : (fwrite(result, 1, strlen(result), stdout) != strlen(result) || fflush(stdout) != 0
+                             ? error("cannot write stdout")
+                             : 0);
     free(result);
     free(sql);
     return status;
   }
   size_t capacity = n + 2, length = 0;
   if (format && !path) {
-    if (sequel_format(sql, (sequel_dialect_t)d, NULL, 0, &length) !=
-        SEQUEL_OK) {
+    if (sequel_format(sql, (sequel_dialect_t)d, NULL, 0, &length) != SEQUEL_OK) {
       free(sql);
       return error("invalid or unsupported SQL");
     }
@@ -322,16 +235,14 @@ static int run(int argc, char **argv) {
     free(sql);
     return error("out of memory");
   }
-  if (path)
+  if (path && format)
     failed = sequel_compact(sql, (sequel_dialect_t)d, out, capacity) != SEQUEL_OK;
   else if (format)
-    failed = sequel_format(sql, (sequel_dialect_t)d, out, capacity,
-                              &length) != SEQUEL_OK;
+    failed = sequel_format(sql, (sequel_dialect_t)d, out, capacity, &length) != SEQUEL_OK;
   else {
     bool truncated = false;
-    failed = sequel_sanitize_with_flags(sql, (sequel_dialect_t)d,
-                                sanitize_flags ? sanitize_flags : SEQUEL_SANITIZE_ALL, true, capacity - 1,
-                                out, capacity, &truncated) != SEQUEL_OK;
+    failed = sequel_sanitize_with_flags(sql, (sequel_dialect_t)d, sanitize_flags, true, capacity - 1, out, capacity,
+                                        &truncated) != SEQUEL_OK;
     failed |= truncated;
   }
   int result;
@@ -340,12 +251,112 @@ static int run(int argc, char **argv) {
   else if (path)
     result = strcmp(sql, out) ? replace_file(path, out, strlen(out), &info) : 0;
   else
-    result = fwrite(out, 1, strlen(out), stdout) != strlen(out) ||
-                     fflush(stdout) != 0
-                 ? error("cannot write stdout")
-                 : 0;
+    result =
+        fwrite(out, 1, strlen(out), stdout) != strlen(out) || fflush(stdout) != 0 ? error("cannot write stdout") : 0;
   free(sql);
   free(out);
+  return result;
+}
+
+static int run_with_inputs(int argc, char **argv, const char **inputs) {
+  if (argc == 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))) {
+    fputs(usage, stdout);
+    return 0;
+  }
+  if (argc < 2 || (strcmp(argv[1], "format") && strcmp(argv[1], "sanitize")))
+    return error(usage);
+  int format = !strcmp(argv[1], "format"), options = 1, embedded = 0, edit = 0, count = 0;
+  const char *dialect = "generic", *language_name = NULL;
+  unsigned flags = 0;
+  for (int i = 2; i < argc; ++i) {
+    const char *arg = argv[i];
+    if (options && (!strcmp(arg, "--help") || !strcmp(arg, "-h"))) {
+      fputs(usage, stdout);
+      return 0;
+    }
+    if (options && !strcmp(arg, "--")) {
+      options = 0;
+      continue;
+    }
+    if (options && !strcmp(arg, "--edit-file")) {
+      edit = 1;
+      continue;
+    }
+    if (options && !strncmp(arg, "--edit-file=", 12)) {
+      if (!arg[12])
+        return error("--edit-file requires paths");
+      edit = 1;
+      inputs[count++] = arg + 12;
+      continue;
+    }
+    if (options && !strcmp(arg, "--embedded")) {
+      embedded = 1;
+      continue;
+    }
+    if (options && (!strcmp(arg, "--remove-comments") || !strcmp(arg, "--replace-literals"))) {
+      if (format)
+        return error("sanitization options require sanitize");
+      flags |= !strcmp(arg, "--remove-comments") ? SEQUEL_REMOVE_COMMENTS : SEQUEL_REPLACE_LITERALS;
+      continue;
+    }
+    if (options && (!strcmp(arg, "--dialect") || !strcmp(arg, "--language"))) {
+      if (++i == argc || !*argv[i])
+        return error("option requires a value");
+      if (!strcmp(arg, "--dialect"))
+        dialect = argv[i];
+      else
+        language_name = argv[i];
+      continue;
+    }
+    if (options && !strncmp(arg, "--dialect=", 10)) {
+      dialect = arg + 10;
+      continue;
+    }
+    if (options && !strncmp(arg, "--language=", 11)) {
+      language_name = arg + 11;
+      continue;
+    }
+    if (options && arg[0] == '-')
+      return error("unknown option; use -- before input starting with '-'");
+    inputs[count++] = arg;
+  }
+  if (language_name && !embedded)
+    return error("--language requires --embedded");
+  if (edit && !count)
+    return error("--edit-file requires one or more paths");
+  const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};
+  int d;
+  for (d = 0; d < 6 && strcmp(dialect, names[d]); ++d) {
+  }
+  if (d == 6)
+    return error("unsupported SQL dialect");
+  if (!flags)
+    flags = SEQUEL_SANITIZE_ALL;
+  if (!count)
+    return process_input(format, d, embedded, language_name, flags, 0, NULL, 0);
+  int result = 0;
+  for (int i = 0; i < count; ++i) {
+    file_info info;
+    const char *extension = strrchr(inputs[i], '.');
+    int from_path = count > 1 || edit || regular_file(inputs[i], &info) ||
+                    (extension && !strcmp(extension, ".sql") && !strpbrk(inputs[i], " \t\r\n"));
+    /* Embedded source can also be passed as a string. Existing files and
+     * multiple arguments are paths; language inference requires a path. */
+    if (embedded && !language_name)
+      from_path = 1;
+    int status = process_input(format, d, embedded, language_name, flags, edit, inputs[i], from_path);
+    if (status && from_path)
+      fprintf(stderr, "sequel: failed: %s\n", inputs[i]);
+    result |= status;
+  }
+  return result;
+}
+static int run(int argc, char **argv) {
+  const char **inputs = calloc((size_t)argc + 1, sizeof(*inputs));
+  if (!inputs)
+    return error("out of memory");
+  int result = run_with_inputs(argc, argv, inputs);
+  free(inputs);
   return result;
 }
 
@@ -357,16 +368,13 @@ int main(int argc, char **argv) {
   char **utf8 = calloc((size_t)argc + 1, sizeof(*utf8));
   int failed = !utf8;
   for (int i = 0; !failed && i < argc; ++i) {
-    int n = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide[i], -1,
-                                NULL, 0, NULL, NULL);
+    int n = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide[i], -1, NULL, 0, NULL, NULL);
     utf8[i] = n ? malloc((size_t)n) : NULL;
-    if (!utf8[i] || !WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide[i],
-                                         -1, utf8[i], n, NULL, NULL))
+    if (!utf8[i] || !WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide[i], -1, utf8[i], n, NULL, NULL))
       failed = 1;
   }
   LocalFree(wide);
-  int result =
-      failed ? error("cannot decode Unicode command line") : run(argc, utf8);
+  int result = failed ? error("cannot decode Unicode command line") : run(argc, utf8);
   if (utf8) {
     for (int i = 0; i < argc; ++i)
       free(utf8[i]);

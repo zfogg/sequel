@@ -1,10 +1,14 @@
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity) {
-  if (!sql || !out) return SEQUEL_ERR_NULL;
-  if (!capacity || dialect < SEQUEL_GENERIC || dialect > SEQUEL_CLICKHOUSE) return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!sql || !out)
+    return SEQUEL_ERR_NULL;
+  if (!capacity || dialect < SEQUEL_GENERIC || dialect > SEQUEL_CLICKHOUSE)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   *out = 0;
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n]) ++n;
-  if (n > INPUT_MAX) return SEQUEL_ERR_OVERFLOW;
+  while (n <= INPUT_MAX && sql[n])
+    ++n;
+  if (n > INPUT_MAX)
+    return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
@@ -31,6 +35,9 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
   }
   put(&b, previous, n - (size_t)(previous - sql));
   free(ts);
-  if (b.overflow) { *out = 0; return SEQUEL_ERR_OVERFLOW; }
+  if (b.overflow) {
+    *out = 0;
+    return SEQUEL_ERR_OVERFLOW;
+  }
   return SEQUEL_OK;
 }

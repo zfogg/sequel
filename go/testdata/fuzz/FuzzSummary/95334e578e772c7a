@@ -1,0 +1,2 @@
+go test fuzz v1
+string("SELECT * FROM a JOIN b ON CASE WHEN NG(ia.id>1 THEN b.id ELSE a.id END=a.id LEFT JOIN c USING(id)")

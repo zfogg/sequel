@@ -2,6 +2,7 @@
 
 These are lexical/metadata tests; they do not claim server execution coverage.
 """
+
 import json
 import re
 import subprocess
@@ -67,4 +68,4 @@ for limit in (1, 7, 32):
         if not case["safe"]:
             assert int(result[0]) != 0 and not result[4], case["name"]
 
-print(f"ClickHouse: {len(valid)} accepted, {len(cases)-len(valid)} rejected; round trips and byte caps passed")
+print(f"ClickHouse: {len(valid)} accepted, {len(cases) - len(valid)} rejected; round trips and byte caps passed")

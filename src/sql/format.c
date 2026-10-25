@@ -81,8 +81,7 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
         kind = 2;
       }
       /* PostgreSQL dollar strings must be recognized before $parameters. */
-      if (c == '$' &&
-          (d == SEQUEL_POSTGRESQL || d == SEQUEL_DUCKDB || d == SEQUEL_CLICKHOUSE || d == SEQUEL_GENERIC)) {
+      if (c == '$' && (d == SEQUEL_POSTGRESQL || d == SEQUEL_DUCKDB || d == SEQUEL_CLICKHOUSE || d == SEQUEL_GENERIC)) {
         size_t tag = dollar_tag_end(s, n, i, d);
         if (tag) {
           size_t len = tag - i + 1;
@@ -127,9 +126,8 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
       }
       if (!kind && strchr("~!#%^&|+-*/<>=@", c) && !(c == '@' && end < n && letter((unsigned char)s[end]))) {
         while (end < n && strchr("~!#%^&|+-*/<>=@", s[end])) {
-          if (end + 1 < n &&
-              ((s[end] == '/' && (s[end + 1] == '*' || (d == SEQUEL_CLICKHOUSE && s[end + 1] == '/'))) ||
-               (s[end] == '-' && s[end + 1] == '-')))
+          if (end + 1 < n && ((s[end] == '/' && (s[end + 1] == '*' || (d == SEQUEL_CLICKHOUSE && s[end + 1] == '/'))) ||
+                              (s[end] == '-' && s[end + 1] == '-')))
             break;
           ++end;
         }
@@ -144,8 +142,7 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
             --end;
         kind = 5;
       }
-      if (!kind &&
-          (c == '\'' || c == '"' || c == '`' || (c == '[' && (d == SEQUEL_SQLITE || d == SEQUEL_GENERIC)))) {
+      if (!kind && (c == '\'' || c == '"' || c == '`' || (c == '[' && (d == SEQUEL_SQLITE || d == SEQUEL_GENERIC)))) {
         bool escape =
             d == SEQUEL_MYSQL || d == SEQUEL_CLICKHOUSE ||
             (c == '\'' && i && (s[i - 1] == 'e' || s[i - 1] == 'E') && (i == 1 || !part((unsigned char)s[i - 2])));
@@ -536,8 +533,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   return !case_count && !b->overflow;
 }
 
-sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity,
-                               size_t *length) {
+sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length) {
   if (out && capacity)
     *out = 0;
   if (!sql || !length)

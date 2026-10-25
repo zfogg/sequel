@@ -20,7 +20,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - uses: astral-sh/setup-uv@v6
-      - run: python -m pip install -r tests/requirements-format.txt
+      - run: uv pip install --system -r tests/requirements-format.txt
       - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=${{ matrix.shared }}
       - run: cmake --build build --config Debug --parallel 4
       - run: ctest --test-dir build -C Debug --output-on-failure --parallel 4
@@ -28,7 +28,11 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
       - run: uv run --extra test pytest -q
+      - run: uv run --extra test python scripts/style.py
       - run: uv build
+      - run: cmake -S tests/cmake-consumer -B build-consumer -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install
+      - run: cmake --build build-consumer --config Debug
+      - run: ctest --test-dir build-consumer -C Debug --output-on-failure
   fuzz:
     runs-on: ubuntu-latest
     steps:
@@ -40,3 +44,11 @@ jobs:
       - run: go test ./go -run '^$' -fuzz FuzzSanitizeDoesNotRetainQuotedPayload -fuzztime 10s
       - run: go test ./go -run '^$' -fuzz FuzzFormatSQL -fuzztime 10s
       - run: go test ./go -run '^$' -fuzz FuzzSummary -fuzztime 10s
+
+  sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
+      - run: cmake --build build --parallel 4
+      - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective)$' --output-on-failure

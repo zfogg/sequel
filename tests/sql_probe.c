@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
     }
     sequel_metadata_t metadata;
     sequel_options_t options = {.dialect = (sequel_dialect_t)dialect,
-                                   .max_query_text_bytes = limit,
-                                   .omit_query_text = omit != 0,
-                                   .keep_in_lists = keep != 0};
+                                .max_query_text_bytes = limit,
+                                .omit_query_text = omit != 0,
+                                .keep_in_lists = keep != 0};
     sequel_status_t status = sequel_inspect(query, &options, &metadata);
     printf("%d %d %zu ", (int)status, (int)metadata.truncated, metadata.statement_count);
     hex(metadata.operation);

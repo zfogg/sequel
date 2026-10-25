@@ -1,7 +1,7 @@
 package sequel
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../include -I${SRCDIR}/../vendor -DUTF8PROC_STATIC
+#cgo CFLAGS: -I${SRCDIR}/../include -I${SRCDIR}/../third_party -DUTF8PROC_STATIC
 #include <stdlib.h>
 #include <sequel.h>
 */

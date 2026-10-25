@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 import sequel as sqltrace
 from sequel import Dialect, SQLInspectionError
 
@@ -167,13 +166,17 @@ def test_shared_corpus():
         assert query.operation == case["operation"]
 
 
-@pytest.mark.parametrize("comments,literals,want", [
-    (True, True, "SELECT ?, ?, ? FROM t"),
-    (True, False, "SELECT 'secret', 42, $1 FROM t"),
-    (False, True, "/* private */ SELECT ?, ?, ? -- private\nFROM t"),
-    (False, False, "/* private */ SELECT 'secret', 42, $1 -- private\nFROM t"),
-])
+@pytest.mark.parametrize(
+    "comments,literals,want",
+    [
+        (True, True, "SELECT ?, ?, ? FROM t"),
+        (True, False, "SELECT 'secret', 42, $1 FROM t"),
+        (False, True, "/* private */ SELECT ?, ?, ? -- private\nFROM t"),
+        (False, False, "/* private */ SELECT 'secret', 42, $1 -- private\nFROM t"),
+    ],
+)
 def test_selective_sanitize(comments, literals, want):
     sql = "/* private */ SELECT 'secret', 42, $1 -- private\nFROM t"
-    assert sqltrace.sanitize(sql, dialect=Dialect.POSTGRESQL,
-                            remove_comments=comments, replace_literals=literals) == want
+    assert (
+        sqltrace.sanitize(sql, dialect=Dialect.POSTGRESQL, remove_comments=comments, replace_literals=literals) == want
+    )

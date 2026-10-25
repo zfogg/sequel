@@ -58,7 +58,7 @@ static size_t clause_end(token *t, size_t n, size_t i) {
     if (boundary(t[i]))
       break;
   }
-  return i;
+  return i < n ? i : n;
 }
 static bool query_start(token t) {
   return kw(t, "SELECT") || kw(t, "WITH") || kw(t, "INSERT") || kw(t, "UPDATE") || kw(t, "DELETE") || kw(t, "MERGE") ||
@@ -234,6 +234,9 @@ static void relations(output *b, token *t, size_t n, unsigned depth) {
         if (!cases && (join_at(t, n, i) > i || sym(t[i], ',')))
           break;
       }
+      /* An unmatched group can advance the loop past its final token. */
+      if (i > n)
+        i = n;
       expression(b, t + start, i - start, depth + 1);
     } else
       ++i;

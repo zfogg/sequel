@@ -69,26 +69,24 @@ static int sql_candidate(const char *s) {
     s += 6;
     while (isspace((unsigned char)*s))
       ++s;
-    return hasword(s, "FROM") || hasword(s, "AS") ||
-           isdigit((unsigned char)*s) || *s == '\'' || *s == '"' || *s == '*' ||
-           strchr(s, '(') != NULL;
+    return hasword(s, "FROM") || hasword(s, "AS") || isdigit((unsigned char)*s) || *s == '\'' || *s == '"' ||
+           *s == '*' || strchr(s, '(') != NULL;
   }
-  return (word(s, "WITH") && hasword(s, "SELECT")) ||
-         (word(s, "INSERT") && hasword(s, "INTO")) ||
-         (word(s, "UPDATE") && hasword(s, "SET")) ||
-         (word(s, "DELETE") && hasword(s, "FROM")) ||
-         (word(s, "CREATE") &&
-          (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
+  return (word(s, "WITH") && hasword(s, "SELECT")) || (word(s, "INSERT") && hasword(s, "INTO")) ||
+         (word(s, "UPDATE") && hasword(s, "SET")) || (word(s, "DELETE") && hasword(s, "FROM")) ||
+         (word(s, "CREATE") && (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
          (word(s, "ALTER") && hasword(s, "TABLE")) ||
-         (word(s, "DROP") &&
-          (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
-         (word(s, "EXPLAIN") && hasword(s, "SELECT")) ||
-         (word(s, "TRUNCATE") && hasword(s, "TABLE")) || word(s, "PRAGMA") ||
-         (word(s, "REPLACE") && hasword(s, "INTO"));
+         (word(s, "DROP") && (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
+         (word(s, "EXPLAIN") && hasword(s, "SELECT")) || (word(s, "TRUNCATE") && hasword(s, "TABLE")) ||
+         word(s, "PRAGMA") || (word(s, "REPLACE") && hasword(s, "INTO"));
 }
-static char *format_sql(const char *s, int dialect) {
-  if (!sql_candidate(s) || strstr(s, "{{") || strstr(s, "{}") ||
-      strstr(s, "{:"))
+typedef struct {
+  int dialect, sanitize, failed;
+  unsigned flags;
+} sql_transform;
+static char *format_sql(const char *s, sql_transform *policy) {
+  int dialect = policy->dialect;
+  if (!sql_candidate(s) || strstr(s, "{{") || strstr(s, "{}") || strstr(s, "{:"))
     return NULL;
   for (size_t i = 0; s[i] && s[i + 1]; ++i) {
     if (s[i] == '\'' || s[i] == '"' || s[i] == '`') {
@@ -120,15 +118,30 @@ static char *format_sql(const char *s, int dialect) {
     if (s[p] && strchr("sdvfxXqTbgopacCeEGrtuwUO", s[p]))
       return NULL;
   }
+  if (policy->sanitize) {
+    size_t n = strlen(s);
+    char *out = malloc(n + 2);
+    if (!out) {
+      policy->failed = 1;
+      return NULL;
+    }
+    bool truncated;
+    sequel_status_t status =
+        sequel_sanitize_with_flags(s, (sequel_dialect_t)dialect, policy->flags, true, n + 1, out, n + 2, &truncated);
+    if (status != SEQUEL_OK || truncated) {
+      free(out);
+      policy->failed = 1;
+      return NULL;
+    }
+    return out;
+  }
   size_t length;
-  if (sequel_format(s, (sequel_dialect_t)dialect, NULL, 0, &length) !=
-      SEQUEL_OK)
+  if (sequel_format(s, (sequel_dialect_t)dialect, NULL, 0, &length) != SEQUEL_OK)
     return NULL;
   char *out = malloc(length + 1);
   if (!out)
     return NULL;
-  if (sequel_format(s, (sequel_dialect_t)dialect, out, length + 1,
-                       &length) != SEQUEL_OK) {
+  if (sequel_format(s, (sequel_dialect_t)dialect, out, length + 1, &length) != SEQUEL_OK) {
     free(out);
     return NULL;
   }
@@ -154,8 +167,7 @@ int embedded_language(const char *name, const char *path) {
       return C;
   if (!strcmp(lower, "python") || !strcmp(lower, "py"))
     return PY;
-  if (!strcmp(lower, "javascript") || !strcmp(lower, "js") ||
-      !strcmp(lower, "mjs"))
+  if (!strcmp(lower, "javascript") || !strcmp(lower, "js") || !strcmp(lower, "mjs"))
     return JS;
   if (!strcmp(lower, "typescript") || !strcmp(lower, "ts"))
     return TS;
@@ -163,8 +175,8 @@ int embedded_language(const char *name, const char *path) {
     return RUST;
   if (!strcmp(lower, "haskell") || !strcmp(lower, "hs"))
     return HS;
-  if (!strcmp(lower, "clojure") || !strcmp(lower, "clj") ||
-      !strcmp(lower, "cljs") || !strcmp(lower, "cljc") || !strcmp(lower, "edn"))
+  if (!strcmp(lower, "clojure") || !strcmp(lower, "clj") || !strcmp(lower, "cljs") || !strcmp(lower, "cljc") ||
+      !strcmp(lower, "edn"))
     return CLOJURE;
   return 0;
 }
@@ -175,8 +187,7 @@ typedef struct {
 } literal;
 /* Interpolation is opaque, but its nested strings/comments/braces must be
  * scanned so a nested template cannot masquerade as a separate SQL string. */
-static size_t template_end(const char *s, size_t n, size_t start,
-                           unsigned depth, int *dynamic) {
+static size_t template_end(const char *s, size_t n, size_t start, unsigned depth, int *dynamic) {
   if (depth >= 64)
     return SIZE_MAX;
   for (size_t i = start + 1; i < n; ++i) {
@@ -277,14 +288,12 @@ static size_t template_end(const char *s, size_t n, size_t start,
   }
   return SIZE_MAX;
 }
-static int scan_literal(const char *s, size_t n, size_t start, int lang,
-                        literal *l) {
+static int scan_literal(const char *s, size_t n, size_t start, int lang, literal *l) {
   memset(l, 0, sizeof(*l));
   l->start = start;
   l->quote = s[start];
   l->raw = lang == GO && s[start] == '`';
-  l->triple = lang == PY && start + 2 < n && s[start + 1] == s[start] &&
-              s[start + 2] == s[start];
+  l->triple = lang == PY && start + 2 < n && s[start + 1] == s[start] && s[start + 2] == s[start];
   l->body = start + (l->triple ? 3 : 1);
   if ((lang == JS || lang == TS) && s[start] == '`') {
     int dynamic = 0;
@@ -320,8 +329,7 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang,
     return 1;
   }
 
-  if ((lang == GO || lang == C || lang == RUST || lang == HS) &&
-      s[start] == '\'')
+  if ((lang == GO || lang == C || lang == RUST || lang == HS) && s[start] == '\'')
     l->skip = 1;
   if (lang == RUST) {
     size_t p = start;
@@ -380,14 +388,12 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang,
         ++i;
       continue;
     }
-    if (s[i] == l->quote && (!l->triple || (i + 2 < n && s[i + 1] == l->quote &&
-                                            s[i + 2] == l->quote))) {
+    if (s[i] == l->quote && (!l->triple || (i + 2 < n && s[i + 1] == l->quote && s[i + 2] == l->quote))) {
       l->end = i;
       l->tail = i + (l->triple ? 3 : 1);
       return 1;
     }
-    if (s[i] == '\n' && lang != CLOJURE && !l->triple && !l->raw &&
-        !(s[start] == '`' && (lang == JS || lang == TS)))
+    if (s[i] == '\n' && lang != CLOJURE && !l->triple && !l->raw && !(s[start] == '`' && (lang == JS || lang == TS)))
       return 0;
   }
   return 0;
@@ -454,17 +460,14 @@ static int quoted_character(const char *s, size_t n, size_t i) {
 static int continuation(const char *s) {
   if (*s == ' ' || *s == '\t' || *s == ')' || *s == ',')
     return 1;
-  const char *words[] = {"FROM",  "WHERE",  "AND",       "OR",    "JOIN",
-                         "LEFT",  "RIGHT",  "INNER",     "GROUP", "ORDER",
-                         "LIMIT", "OFFSET", "HAVING",    "UNION", "VALUES",
-                         "SET",   "ON",     "RETURNING", NULL};
+  const char *words[] = {"FROM",  "WHERE",  "AND",    "OR",    "JOIN",   "LEFT", "RIGHT", "INNER",     "GROUP", "ORDER",
+                         "LIMIT", "OFFSET", "HAVING", "UNION", "VALUES", "SET",  "ON",    "RETURNING", NULL};
   for (size_t i = 0; words[i]; ++i)
     if (word(s, words[i]))
       return 1;
   return 0;
 }
-static void comment_lines(buffer *out, const char *sql, const char *indent,
-                          size_t indent_n, const char *prefix,
+static void comment_lines(buffer *out, const char *sql, const char *indent, size_t indent_n, const char *prefix,
                           const char *newline) {
   const char *p = sql;
   for (;;) {
@@ -480,7 +483,9 @@ static void comment_lines(buffer *out, const char *sql, const char *indent,
     p = end + 1;
   }
 }
-char *format_embedded(const char *s, int lang, int dialect) {
+char *transform_embedded(const char *s, int lang, int dialect, int sanitize, unsigned flags) {
+  sql_transform context = {dialect, sanitize, 0, flags};
+  sql_transform *policy = &context;
   size_t n = strlen(s);
   if (!sequel_utf8_valid(s, n))
     return NULL;
@@ -488,21 +493,16 @@ char *format_embedded(const char *s, int lang, int dialect) {
   size_t i = 0;
   while (i < n && !out.bad) {
     size_t start = i;
-    int line = (lang == PY && s[i] == '#') ||
-               (lang == CLOJURE && s[i] == ';') ||
+    int line = (lang == PY && s[i] == '#') || (lang == CLOJURE && s[i] == ';') ||
                (lang == HS && s[i] == '-' && i + 1 < n && s[i + 1] == '-') ||
-               ((lang == GO || lang == C || lang == RUST || lang == JS ||
-                 lang == TS) &&
-                s[i] == '/' && i + 1 < n && s[i + 1] == '/');
+               ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n &&
+                s[i + 1] == '/');
     int block = (lang == HS && s[i] == '{' && i + 1 < n && s[i + 1] == '-') ||
-                ((lang == GO || lang == C || lang == RUST || lang == JS ||
-                  lang == TS) &&
-                 s[i] == '/' && i + 1 < n && s[i + 1] == '*');
+                ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n &&
+                 s[i + 1] == '*');
     if (line) {
-      size_t marker = (lang == PY || lang == CLOJURE) ? 1 : 2,
-             body = i + marker;
-      if ((lang == RUST || lang == C) && body < n &&
-          (s[body] == '/' || s[body] == '!'))
+      size_t marker = (lang == PY || lang == CLOJURE) ? 1 : 2, body = i + marker;
+      if ((lang == RUST || lang == C) && body < n && (s[body] == '/' || s[body] == '!'))
         ++body;
       if (lang == CLOJURE)
         while (body < n && s[body] == ';')
@@ -527,8 +527,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
         if (p + marker > n || memcmp(s + p, s + start, marker))
           break;
         p += marker;
-        if ((lang == RUST || lang == C) && p < n &&
-            (s[p] == '/' || s[p] == '!'))
+        if ((lang == RUST || lang == C) && p < n && (s[p] == '/' || s[p] == '!'))
           ++p;
         if (lang == CLOJURE)
           while (p < n && s[p] == ';')
@@ -544,16 +543,13 @@ char *format_embedded(const char *s, int lang, int dialect) {
         append(&query, s + p, q - p);
         tail = q;
       }
-      char *formatted = query.bad ? NULL : format_sql(query.p, dialect);
+      char *formatted = query.bad ? NULL : format_sql(query.p, policy);
       if (formatted) {
         size_t line_start = start;
-        while (line_start && s[line_start - 1] != '\n' &&
-               s[line_start - 1] != '\r')
+        while (line_start && s[line_start - 1] != '\n' && s[line_start - 1] != '\r')
           --line_start;
         size_t indent_n = 0;
-        while (line_start + indent_n < start &&
-               (s[line_start + indent_n] == ' ' ||
-                s[line_start + indent_n] == '\t'))
+        while (line_start + indent_n < start && (s[line_start + indent_n] == ' ' || s[line_start + indent_n] == '\t'))
           ++indent_n;
         append(&out, s + start, body - start);
         char *prefix = malloc(body - start + 1);
@@ -564,8 +560,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
         }
         memcpy(prefix, s + start, body - start);
         prefix[body - start] = 0;
-        comment_lines(&out, formatted, s + line_start, indent_n, prefix,
-                      s[end] == '\r' ? "\r\n" : "\n");
+        comment_lines(&out, formatted, s + line_start, indent_n, prefix, s[end] == '\r' ? "\r\n" : "\n");
         free(prefix);
         free(formatted);
       } else
@@ -575,8 +570,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
       continue;
     }
     if (block) {
-      const char *open = lang == HS ? "{-" : "/*",
-                 *closemark = lang == HS ? "-}" : "*/";
+      const char *open = lang == HS ? "{-" : "/*", *closemark = lang == HS ? "-}" : "*/";
       size_t end = i + 2;
       int depth = 1, nested = 0;
       for (; end + 1 < n; ++end) {
@@ -617,8 +611,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
         }
         p = q;
       }
-      char *formatted =
-          (!nested && !query.bad) ? format_sql(query.p, dialect) : NULL;
+      char *formatted = (!nested && !query.bad) ? format_sql(query.p, policy) : NULL;
       if (formatted) {
         str(&out, open);
         if (lang != HS && s[i + 2] == '*')
@@ -659,11 +652,9 @@ char *format_embedded(const char *s, int lang, int dialect) {
       i = p;
       continue;
     }
-    if (lang == HS && s[i] == '[' && i + 1 < n &&
-        isalpha((unsigned char)s[i + 1])) {
+    if (lang == HS && s[i] == '[' && i + 1 < n && isalpha((unsigned char)s[i + 1])) {
       size_t p = i + 1;
-      while (p < n &&
-             (isalnum((unsigned char)s[p]) || s[p] == '_' || s[p] == '.'))
+      while (p < n && (isalnum((unsigned char)s[p]) || s[p] == '_' || s[p] == '.'))
         ++p;
       if (p < n && s[p] == '|') {
         const char *end = strstr(s + p + 1, "|]");
@@ -676,7 +667,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
           free(query.p);
           goto fail;
         }
-        char *formatted = format_sql(query.p, dialect);
+        char *formatted = format_sql(query.p, policy);
         if (formatted && strstr(formatted, "|]")) {
           free(formatted);
           formatted = NULL;
@@ -701,12 +692,9 @@ char *format_embedded(const char *s, int lang, int dialect) {
       }
     }
     if (s[i] == '\'' &&
-        ((lang == HS && i &&
-          (isalnum((unsigned char)s[i - 1]) || (unsigned char)s[i - 1] >= 128 ||
-           s[i - 1] == '_')) ||
+        ((lang == HS && i && (isalnum((unsigned char)s[i - 1]) || (unsigned char)s[i - 1] >= 128 || s[i - 1] == '_')) ||
          ((lang == RUST || lang == HS) && i + 1 < n &&
-          (isalpha((unsigned char)s[i + 1]) || (unsigned char)s[i + 1] >= 128 ||
-           s[i + 1] == '_') &&
+          (isalpha((unsigned char)s[i + 1]) || (unsigned char)s[i + 1] >= 128 || s[i + 1] == '_') &&
           !quoted_character(s, n, i)))) {
       append(&out, s + i, 1);
       ++i;
@@ -716,15 +704,13 @@ char *format_embedded(const char *s, int lang, int dialect) {
       size_t p = i + 1;
       if (p < n)
         ++p;
-      while (p < n && !isspace((unsigned char)s[p]) && s[p] != ')' &&
-             s[p] != ']' && s[p] != '}')
+      while (p < n && !isspace((unsigned char)s[p]) && s[p] != ')' && s[p] != ']' && s[p] != '}')
         ++p;
       append(&out, s + i, p - i);
       i = p;
       continue;
     }
-    if (s[i] == '"' || (s[i] == '\'' && lang != CLOJURE) ||
-        (s[i] == '`' && (lang == GO || lang == JS || lang == TS))) {
+    if (s[i] == '"' || (s[i] == '\'' && lang != CLOJURE) || (s[i] == '`' && (lang == GO || lang == JS || lang == TS))) {
       literal first, last;
       if (!scan_literal(s, n, i, lang, &first))
         goto fail;
@@ -738,14 +724,12 @@ char *format_embedded(const char *s, int lang, int dialect) {
         while (p < n && isspace((unsigned char)s[p]))
           ++p;
         if (lang == C)
-          while (p + 1 < n && s[p] == '\\' &&
-                 (s[p + 1] == '\n' || s[p + 1] == '\r')) {
+          while (p + 1 < n && s[p] == '\\' && (s[p + 1] == '\n' || s[p + 1] == '\r')) {
             ++p;
             while (p < n && isspace((unsigned char)s[p]))
               ++p;
           }
-        if ((lang == GO || lang == JS || lang == TS || lang == HS) && p < n &&
-            s[p] == '+') {
+        if ((lang == GO || lang == JS || lang == TS || lang == HS) && p < n && s[p] == '+') {
           if (lang == HS && (p + 1 == n || s[p + 1] != '+'))
             break;
           if (lang == HS)
@@ -773,8 +757,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
           ++p;
         if (p < n && s[p] == '+')
           safe = 0;
-        if (safe && (strchr(query.p, '%') || strchr(query.p, '{') ||
-                     strchr(query.p, '}'))) {
+        if (safe && (strchr(query.p, '%') || strchr(query.p, '{') || strchr(query.p, '}'))) {
           size_t begin = i > 1024 ? i - 1024 : 0;
           buffer context = {0};
           append(&context, s + begin, i - begin);
@@ -782,30 +765,23 @@ char *format_embedded(const char *s, int lang, int dialect) {
             safe = 0;
           else {
             if (strchr(query.p, '%') &&
-                (strstr(context.p, "printf") || strstr(context.p, "Printf") ||
-                 strstr(context.p, "format(")))
+                (strstr(context.p, "printf") || strstr(context.p, "Printf") || strstr(context.p, "format(")))
               safe = 0;
-            if (lang == RUST &&
-                (strchr(query.p, '{') || strchr(query.p, '}'))) {
-              const char *macros[] = {
-                  "format!", "format_args!", "write!", "writeln!",
-                  "print!",  "println!",     "panic!", NULL};
+            if (lang == RUST && (strchr(query.p, '{') || strchr(query.p, '}'))) {
+              const char *macros[] = {"format!", "format_args!", "write!", "writeln!",
+                                      "print!",  "println!",     "panic!", NULL};
               for (size_t j = 0; macros[j]; ++j)
                 if (strstr(context.p, macros[j]))
                   safe = 0;
             }
-            if (lang == C && (strstr(context.p, "fmt::format") ||
-                              strstr(context.p, "std::format")))
+            if (lang == C && (strstr(context.p, "fmt::format") || strstr(context.p, "std::format")))
               safe = 0;
           }
           free(context.p);
         }
-        if (safe && lang == PY &&
-            ((p < n && s[p] == '%') ||
-             (p + 7 < n && !memcmp(s + p, ".format", 7))))
+        if (safe && lang == PY && ((p < n && s[p] == '%') || (p + 7 < n && !memcmp(s + p, ".format", 7))))
           safe = 0;
-        char *formatted =
-            safe && !query.bad ? format_sql(query.p, dialect) : NULL;
+        char *formatted = safe && !query.bad ? format_sql(query.p, policy) : NULL;
         if (formatted && first.cppraw) {
           size_t length = first.tail - first.end;
           char *closing = malloc(length + 1);
@@ -823,9 +799,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
           free(closing);
         }
         if (formatted && !first.cppraw && (first.triple || first.raw) &&
-            strstr(formatted, first.triple
-                                  ? (first.quote == '"' ? "\"\"\"" : "'''")
-                                  : "`")) {
+            strstr(formatted, first.triple ? (first.quote == '"' ? "\"\"\"" : "'''") : "`")) {
           free(formatted);
           formatted = NULL;
         }
@@ -868,7 +842,7 @@ char *format_embedded(const char *s, int lang, int dialect) {
     append(&out, s + i, 1);
     ++i;
   }
-  if (out.bad)
+  if (out.bad || policy->failed)
     goto fail;
   if (!out.p)
     str(&out, "");

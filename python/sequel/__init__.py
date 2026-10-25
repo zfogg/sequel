@@ -1,8 +1,12 @@
 """SQL formatting, sanitization and structural inspection using sequel's C engine."""
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import IntEnum
+
 from . import _sql
+
 
 class Dialect(IntEnum):
     GENERIC = 0
@@ -51,8 +55,8 @@ def format_sql_or_original(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> s
         return sql
 
 
-
-def sanitize(sql: str, *, dialect: Dialect = Dialect.GENERIC,
-             remove_comments: bool = True, replace_literals: bool = True) -> str:
+def sanitize(
+    sql: str, *, dialect: Dialect = Dialect.GENERIC, remove_comments: bool = True, replace_literals: bool = True
+) -> str:
     """Select transformations; retained comments or literals may contain secrets."""
     return _sql.sanitize(sql, int(Dialect(dialect)), remove_comments, replace_literals)

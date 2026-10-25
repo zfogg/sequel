@@ -9,7 +9,7 @@ add_executable(sequel-api-test sql_format_api_test.c)
 target_link_libraries(sequel-api-test PRIVATE sequel::sequel)
 add_test(NAME sequel-api COMMAND sequel-api-test)
 if(SEQUEL_BUILD_CLI)
-  foreach(test IN ITEMS binary embedded)
+  foreach(test IN ITEMS binary embedded inputs)
     add_test(NAME sequel-${test} COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_CURRENT_SOURCE_DIR}/test_${test}.py $<TARGET_FILE:sequel-cli>)
   endforeach()

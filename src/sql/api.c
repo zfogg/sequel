@@ -7,9 +7,48 @@ static void utf8_cut(char *s, size_t limit) {
   while (limit && isspace((unsigned char)s[limit - 1]))
     s[--limit] = 0;
 }
-static void collapse_in(char *s) {
+static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
   for (size_t i = 0; i + 2 < n; ++i) {
+    /* Retained comments and quoted identifiers are opaque to IN collapsing. */
+    unsigned char c = (unsigned char)s[i];
+    if (dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, i)) {
+      size_t end = clickhouse_quoted_end(s, n, i);
+      if (end) {
+        i = end - 1;
+        continue;
+      }
+    }
+    if (c == '"' || c == '`' || (c == '[' && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))) {
+      size_t end = quoted(s, n, i, c == '[' ? ']' : (char)c, dialect == SEQUEL_CLICKHOUSE);
+      if (end) {
+        i = end - 1;
+        continue;
+      }
+    }
+    if ((c == '-' && s[i + 1] == '-') || (dialect == SEQUEL_CLICKHOUSE && c == '/' && s[i + 1] == '/') ||
+        ((dialect == SEQUEL_MYSQL || dialect == SEQUEL_CLICKHOUSE) && c == '#')) {
+      while (i < n && s[i] != '\n')
+        ++i;
+      continue;
+    }
+    if (c == '/' && s[i + 1] == '*') {
+      unsigned depth = 1;
+      i += 2;
+      while (i + 1 < n && depth) {
+        if (s[i] == '/' && s[i + 1] == '*') {
+          ++depth;
+          i += 2;
+        } else if (s[i] == '*' && s[i + 1] == '/') {
+          --depth;
+          i += 2;
+        } else
+          ++i;
+      }
+      --i;
+      continue;
+    }
+
     if (!equal(s + i, 2, "IN") || (i && part((unsigned char)s[i - 1])) || (i + 2 < n && part((unsigned char)s[i + 2])))
       continue;
     size_t j = i + 2;
@@ -43,8 +82,9 @@ static void collapse_in(char *s) {
     }
   }
 }
-sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags, bool collapse_in_lists, size_t limit,
-                                 char *out, size_t capacity, bool *truncated) {
+sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
+                                           bool collapse_in_lists, size_t limit, char *out, size_t capacity,
+                                           bool *truncated) {
   if (!sql || !out || !truncated)
     return SEQUEL_ERR_NULL;
   *truncated = false;
@@ -72,7 +112,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
                        (flags & SEQUEL_REPLACE_LITERALS) != 0, &text_output))
     goto done;
   if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
-    collapse_in(safe);
+    collapse_in(safe, dialect);
   *truncated = strlen(safe) > limit;
   utf8_cut(safe, limit);
   memcpy(out, safe, strlen(safe) + 1);
@@ -83,8 +123,8 @@ done:
 }
 sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
                                 char *out, size_t capacity, bool *truncated) {
-  return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit,
-                                    out, capacity, truncated);
+  return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit, out, capacity,
+                                    truncated);
 }
 
 sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out) {
@@ -175,7 +215,7 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     strcat(out->summary, "…");
   }
   if (!o.keep_in_lists)
-    collapse_in(safe);
+    collapse_in(safe, o.dialect);
   if (!o.omit_query_text) {
     size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
     out->truncated = strlen(safe) > limit;

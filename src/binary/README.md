@@ -81,3 +81,32 @@ Unterminated recognized strings/comments/templates, invalid UTF-8, and limit
 violations reject the whole transformation before any file is written. The input limit remains
 1 MiB; embedded output is bounded to 64 MiB. Existing file replacement, permission
 preservation and symlink rejection apply to `--edit-file` in embedded mode too.
+
+## Input and output modes for both commands
+
+`format` and `sanitize` read stdin when piped or redirected, accept one SQL string,
+or read one or more paths in argument order. Existing paths are files; multiple
+arguments are paths. A single `.sql` path without whitespace is treated as a file even when missing.
+Use `--` before input starting with `-`. Results go to stdout by default, with
+multiple file results concatenated in argument order. Only `--edit-file` enables
+in-place writes; it accepts one or more paths for either command. Each file is
+replaced atomically after successful processing. Earlier successful files remain
+processed if a later file fails.
+
+```sh
+sequel format one.sql two.sql
+sequel sanitize --edit-file one.sql two.sql
+sequel sanitize --remove-comments "SELECT 'keep', $1 /* remove */"
+sequel sanitize --replace-literals "SELECT 'remove', $1 /* keep */"
+sequel sanitize --embedded --edit-file queries.go queries.py
+cat queries.go | sequel sanitize --embedded --language go
+sequel sanitize --embedded --language go 'const q = "SELECT * FROM t WHERE x=42"'
+```
+
+`--embedded` supports both commands and the same host languages. It transforms
+recognized SQL in strings and comments while preserving source outside those
+fragments. Explicit `--language` is required for embedded stdin or source strings;
+file extensions otherwise select it. Conservative detection and unsupported
+interpolated/template forms are retained, so embedded sanitization is not a
+whole-file secrets scrubber. Malformed recognized SQL rejects sanitization before
+writing a file. Selection flags also apply inside embedded SQL.

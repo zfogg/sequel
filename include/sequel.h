@@ -2,7 +2,13 @@
 #define SEQUEL_H
 #include <stdbool.h>
 #include <stddef.h>
-typedef enum { SEQUEL_OK = 0, SEQUEL_ERR_NULL, SEQUEL_ERR_INVALID_ARGUMENT, SEQUEL_ERR_OVERFLOW, SEQUEL_ERR_NOMEM } sequel_status_t;
+typedef enum {
+  SEQUEL_OK = 0,
+  SEQUEL_ERR_NULL,
+  SEQUEL_ERR_INVALID_ARGUMENT,
+  SEQUEL_ERR_OVERFLOW,
+  SEQUEL_ERR_NOMEM
+} sequel_status_t;
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,7 +43,7 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
 /* Sanitizes without the fixed metadata text cap. capacity includes the NUL
  * terminator; limit is the maximum emitted bytes (zero uses 32768). */
 sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
-                                 char *out, size_t capacity, bool *truncated);
+                                char *out, size_t capacity, bool *truncated);
 /* Independent transformations. Retained comments and literals may contain secrets.
  * Zero flags preserves lexical contents while normalizing outside whitespace.
  * IN-list collapsing applies only when replacing literals. */
@@ -45,15 +51,15 @@ sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool 
 #define SEQUEL_REPLACE_LITERALS 2u
 #define SEQUEL_SANITIZE_ALL (SEQUEL_REMOVE_COMMENTS | SEQUEL_REPLACE_LITERALS)
 sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
-    bool collapse_in_lists, size_t limit, char *out, size_t capacity, bool *truncated);
+                                           bool collapse_in_lists, size_t limit, char *out, size_t capacity,
+                                           bool *truncated);
 
 /* Layout-only SQL formatting. Comments, literals, identifiers and bind markers
  * are preserved verbatim. No SQL is executed or sanitized. Input is UTF-8,
  * limited to 1 MiB / 65536 tokens / 64 nesting levels. Not a SQL validator.
  * length receives the output byte count (excluding NUL). Pass out=NULL and
  * capacity=0 to measure. On failure a supplied output buffer is emptied. */
-sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity,
-                               size_t *length);
+sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
 /* Collapse horizontal token gaps while preserving comments, literals and newlines. */
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity);
 #ifdef __cplusplus
