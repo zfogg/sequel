@@ -1,6 +1,6 @@
 # sequel
 
-A C11 library and command-line program for SQL formatting, sanitization and
+A C11 library and command-line program for SQL formatting, syntax highlighting, sanitization and
 structural summaries. Supports generic SQL, PostgreSQL, SQLite, MySQL, DuckDB
 and ClickHouse. No database or telemetry runtime is required.
 
@@ -87,6 +87,126 @@ print(format_sql("select a,b from users", dialect=Dialect.POSTGRESQL))
 
 Source installs compile the same C engine. Neither binding depends on gotel.
 Gotel imports sequel directly and owns the OpenTelemetry adapters.
+
+## Syntax highlighting
+
+`highlight` preserves SQL spelling and whitespace. It does not sanitize literals
+or comments. To format and highlight a query, connect the two commands:
+
+```sh
+printf '%s' 'select id,name from users where id=:id' \
+  | sequel format --dialect postgresql \
+  | sequel highlight --dialect postgresql --colorscheme solarized-dark > query.html
+
+sequel highlight --ansi --dark --colorscheme gruvbox-dark-medium query.sql
+sequel highlight --light --color-variable '#123000' --color-comment '#666666' query.sql
+sequel highlight --colorscheme ./my-base16.yaml query.sql
+sequel highlight --list-colorschemes
+```
+
+Input can be piped/redirected stdin, one SQL string, or one or more file paths.
+Files are processed in argument order. `--edit-file` explicitly writes the
+highlighted result back to each file instead of stdout. `--embedded` is for
+format/sanitize; highlight takes SQL directly.
+
+`--html` (the default) and `--ansi` are mutually exclusive. HTML is a standalone
+`<pre class="sequel"><code>…</code></pre>` fragment with escaped source, inline
+colors and `sequel-keyword`, `sequel-string`, etc. span classes. It can be opened
+in a browser or embedded into an existing page without a CSS dependency. ANSI
+uses 24-bit foreground/background SGR sequences and ends with a full reset.
+Both modes reject embedded terminal controls other than tabs and newlines,
+malformed quotes/comments, invalid UTF-8, input over 1 MiB or over 65536 tokens.
+Highlighting accepts incomplete SQL grammar, including unmatched parentheses.
+
+The default palette is `default-dark`. There are 360 bundled Base16 schemes,
+including Chris Kempson's default palettes and the community palettes maintained
+by [Tinted Theming](https://github.com/tinted-theming/schemes). Any legacy Base16
+YAML file (`scheme`, `author`, `base00`…`base0F`) or current YAML file with a
+`palette` block can also be loaded. Palette lookup never downloads anything.
+Vendored source, author credits and the pinned upstream commit are recorded in
+`third_party/base16.json`; the MIT license is included alongside it.
+
+`--light` and `--dark` are mutually exclusive. Without either, the selected
+palette is preserved. An explicit appearance selects its actual published
+counterpart: for example `solarized-dark --light` uses `solarized-light`,
+`gruvbox-dark-hard --light` uses `gruvbox-light-hard`, and
+`catppuccin-mocha --light` uses `catppuccin-latte`. All sixteen palette colors
+come from that variant, including its accent colors. Nothing is inverted or
+synthesized. If a palette has no matching published variant, sequel reports an
+error instead. Family mappings, including nonstandard variant names, are explicit
+in the palette-table generator. A custom YAML palette can keep its natural
+appearance; switching requires a recognized bundled counterpart. Alternatively,
+pass the desired light or dark YAML file directly.
+
+Colors can be overridden with `--color-TYPE '#RRGGBB'` (or `--color-TYPE=RRGGBB`).
+Types are `foreground`, `background`, `keyword`, `type`, `function`, `variable`,
+`string`, `number`, `boolean`, `null`, `comment`, `operator`, `punctuation`, and
+`identifier`. Overrides always apply after the selected palette variant, regardless
+of argument order. Variables include bind markers such as `?`, `$1`, `:name`,
+`@name`, `%s`, `%(name)s`, SQLite Tcl-style variables and ClickHouse typed parameters.
+Classification is lexical; it does not resolve SQL schemas or distinguish a table
+name from a column name. Functions are recognized by call syntax.
+
+### Library APIs
+
+The C API uses the same caller-owned buffer/measurement convention as formatting:
+
+```c
+sequel_highlight_options_t options;
+sequel_highlight_options_init(&options); /* HTML, generic SQL, default-dark */
+options.dialect = SEQUEL_POSTGRESQL;
+sequel_colorscheme_t palette;
+sequel_colorscheme_for_appearance("solarized-dark", SEQUEL_APPEARANCE_LIGHT, &palette);
+sequel_highlight_set_colorscheme(&options, &palette);
+sequel_highlight_set_color(&options, "variable", "#123000");
+size_t length;
+sequel_highlight(sql, &options, NULL, 0, &length);
+char *html = malloc(length + 1);
+sequel_highlight(sql, &options, html, length + 1, &length);
+/* Check every status in real code; free(html) when finished. */
+```
+
+`sequel_colorscheme_parse` loads a YAML string without filesystem I/O.
+`sequel_colorscheme_variant_name` resolves a published counterpart (or returns
+NULL). `sequel_colorscheme_for_appearance` loads that variant directly.
+`sequel_colorscheme_count`/`sequel_colorscheme_name` enumerate bundled schemes;
+`sequel_highlight_color_name` enumerates token-color names. All options and
+palettes are caller-owned; no global state is mutated.
+
+```go
+formatted, err := sequel.FormatSQL(sequel.DialectPostgreSQL, sql)
+// Handle err before highlighting.
+html, err := sequel.HighlightSQL(sequel.DialectPostgreSQL, formatted, sequel.HighlightOptions{
+    Colorscheme: "solarized-dark",
+    Appearance: sequel.AppearanceLight,
+    Colors: map[string]string{"variable": "#123000"},
+})
+```
+
+```python
+from sequel import Appearance, Dialect, format_sql, highlight_sql
+
+html = highlight_sql(
+    format_sql(sql, dialect=Dialect.POSTGRESQL),
+    dialect=Dialect.POSTGRESQL,
+    colorscheme="solarized-dark",
+    appearance=Appearance.LIGHT,
+    colors={"variable": "#123000"},
+)
+```
+
+Go's `HighlightOptions.Mode` and Python's `mode` select `html` or `ansi`;
+`SchemeYAML`/`scheme_yaml` load a custom palette string. Both expose the complete
+palette registry through `Colorschemes()`/`colorschemes()`. Python implementations
+live in `highlighting.py`, `formatting.py`, `sanitization.py`, `inspection.py` and
+`dialect.py`; `__init__.py` only re-exports the public API.
+
+The checked-in [HTML and ANSI examples](examples/highlight/README.md) are tested
+against the C CLI, Go binding and Python binding. Regenerate them with
+`uv run python scripts/highlight_samples.py build/sequel` (`build/sequel.exe` on
+Windows). To refresh bundled palettes, clone the Tinted Theming schemes repository
+and run `uv run python scripts/base16.py --upstream PATH`. Regenerating the C table
+from vendored data requires only `uv run python scripts/base16.py`.
 
 ## Tests and provenance
 

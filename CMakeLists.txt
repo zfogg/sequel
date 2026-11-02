@@ -47,7 +47,7 @@ if(TARGET sequel_utf8proc)
   install(TARGETS sequel_utf8proc EXPORT sequelTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 install(FILES include/sequel.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(FILES LICENSE third_party/UTF8PROC_LICENSE.md DESTINATION ${CMAKE_INSTALL_DATADIR}/sequel)
+install(FILES LICENSE third_party/UTF8PROC_LICENSE.md third_party/BASE16_LICENSE.md DESTINATION ${CMAKE_INSTALL_DATADIR}/sequel)
 install(EXPORT sequelTargets NAMESPACE sequel:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sequel)
 configure_package_config_file(cmake/sequelConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/sequelConfig.cmake

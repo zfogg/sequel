@@ -2,6 +2,7 @@
 #define SEQUEL_H
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 typedef enum {
   SEQUEL_OK = 0,
   SEQUEL_ERR_NULL,
@@ -62,6 +63,73 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
 /* Collapse horizontal token gaps while preserving comments, literals and newlines. */
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity);
+
+typedef enum { SEQUEL_HTML, SEQUEL_ANSI } sequel_highlight_mode_t;
+typedef enum {
+  SEQUEL_COLOR_FOREGROUND,
+  SEQUEL_COLOR_BACKGROUND,
+  SEQUEL_COLOR_KEYWORD,
+  SEQUEL_COLOR_TYPE,
+  SEQUEL_COLOR_FUNCTION,
+  SEQUEL_COLOR_VARIABLE,
+  SEQUEL_COLOR_STRING,
+  SEQUEL_COLOR_NUMBER,
+  SEQUEL_COLOR_BOOLEAN,
+  SEQUEL_COLOR_NULL,
+  SEQUEL_COLOR_COMMENT,
+  SEQUEL_COLOR_OPERATOR,
+  SEQUEL_COLOR_PUNCTUATION,
+  SEQUEL_COLOR_IDENTIFIER,
+  SEQUEL_COLOR_COUNT
+} sequel_highlight_color_t;
+
+/* Base16 base00 through base0F, stored as 24-bit RGB (0xRRGGBB). */
+typedef struct {
+  uint32_t base[16];
+} sequel_colorscheme_t;
+typedef enum { SEQUEL_APPEARANCE_AUTO, SEQUEL_APPEARANCE_DARK, SEQUEL_APPEARANCE_LIGHT } sequel_appearance_t;
+/* Select actual published variants; never derive or invert colors. A missing
+ * counterpart returns INVALID_ARGUMENT, leaving out/scheme unchanged. AUTO
+ * preserves the selected palette. variant_name returns NULL if unavailable.
+ * set_appearance recognizes bundled palettes by their colors. A custom palette
+ * without a known counterpart can only retain its natural appearance (inferred
+ * from foreground/background luminance). Use for_appearance for named palettes.
+ * Apply before sequel_highlight_set_colorscheme and token overrides. */
+const char *sequel_colorscheme_variant_name(const char *name, sequel_appearance_t appearance);
+sequel_status_t sequel_colorscheme_for_appearance(const char *name, sequel_appearance_t appearance,
+                                                  sequel_colorscheme_t *out);
+sequel_status_t sequel_colorscheme_set_appearance(sequel_colorscheme_t *scheme, sequel_appearance_t appearance);
+typedef struct {
+  sequel_dialect_t dialect;
+  sequel_highlight_mode_t mode;
+  uint32_t colors[SEQUEL_COLOR_COUNT];
+} sequel_highlight_options_t;
+
+/* Immutable built-in palette registry. Invalid indices return NULL. */
+size_t sequel_colorscheme_count(void);
+const char *sequel_colorscheme_name(size_t index);
+sequel_status_t sequel_colorscheme(const char *name, sequel_colorscheme_t *out);
+/* Read any legacy or current Base16 YAML palette, without filesystem/network I/O.
+ * All sixteen baseXX keys must occur exactly once and contain six hex digits.
+ * Unrelated metadata is ignored. Failure leaves out unchanged. */
+sequel_status_t sequel_colorscheme_parse(const char *yaml, sequel_colorscheme_t *out);
+/* Defaults: generic SQL, HTML, default-dark. Applying a scheme resets overrides. */
+void sequel_highlight_options_init(sequel_highlight_options_t *options);
+sequel_status_t sequel_highlight_set_colorscheme(sequel_highlight_options_t *options,
+                                                 const sequel_colorscheme_t *scheme);
+/* Named types match the enum suffixes in lowercase. Hex is #RRGGBB or RRGGBB. */
+const char *sequel_highlight_color_name(sequel_highlight_color_t type);
+sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, const char *type, const char *hex);
+/* Preserve SQL spelling and whitespace. HTML is an escaped <pre><code> fragment
+ * with inline colors and sequel-* token classes. ANSI uses truecolor SGR and a
+ * final reset. Does not format, sanitize, execute SQL, or validate its grammar.
+ * Rejects invalid UTF-8, terminal control bytes other than TAB/CR/LF, malformed
+ * quotes/comments, >1 MiB input, or >65536 tokens. Unbalanced groups are allowed.
+ * NULL options uses defaults. out=NULL/capacity=0 measures; length excludes NUL.
+ * Insufficient capacity reports required length and empties out. Other errors
+ * also empty out. Input and output buffers must not overlap. */
+sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
+                                 size_t *length);
 #ifdef __cplusplus
 }
 #endif

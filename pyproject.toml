@@ -9,7 +9,7 @@ description = "SQL formatting, sanitization and structural summaries from a shar
 requires-python = ">=3.11"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE", "third_party/UTF8PROC_LICENSE.md"]
+license-files = ["LICENSE", "third_party/UTF8PROC_LICENSE.md", "third_party/BASE16_LICENSE.md"]
 
 [project.optional-dependencies]
 test = ["pytest>=8"]

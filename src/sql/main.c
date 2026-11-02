@@ -26,4 +26,5 @@ typedef struct {
 #include "format.c"
 #include "api.c"
 #include "compact.c"
+#include "highlight.c"
 // clang-format on

@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--check", action="store_true")
 args = parser.parse_args()
 digest = hashlib.sha256()
-sources = sorted((root / "src/sql").glob("*.c")) + [
+sources = sorted(p for p in (root / "src/sql").iterdir() if p.suffix in (".c", ".h")) + [
     root / "src/utf8.c",
     root / "src/utf8.h",
     root / "include/sequel.h",

@@ -35,4 +35,5 @@ else:
     run("ruff", "format", "--check", "python", "tests", "scripts", "setup.py")
     run("ruff", "check", "python", "tests", "scripts", "setup.py")
     run("python", "scripts/sync_native.py", "--check")
+run("python", "scripts/base16.py", "--check")
 run("ty", "check")

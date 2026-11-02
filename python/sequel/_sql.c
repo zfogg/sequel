@@ -82,7 +82,72 @@ static PyObject *sanitize_sql(PyObject *self, PyObject *args) {
   return result;
 }
 
+static PyObject *highlight_sql(PyObject *self, PyObject *args) {
+  const char *sql, *name, *yaml;
+  int dialect, mode, appearance;
+  PyObject *colors;
+  if (!PyArg_ParseTuple(args, "siissiO!", &sql, &dialect, &mode, &name, &yaml, &appearance, &PyDict_Type, &colors))
+    return NULL;
+  sequel_highlight_options_t options;
+  sequel_highlight_options_init(&options);
+  options.dialect = (sequel_dialect_t)dialect;
+  options.mode = (sequel_highlight_mode_t)mode;
+  sequel_colorscheme_t palette;
+  sequel_status_t status = *yaml ? sequel_colorscheme_parse(yaml, &palette) : sequel_colorscheme(name, &palette);
+  if (status == SEQUEL_OK)
+    status = *yaml ? sequel_colorscheme_set_appearance(&palette, (sequel_appearance_t)appearance)
+                   : sequel_colorscheme_for_appearance(name, (sequel_appearance_t)appearance, &palette);
+  if (status != SEQUEL_OK || sequel_highlight_set_colorscheme(&options, &palette) != SEQUEL_OK) {
+    PyErr_SetString(PyExc_ValueError, "Invalid colorscheme or no published variant for the requested appearance");
+    return NULL;
+  }
+  Py_ssize_t pos = 0;
+  PyObject *key, *value;
+  while (PyDict_Next(colors, &pos, &key, &value)) {
+    const char *type = PyUnicode_AsUTF8(key), *hex = PyUnicode_AsUTF8(value);
+    if (!type || !hex)
+      return NULL;
+    if ((Py_ssize_t)strlen(type) != PyUnicode_GET_LENGTH(key) ||
+        (Py_ssize_t)strlen(hex) != PyUnicode_GET_LENGTH(value) ||
+        sequel_highlight_set_color(&options, type, hex) != SEQUEL_OK) {
+      PyErr_SetString(PyExc_ValueError, "Invalid token type or color (expected #RRGGBB)");
+      return NULL;
+    }
+  }
+  size_t length = 0;
+  if (sequel_highlight(sql, &options, NULL, 0, &length) != SEQUEL_OK) {
+    PyErr_SetString(PyExc_ValueError, "SQL highlighting rejected input");
+    return NULL;
+  }
+  char *out = PyMem_Malloc(length + 1);
+  if (!out)
+    return PyErr_NoMemory();
+  status = sequel_highlight(sql, &options, out, length + 1, &length);
+  PyObject *result = NULL;
+  if (status == SEQUEL_OK)
+    result = PyUnicode_DecodeUTF8(out, (Py_ssize_t)length, "strict");
+  else
+    PyErr_SetString(PyExc_ValueError, "SQL highlighting rejected input");
+  PyMem_Free(out);
+  return result;
+}
+static PyObject *colorschemes(PyObject *self, PyObject *unused) {
+  PyObject *result = PyTuple_New((Py_ssize_t)sequel_colorscheme_count());
+  if (!result)
+    return NULL;
+  for (size_t i = 0; i < sequel_colorscheme_count(); ++i) {
+    PyObject *name = PyUnicode_FromString(sequel_colorscheme_name(i));
+    if (!name) {
+      Py_DECREF(result);
+      return NULL;
+    }
+    PyTuple_SET_ITEM(result, (Py_ssize_t)i, name);
+  }
+  return result;
+}
 static PyMethodDef methods[] = {
+    {"highlight", highlight_sql, METH_VARARGS, "Highlight SQL as escaped HTML or truecolor ANSI."},
+    {"colorschemes", colorschemes, METH_NOARGS, "List bundled Base16 names."},
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},
     {"inspect", inspect_sql, METH_VARARGS, "Inspect using the shared C engine."},
     {"format", format_sql, METH_VARARGS, "Format without sanitizing."},

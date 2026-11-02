@@ -19,6 +19,14 @@ add_executable(sequel-selective-test selective_test.c)
 target_link_libraries(sequel-selective-test PRIVATE sequel::sequel)
 add_test(NAME sequel-selective COMMAND sequel-selective-test)
 
+add_executable(sequel-highlight-test highlight_api_test.c)
+target_link_libraries(sequel-highlight-test PRIVATE sequel::sequel)
+add_test(NAME sequel-highlight-api COMMAND sequel-highlight-test)
+if(SEQUEL_BUILD_CLI)
+  add_test(NAME sequel-highlight COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_highlight.py $<TARGET_FILE:sequel-cli>)
+endif()
+
 if(WIN32 AND BUILD_SHARED_LIBS)
   get_property(_tests DIRECTORY PROPERTY TESTS)
   foreach(test IN LISTS _tests)

@@ -44,6 +44,7 @@ jobs:
       - run: go test ./go -run '^$' -fuzz FuzzSanitizeDoesNotRetainQuotedPayload -fuzztime 100000x -parallel 2
       - run: go test ./go -run '^$' -fuzz FuzzFormatSQL -fuzztime 100000x -parallel 2
       - run: go test ./go -run '^$' -fuzz FuzzSummary -fuzztime 100000x -parallel 2
+      - run: go test ./go -run '^$' -fuzz FuzzHighlightSQL -fuzztime 10000x -parallel 2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -57,4 +58,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
       - run: cmake --build build --parallel 4
-      - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective)$' --output-on-failure
+      - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective|highlight-api)$' --output-on-failure

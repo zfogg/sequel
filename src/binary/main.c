@@ -32,6 +32,7 @@ typedef struct stat file_info;
 static const char usage[] = "Usage:\n"
                             "  sequel format [OPTIONS] [SQL | PATH ...]\n"
                             "  sequel sanitize [OPTIONS] [SQL | PATH ...]\n\n"
+                            "  sequel highlight [OPTIONS] [SQL | PATH ...]\n\n"
                             "Read piped or redirected stdin when no SQL or paths are supplied.\n"
                             "Files are read in argument order and results go to stdout by default.\n"
                             "  --edit-file         Modify each path in place; no stdout output.\n"
@@ -40,6 +41,13 @@ static const char usage[] = "Usage:\n"
                             "  --dialect DIALECT   generic, postgresql, sqlite, mysql, duckdb, clickhouse.\n"
                             "Sanitize: --remove-comments and --replace-literals select transformations.\n"
                             "With neither selection flag, sanitize applies both.\n"
+                            "Highlight: --html | --ansi (default: --html).\n"
+                            "  --colorscheme NAME|PATH  Built-in Base16 name or Base16 YAML file (default-dark).\n"
+                            "  --light | --dark         Force appearance; otherwise preserve the scheme.\n"
+                            "  --list-colorschemes      List built-in Base16 names.\n"
+                            "  --color-TYPE '#RRGGBB'    Override foreground, background, keyword, type, function,\n"
+                            "                           variable, string, number, boolean, null, comment, operator,\n"
+                            "                           punctuation or identifier (after scheme and appearance).\n"
                             "Languages: go, c, c++, cpp, python, javascript, typescript, rust, haskell, clojure.\n";
 
 static int error(const char *message) {
@@ -161,7 +169,7 @@ static int replace_file(const char *path, const char *sql, size_t n, file_info *
 }
 
 static int process_input(int format, int d, int embedded, const char *language_name, unsigned sanitize_flags, int edit,
-                         const char *argument, int source_is_path) {
+                         const sequel_highlight_options_t *highlight, const char *argument, int source_is_path) {
   const char *source_path = source_is_path ? argument : NULL;
   const char *path = edit ? source_path : NULL;
   int language = embedded ? embedded_language(language_name, source_path) : 0;
@@ -223,8 +231,10 @@ static int process_input(int format, int d, int embedded, const char *language_n
     return status;
   }
   size_t capacity = n + 2, length = 0;
-  if (format && !path) {
-    if (sequel_format(sql, (sequel_dialect_t)d, NULL, 0, &length) != SEQUEL_OK) {
+  if (highlight || (format && !path)) {
+    sequel_status_t status = highlight ? sequel_highlight(sql, highlight, NULL, 0, &length)
+                                       : sequel_format(sql, (sequel_dialect_t)d, NULL, 0, &length);
+    if (status != SEQUEL_OK) {
       free(sql);
       return error("invalid or unsupported SQL");
     }
@@ -235,7 +245,9 @@ static int process_input(int format, int d, int embedded, const char *language_n
     free(sql);
     return error("out of memory");
   }
-  if (path && format)
+  if (highlight)
+    failed = sequel_highlight(sql, highlight, out, capacity, &length) != SEQUEL_OK;
+  else if (path && format)
     failed = sequel_compact(sql, (sequel_dialect_t)d, out, capacity) != SEQUEL_OK;
   else if (format)
     failed = sequel_format(sql, (sequel_dialect_t)d, out, capacity, &length) != SEQUEL_OK;
@@ -263,10 +275,12 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
     fputs(usage, stdout);
     return 0;
   }
-  if (argc < 2 || (strcmp(argv[1], "format") && strcmp(argv[1], "sanitize")))
+  if (argc < 2 || (strcmp(argv[1], "format") && strcmp(argv[1], "sanitize") && strcmp(argv[1], "highlight")))
     return error(usage);
   int format = !strcmp(argv[1], "format"), options = 1, embedded = 0, edit = 0, count = 0;
   const char *dialect = "generic", *language_name = NULL;
+  int highlighting = !strcmp(argv[1], "highlight"), output_mode = -1, appearance = 0, list_schemes = 0;
+  const char *scheme_name = "default-dark", *overrides[SEQUEL_COLOR_COUNT] = {0};
   unsigned flags = 0;
   for (int i = 2; i < argc; ++i) {
     const char *arg = argv[i];
@@ -276,6 +290,60 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
     }
     if (options && !strcmp(arg, "--")) {
       options = 0;
+      continue;
+    }
+    if (options && (!strcmp(arg, "--html") || !strcmp(arg, "--ansi"))) {
+      int selected = !strcmp(arg, "--ansi") ? SEQUEL_ANSI : SEQUEL_HTML;
+      if (!highlighting || (output_mode != -1 && output_mode != selected))
+        return error("--html and --ansi require highlight and are mutually exclusive");
+      output_mode = selected;
+      continue;
+    }
+    if (options && (!strcmp(arg, "--light") || !strcmp(arg, "--dark"))) {
+      int selected = !strcmp(arg, "--light") ? SEQUEL_APPEARANCE_LIGHT : SEQUEL_APPEARANCE_DARK;
+      if (!highlighting || (appearance && appearance != selected))
+        return error("--light and --dark require highlight and are mutually exclusive");
+      appearance = selected;
+      continue;
+    }
+    if (options && !strcmp(arg, "--list-colorschemes")) {
+      if (!highlighting)
+        return error("--list-colorschemes requires highlight");
+      list_schemes = 1;
+      continue;
+    }
+    if (options && (!strcmp(arg, "--colorscheme") || !strncmp(arg, "--colorscheme=", 14))) {
+      if (!highlighting)
+        return error("--colorscheme requires highlight");
+      if (arg[13] == '=')
+        scheme_name = arg + 14;
+      else if (++i < argc)
+        scheme_name = argv[i];
+      else
+        return error("--colorscheme requires a value");
+      if (!*scheme_name)
+        return error("--colorscheme requires a value");
+      continue;
+    }
+    if (options && !strncmp(arg, "--color-", 8)) {
+      if (!highlighting)
+        return error("color overrides require highlight");
+      int type;
+      for (type = 0; type < SEQUEL_COLOR_COUNT; ++type) {
+        const char *name = sequel_highlight_color_name((sequel_highlight_color_t)type);
+        size_t n = strlen(name);
+        if (!strncmp(arg + 8, name, n) && (!arg[8 + n] || arg[8 + n] == '=')) {
+          if (arg[8 + n] == '=')
+            overrides[type] = arg + 9 + n;
+          else if (++i < argc)
+            overrides[type] = argv[i];
+          else
+            return error("color override requires a value");
+          break;
+        }
+      }
+      if (type == SEQUEL_COLOR_COUNT)
+        return error("unknown color type; see --help");
       continue;
     }
     if (options && !strcmp(arg, "--edit-file")) {
@@ -294,7 +362,7 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
       continue;
     }
     if (options && (!strcmp(arg, "--remove-comments") || !strcmp(arg, "--replace-literals"))) {
-      if (format)
+      if (format || highlighting)
         return error("sanitization options require sanitize");
       flags |= !strcmp(arg, "--remove-comments") ? SEQUEL_REMOVE_COMMENTS : SEQUEL_REPLACE_LITERALS;
       continue;
@@ -322,6 +390,8 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
   }
   if (language_name && !embedded)
     return error("--language requires --embedded");
+  if (highlighting && embedded)
+    return error("highlight expects SQL, not embedded host-language source");
   if (edit && !count)
     return error("--edit-file requires one or more paths");
   const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};
@@ -332,8 +402,52 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
     return error("unsupported SQL dialect");
   if (!flags)
     flags = SEQUEL_SANITIZE_ALL;
+  sequel_highlight_options_t highlight;
+  sequel_highlight_options_t *highlight_options = NULL;
+  if (highlighting) {
+    if (list_schemes) {
+      for (size_t i = 0; i < sequel_colorscheme_count(); ++i)
+        puts(sequel_colorscheme_name(i));
+      return ferror(stdout) ? error("cannot write stdout") : 0;
+    }
+    sequel_colorscheme_t scheme;
+    int named_scheme = sequel_colorscheme(scheme_name, &scheme) == SEQUEL_OK;
+    if (!named_scheme) {
+      FILE *file = open_input(scheme_name);
+      if (!file)
+        return error("unknown Base16 scheme or unreadable YAML file; use --list-colorschemes");
+      char *yaml = calloc(MAX_SQL + 2, 1);
+      if (!yaml) {
+        fclose(file);
+        return error("out of memory");
+      }
+      size_t n = fread(yaml, 1, MAX_SQL + 1, file);
+      int failed = ferror(file);
+      failed |= fclose(file) != 0;
+      failed |= n > MAX_SQL || memchr(yaml, 0, n) != NULL;
+      if (!failed)
+        failed = sequel_colorscheme_parse(yaml, &scheme) != SEQUEL_OK;
+      free(yaml);
+      if (failed)
+        return error("invalid Base16 YAML palette (requires base00 through base0F)");
+    }
+    sequel_highlight_options_init(&highlight);
+    highlight.dialect = (sequel_dialect_t)d;
+    highlight.mode = output_mode == SEQUEL_ANSI ? SEQUEL_ANSI : SEQUEL_HTML;
+    sequel_status_t variant_status =
+        named_scheme ? sequel_colorscheme_for_appearance(scheme_name, (sequel_appearance_t)appearance, &scheme)
+                     : sequel_colorscheme_set_appearance(&scheme, (sequel_appearance_t)appearance);
+    if (variant_status != SEQUEL_OK || sequel_highlight_set_colorscheme(&highlight, &scheme) != SEQUEL_OK)
+      return error("colorscheme has no published variant for the requested appearance");
+    for (int i = 0; i < SEQUEL_COLOR_COUNT; ++i)
+      if (overrides[i] &&
+          sequel_highlight_set_color(&highlight, sequel_highlight_color_name((sequel_highlight_color_t)i),
+                                     overrides[i]) != SEQUEL_OK)
+        return error("invalid color; expected #RRGGBB or RRGGBB");
+    highlight_options = &highlight;
+  }
   if (!count)
-    return process_input(format, d, embedded, language_name, flags, 0, NULL, 0);
+    return process_input(format, d, embedded, language_name, flags, 0, highlight_options, NULL, 0);
   int result = 0;
   for (int i = 0; i < count; ++i) {
     file_info info;
@@ -344,7 +458,8 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
      * multiple arguments are paths; language inference requires a path. */
     if (embedded && !language_name)
       from_path = 1;
-    int status = process_input(format, d, embedded, language_name, flags, edit, inputs[i], from_path);
+    int status =
+        process_input(format, d, embedded, language_name, flags, edit, highlight_options, inputs[i], from_path);
     if (status && from_path)
       fprintf(stderr, "sequel: failed: %s\n", inputs[i]);
     result |= status;

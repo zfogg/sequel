@@ -1,10 +1,11 @@
 include LICENSE README.md CMakeLists.txt go.mod
 recursive-include include *.h
 recursive-include src *.c *.h
-recursive-include third_party *.c *.h *.md
+recursive-include third_party *.c *.h *.md *.json
 recursive-include python *.py *.c *.pyi py.typed
 
 recursive-include cmake *.cmake.in
 recursive-include tests *.c *.py *.json *.txt *.md *.sql
 recursive-include testdata *.json
 recursive-include go *.go *.c
+recursive-include examples *.sql *.html *.ansi *.md
