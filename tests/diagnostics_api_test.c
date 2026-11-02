@@ -120,8 +120,8 @@ int main(void) {
   CHECK(large);
   memset(large, ' ', 1024 * 1024 + 1);
   large[1024 * 1024 + 1] = 0;
-  CHECK(sequel_diagnose(large, SEQUEL_GENERIC, &d) == SEQUEL_ERR_OVERFLOW);
-  CHECK(d.code == SEQUEL_DIAG_INPUT_LIMIT && d.offset == 1024 * 1024);
+  CHECK(sequel_diagnose(large, SEQUEL_GENERIC, &d) == SEQUEL_OK);
+  CHECK(d.code == SEQUEL_DIAG_NONE);
   for (size_t i = 0; i < 65537; ++i) {
     large[i * 2] = 'x';
     large[i * 2 + 1] = ' ';

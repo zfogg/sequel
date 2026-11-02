@@ -94,8 +94,6 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (!limit)
     limit = SEQUEL_TEXT_MAX;
-  if (limit >= capacity)
-    return SEQUEL_ERR_INVALID_ARGUMENT;
   size_t n = 0;
   while (n <= INPUT_MAX && sql[n])
     ++n;
@@ -115,6 +113,11 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     collapse_in(safe, dialect);
   *truncated = strlen(safe) > limit;
   utf8_cut(safe, limit);
+  if (strlen(safe) >= capacity) {
+    *truncated = false;
+    status = SEQUEL_ERR_OVERFLOW;
+    goto done;
+  }
   memcpy(out, safe, strlen(safe) + 1);
   status = SEQUEL_OK;
 done:
@@ -127,11 +130,17 @@ sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool 
                                     truncated);
 }
 
+void sequel_metadata_free(sequel_metadata_t *metadata) {
+  if (metadata) {
+    free(metadata->_storage);
+    *metadata = (sequel_metadata_t){.text = "", .summary = "SQL"};
+  }
+}
+
 sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
-  memset(out, 0, sizeof(*out));
-  strcpy(out->summary, "SQL");
+  *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
   if (!sql)
     return SEQUEL_ERR_NULL;
   sequel_options_t o = options ? *options : (sequel_options_t){0};
@@ -144,12 +153,16 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  char *safe = calloc(n + 1, 1), *shape = calloc(n + 1, 1);
+  size_t summary_capacity = n < 64 ? 64 : n + 1;
+  if (summary_capacity > SEQUEL_SUMMARY_MAX + 1)
+    summary_capacity = SEQUEL_SUMMARY_MAX + 1;
+  char *safe = calloc(n + 1, 1), *shape = calloc(n + 1, 1), *summary_text = calloc(summary_capacity, 1);
   token *tokens = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*tokens));
-  if (!safe || !shape || !tokens) {
+  if (!safe || !shape || !tokens || !summary_text) {
     free(safe);
     free(shape);
     free(tokens);
+    free(summary_text);
     return SEQUEL_ERR_NOMEM;
   }
   output a = {safe, 0, n + 1}, b = {shape, 0, n + 1};
@@ -161,8 +174,11 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     status = *safe ? SEQUEL_ERR_OVERFLOW : SEQUEL_OK;
     goto done;
   }
-  output summary = {out->summary, 0, sizeof(out->summary)};
-  *out->summary = 0;
+retry_summary:;
+  output summary = {summary_text, 0, summary_capacity};
+  *summary_text = 0;
+  out->statement_count = 0;
+  *out->operation = 0;
   bool mixed_operations = false;
   for (size_t start = 0; start < count;) {
     size_t end = start, nesting = 0;
@@ -208,11 +224,22 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     }
     start = end < count ? end + 1 : count;
   }
-  if (!*out->summary)
-    strcpy(out->summary, "SQL");
+  if (summary.overflow && summary_capacity < SEQUEL_SUMMARY_MAX + 1) {
+    size_t next = summary_capacity > (SEQUEL_SUMMARY_MAX + 1) / 2 ? SEQUEL_SUMMARY_MAX + 1 : summary_capacity * 2;
+    char *grown = realloc(summary_text, next);
+    if (!grown) {
+      status = SEQUEL_ERR_NOMEM;
+      goto done;
+    }
+    summary_text = grown;
+    summary_capacity = next;
+    goto retry_summary;
+  }
+  if (!*summary_text)
+    strcpy(summary_text, "SQL");
   if (summary.overflow) {
-    utf8_cut(out->summary, SEQUEL_SUMMARY_MAX - 3);
-    strcat(out->summary, "…");
+    utf8_cut(summary_text, SEQUEL_SUMMARY_MAX - 3);
+    strcat(summary_text, "…");
   }
   if (!o.keep_in_lists)
     collapse_in(safe, o.dialect);
@@ -220,12 +247,25 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
     out->truncated = strlen(safe) > limit;
     utf8_cut(safe, limit);
-    strcpy(out->text, safe);
   }
+  size_t text_length = o.omit_query_text ? 0 : strlen(safe);
+  size_t summary_length = strlen(summary_text);
+  char *storage = malloc(text_length + summary_length + 2);
+  if (!storage) {
+    status = SEQUEL_ERR_NOMEM;
+    goto done;
+  }
+  memcpy(storage, safe, text_length);
+  storage[text_length] = 0;
+  memcpy(storage + text_length + 1, summary_text, summary_length + 1);
+  out->_storage = storage;
+  out->text = storage;
+  out->summary = storage + text_length + 1;
   status = SEQUEL_OK;
 done:
   free(safe);
   free(shape);
   free(tokens);
+  free(summary_text);
   return status;
 }

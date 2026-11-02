@@ -68,7 +68,6 @@ class DiagnosticsTests(unittest.TestCase):
             (b"SELECT \x00 x", "control_character"),
             (b"\xff", "invalid_utf8"),
             (b"\x1b[2J", "control_character"),
-            (b" " * (1024 * 1024 + 1), "input_limit"),
             (b"x " * 65537, "token_limit"),
             (b"(" * 65, "nesting_limit"),
             (b"/*" * 65, "nesting_limit"),
@@ -175,9 +174,9 @@ class DiagnosticsTests(unittest.TestCase):
 
     def test_workbench_limits_and_hard_error_recovery(self):
         for data, code in [
-            (b"x" * (1024 * 1024 + 1), "input_limit"),
+            (b"x" * (1024 * 1024 + 1) + b"\0", "control_character"),
             (b"select \x00 x", "control_character"),
-            (b" " * (512 * 1024) + b"\n" + b" " * (512 * 1024), "input_limit"),
+            (b" " * (512 * 1024) + b"\n" + b" " * (512 * 1024) + b"\0", "control_character"),
         ]:
             result = run("interactive", "--json", data=data)
             self.assertNotEqual(result.returncode, 0)

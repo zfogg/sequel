@@ -1,4 +1,8 @@
-from typing import TypedDict
+from typing import Final, TypedDict
+
+MAX_INPUT_BYTES: Final[int]
+DEFAULT_MAX_QUERY_TEXT_BYTES: Final[int]
+DEFAULT_MAX_SUMMARY_BYTES: Final[int]
 
 def inspect(
     sql: str,

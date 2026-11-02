@@ -79,7 +79,7 @@ def test_invalid_options(options):
 
 @pytest.mark.parametrize(
     "sql",
-    ["SELECT '\x1b[2J'", "select '\x07'", "select 'unterminated", "/* incomplete", "a\x00b", " " * (1024 * 1024 + 1)],
+    ["SELECT '\x1b[2J'", "select '\x07'", "select 'unterminated", "/* incomplete", "a\x00b", "x " * 65537],
     ids=["escape", "bell", "string", "comment", "nul", "oversize"],
 )
 def test_invalid_sql(sql):

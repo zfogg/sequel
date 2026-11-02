@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     }
     if (sanitize_only) {
       bool truncated = false;
-      size_t capacity = limit ? limit + 1 : SEQUEL_TEXT_MAX + 1;
+      size_t capacity = n / 2 + 1;
       if (capacity > 1048600)
         return 2;
       sequel_status_t status =
@@ -77,6 +77,7 @@ int main(int argc, char **argv) {
     putchar(' ');
     hex(metadata.summary);
     putchar('\n');
+    sequel_metadata_free(&metadata);
   }
   free(line);
   free(query);

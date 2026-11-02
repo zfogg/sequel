@@ -26,7 +26,7 @@ func TestDiagnostics(t *testing.T) {
 	}
 	for _, tc := range []struct{ query, code string }{
 		{"select \x00 x", "control_character"}, {"\xff", "invalid_utf8"},
-		{"\x1b[2J", "control_character"}, {strings.Repeat(" ", 1024*1024+1), "input_limit"},
+		{"\x1b[2J", "control_character"}, {strings.Repeat("x ", 65537), "token_limit"},
 		{strings.Repeat("x ", 65537), "token_limit"}, {strings.Repeat("(", 65), "nesting_limit"},
 		{"select )", "unmatched_close"}, {"select (1", "unclosed_group"},
 	} {

@@ -15,6 +15,13 @@ import (
 // Dialect selects SQL quoting, placeholder, and sanitization rules.
 type Dialect string
 
+// MaxInputBytes is the maximum UTF-8 SQL input length (1 GiB).
+const MaxInputBytes = C.SEQUEL_INPUT_MAX
+
+// DefaultMaxQueryTextBytes bounds sanitized query text to 1 GiB by default.
+// Applications may request a smaller limit with SanitizeOptions.
+const DefaultMaxQueryTextBytes = C.SEQUEL_TEXT_MAX
+
 const (
 	// DialectGeneric selects the engine's generic SQL lexical rules.
 	DialectGeneric Dialect = "generic"
@@ -29,9 +36,9 @@ const (
 	// DialectClickHouse supports ClickHouse quoting, comments and typed parameters.
 	// INSERT FORMAT data payloads are not interpreted as SQL.
 	DialectClickHouse Dialect = "clickhouse"
-	// DefaultMaxSummaryBytes documents the shared engine's 32768-byte summary cap.
+	// DefaultMaxSummaryBytes is the shared engine's 1 GiB summary cap.
 	// It is not an option that can be changed for an individual Summary call.
-	DefaultMaxSummaryBytes = 32 * 1024
+	DefaultMaxSummaryBytes = C.SEQUEL_SUMMARY_MAX
 )
 
 // nativeDialect maps Go dialect names to C enums; unknown names fall back to generic.
@@ -59,43 +66,33 @@ func inspectNative(d Dialect, query string) (string, string, bool) {
 	return summary, operation, ok
 }
 
-// inspectNativeWithOptions copies bounded C metadata and separately sanitizes text
-// when a requested text limit exceeds the fixed metadata buffer.
+// inspectNativeWithOptions copies dynamically allocated C metadata into Go values.
 func inspectNativeWithOptions(query string, policy SanitizeOptions) (string, string, SanitizedQuery, int, bool) {
-	if strings.IndexByte(query, 0) >= 0 {
+	if len(query) > MaxInputBytes || strings.IndexByte(query, 0) >= 0 {
 		return "", "", SanitizedQuery{}, 0, false
 	}
 	sql := C.CString(query)
 	defer C.free(unsafe.Pointer(sql))
 	limit := policy.MaxQueryTextBytes
-	if limit == 0 {
+	if limit <= 0 || limit > DefaultMaxQueryTextBytes {
 		limit = DefaultMaxQueryTextBytes
 	}
-	largeLimit := limit < 0 || limit > C.SEQUEL_TEXT_MAX
 	options := C.sequel_options_t{dialect: nativeDialect(policy.Dialect),
-		omit_query_text: C.bool(policy.OmitQueryText || largeLimit),
-		keep_in_lists:   C.bool(!policy.CollapseInLists)}
-	if !largeLimit {
-		options.max_query_text_bytes = C.size_t(limit)
-	}
+		omit_query_text:      C.bool(policy.OmitQueryText),
+		keep_in_lists:        C.bool(!policy.CollapseInLists),
+		max_query_text_bytes: C.size_t(limit)}
 	var metadata C.sequel_metadata_t
+	defer C.sequel_metadata_free(&metadata)
 	if C.sequel_inspect(sql, &options, &metadata) != C.SEQUEL_OK {
 		return "", "", SanitizedQuery{}, 0, false
 	}
-	safe := SanitizedQuery{Text: C.GoString(&metadata.text[0]), Truncated: bool(metadata.truncated)}
-	if largeLimit && !policy.OmitQueryText {
-		var ok bool
-		safe, ok = sanitizeNative(query, policy)
-		if !ok {
-			return "", "", SanitizedQuery{}, 0, false
-		}
-	}
-	return C.GoString(&metadata.summary[0]), C.GoString(&metadata.operation[0]), safe, int(metadata.statement_count), true
+	safe := SanitizedQuery{Text: C.GoString(metadata.text), Truncated: bool(metadata.truncated)}
+	return C.GoString(metadata.summary), C.GoString(&metadata.operation[0]), safe, int(metadata.statement_count), true
 }
 
 // sanitizeNative enforces the input bound and copies a UTF-8-bounded C template.
 func sanitizeNative(query string, policy SanitizeOptions) (SanitizedQuery, bool) {
-	if strings.IndexByte(query, 0) >= 0 || len(query) > 1024*1024 {
+	if strings.IndexByte(query, 0) >= 0 || len(query) > MaxInputBytes {
 		return SanitizedQuery{}, false
 	}
 	limit := policy.MaxQueryTextBytes

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from . import _sql
 from .dialect import Dialect
+from .limits import DEFAULT_MAX_QUERY_TEXT_BYTES
 
 
 class SQLInspectionError(ValueError):
@@ -27,14 +28,14 @@ def inspect(
     sql: str,
     *,
     dialect: Dialect = Dialect.GENERIC,
-    max_query_text_bytes: int = 32768,
+    max_query_text_bytes: int = DEFAULT_MAX_QUERY_TEXT_BYTES,
     omit_query_text: bool = False,
     keep_in_lists: bool = False,
 ) -> Query:
     """Inspect SQL without executing it or reading driver bind values.
 
     Comments and literals are removed from query text. Malformed input raises
-    `SQLInspectionError`. Query text defaults to a 32768-byte limit; use
+    `SQLInspectionError`. Query text defaults to a 1 GiB limit; use
     `omit_query_text` when only structural metadata should be collected.
     """
     try:

@@ -43,7 +43,7 @@ static PyObject *inspect_sql(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "sinpp", &sql, &dialect, &limit, &omit, &keep))
     return NULL;
   if (limit < 0 || limit > SEQUEL_TEXT_MAX) {
-    PyErr_SetString(PyExc_ValueError, "query text limit must be between 0 and 32768");
+    PyErr_SetString(PyExc_ValueError, "query text limit must be between 0 and SEQUEL_TEXT_MAX (1 GiB)");
     return NULL;
   }
   sequel_options_t options = {0};
@@ -56,12 +56,14 @@ static PyObject *inspect_sql(PyObject *self, PyObject *args) {
     return PyErr_NoMemory();
   sequel_status_t status = sequel_inspect(sql, &options, metadata);
   if (status != SEQUEL_OK) {
+    sequel_metadata_free(metadata);
     PyMem_Free(metadata);
     PyErr_SetString(PyExc_ValueError, "SQL inspection rejected input");
     return NULL;
   }
   PyObject *result = Py_BuildValue("sssOn", metadata->text, metadata->summary, metadata->operation,
                                    metadata->truncated ? Py_True : Py_False, (Py_ssize_t)metadata->statement_count);
+  sequel_metadata_free(metadata);
   PyMem_Free(metadata);
   return result;
 }
@@ -95,8 +97,8 @@ static PyObject *sanitize_sql(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "sipp", &sql, &dialect, &remove_comments, &replace_literals))
     return NULL;
   size_t n = strlen(sql);
-  if (n > 1024 * 1024) {
-    PyErr_SetString(PyExc_ValueError, "SQL exceeds 1 MiB");
+  if (n > SEQUEL_INPUT_MAX) {
+    PyErr_SetString(PyExc_ValueError, "SQL exceeds SEQUEL_INPUT_MAX (1 GiB)");
     return NULL;
   }
   char *out = PyMem_Malloc(n + 2);
@@ -189,4 +191,15 @@ static PyMethodDef methods[] = {
     {"format", format_sql, METH_VARARGS, "Format without sanitizing."},
     {NULL, NULL, 0, NULL}};
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "_sql", NULL, -1, methods};
-PyMODINIT_FUNC PyInit__sql(void) { return PyModule_Create(&module); }
+PyMODINIT_FUNC PyInit__sql(void) {
+  PyObject *result = PyModule_Create(&module);
+  if (!result)
+    return NULL;
+  if (PyModule_AddIntConstant(result, "MAX_INPUT_BYTES", SEQUEL_INPUT_MAX) < 0 ||
+      PyModule_AddIntConstant(result, "DEFAULT_MAX_QUERY_TEXT_BYTES", SEQUEL_TEXT_MAX) < 0 ||
+      PyModule_AddIntConstant(result, "DEFAULT_MAX_SUMMARY_BYTES", SEQUEL_SUMMARY_MAX) < 0) {
+    Py_DECREF(result);
+    return NULL;
+  }
+  return result;
+}

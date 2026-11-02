@@ -20,8 +20,18 @@ typedef enum {
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define SEQUEL_TEXT_MAX 32768
-#define SEQUEL_SUMMARY_MAX 32768
+/** Maximum UTF-8 SQL input length, in bytes (1 GiB). */
+#ifndef SEQUEL_INPUT_MAX
+#define SEQUEL_INPUT_MAX ((size_t)1024 * 1024 * 1024)
+#endif
+/** Default maximum sanitized query text length, in bytes (1 GiB). */
+#ifndef SEQUEL_TEXT_MAX
+#define SEQUEL_TEXT_MAX ((size_t)1024 * 1024 * 1024)
+#endif
+/** Maximum summary length, in bytes (1 GiB). */
+#ifndef SEQUEL_SUMMARY_MAX
+#define SEQUEL_SUMMARY_MAX ((size_t)1024 * 1024 * 1024)
+#endif
 /** Dialect selects quote, identifier, comment and bind-marker rules. */
 typedef enum {
   SEQUEL_GENERIC,
@@ -79,25 +89,36 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect
 /** Inspection policy. Initialize to zero to use generic SQL and default limits. */
 typedef struct {
   sequel_dialect_t dialect;
-  /** Zero uses 32768. Values above 32768 are rejected. */
+  /** Zero uses SEQUEL_TEXT_MAX. Values above SEQUEL_TEXT_MAX are rejected. */
   size_t max_query_text_bytes;
   bool omit_query_text;
   bool keep_in_lists;
 } sequel_options_t;
-/** Bounded, sanitized query text and structural metadata from sequel_inspect. */
+/** Bounded, sanitized query text and structural metadata from sequel_inspect.
+ * Text is allocated to fit the actual result, not the maximum limits.
+ * Do not copy this owning struct or modify its pointers. Release it with
+ * sequel_metadata_free before reuse, including after a failed inspection. */
 typedef struct {
-  char text[SEQUEL_TEXT_MAX + 1];
-  char summary[SEQUEL_SUMMARY_MAX + 1];
+  const char *text;
+  const char *summary;
   char operation[32];
   bool truncated;
   size_t statement_count;
+  /** Internal allocation; callers must not access or free it directly. */
+  void *_storage;
 } sequel_metadata_t;
+/** Release inspection storage and reset metadata. NULL is allowed. Only call
+ * on a zero-initialized struct or one initialized by sequel_inspect. Safe to repeat. */
+void sequel_metadata_free(sequel_metadata_t *metadata);
 /** Dialect-independent inspection, usable without SQLite. Never reads bind
  * values. Malformed quoting fails closed: text is empty and summary is SQL.
- * Input is limited to 1 MiB and nesting to 64 levels. Output is UTF-8 bounded. */
+ * Input is limited to SEQUEL_INPUT_MAX and nesting to 64 levels. Output is UTF-8
+ * bounded. out need not be initialized, but any previous result must be freed. */
 sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out);
-/** Sanitizes without the fixed metadata text cap. capacity includes the NUL
- * terminator; limit is the maximum emitted bytes (zero uses 32768). */
+/** Sanitizes into a caller-owned buffer. capacity includes the NUL
+ * terminator; limit is the maximum emitted bytes (zero uses SEQUEL_TEXT_MAX).
+ * Capacity need only fit the actual output or its truncated prefix plus NUL;
+ * insufficient capacity returns SEQUEL_ERR_OVERFLOW without partial output. */
 sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
                                 char *out, size_t capacity, bool *truncated);
 /** Independent transformations. Retained comments and literals may contain secrets.
@@ -112,7 +133,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
 
 /** Layout-only SQL formatting. Comments, literals, identifiers and bind markers
  * are preserved verbatim. No SQL is executed or sanitized. Input is UTF-8,
- * limited to 1 MiB / 65536 tokens / 64 nesting levels. Not a SQL validator.
+ * limited to SEQUEL_INPUT_MAX / 65536 tokens / 64 nesting levels. Not a SQL validator.
  * length receives the output byte count (excluding NUL). Pass out=NULL and
  * capacity=0 to measure. On failure a supplied output buffer is emptied. */
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
@@ -194,7 +215,7 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
  * with inline colors and sequel-* token classes. ANSI uses truecolor SGR and a
  * final reset. Does not format, sanitize, execute SQL, or validate its grammar.
  * Rejects invalid UTF-8, terminal control bytes other than TAB/CR/LF, malformed
- * quotes/comments (unless tolerant), >1 MiB input, or >65536 tokens. Unbalanced
+ * quotes/comments (unless tolerant), >SEQUEL_INPUT_MAX input, or >65536 tokens. Unbalanced
  * groups are allowed; use sequel_diagnose to check delimiter structure.
  * NULL options uses defaults. out=NULL/capacity=0 measures; length excludes NUL.
  * Insufficient capacity reports required length and empties out. Other errors

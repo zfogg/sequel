@@ -9,7 +9,7 @@ static const struct {
      "Pass an empty string to represent empty input."},
     {"invalid_argument", "Invalid API argument", "The dialect, options or output buffer arguments are invalid.",
      "Use a supported dialect and initialize options with the provided initializer."},
-    {"input_limit", "SQL exceeds the 1 MiB input limit",
+    {"input_limit", "SQL exceeds the 1 GiB input limit",
      "Input is bounded to keep parsing and rendering resource use predictable.",
      "Split the input into smaller SQL documents."},
     {"invalid_utf8", "Invalid UTF-8 input",

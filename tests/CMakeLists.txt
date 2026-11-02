@@ -31,6 +31,17 @@ if(SEQUEL_BUILD_CLI)
   add_test(NAME sequel-diagnostics COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test_diagnostics.py $<TARGET_FILE:sequel-cli>)
 endif()
+add_executable(sequel-limits-test limits_api_test.c)
+target_link_libraries(sequel-limits-test PRIVATE sequel::sequel)
+add_test(NAME sequel-limits COMMAND sequel-limits-test)
+# Exercise exact boundaries with the same engine and small test-only constants.
+add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/main.c ../src/utf8.c)
+target_include_directories(sequel-limit-boundary-test PRIVATE ../include)
+target_link_libraries(sequel-limit-boundary-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
+target_compile_definitions(sequel-limit-boundary-test PRIVATE
+  SEQUEL_INPUT_MAX=128 SEQUEL_TEXT_MAX=32 SEQUEL_SUMMARY_MAX=64)
+add_test(NAME sequel-limit-boundary COMMAND sequel-limit-boundary-test
+  ${CMAKE_CURRENT_BINARY_DIR}/limit-boundary-input.tmp)
 
 if(WIN32 AND BUILD_SHARED_LIBS)
   get_property(_tests DIRECTORY PROPERTY TESTS)

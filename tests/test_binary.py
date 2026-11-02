@@ -111,7 +111,7 @@ class BinaryTests(unittest.TestCase):
             b"select $$unfinished",
             b"select \0",
             b"select \xff",
-            b"x" * (1024 * 1024 + 1),
+            b"x," * 65537,
         ]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "bad.sql"
@@ -170,7 +170,7 @@ class BinaryTests(unittest.TestCase):
                 self.assertNotEqual(run(*args).returncode, 0)
 
     def test_pipe_limit_and_nul(self):
-        for sql in [b"x" * (1024 * 1024 + 1), b"select \0 1"]:
+        for sql in [b"x," * 65537, b"select \0 1"]:
             self.assertNotEqual(run("format", sql=sql).returncode, 0)
 
     def test_help(self):

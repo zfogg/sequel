@@ -7,6 +7,7 @@ int main(void) {
     return 1;
   if (strcmp(metadata.text, "SELECT ?"))
     return 1;
+  sequel_metadata_free(&metadata);
   sequel_highlight_options_t highlight;
   sequel_highlight_options_init(&highlight);
   sequel_colorscheme_t scheme;

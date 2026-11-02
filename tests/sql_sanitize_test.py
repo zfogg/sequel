@@ -96,7 +96,7 @@ long_query = b"SELECT " + b", ".join(b"col" + str(i).encode() for i in range(900
 assert len(long_query) > 32768
 for limit in [0, 1, 2, 7, 32767, 32768, 32769, len(long_query)]:
     status, truncated, text = run([{"dialect": 2, "query": long_query, "limit": limit}])[0]
-    effective = limit or 32768
+    effective = limit or 1024**3
     assert status == 0 and len(text.encode()) <= effective
     assert truncated == (len(long_query) - len("SECRET") - 1 > effective)
     assert "SECRET" not in text

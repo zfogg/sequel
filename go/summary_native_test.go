@@ -105,7 +105,7 @@ func TestNativeSummaryLargeStructures(t *testing.T) {
 			t.Errorf("%s: invalid large summary: %q", dialect, summary)
 		}
 	}
-	if got := Summary(DialectPostgreSQL, "SELECT "+strings.Repeat("表", 500000)); got != "SQL" {
-		t.Fatalf("over-size query = %q, want SQL", got)
+	if got := Summary(DialectPostgreSQL, "SELECT "+strings.Repeat("表", 500000)); got != "SELECT …" {
+		t.Fatalf("large query = %q, want SELECT …", got)
 	}
 }

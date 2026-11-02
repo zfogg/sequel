@@ -105,14 +105,14 @@ for c, (status, _, out) in zip(
     [
         dict(dialect="postgresql", sql="select a,b from t", capacity=1),
         dict(dialect="duckdb", sql="(" * 65 + ")" * 65),
-        dict(dialect="postgresql", sql="x" * (1024 * 1024 + 1)),
+        dict(dialect="postgresql", sql="x," * 65537),
         dict(dialect="sqlite", sql="select " + ",".join("x" for _ in range(33000))),
     ],
     format_many(
         [
             dict(dialect="postgresql", sql="select a,b from t", capacity=1),
             dict(dialect="duckdb", sql="(" * 65 + ")" * 65),
-            dict(dialect="postgresql", sql="x" * (1024 * 1024 + 1)),
+            dict(dialect="postgresql", sql="x," * 65537),
             dict(dialect="sqlite", sql="select " + ",".join("x" for _ in range(33000))),
         ]
     ),

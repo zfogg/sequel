@@ -11,10 +11,20 @@
 #else
 #include <unistd.h>
 #endif
-#define INTERACTIVE_MAX (1024 * 1024)
+#include "input.h"
+#define INTERACTIVE_MAX SEQUEL_INPUT_MAX
 
 /* Used only on fatal input errors. Retain a bounded prefix for source locations. */
-static void reject_input(char *sql, size_t used, const char *line, size_t n, sequel_dialect_t dialect, int json) {
+static void reject_input(char **buffer, size_t *capacity, size_t used, const char *line, size_t n,
+                         sequel_dialect_t dialect, int json) {
+  size_t needed = used + n + 2;
+  if (needed > INTERACTIVE_MAX + 2)
+    needed = INTERACTIVE_MAX + 2;
+  if (!input_reserve(buffer, capacity, needed)) {
+    fputs("sequel: out of memory\n", stderr);
+    return;
+  }
+  char *sql = *buffer;
   if (used && sql[used - 1] != '\n' && sql[used - 1] != '\r')
     sql[used++] = '\n';
   size_t total = used + n, copy = n;
@@ -59,13 +69,15 @@ int interactive(const sequel_highlight_options_t *options, int json) {
   _setmode(fileno(stdin), _O_BINARY);
   _setmode(fileno(stdout), _O_BINARY);
 #endif
-  char *sql = calloc(INTERACTIVE_MAX + 2, 1), *line = calloc(INTERACTIVE_MAX + 2, 1);
+  char *sql = NULL, *line = NULL;
+  size_t sql_capacity = 0, line_capacity = 0;
   int result = 0, finished = 0;
   size_t used = 0;
-  if (!sql || !line) {
+  if (!input_reserve(&sql, &sql_capacity, 1) || !input_reserve(&line, &line_capacity, 1)) {
     result = 1;
     goto done;
   }
+  sql[0] = line[0] = 0;
   if (terminal)
     fputs("sequel SQL workbench (no SQL execution). :help for commands.\n", stderr);
   for (;;) {
@@ -76,9 +88,13 @@ int interactive(const sequel_highlight_options_t *options, int json) {
     size_t n = 0;
     int ch;
     while ((ch = fgetc(stdin)) != EOF) {
+      if (!input_reserve(&line, &line_capacity, n + 2)) {
+        result = 1;
+        goto done;
+      }
       if (!ch || n == INTERACTIVE_MAX) {
         line[n++] = (char)ch;
-        reject_input(sql, finished ? 0 : used, line, n, options->dialect, json);
+        reject_input(&sql, &sql_capacity, finished ? 0 : used, line, n, options->dialect, json);
         result = 1;
         goto done;
       }
@@ -139,7 +155,7 @@ int interactive(const sequel_highlight_options_t *options, int json) {
             continue;
           }
           if (length > INTERACTIVE_MAX) {
-            fputs("sequel: formatted buffer would exceed 1 MiB; original retained\n", stderr);
+            fputs("sequel: formatted buffer would exceed 1 GiB; original retained\n", stderr);
             continue;
           }
           char *formatted = malloc(length + 1);
@@ -148,6 +164,11 @@ int interactive(const sequel_highlight_options_t *options, int json) {
             break;
           }
           sequel_status_t status = sequel_format_ex(sql, options->dialect, formatted, length + 1, &length, &current);
+          if (status == SEQUEL_OK && !input_reserve(&sql, &sql_capacity, length + 1)) {
+            free(formatted);
+            result = 1;
+            break;
+          }
           if (status == SEQUEL_OK) {
             memcpy(sql, formatted, length + 1);
             used = length;
@@ -171,7 +192,11 @@ int interactive(const sequel_highlight_options_t *options, int json) {
     }
     size_t gap = used && sql[used - 1] != '\n' && sql[used - 1] != '\r' ? 1 : 0;
     if (n + gap > INTERACTIVE_MAX - used) {
-      reject_input(sql, used, line, n, options->dialect, json);
+      reject_input(&sql, &sql_capacity, used, line, n, options->dialect, json);
+      result = 1;
+      break;
+    }
+    if (!input_reserve(&sql, &sql_capacity, used + gap + n + 1)) {
       result = 1;
       break;
     }

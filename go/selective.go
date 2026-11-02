@@ -18,11 +18,11 @@ import (
 // Unlike bounded telemetry sanitization, this returns the complete result.
 // With both flags false, lexical contents are kept and outside whitespace is
 // normalized. Replacing literals also collapses placeholder-only IN lists.
-// Input over 1 MiB, embedded NULs, invalid dialects and native failures return an
+// Input over 1 GiB, embedded NULs, invalid dialects and native failures return an
 // empty string and an error. No bind values are read and no SQL is executed.
 func SanitizeSelective(dialect Dialect, query string, removeComments, replaceLiterals bool) (string, error) {
-	if len(query) > 1024*1024 || strings.IndexByte(query, 0) >= 0 {
-		return "", fmt.Errorf("SQL exceeds 1 MiB or contains NUL")
+	if len(query) > MaxInputBytes || strings.IndexByte(query, 0) >= 0 {
+		return "", fmt.Errorf("SQL exceeds 1 GiB or contains NUL")
 	}
 	switch dialect {
 	case "", DialectGeneric, DialectSQLite, DialectPostgreSQL, DialectDuckDB, DialectMySQL, DialectClickHouse:

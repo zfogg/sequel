@@ -51,13 +51,19 @@ if (sequel_inspect("SELECT * FROM users WHERE id=$1", &options, &query) == SEQUE
   puts(query.text);     /* SELECT * FROM users WHERE id=? */
   puts(query.summary);  /* SELECT … FROM users WHERE … */
 }
+sequel_metadata_free(&query);
 ```
+
+Inspection text and summary default to 1 GiB limits, with storage allocated for
+the actual results. Call `sequel_metadata_free` before reusing or discarding a
+result, including on failure. This replaces the previous inline-buffer C metadata
+layout; C consumers must rebuild and add the cleanup call.
 
 `sequel_inspect` returns bounded UTF-8 text, summary, operation, statement count
 and truncation status. `sequel_sanitize` accepts a caller-sized buffer and limit.
 `sequel_format` supports a measure pass with `out=NULL, capacity=0` before allocating.
 `sequel_compact` preserves newlines while collapsing horizontal token gaps.
-Malformed quoting fails closed. Input is limited to 1 MiB and nesting to 64 levels.
+Malformed quoting fails closed. Input is limited to 1 GiB and nesting to 64 levels.
 The public status enum is independent of OpenTelemetry.
 
 ## Go
@@ -120,7 +126,7 @@ colors and `sequel-keyword`, `sequel-string`, etc. span classes. It can be opene
 in a browser or embedded into an existing page without a CSS dependency. ANSI
 uses 24-bit foreground/background SGR sequences and ends with a full reset.
 Both modes reject embedded terminal controls other than tabs and newlines,
-malformed quotes/comments, invalid UTF-8, input over 1 MiB or over 65536 tokens.
+malformed quotes/comments, invalid UTF-8, input over 1 GiB or over 65536 tokens.
 Highlighting accepts incomplete SQL grammar, including unmatched parentheses.
 
 The default palette is `default-dark`. There are 360 bundled Base16 schemes,
@@ -235,7 +241,7 @@ unsupported data rather than accidentally processed as SQL.
 
 Locations use zero-based UTF-8 byte offsets with an exclusive end. Lines and
 columns are one-based; a Unicode scalar counts as one column, a tab counts as one
-column, and CRLF counts as one newline. Limits (1 MiB, 65536 tokens, 64 levels)
+column, and CRLF counts as one newline. Limits (1 GiB, 65536 tokens, 64 levels)
 and malformed UTF-8 or terminal controls have distinct diagnostic codes.
 
 `--tolerant` highlights unfinished strings, dollar strings, quoted identifiers,

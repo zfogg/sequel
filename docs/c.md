@@ -27,7 +27,20 @@ if (sequel_highlight(sql, &options, NULL, 0, &length) == SEQUEL_OK) {
 
 Output capacities include the terminating NUL. Measurement calls pass `out=NULL`
 and `capacity=0`; lengths exclude NUL. SQL and output buffers must not overlap.
-Input is UTF-8 and limited to 1 MiB, 65536 tokens and 64 nesting levels.
+Input is UTF-8 and limited to 1 GiB, 65536 tokens and 64 nesting levels.
+
+## Inspection ownership and limits
+
+`SEQUEL_INPUT_MAX`, `SEQUEL_TEXT_MAX` and `SEQUEL_SUMMARY_MAX` are 1 GiB
+byte constants. Inspection allocates storage for the actual text and summary;
+a small query does not reserve the configured maximum. A zero text limit selects
+`SEQUEL_TEXT_MAX`; explicit smaller limits still truncate on UTF-8 boundaries.
+
+`sequel_metadata_t` now holds owned string pointers instead of inline arrays.
+C consumers must rebuild and call `sequel_metadata_free(&metadata)` after each
+`sequel_inspect` call, including failures, and before reusing the result struct.
+Do not copy the struct or free its strings individually. Go and Python bindings
+manage this ownership automatically.
 
 ## Diagnostics and editing
 

@@ -42,7 +42,9 @@ int main(void) {
     CHECK(sequel_inspect(
               "SELECT * FROM a JOIN b ON CASE WHEN NG(ia.id>1 THEN b.id ELSE a.id END=a.id LEFT JOIN c USING(id)",
               &options, &metadata) == SEQUEL_OK);
+    sequel_metadata_free(&metadata);
     CHECK(sequel_inspect("SELECT (foo FROM t", &options, &metadata) == SEQUEL_OK);
+    sequel_metadata_free(&metadata);
   }
   return 0;
 }

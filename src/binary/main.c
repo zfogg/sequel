@@ -29,7 +29,8 @@ typedef struct _stat file_info;
 typedef struct stat file_info;
 #endif
 
-#define MAX_SQL (1024 * 1024)
+#include "input.h"
+#define MAX_SQL SEQUEL_INPUT_MAX
 static const char usage[] = "Usage:\n"
                             "  sequel format [OPTIONS] [SQL | PATH ...]\n"
                             "  sequel sanitize [OPTIONS] [SQL | PATH ...]\n\n"
@@ -200,23 +201,25 @@ static int process_input(int format, int d, int embedded, const char *language_n
     _setmode(fileno(stdin), _O_BINARY);
   _setmode(fileno(stdout), _O_BINARY);
 #endif
-  char *sql = calloc(MAX_SQL + 2, 1);
-  if (!sql) {
-    if (source_path)
-      fclose(input);
-    return error("out of memory");
-  }
-  size_t n;
+  char *sql = NULL;
+  size_t n = 0;
   int failed = 0;
   if (argument) {
     n = strlen(argument);
-    memcpy(sql, argument, n <= MAX_SQL ? n : MAX_SQL + 1);
+    if (n > MAX_SQL)
+      n = MAX_SQL + 1;
+    sql = malloc(n + 1);
+    if (sql) {
+      memcpy(sql, argument, n);
+      sql[n] = 0;
+    }
   } else {
-    n = fread(sql, 1, MAX_SQL + 1, input);
-    failed = ferror(input);
+    sql = input_read(input, &n);
     if (source_path && fclose(input) != 0)
       failed = 1;
   }
+  if (!sql)
+    return error("input read error or out of memory");
   if (failed) {
     free(sql);
     return error("input read error");
@@ -470,15 +473,12 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
       FILE *file = open_input(scheme_name);
       if (!file)
         return error("unknown Base16 scheme or unreadable YAML file; use --list-colorschemes");
-      char *yaml = calloc(MAX_SQL + 2, 1);
-      if (!yaml) {
-        fclose(file);
-        return error("out of memory");
-      }
-      size_t n = fread(yaml, 1, MAX_SQL + 1, file);
-      int failed = ferror(file);
-      failed |= fclose(file) != 0;
-      failed |= n > MAX_SQL || memchr(yaml, 0, n) != NULL;
+      size_t n = 0;
+      char *yaml = input_read(file, &n);
+      int failed = fclose(file) != 0;
+      failed |= !yaml || n > MAX_SQL;
+      if (!failed)
+        failed = memchr(yaml, 0, n) != NULL;
       if (!failed)
         failed = sequel_colorscheme_parse(yaml, &scheme) != SEQUEL_OK;
       free(yaml);

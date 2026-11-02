@@ -115,7 +115,7 @@ int main(void) {
   CHECK(large);
   memset(large, ' ', 1024 * 1024 + 1);
   large[1024 * 1024 + 1] = 0;
-  CHECK(sequel_highlight(large, NULL, NULL, 0, &length) == SEQUEL_ERR_OVERFLOW);
+  CHECK(sequel_highlight(large, NULL, NULL, 0, &length) == SEQUEL_OK);
   large[1024 * 1024] = 0;
   CHECK(sequel_highlight(large, NULL, NULL, 0, &length) == SEQUEL_OK);
   for (size_t i = 0; i < 70000; ++i) {

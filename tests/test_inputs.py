@@ -15,6 +15,23 @@ def run(*args, data=b""):
 
 
 class InputTests(unittest.TestCase):
+    def test_input_above_former_limit(self):
+        identifier = b"x" * (1024 * 1024 + 1)
+        sql = b"SELECT * FROM " + identifier
+        for command in ("format", "sanitize", "highlight"):
+            piped = run(command, data=sql)
+            self.assertEqual(piped.returncode, 0, piped.stderr)
+            self.assertIn(identifier, piped.stdout)
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "large.sql"
+                path.write_bytes(sql)
+                from_file = run(command, str(path))
+                self.assertEqual(from_file.returncode, 0, from_file.stderr)
+                self.assertEqual(from_file.stdout, piped.stdout)
+        interactive = run("interactive", "--json", data=sql + b";\n:quit\n")
+        self.assertEqual(interactive.returncode, 0, interactive.stderr)
+        self.assertIn(identifier, interactive.stdout)
+
     def test_multiple_sql_paths_and_editing(self):
         original = b"/* private */ select   a,b from t where id=42 and token='secret';"
         with tempfile.TemporaryDirectory() as directory:

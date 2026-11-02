@@ -79,12 +79,12 @@ func Colorschemes() []string {
 // HighlightSQL preserves spelling and whitespace, producing escaped HTML or
 // truecolor ANSI. It neither formats nor sanitizes SQL. Invalid lexical input,
 // terminal controls and invalid options return an empty result and an error.
-// Input is limited to 1 MiB and 65536 tokens. Tolerant permits unfinished lexical
+// Input is limited to 1 GiB and 65536 tokens. Tolerant permits unfinished lexical
 // constructs; delimiter balance is checked separately by Diagnose. SQL failures
 // return *DiagnosticError. Invalid options may return other error types.
 // Literal values and comments remain visible, so sanitize first when needed.
 func HighlightSQL(dialect Dialect, query string, options HighlightOptions) (string, error) {
-	if len(query) > 1024*1024 || strings.IndexByte(query, 0) >= 0 {
+	if len(query) > MaxInputBytes || strings.IndexByte(query, 0) >= 0 {
 		return "", &DiagnosticError{Diagnose(dialect, query)}
 	}
 	switch dialect {

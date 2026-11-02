@@ -65,7 +65,7 @@ def test_locations_and_exception() -> None:
         ("select \x00 x", "control_character"),
         ("select '\x1b[2J'", "control_character"),
         ("select '\u009b'", "control_character"),
-        (" " * (1024 * 1024 + 1), "input_limit"),
+        ("x " * 65537, "token_limit"),
         ("x " * 65537, "token_limit"),
         ("(" * 65, "nesting_limit"),
         ("/*" * 65, "nesting_limit"),

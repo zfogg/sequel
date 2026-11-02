@@ -285,7 +285,7 @@ class EmbeddedTests(unittest.TestCase):
 
     def test_limits_and_hostile_inputs(self):
         result = run(b"x" * (1024 * 1024 + 1), "go")
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 0)
         result = run("r" + "#" * 256 + '"SELECT 1"' + "#" * 256, "rust")
         self.assertNotEqual(result.returncode, 0)
         rng = random.Random(314159)

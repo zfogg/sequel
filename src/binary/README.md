@@ -30,7 +30,7 @@ build/sequel format --dialect postgresql --edit-file queries.sql
 to stdout. Without an argument, interactive terminal input prints usage and exits
 with an error immediately. Use `--` before an SQL argument starting with `-`.
 Dialects: `generic` (default), `postgresql`, `sqlite`, `mysql`, `duckdb`, `clickhouse`.
-Input reads are bounded to 1 MiB plus one byte to detect overflow. Invalid quoting,
+Input reads are bounded to 1 GiB plus one byte to detect overflow. Invalid quoting,
 invalid UTF-8, embedded NULs and lexer limits fail before edited files are written.
 Formatting is lexical, not SQL validation.
 
@@ -84,7 +84,7 @@ sequences, GORM `{{...}}` directives, dynamic concatenations, recognized format
 strings, and interpolated JavaScript templates (`${...}`) are left unchanged.
 Unterminated recognized strings/comments/templates, invalid UTF-8, and limit
 violations reject the whole transformation before any file is written. The input limit remains
-1 MiB; embedded output is bounded to 64 MiB. Existing file replacement, permission
+1 GiB; embedded output is bounded to 64 MiB. Existing file replacement, permission
 preservation and symlink rejection apply to `--edit-file` in embedded mode too.
 
 ## Input and output modes for both commands

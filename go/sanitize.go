@@ -1,9 +1,5 @@
 package sequel
 
-// DefaultMaxQueryTextBytes bounds db.query.text while retaining enough SQL
-// shape for diagnostics. Applications may override it with SanitizeOptions.
-const DefaultMaxQueryTextBytes = 32 * 1024
-
 // SanitizeOptions controls dialect-specific SQL template sanitization.
 type SanitizeOptions struct {
 	// Dialect selects string escaping and placeholder rules.

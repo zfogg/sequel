@@ -592,7 +592,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
-  size_t cap = n * 8 + 1024;
+  size_t cap = n + 1024;
   char *buf = calloc(cap, 1);
   if (!ts || !buf) {
     free(ts);
