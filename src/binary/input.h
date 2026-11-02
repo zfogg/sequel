@@ -1,5 +1,5 @@
-#ifndef SEQUEL_BINARY_INPUT_H
-#define SEQUEL_BINARY_INPUT_H
+#pragma once
+
 #include <sequel.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,4 +45,3 @@ static inline char *input_read(FILE *stream, size_t *length) {
   *length = n;
   return buffer;
 }
-#endif
