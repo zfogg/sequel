@@ -18,9 +18,9 @@ static const struct {
     {"control_character", "Unsupported control character",
      "NUL and terminal control characters cannot be rendered safely. Tabs, CR and LF are supported.",
      "Remove the control character or represent it with a SQL escape sequence."},
-    {"token_limit", "SQL exceeds the 65536-token limit",
-     "The token budget bounds memory and rendering work, independently of the byte limit.",
-     "Split the input into smaller statements or documents."},
+    {"token_limit", "Legacy token-limit diagnostic",
+     "Reserved for compatibility. Tokens now use dynamically allocated storage within the SQL input byte limit.",
+     "Use the current library to process large token streams."},
     {"nesting_limit", "Nesting exceeds 64 levels",
      "Delimiter, parameter-type or nested-comment depth is bounded to prevent excessive parser work.",
      "Reduce nesting or split the expression into smaller parts."},
@@ -142,16 +142,13 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_status_t status = diagnostic_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
-  format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
-  if (!ts) {
-    diagnostic_report(sql, n, out, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
-    return SEQUEL_ERR_NOMEM;
-  }
-  size_t count = format_scan_ex(sql, n, dialect, ts, false, out);
+  format_token *ts = NULL;
+  size_t count = format_scan_ex(sql, n, dialect, &ts, false, out);
   if (count == SIZE_MAX) {
     free(ts);
-    return out->code == SEQUEL_DIAG_TOKEN_LIMIT || out->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW
-                                                                                          : SEQUEL_ERR_INVALID_ARGUMENT;
+    return out->code == SEQUEL_DIAG_OUT_OF_MEMORY   ? SEQUEL_ERR_NOMEM
+           : out->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW
+                                                    : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   size_t stack[64], depth = 0, last = SIZE_MAX;
   for (size_t i = 0; i < count; ++i) {

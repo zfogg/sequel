@@ -346,17 +346,13 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_status_t status = diagnostic_input(sql, n, options->dialect, diagnostic);
   if (status != SEQUEL_OK)
     return status;
-  format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
-  if (!ts) {
-    diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
-    return SEQUEL_ERR_NOMEM;
-  }
-  size_t count = format_scan_ex(sql, n, options->dialect, ts, options->tolerant, diagnostic);
+  format_token *ts = NULL;
+  size_t count = format_scan_ex(sql, n, options->dialect, &ts, options->tolerant, diagnostic);
   if (count == SIZE_MAX) {
     free(ts);
-    return diagnostic->code == SEQUEL_DIAG_TOKEN_LIMIT || diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT
-               ? SEQUEL_ERR_OVERFLOW
-               : SEQUEL_ERR_INVALID_ARGUMENT;
+    return diagnostic->code == SEQUEL_DIAG_OUT_OF_MEMORY   ? SEQUEL_ERR_NOMEM
+           : diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW
+                                                           : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   highlight_output b = {out, 0, capacity};
   if (options->mode == SEQUEL_HTML) {

@@ -136,7 +136,7 @@ func TestFormatSQLLayout(t *testing.T) {
 }
 
 func TestFormatSQLRejectsUnsafeInput(t *testing.T) {
-	for _, sql := range []string{"select 'unfinished", "select /* unfinished", "select $$unfinished", "select (id", "select )", "select \x00", "select \xff", strings.Repeat("(", 65) + strings.Repeat(")", 65), strings.Repeat("x,", 65537)} {
+	for _, sql := range []string{"select 'unfinished", "select /* unfinished", "select $$unfinished", "select (id", "select )", "select \x00", "select \xff", strings.Repeat("(", 65) + strings.Repeat(")", 65), strings.Repeat("x,", 65537) + "'broken"} {
 		got, err := FormatSQL(DialectPostgreSQL, sql)
 		if err == nil || got != sql {
 			t.Fatalf("expected original and error for %.80q", sql)

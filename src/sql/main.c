@@ -8,7 +8,6 @@
 #include <string.h>
 
 #define INPUT_MAX SEQUEL_INPUT_MAX
-#define TOKEN_MAX 65536
 typedef struct {
   const char *p;
   size_t n;

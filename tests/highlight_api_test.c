@@ -123,7 +123,7 @@ int main(void) {
     large[2 * i + 1] = ' ';
   }
   large[140000] = 0;
-  CHECK(sequel_highlight(large, NULL, NULL, 0, &length) != SEQUEL_OK);
+  CHECK(sequel_highlight(large, NULL, NULL, 0, &length) == SEQUEL_OK);
   free(large);
   puts("highlight API contracts and all palettes passed");
   return 0;

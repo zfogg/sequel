@@ -54,5 +54,26 @@ int main(void) {
         SEQUEL_ERR_OVERFLOW);
   CHECK(!*small && !truncated);
   free(sql);
+  /* More than 65536 tokens in a query larger than the former 1 MiB limit. */
+  const size_t columns = 100000;
+  length = 7 + columns * 12 + 20;
+  sql = malloc(length);
+  CHECK(sql);
+  strcpy(sql, "SELECT ");
+  for (size_t i = 0; i < columns; ++i)
+    memcpy(sql + 7 + i * 12, "column_name, ", 12);
+  strcpy(sql + 7 + columns * 12, "last FROM records;");
+  CHECK(sequel_inspect(sql, NULL, &result) == SEQUEL_OK);
+  CHECK(!result.truncated && !strcmp(result.text, sql));
+  sequel_metadata_free(&result);
+  sequel_diagnostic_t diagnostic;
+  CHECK(sequel_diagnose(sql, SEQUEL_GENERIC, &diagnostic) == SEQUEL_OK);
+  CHECK(sequel_format(sql, SEQUEL_GENERIC, NULL, 0, &length) == SEQUEL_OK);
+  CHECK(sequel_highlight(sql, NULL, NULL, 0, &length) == SEQUEL_OK);
+  char *compact = malloc(strlen(sql) + 1);
+  CHECK(compact);
+  CHECK(sequel_compact(sql, SEQUEL_GENERIC, compact, strlen(sql) + 1) == SEQUEL_OK);
+  free(compact);
+  free(sql);
   return 0;
 }

@@ -15,9 +15,10 @@ static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *di
   diagnostic_report(s, n, diag, code, start, end);
   return SIZE_MAX;
 }
-static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token *ts, bool tolerant,
+static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
                              sequel_diagnostic_t *diag) {
-  size_t count = 0, i = 0;
+  size_t count = 0, i = 0, capacity = 0;
+  format_token *ts = *tokens;
   bool clickhouse_insert = false;
   while (i < n) {
     bool gap = false, newline = false;
@@ -28,8 +29,12 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
     }
     if (i == n)
       break;
-    if (count == TOKEN_MAX)
-      return format_scan_error(s, n, diag, SEQUEL_DIAG_TOKEN_LIMIT, i, i + 1);
+    if (count == capacity) {
+      format_token *grown = grow_tokens(ts, &capacity, sizeof(*ts));
+      if (!grown)
+        return format_scan_error(s, n, diag, SEQUEL_DIAG_OUT_OF_MEMORY, i, i + 1);
+      *tokens = ts = grown;
+    }
     size_t start = i, end = i + 1;
     int kind = 0;
     unsigned char c = (unsigned char)s[i];
@@ -218,9 +223,6 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
     i = end;
   }
   return count;
-}
-static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_token *ts) {
-  return format_scan_ex(s, n, d, ts, false, NULL);
 }
 
 static void format_line(output *b, size_t indent) {
@@ -591,18 +593,22 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
+  format_token *ts = NULL;
   size_t cap = n + 1024;
   char *buf = calloc(cap, 1);
-  if (!ts || !buf) {
+  if (!buf) {
     free(ts);
     free(buf);
     return SEQUEL_ERR_NOMEM;
   }
   sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
-  size_t count = format_scan(sql, n, dialect, ts);
-  if (count == SIZE_MAX)
+  sequel_diagnostic_t scan_diagnostic;
+  size_t count = format_scan_ex(sql, n, dialect, &ts, false, &scan_diagnostic);
+  if (count == SIZE_MAX) {
+    if (scan_diagnostic.code == SEQUEL_DIAG_OUT_OF_MEMORY)
+      status = SEQUEL_ERR_NOMEM;
     goto done;
+  }
   output b = {buf, 0, cap};
   while (!format_layout(ts, count, &b)) {
     if (!b.overflow) {

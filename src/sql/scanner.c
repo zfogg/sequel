@@ -219,15 +219,20 @@ static bool sanitize(const char *s, size_t n, sequel_dialect_t dialect, bool num
   return sanitize_policy(s, n, dialect, numbers, true, true, b);
 }
 
-static size_t tokenize(const char *s, token *t, size_t cap, sequel_dialect_t dialect) {
-  size_t n = strlen(s), count = 0;
+static size_t tokenize(const char *s, token **tokens, sequel_dialect_t dialect) {
+  size_t n = strlen(s), count = 0, cap = 0;
+  token *t = *tokens;
   for (size_t i = 0; i < n;) {
     if (isspace((unsigned char)s[i])) {
       ++i;
       continue;
     }
-    if (count == cap)
-      return 0;
+    if (count == cap) {
+      token *grown = grow_tokens(t, &cap, sizeof(*t));
+      if (!grown)
+        return SIZE_MAX;
+      *tokens = t = grown;
+    }
     size_t start = i;
     bool word = false;
     char c = s[i];

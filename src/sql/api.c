@@ -157,8 +157,8 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
   if (summary_capacity > SEQUEL_SUMMARY_MAX + 1)
     summary_capacity = SEQUEL_SUMMARY_MAX + 1;
   char *safe = calloc(n + 1, 1), *shape = calloc(n + 1, 1), *summary_text = calloc(summary_capacity, 1);
-  token *tokens = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*tokens));
-  if (!safe || !shape || !tokens || !summary_text) {
+  token *tokens = NULL;
+  if (!safe || !shape || !summary_text) {
     free(safe);
     free(shape);
     free(tokens);
@@ -169,7 +169,11 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
   sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
   if (!sanitize(sql, n, o.dialect, false, &a) || !sanitize(sql, n, o.dialect, true, &b))
     goto done;
-  size_t count = tokenize(shape, tokens, n < TOKEN_MAX ? n + 1 : TOKEN_MAX, o.dialect);
+  size_t count = tokenize(shape, &tokens, o.dialect);
+  if (count == SIZE_MAX) {
+    status = SEQUEL_ERR_NOMEM;
+    goto done;
+  }
   if (!count) {
     status = *safe ? SEQUEL_ERR_OVERFLOW : SEQUEL_OK;
     goto done;

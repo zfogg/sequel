@@ -71,7 +71,7 @@ func TestHighlightInvalidOptions(t *testing.T) {
 			t.Fatalf("accepted invalid options: %+v", options)
 		}
 	}
-	for _, query := range []string{"select 'unterminated", "select \x00 1", "select '\x1b[2J'", "\xff", strings.Repeat("x ", 65537)} {
+	for _, query := range []string{"select 'unterminated", "select \x00 1", "select '\x1b[2J'", "\xff", strings.Repeat("x ", 65537) + "'broken"} {
 		if got, err := HighlightSQL(DialectGeneric, query, HighlightOptions{}); err == nil || got != "" {
 			t.Fatal("accepted invalid input")
 		}

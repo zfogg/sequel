@@ -32,3 +32,19 @@ def test_above_former_limits():
 def test_invalid_text_limit(limit):
     with pytest.raises(sequel.SQLInspectionError):
         sequel.inspect("SELECT 1", max_query_text_bytes=limit)
+
+
+def test_dense_tokens():
+    sql = "SELECT " + ", ".join(["column"] * 100_000) + " FROM records;"
+    query = sequel.inspect(sql)
+    assert not query.truncated and query.text == sql
+    assert query.operation == "SELECT" and query.statement_count == 1
+    assert sequel.diagnose(sql).code == "none"
+    formatted = sequel.format_sql(sql)
+    assert formatted.count("column") == 100_000
+    assert sequel.inspect(formatted).summary == query.summary
+    for mode in (sequel.HighlightMode.HTML, sequel.HighlightMode.ANSI):
+        assert sequel.highlight_sql(sql, mode=mode).count("column") == 100_000
+    # A lexical error after the former cap must still fail closed.
+    with pytest.raises(sequel.SQLInspectionError):
+        sequel.inspect(sql + "'secret")

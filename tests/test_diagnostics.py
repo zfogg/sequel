@@ -68,7 +68,7 @@ class DiagnosticsTests(unittest.TestCase):
             (b"SELECT \x00 x", "control_character"),
             (b"\xff", "invalid_utf8"),
             (b"\x1b[2J", "control_character"),
-            (b"x " * 65537, "token_limit"),
+            (b"x " * 65537 + b"\x00", "control_character"),
             (b"(" * 65, "nesting_limit"),
             (b"/*" * 65, "nesting_limit"),
         ]:

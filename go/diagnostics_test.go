@@ -26,8 +26,8 @@ func TestDiagnostics(t *testing.T) {
 	}
 	for _, tc := range []struct{ query, code string }{
 		{"select \x00 x", "control_character"}, {"\xff", "invalid_utf8"},
-		{"\x1b[2J", "control_character"}, {strings.Repeat("x ", 65537), "token_limit"},
-		{strings.Repeat("x ", 65537), "token_limit"}, {strings.Repeat("(", 65), "nesting_limit"},
+		{"\x1b[2J", "control_character"}, {strings.Repeat("x ", 65537) + "'broken", "unterminated_string"},
+		{strings.Repeat("(", 65), "nesting_limit"},
 		{"select )", "unmatched_close"}, {"select (1", "unclosed_group"},
 	} {
 		got := Diagnose(DialectGeneric, tc.query)
@@ -83,7 +83,7 @@ func TestTolerantHighlight(t *testing.T) {
 			}
 		}
 	}
-	for _, query := range []string{"select \x00", "\xff", "\x1b", strings.Repeat("x ", 65537)} {
+	for _, query := range []string{"select \x00", "\xff", "\x1b", strings.Repeat("x ", 65537) + "\x00"} {
 		if _, err := HighlightSQL(DialectGeneric, query, HighlightOptions{Tolerant: true}); err == nil {
 			t.Fatal("tolerated hard error")
 		}

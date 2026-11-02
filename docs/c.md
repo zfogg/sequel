@@ -27,7 +27,7 @@ if (sequel_highlight(sql, &options, NULL, 0, &length) == SEQUEL_OK) {
 
 Output capacities include the terminating NUL. Measurement calls pass `out=NULL`
 and `capacity=0`; lengths exclude NUL. SQL and output buffers must not overlap.
-Input is UTF-8 and limited to 1 GiB, 65536 tokens and 64 nesting levels.
+Input is UTF-8 and limited to 1 GiB and 64 nesting levels.
 
 ## Inspection ownership and limits
 

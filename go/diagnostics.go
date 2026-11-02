@@ -78,7 +78,7 @@ func diagnosticFromNative(d *C.sequel_diagnostic_t) Diagnostic {
 
 // Diagnose locates and explains the first lexical/delimiter issue. Code "none"
 // means no issue found; incomplete input is a warning. No SQL is executed.
-// Input is limited to 1 GiB, 65536 tokens and 64 nesting levels. Embedded NULs,
+// Input is limited to 1 GiB and 64 nesting levels. Embedded NULs,
 // invalid UTF-8, controls and unsupported data payloads have distinct codes.
 // An empty dialect selects generic SQL; an unknown dialect is invalid_argument.
 // Use StatementComplete to detect a final semicolon outside quotes/comments.

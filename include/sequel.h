@@ -50,7 +50,7 @@ typedef enum {
   SEQUEL_DIAG_INPUT_LIMIT,
   SEQUEL_DIAG_INVALID_UTF8,
   SEQUEL_DIAG_CONTROL_CHARACTER,
-  SEQUEL_DIAG_TOKEN_LIMIT,
+  SEQUEL_DIAG_TOKEN_LIMIT, /** Reserved for compatibility; no longer emitted. */
   SEQUEL_DIAG_NESTING_LIMIT,
   SEQUEL_DIAG_UNTERMINATED_STRING,
   SEQUEL_DIAG_UNTERMINATED_IDENTIFIER,
@@ -133,7 +133,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
 
 /** Layout-only SQL formatting. Comments, literals, identifiers and bind markers
  * are preserved verbatim. No SQL is executed or sanitized. Input is UTF-8,
- * limited to SEQUEL_INPUT_MAX / 65536 tokens / 64 nesting levels. Not a SQL validator.
+ * limited to SEQUEL_INPUT_MAX / 64 nesting levels. Not a SQL validator.
  * length receives the output byte count (excluding NUL). Pass out=NULL and
  * capacity=0 to measure. On failure a supplied output buffer is emptied. */
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
@@ -215,7 +215,7 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
  * with inline colors and sequel-* token classes. ANSI uses truecolor SGR and a
  * final reset. Does not format, sanitize, execute SQL, or validate its grammar.
  * Rejects invalid UTF-8, terminal control bytes other than TAB/CR/LF, malformed
- * quotes/comments (unless tolerant), >SEQUEL_INPUT_MAX input, or >65536 tokens. Unbalanced
+ * quotes/comments (unless tolerant), >SEQUEL_INPUT_MAX input. Unbalanced
  * groups are allowed; use sequel_diagnose to check delimiter structure.
  * NULL options uses defaults. out=NULL/capacity=0 measures; length excludes NUL.
  * Insufficient capacity reports required length and empties out. Other errors

@@ -127,8 +127,8 @@ int main(void) {
     large[i * 2 + 1] = ' ';
   }
   large[65537 * 2] = 0;
-  CHECK(sequel_diagnose(large, SEQUEL_GENERIC, &d) == SEQUEL_ERR_OVERFLOW);
-  CHECK(d.code == SEQUEL_DIAG_TOKEN_LIMIT && d.offset == 65536 * 2);
+  CHECK(sequel_diagnose(large, SEQUEL_GENERIC, &d) == SEQUEL_OK);
+  CHECK(d.code == SEQUEL_DIAG_NONE);
   memset(large, '(', 65);
   large[65] = 0;
   CHECK(sequel_diagnose(large, SEQUEL_GENERIC, &d) == SEQUEL_ERR_OVERFLOW);

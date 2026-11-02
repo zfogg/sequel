@@ -36,3 +36,25 @@ func TestSharedLimits(t *testing.T) {
 		t.Fatal("highlight kept old input cap", err)
 	}
 }
+
+func TestDenseTokens(t *testing.T) {
+	query := "SELECT " + strings.Repeat("column, ", 100000) + "last FROM records;"
+	summary, operation, text, count, ok := Inspect(query, DefaultSanitizeOptions(DialectGeneric))
+	if !ok || operation != "SELECT" || count != 1 || text.Truncated || text.Text != query || summary == "SQL" {
+		t.Fatal("dense-token inspection failed")
+	}
+	if d := Diagnose(DialectGeneric, query); d.Code != "none" {
+		t.Fatal(d)
+	}
+	if formatted, err := FormatSQL(DialectGeneric, query); err != nil || strings.Count(formatted, "column") != 100000 {
+		t.Fatal("dense-token formatting failed", err)
+	}
+	for _, mode := range []HighlightMode{HighlightHTML, HighlightANSI} {
+		if rendered, err := HighlightSQL(DialectGeneric, query, HighlightOptions{Mode: mode}); err != nil || strings.Count(rendered, "column") != 100000 {
+			t.Fatal("dense-token highlighting failed", err)
+		}
+	}
+	if _, ok := Sanitize(query + "'secret"); ok {
+		t.Fatal("ignored malformed suffix after former cap")
+	}
+}

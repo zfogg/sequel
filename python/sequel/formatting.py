@@ -11,7 +11,7 @@ def format_sql(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> str:
     """Format layout while preserving literals, comments, identifiers and markers.
 
     Raises `sequel.SQLDiagnosticError` for lexical, delimiter or layout issues.
-    Input is UTF-8, limited to 1 GiB, 65536 tokens and 64 nesting levels.
+    Input is UTF-8, limited to 1 GiB and 64 nesting levels.
     No SQL is executed or sanitized.
     """
     result, diagnostic = _sql.format(sql, int(Dialect(dialect)))

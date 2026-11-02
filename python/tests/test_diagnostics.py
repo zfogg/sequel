@@ -65,12 +65,12 @@ def test_locations_and_exception() -> None:
         ("select \x00 x", "control_character"),
         ("select '\x1b[2J'", "control_character"),
         ("select '\u009b'", "control_character"),
-        ("x " * 65537, "token_limit"),
-        ("x " * 65537, "token_limit"),
+        ("x " * 65537 + "\x00", "control_character"),
+        ("x " * 65537 + "\x1b", "control_character"),
         ("(" * 65, "nesting_limit"),
         ("/*" * 65, "nesting_limit"),
     ],
-    ids=["nul", "escape", "c1", "bytes", "tokens", "groups", "comments"],
+    ids=["nul", "escape", "c1", "dense-nul", "dense-control", "groups", "comments"],
 )
 def test_hard_errors(sql: str, code: str) -> None:
     d = diagnose(sql)

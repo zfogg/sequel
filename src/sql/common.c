@@ -1,3 +1,15 @@
+/* Token arrays grow with parsed tokens, rather than the maximum input size. */
+static void *grow_tokens(void *tokens, size_t *capacity, size_t element_size) {
+  size_t maximum = SIZE_MAX / element_size;
+  if (*capacity == maximum)
+    return NULL;
+  size_t next = *capacity ? (*capacity > maximum / 2 ? maximum : *capacity * 2) : 256;
+  void *grown = realloc(tokens, next * element_size);
+  if (grown)
+    *capacity = next;
+  return grown;
+}
+
 static bool letter(unsigned char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 static bool part(unsigned char c) { return letter(c) || isdigit(c) || c == '$' || c >= 128; }
 static bool equal(const char *s, size_t n, const char *word) {

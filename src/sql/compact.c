@@ -11,13 +11,12 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
-  if (!ts)
-    return SEQUEL_ERR_NOMEM;
-  size_t count = format_scan(sql, n, (sequel_dialect_t)dialect, ts);
+  format_token *ts = NULL;
+  sequel_diagnostic_t diagnostic;
+  size_t count = format_scan_ex(sql, n, dialect, &ts, false, &diagnostic);
   if (count == SIZE_MAX) {
     free(ts);
-    return SEQUEL_ERR_INVALID_ARGUMENT;
+    return diagnostic.code == SEQUEL_DIAG_OUT_OF_MEMORY ? SEQUEL_ERR_NOMEM : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   output b = {out, 0, capacity};
   const char *previous = sql;

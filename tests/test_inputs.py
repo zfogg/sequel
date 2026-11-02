@@ -32,6 +32,20 @@ class InputTests(unittest.TestCase):
         self.assertEqual(interactive.returncode, 0, interactive.stderr)
         self.assertIn(identifier, interactive.stdout)
 
+    def test_dense_token_pipeline(self):
+        sql = b"SELECT " + b"column, " * 40000 + b"last FROM records;"
+        formatted = run("format", data=sql)
+        self.assertEqual(formatted.returncode, 0, formatted.stderr)
+        for args, data in [
+            (("sanitize",), sql),
+            (("highlight",), formatted.stdout),
+            (("highlight", "--ansi"), formatted.stdout),
+            (("interactive",), sql + b"\n:quit\n"),
+        ]:
+            result = run(*args, data=data)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.count(b"column"), 40000)
+
     def test_multiple_sql_paths_and_editing(self):
         original = b"/* private */ select   a,b from t where id=42 and token='secret';"
         with tempfile.TemporaryDirectory() as directory:
