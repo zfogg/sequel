@@ -1,5 +1,10 @@
 # SQL highlighting samples
 
+[Documentation](https://zfogg.github.io/sequel/) ·
+[C API](https://zfogg.github.io/sequel/c/) ·
+[Python API](https://zfogg.github.io/sequel/python/) ·
+[Go API](https://zfogg.github.io/sequel/go/)
+
 Each example formats [query.sql](query.sql) with the PostgreSQL dialect and then
 highlights the formatted output. The SQL includes a comment, CTE, function,
 type cast, bind marker, string with HTML characters, number, boolean, NULL and

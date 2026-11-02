@@ -1,5 +1,10 @@
 # sequel
 
+[Documentation](https://zfogg.github.io/sequel/) ·
+[C API](https://zfogg.github.io/sequel/c/) ·
+[Python API](https://zfogg.github.io/sequel/python/) ·
+[Go API](https://zfogg.github.io/sequel/go/)
+
 A C11 library and command-line program for SQL formatting, syntax highlighting, sanitization and
 structural summaries. Supports generic SQL, PostgreSQL, SQLite, MySQL, DuckDB
 and ClickHouse. No database or telemetry runtime is required.

@@ -1,5 +1,10 @@
 # sequel binary
 
+[Documentation](https://zfogg.github.io/sequel/) ·
+[C API](https://zfogg.github.io/sequel/c/) ·
+[Python API](https://zfogg.github.io/sequel/python/) ·
+[Go API](https://zfogg.github.io/sequel/go/)
+
 Build the standalone C executable from a complete repository checkout using
 CMake 3.24+ and a C99 compiler. No Go toolchain or network download is required.
 The binary embeds the sequel library and the bundled utf8proc sources.
