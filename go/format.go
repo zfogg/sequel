@@ -10,9 +10,11 @@ import "C"
 import "unsafe"
 
 // FormatSQL formats SQL layout using sequel. It preserves comments, literals,
-// identifiers and bind placeholders verbatim. It does not validate or execute
-// SQL, interpolate parameters, or sanitize sensitive values. Input is limited
+// identifiers and bind placeholders verbatim. It checks lexical/delimiter
+// structure without validating database grammar, executing SQL, interpolating
+// parameters or sanitizing sensitive values. Input is limited
 // to 1 MiB, 65536 tokens and 64 nesting levels. Errors return the original SQL.
+// Use errors.As with *DiagnosticError for a source range, explanation and hint.
 func FormatSQL(dialect Dialect, query string) (string, error) {
 	if diagnostic := Diagnose(dialect, query); diagnostic.Code != "none" {
 		return query, &DiagnosticError{diagnostic}

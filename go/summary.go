@@ -16,15 +16,26 @@ import (
 type Dialect string
 
 const (
-	DialectGeneric         Dialect = "generic"
-	DialectPostgreSQL      Dialect = "postgresql"
-	DialectDuckDB          Dialect = "duckdb"
-	DialectSQLite          Dialect = "sqlite"
-	DialectMySQL           Dialect = "mysql"
-	DialectClickHouse      Dialect = "clickhouse"
-	DefaultMaxSummaryBytes         = 32 * 1024
+	// DialectGeneric selects the engine's generic SQL lexical rules.
+	DialectGeneric Dialect = "generic"
+	// DialectPostgreSQL supports PostgreSQL quoting, dollar strings and bind markers.
+	DialectPostgreSQL Dialect = "postgresql"
+	// DialectDuckDB selects DuckDB lexical rules, including dollar-quoted strings.
+	DialectDuckDB Dialect = "duckdb"
+	// DialectSQLite supports SQLite quoting and numbered, named and Tcl-style binds.
+	DialectSQLite Dialect = "sqlite"
+	// DialectMySQL supports MySQL escaping, charset-prefixed strings and comments.
+	DialectMySQL Dialect = "mysql"
+	// DialectClickHouse supports ClickHouse quoting, comments and typed parameters.
+	// INSERT FORMAT data payloads are not interpreted as SQL.
+	DialectClickHouse Dialect = "clickhouse"
+	// DefaultMaxSummaryBytes documents the shared engine's 32768-byte summary cap.
+	// It is not an option that can be changed for an individual Summary call.
+	DefaultMaxSummaryBytes = 32 * 1024
 )
 
+// nativeDialect maps Go dialect names to C enums; unknown names fall back to generic.
+// Strict public operations validate their dialect before using this helper.
 func nativeDialect(d Dialect) C.sequel_dialect_t {
 	switch strings.ToLower(string(d)) {
 	case "sqlite":
@@ -42,11 +53,14 @@ func nativeDialect(d Dialect) C.sequel_dialect_t {
 	}
 }
 
+// inspectNative obtains a summary and operation without collecting query text.
 func inspectNative(d Dialect, query string) (string, string, bool) {
 	summary, operation, _, _, ok := inspectNativeWithOptions(query, SanitizeOptions{Dialect: d, OmitQueryText: true})
 	return summary, operation, ok
 }
 
+// inspectNativeWithOptions copies bounded C metadata and separately sanitizes text
+// when a requested text limit exceeds the fixed metadata buffer.
 func inspectNativeWithOptions(query string, policy SanitizeOptions) (string, string, SanitizedQuery, int, bool) {
 	if strings.IndexByte(query, 0) >= 0 {
 		return "", "", SanitizedQuery{}, 0, false
@@ -79,6 +93,7 @@ func inspectNativeWithOptions(query string, policy SanitizeOptions) (string, str
 	return C.GoString(&metadata.summary[0]), C.GoString(&metadata.operation[0]), safe, int(metadata.statement_count), true
 }
 
+// sanitizeNative enforces the input bound and copies a UTF-8-bounded C template.
 func sanitizeNative(query string, policy SanitizeOptions) (SanitizedQuery, bool) {
 	if strings.IndexByte(query, 0) >= 0 || len(query) > 1024*1024 {
 		return SanitizedQuery{}, false
@@ -106,6 +121,8 @@ func sanitizeNative(query string, policy SanitizeOptions) (SanitizedQuery, bool)
 }
 
 // Summary returns a bounded SQL skeleton from the sequel parser.
+// It returns "SQL" when inspection fails or no summary is available. The result
+// is limited to DefaultMaxSummaryBytes; no query is executed or bind value read.
 func Summary(dialect Dialect, query string) string {
 	summary, _, ok := inspectNative(dialect, query)
 	if !ok || summary == "" {

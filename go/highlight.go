@@ -13,18 +13,27 @@ import (
 	"unsafe"
 )
 
+// HighlightMode selects escaped HTML or truecolor ANSI output from HighlightSQL.
+// The empty mode selects HighlightHTML.
 type HighlightMode string
 
 const (
+	// HighlightHTML renders an escaped pre/code fragment with inline token colors.
 	HighlightHTML HighlightMode = "html"
+	// HighlightANSI renders truecolor SGR sequences and finishes with a reset.
 	HighlightANSI HighlightMode = "ansi"
 )
 
+// Appearance selects a palette's actual published light/dark variant.
+// Missing counterparts are errors; colors are never inverted or synthesized.
 type Appearance string
 
 const (
-	AppearanceAuto  Appearance = "auto"
-	AppearanceDark  Appearance = "dark"
+	// AppearanceAuto preserves the selected palette. The empty appearance does too.
+	AppearanceAuto Appearance = "auto"
+	// AppearanceDark selects the published dark counterpart, when available.
+	AppearanceDark Appearance = "dark"
+	// AppearanceLight selects the published light counterpart, when available.
 	AppearanceLight Appearance = "light"
 )
 
@@ -35,15 +44,30 @@ const (
 // Explicit appearance selects an actual published variant; missing variants
 // return an error. No colors are inverted or synthesized.
 type HighlightOptions struct {
-	Mode        HighlightMode
+	// Mode selects HTML or ANSI output; empty means HighlightHTML.
+	Mode HighlightMode
+	// Colorscheme names a palette from Colorschemes; empty means "default-dark".
+	// A nonempty name and SchemeYAML are mutually exclusive.
 	Colorscheme string
-	SchemeYAML  string
-	Appearance  Appearance
-	Colors      map[string]string
-	Tolerant    bool // Render unfinished lexical tokens; use Diagnose for explanations.
+	// SchemeYAML supplies Base16 YAML contents instead of a built-in palette name.
+	// It must define all sixteen base00 through base0F colors; no file is opened.
+	SchemeYAML string
+	// Appearance selects a published counterpart; empty preserves the palette.
+	// A custom YAML palette can switch only when a bundled counterpart is recognized.
+	Appearance Appearance
+	// Colors overrides token/wrapper colors after palette and appearance selection.
+	// Values are #RRGGBB or RRGGBB. Keys are foreground, background, keyword, type,
+	// function, variable, string, number, boolean, null, comment, operator,
+	// punctuation and identifier. A nil map keeps all palette-derived colors.
+	Colors map[string]string
+	// Tolerant colors unfinished quotes, comments, identifiers and parameters
+	// through EOF without inserting closing delimiters. Use Diagnose for warnings.
+	// Invalid UTF-8, controls, limits and unsupported payloads remain errors.
+	Tolerant bool
 }
 
 // Colorschemes lists the bundled Base16 palette names in sorted order.
+// The returned slice belongs to the caller; changing it does not alter the registry.
 func Colorschemes() []string {
 	result := make([]string, int(C.sequel_colorscheme_count()))
 	for i := range result {
@@ -55,6 +79,10 @@ func Colorschemes() []string {
 // HighlightSQL preserves spelling and whitespace, producing escaped HTML or
 // truecolor ANSI. It neither formats nor sanitizes SQL. Invalid lexical input,
 // terminal controls and invalid options return an empty result and an error.
+// Input is limited to 1 MiB and 65536 tokens. Tolerant permits unfinished lexical
+// constructs; delimiter balance is checked separately by Diagnose. SQL failures
+// return *DiagnosticError. Invalid options may return other error types.
+// Literal values and comments remain visible, so sanitize first when needed.
 func HighlightSQL(dialect Dialect, query string, options HighlightOptions) (string, error) {
 	if len(query) > 1024*1024 || strings.IndexByte(query, 0) >= 0 {
 		return "", &DiagnosticError{Diagnose(dialect, query)}

@@ -14,7 +14,7 @@ type SanitizeOptions struct {
 	// CollapseInLists replaces lists containing only placeholders with IN (?).
 	CollapseInLists bool
 	// OmitQueryText disables db.query.text collection entirely. Naming,
-	// operation detection, and bind counts remain available.
+	// operation detection, and statement counts remain available through Inspect.
 	OmitQueryText bool
 }
 
@@ -45,6 +45,9 @@ func SanitizeDialect(dialect Dialect, statement string) (SanitizedQuery, bool) {
 
 // SanitizeWithOptions uses the shared C scanner to remove comments and replace
 // literals and bind placeholders. Malformed or ambiguous SQL fails closed.
+// If OmitQueryText is true, it returns an empty result and true without scanning;
+// use Inspect when structural metadata is still required. Otherwise false means
+// the input was rejected and its text must not be collected.
 func SanitizeWithOptions(statement string, options SanitizeOptions) (SanitizedQuery, bool) {
 	if options.OmitQueryText {
 		return SanitizedQuery{}, true
