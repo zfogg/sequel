@@ -87,6 +87,7 @@ def test_invalid_sql(sql):
         highlight_sql(sql)
 
 
-def test_invalid_color_value_types():
+@pytest.mark.parametrize("color_value", [123, None, True, [], {}])
+def test_invalid_color_value_types(color_value):
     with pytest.raises(TypeError):
-        highlight_sql("SELECT 1", colors={"variable": 123})  # ty: ignore[invalid-argument-type]
+        highlight_sql("SELECT 1", colors={"variable": color_value})
