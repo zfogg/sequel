@@ -1,0 +1,10 @@
+{
+  "name": "Sequel",
+  "package": "sequel",
+  "repository": "zfogg/sequel",
+  "description": "SQL formatting, sanitization, inspection and syntax highlighting from one C engine.",
+  "python_project": ".",
+  "go_directory": "go",
+  "languages": {"c": "C", "python": "Python", "go": "Go"},
+  "smoke": {"c": "sequel_8h.html", "python": "sequel.html", "go": "pkg/github.com/zfogg/sequel/go.html"}
+}

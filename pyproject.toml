@@ -23,6 +23,9 @@ testpaths = ["python/tests"]
 
 [dependency-groups]
 dev = ["ruff>=0.14", "ty>=0.0.91", "clang-format>=21"]
+docs = [
+    "pdoc==16.0.0",
+]
 
 [tool.ruff]
 line-length = 120

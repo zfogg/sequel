@@ -6,6 +6,8 @@ from enum import IntEnum
 
 
 class Dialect(IntEnum):
+    """Select the shared engine's quote, comment and bind-marker rules."""
+
     GENERIC = 0
     SQLITE = 1
     POSTGRESQL = 2

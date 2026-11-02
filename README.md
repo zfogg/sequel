@@ -300,6 +300,37 @@ mutation and production regression corpora, plus API and CLI tests. Go and Pytho
 own their binding tests here. Former Go summary tables and the complete named
 SQLC corpus also run through the public C API, independently of the bindings.
 
+## Hosted API documentation
+
+The [documentation site](https://zfogg.github.io/sequel/) links the
+[C](https://zfogg.github.io/sequel/c/),
+[Python](https://zfogg.github.io/sequel/python/) and
+[Go](https://zfogg.github.io/sequel/go/) references. C uses Doxygen, Python uses
+pdoc, and Go uses Golds. Public source comments are the API documentation;
+the site adds shared language navigation and a source-revision marker.
+
+Install Doxygen, Go and uv, then build without configuring the native library:
+
+```sh
+cmake -S docs -B build/docs
+cmake --build build/docs --target docs --parallel 2
+uv run python -m http.server 8000 --directory build/docs/site
+```
+
+Open `http://localhost:8000/`. The `docs-c`, `docs-python` and `docs-go` targets
+build individual references; `docs-site` assembles the site and `docs-check`
+checks language entry points and local page/asset links. `docs` does all of them.
+These targets are also available from the native build with `SEQUEL_BUILD_DOCS=ON`.
+`DOCS_OUTPUT_DIR` overrides the output directory.
+
+The Documentation workflow validates pull requests and publishes main-branch
+updates through GitHub Pages' artifact deployment. It verifies the live landing
+page, language endpoints, representative API pages and deployed commit. With
+authenticated GitHub CLI access, `cmake --build build/docs --target docs-publish`
+dispatches that workflow for remote `main`, waits and verifies publication.
+Deployment is restricted to `main`; dispatch the workflow directly for other
+build-only refs. Commit and push before publishing; generated HTML stays out of Git.
+
 ## Development tools
 
 Run `uv sync --extra test --locked`. The locked development tools include

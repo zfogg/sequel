@@ -8,6 +8,12 @@ from .dialect import Dialect
 
 @dataclass(frozen=True)
 class Diagnostic:
+    """Issue and completion state with UTF-8 offsets and one-based scalar columns.
+
+    Ranges end exclusively. Code `none` means no issue was found; incomplete
+    lexical input has warning severity. Explanations never include input SQL.
+    """
+
     code: str
     severity: str
     offset: int
@@ -24,6 +30,8 @@ class Diagnostic:
 
 
 class SQLDiagnosticError(ValueError):
+    """SQL transformation failure with a structured `diagnostic` attribute."""
+
     def __init__(self, diagnostic: Diagnostic) -> None:
         self.diagnostic = diagnostic
         super().__init__(f"{diagnostic.line}:{diagnostic.column}: {diagnostic.message} [{diagnostic.code}]")
