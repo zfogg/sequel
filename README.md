@@ -208,6 +208,90 @@ Windows). To refresh bundled palettes, clone the Tinted Theming schemes reposito
 and run `uv run python scripts/base16.py --upstream PATH`. Regenerating the C table
 from vendored data requires only `uv run python scripts/base16.py`.
 
+## Diagnostics and interactive editing
+
+```sh
+sequel explain "SELECT 'unfinished"
+sequel explain --json --dialect postgresql query.sql
+sequel highlight --tolerant --html "SELECT 'unfinished" > preview.html
+sequel interactive --colorscheme solarized-dark --dark
+# Equivalent: sequel highlight --interactive
+```
+
+`explain` reads stdin, a SQL string, or one or more files, like the other commands.
+It reports a diagnostic code, severity, source range, explanation and suggested
+fix. `--json` emits one JSON object per input. Issues exit nonzero; incomplete
+input is a warning with a nonzero exit status. Formatting and strict highlighting
+also show these explanations on stderr without emitting partial results.
+Explanations never interpolate SQL contents. They check lexical constructs and
+delimiter balance, not database grammar, schemas or execution plans; no SQL is
+executed. For example, ClickHouse `INSERT ... FORMAT` payloads are explained as
+unsupported data rather than accidentally processed as SQL.
+
+Locations use zero-based UTF-8 byte offsets with an exclusive end. Lines and
+columns are one-based; a Unicode scalar counts as one column, a tab counts as one
+column, and CRLF counts as one newline. Limits (1 MiB, 65536 tokens, 64 levels)
+and malformed UTF-8 or terminal controls have distinct diagnostic codes.
+
+`--tolerant` highlights unfinished strings, dollar strings, quoted identifiers,
+nested block comments and dialect-specific bind parameters through EOF, in
+their usual token colors. It preserves the exact source without inserting a
+closing quote or comment. HTML remains escaped and ANSI ends with a reset.
+Invalid UTF-8, terminal controls, resource limits and unsupported data payloads
+remain errors. Strict mode is still the default. Use `explain` for warnings
+alongside tolerant output; output on stdout remains suitable for pipelines.
+
+`interactive` is a line-oriented multiline workbench, with ANSI previews by
+default. It accepts all highlighting color, palette and appearance options;
+`--html` explicitly selects HTML previews. Each SQL line previews the accumulated
+buffer and reports any issue on stderr. A final semicolon outside quotes/comments,
+with balanced delimiters, marks a statement complete. The next SQL line then
+starts a fresh buffer. Commands can still inspect the completed buffer:
+
+| Command | Action |
+| --- | --- |
+| `:show` | Preview the current buffer |
+| `:explain` | Show its diagnostic and completion state |
+| `:format` | Format and preview it; retain the original if formatting fails |
+| `:clear` | Discard the buffer and start again |
+| `:help` | Show commands |
+| `:quit` / `:q` | Exit (EOF also exits) |
+
+Exact command lines are reserved even inside unfinished SQL, so `:clear` always
+allows recovery. Other colon-prefixed lines are SQL, including bind markers.
+Terminal sessions have `sql>` and continuation prompts on stderr; scripted
+sessions have no prompts. `--json` makes explanations machine-readable, while
+previews retain their chosen HTML/ANSI mode. Interactive mode reads stdin and
+does not edit files or extract embedded host-language SQL.
+
+The C APIs `sequel_diagnose` and `sequel_diagnose_n` fill a caller-owned
+`sequel_diagnostic_t`; the length-based form also accepts nonterminated buffers
+and diagnoses embedded NULs. `sequel_format_ex` and `sequel_highlight_ex` report
+transformation errors in that same structure. Set
+`sequel_highlight_options_t.tolerant = true` for editing; successful tolerant
+highlighting can return an incomplete warning in the diagnostic. Group balance
+is checked by `sequel_diagnose`, independently of highlighting. The `_ex` APIs
+accept a NULL diagnostic pointer when explanations are not needed.
+
+```python
+from sequel import SQLDiagnosticError, diagnose, format_sql, highlight_sql
+
+issue = diagnose("SELECT 'unfinished")
+assert issue.code == "unterminated_string" and issue.incomplete
+preview = highlight_sql("SELECT 'unfinished", tolerant=True)
+try:
+    format_sql("SELECT 'unfinished")
+except SQLDiagnosticError as error:
+    print(error.diagnostic.line, error.diagnostic.column, error.diagnostic.hint)
+```
+
+Go exposes `Diagnose(dialect, sql) Diagnostic` and
+`HighlightOptions{Tolerant: true}`. SQL failures from formatting/highlighting
+are `*DiagnosticError`, accessible with `errors.As`. Python exposes an immutable
+`Diagnostic` from `diagnostics.py`, `diagnose`, `tolerant=True`, and
+`SQLDiagnosticError` (a `ValueError` subclass). A diagnostic code of `none` means
+no issue was found; `statement_complete` records the final-semicolon state.
+
 ## Tests and provenance
 
 Extracted from gotel with its MIT license and utf8proc's license preserved.

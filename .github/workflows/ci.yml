@@ -58,4 +58,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
       - run: cmake --build build --parallel 4
-      - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective|highlight-api)$' --output-on-failure
+      - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective|highlight-api|diagnostics-api)$' --output-on-failure

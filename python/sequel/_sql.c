@@ -3,6 +3,39 @@
 #include <sequel.h>
 #include <string.h>
 
+static PyObject *diagnostic_dict(const sequel_diagnostic_t *d) {
+  return Py_BuildValue(
+      "{s:s,s:s,s:n,s:n,s:n,s:n,s:n,s:n,s:O,s:O,s:s,s:s,s:s}", "code", sequel_diagnostic_code_name(d->code), "severity",
+      d->severity == SEQUEL_ERROR     ? "error"
+      : d->severity == SEQUEL_WARNING ? "warning"
+                                      : "note",
+      "offset", (Py_ssize_t)d->offset, "end_offset", (Py_ssize_t)d->end_offset, "line", (Py_ssize_t)d->line, "column",
+      (Py_ssize_t)d->column, "end_line", (Py_ssize_t)d->end_line, "end_column", (Py_ssize_t)d->end_column, "incomplete",
+      d->incomplete ? Py_True : Py_False, "statement_complete", d->statement_complete ? Py_True : Py_False, "message",
+      d->message, "explanation", d->explanation, "hint", d->hint);
+}
+static PyObject *render_result(const char *text, size_t length, const sequel_diagnostic_t *d) {
+  PyObject *value = text ? PyUnicode_DecodeUTF8(text, (Py_ssize_t)length, "strict") : Py_NewRef(Py_None);
+  if (!value)
+    return NULL;
+  PyObject *diagnostic = diagnostic_dict(d);
+  if (!diagnostic) {
+    Py_DECREF(value);
+    return NULL;
+  }
+  return Py_BuildValue("(NN)", value, diagnostic);
+}
+static PyObject *diagnose_sql(PyObject *self, PyObject *args) {
+  const char *sql;
+  Py_ssize_t n;
+  int dialect;
+  if (!PyArg_ParseTuple(args, "s#i", &sql, &n, &dialect))
+    return NULL;
+  sequel_diagnostic_t d;
+  sequel_diagnose_n(sql, (size_t)n, (sequel_dialect_t)dialect, &d);
+  return diagnostic_dict(&d);
+}
+
 static PyObject *inspect_sql(PyObject *self, PyObject *args) {
   const char *sql;
   int dialect, omit, keep;
@@ -35,23 +68,23 @@ static PyObject *inspect_sql(PyObject *self, PyObject *args) {
 
 static PyObject *format_sql(PyObject *self, PyObject *args) {
   const char *sql;
+  Py_ssize_t n;
   int dialect;
-  if (!PyArg_ParseTuple(args, "si", &sql, &dialect))
+  if (!PyArg_ParseTuple(args, "s#i", &sql, &n, &dialect))
     return NULL;
   size_t length = 0;
-  if (sequel_format(sql, (sequel_dialect_t)dialect, NULL, 0, &length) != SEQUEL_OK) {
-    PyErr_SetString(PyExc_ValueError, "SQL formatting rejected input");
-    return NULL;
+  sequel_diagnostic_t diagnostic;
+  if (memchr(sql, 0, (size_t)n)) {
+    sequel_diagnose_n(sql, (size_t)n, (sequel_dialect_t)dialect, &diagnostic);
+    return render_result(NULL, 0, &diagnostic);
   }
+  if (sequel_format_ex(sql, (sequel_dialect_t)dialect, NULL, 0, &length, &diagnostic) != SEQUEL_OK)
+    return render_result(NULL, 0, &diagnostic);
   char *out = PyMem_Malloc(length + 1);
   if (!out)
     return PyErr_NoMemory();
-  sequel_status_t status = sequel_format(sql, (sequel_dialect_t)dialect, out, length + 1, &length);
-  PyObject *result = NULL;
-  if (status == SEQUEL_OK)
-    result = PyUnicode_DecodeUTF8(out, (Py_ssize_t)length, "strict");
-  else
-    PyErr_SetString(PyExc_ValueError, "SQL formatting rejected input");
+  sequel_status_t status = sequel_format_ex(sql, (sequel_dialect_t)dialect, out, length + 1, &length, &diagnostic);
+  PyObject *result = render_result(status == SEQUEL_OK ? out : NULL, length, &diagnostic);
   PyMem_Free(out);
   return result;
 }
@@ -84,14 +117,17 @@ static PyObject *sanitize_sql(PyObject *self, PyObject *args) {
 
 static PyObject *highlight_sql(PyObject *self, PyObject *args) {
   const char *sql, *name, *yaml;
-  int dialect, mode, appearance;
+  Py_ssize_t n;
+  int dialect, mode, appearance, tolerant;
   PyObject *colors;
-  if (!PyArg_ParseTuple(args, "siissiO!", &sql, &dialect, &mode, &name, &yaml, &appearance, &PyDict_Type, &colors))
+  if (!PyArg_ParseTuple(args, "s#iissiO!p", &sql, &n, &dialect, &mode, &name, &yaml, &appearance, &PyDict_Type, &colors,
+                        &tolerant))
     return NULL;
   sequel_highlight_options_t options;
   sequel_highlight_options_init(&options);
   options.dialect = (sequel_dialect_t)dialect;
   options.mode = (sequel_highlight_mode_t)mode;
+  options.tolerant = tolerant;
   sequel_colorscheme_t palette;
   sequel_status_t status = *yaml ? sequel_colorscheme_parse(yaml, &palette) : sequel_colorscheme(name, &palette);
   if (status == SEQUEL_OK)
@@ -115,19 +151,18 @@ static PyObject *highlight_sql(PyObject *self, PyObject *args) {
     }
   }
   size_t length = 0;
-  if (sequel_highlight(sql, &options, NULL, 0, &length) != SEQUEL_OK) {
-    PyErr_SetString(PyExc_ValueError, "SQL highlighting rejected input");
-    return NULL;
+  sequel_diagnostic_t diagnostic;
+  if (memchr(sql, 0, (size_t)n)) {
+    sequel_diagnose_n(sql, (size_t)n, (sequel_dialect_t)dialect, &diagnostic);
+    return render_result(NULL, 0, &diagnostic);
   }
+  if (sequel_highlight_ex(sql, &options, NULL, 0, &length, &diagnostic) != SEQUEL_OK)
+    return render_result(NULL, 0, &diagnostic);
   char *out = PyMem_Malloc(length + 1);
   if (!out)
     return PyErr_NoMemory();
-  status = sequel_highlight(sql, &options, out, length + 1, &length);
-  PyObject *result = NULL;
-  if (status == SEQUEL_OK)
-    result = PyUnicode_DecodeUTF8(out, (Py_ssize_t)length, "strict");
-  else
-    PyErr_SetString(PyExc_ValueError, "SQL highlighting rejected input");
+  status = sequel_highlight_ex(sql, &options, out, length + 1, &length, &diagnostic);
+  PyObject *result = render_result(status == SEQUEL_OK ? out : NULL, length, &diagnostic);
   PyMem_Free(out);
   return result;
 }
@@ -146,6 +181,7 @@ static PyObject *colorschemes(PyObject *self, PyObject *unused) {
   return result;
 }
 static PyMethodDef methods[] = {
+    {"diagnose", diagnose_sql, METH_VARARGS, "Locate and explain the first lexical/delimiter issue."},
     {"highlight", highlight_sql, METH_VARARGS, "Highlight SQL as escaped HTML or truecolor ANSI."},
     {"colorschemes", colorschemes, METH_NOARGS, "List bundled Base16 names."},
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},

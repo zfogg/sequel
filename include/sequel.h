@@ -23,6 +23,46 @@ typedef enum {
   SEQUEL_MYSQL,
   SEQUEL_CLICKHOUSE
 } sequel_dialect_t;
+
+typedef enum {
+  SEQUEL_DIAG_NONE,
+  SEQUEL_DIAG_NULL_INPUT,
+  SEQUEL_DIAG_INVALID_ARGUMENT,
+  SEQUEL_DIAG_INPUT_LIMIT,
+  SEQUEL_DIAG_INVALID_UTF8,
+  SEQUEL_DIAG_CONTROL_CHARACTER,
+  SEQUEL_DIAG_TOKEN_LIMIT,
+  SEQUEL_DIAG_NESTING_LIMIT,
+  SEQUEL_DIAG_UNTERMINATED_STRING,
+  SEQUEL_DIAG_UNTERMINATED_IDENTIFIER,
+  SEQUEL_DIAG_UNTERMINATED_COMMENT,
+  SEQUEL_DIAG_UNTERMINATED_PARAMETER,
+  SEQUEL_DIAG_INVALID_PARAMETER,
+  SEQUEL_DIAG_UNMATCHED_CLOSE,
+  SEQUEL_DIAG_UNCLOSED_GROUP,
+  SEQUEL_DIAG_UNSUPPORTED_PAYLOAD,
+  SEQUEL_DIAG_UNSUPPORTED_LAYOUT,
+  SEQUEL_DIAG_OUTPUT_LIMIT,
+  SEQUEL_DIAG_OUT_OF_MEMORY
+} sequel_diagnostic_code_t;
+typedef enum { SEQUEL_NOTE, SEQUEL_WARNING, SEQUEL_ERROR } sequel_severity_t;
+typedef struct {
+  sequel_diagnostic_code_t code;
+  sequel_severity_t severity;
+  size_t offset, end_offset;                 /* zero-based UTF-8 bytes, end exclusive */
+  size_t line, column, end_line, end_column; /* one-based Unicode scalar columns */
+  bool incomplete, statement_complete;
+  char message[128], explanation[384], hint[256];
+} sequel_diagnostic_t;
+const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
+/* Reports the first lexical/delimiter issue. Not a SQL grammar validator and
+ * never executes SQL. Incomplete input returns INVALID_ARGUMENT with a warning.
+ * statement_complete requires balanced delimiters and a final semicolon outside
+ * quotes/comments. CRLF counts as one newline; tabs count as one column.
+ * _n accepts non-NUL-terminated buffers and reports embedded NULs explicitly. */
+sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect,
+                                  sequel_diagnostic_t *diagnostic);
 typedef struct {
   sequel_dialect_t dialect;
   /* Zero uses 32768. Values above 32768 are rejected. */
@@ -61,6 +101,8 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
  * length receives the output byte count (excluding NUL). Pass out=NULL and
  * capacity=0 to measure. On failure a supplied output buffer is emptied. */
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
+sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length,
+                                 sequel_diagnostic_t *diagnostic);
 /* Collapse horizontal token gaps while preserving comments, literals and newlines. */
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity);
 
@@ -103,6 +145,7 @@ typedef struct {
   sequel_dialect_t dialect;
   sequel_highlight_mode_t mode;
   uint32_t colors[SEQUEL_COLOR_COUNT];
+  bool tolerant; /* Highlight unfinished strings/comments/identifiers/parameters. */
 } sequel_highlight_options_t;
 
 /* Immutable built-in palette registry. Invalid indices return NULL. */
@@ -124,12 +167,16 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
  * with inline colors and sequel-* token classes. ANSI uses truecolor SGR and a
  * final reset. Does not format, sanitize, execute SQL, or validate its grammar.
  * Rejects invalid UTF-8, terminal control bytes other than TAB/CR/LF, malformed
- * quotes/comments, >1 MiB input, or >65536 tokens. Unbalanced groups are allowed.
+ * quotes/comments (unless tolerant), >1 MiB input, or >65536 tokens. Unbalanced
+ * groups are allowed; use sequel_diagnose to check delimiter structure.
  * NULL options uses defaults. out=NULL/capacity=0 measures; length excludes NUL.
  * Insufficient capacity reports required length and empties out. Other errors
  * also empty out. Input and output buffers must not overlap. */
 sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
                                  size_t *length);
+/* Tolerant success may still return an incomplete warning in diagnostic. */
+sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_options_t *options, char *out,
+                                    size_t capacity, size_t *length, sequel_diagnostic_t *diagnostic);
 #ifdef __cplusplus
 }
 #endif

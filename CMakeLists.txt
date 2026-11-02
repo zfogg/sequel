@@ -27,7 +27,7 @@ target_link_libraries(sequel PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 set_target_properties(sequel PROPERTIES POSITION_INDEPENDENT_CODE ON
   WINDOWS_EXPORT_ALL_SYMBOLS ON VERSION ${PROJECT_VERSION} SOVERSION 0)
 if(SEQUEL_BUILD_CLI)
-  add_executable(sequel-cli src/binary/main.c src/binary/embedded.c)
+  add_executable(sequel-cli src/binary/main.c src/binary/embedded.c src/binary/diagnostics.c src/binary/interactive.c)
   target_link_libraries(sequel-cli PRIVATE sequel::sequel)
   set_target_properties(sequel-cli PROPERTIES OUTPUT_NAME sequel)
   if(WIN32)

@@ -118,7 +118,7 @@ func TestHighlightFormatPipelineSamples(t *testing.T) {
 }
 
 func FuzzHighlightSQL(f *testing.F) {
-	for _, query := range []string{"", "SELECT :id, 'a<&>', 123 -- comment\n", "SELECT $$hello$$", "/* nested /* comment */ */", "select '\x1b[0m'", "select 日本語", "select ("} {
+	for _, query := range []string{"", "SELECT :id, 'a<&>', 123 -- comment\n", "SELECT $$hello$$", "/* nested /* comment */ */", "select '\x1b[0m'", "select 日本語", "select (", "SELECT $tag$unfinished", "SELECT 'unfinished", "/* unfinished"} {
 		f.Add(query)
 	}
 	f.Fuzz(func(t *testing.T, query string) {
@@ -126,19 +126,21 @@ func FuzzHighlightSQL(f *testing.F) {
 			return
 		}
 		for _, mode := range []HighlightMode{HighlightHTML, HighlightANSI} {
-			got, err := HighlightSQL(DialectPostgreSQL, query, HighlightOptions{Mode: mode})
-			if err != nil {
-				if got != "" {
-					t.Fatal("error returned partial output")
+			for _, tolerant := range []bool{false, true} {
+				got, err := HighlightSQL(DialectPostgreSQL, query, HighlightOptions{Mode: mode, Tolerant: tolerant})
+				if err != nil {
+					if got != "" {
+						t.Fatal("error returned partial output")
+					}
+					continue
 				}
-				continue
-			}
-			plain := highlightSGR.ReplaceAllString(got, "")
-			if mode == HighlightHTML {
-				plain = html.UnescapeString(highlightTags.ReplaceAllString(got, ""))
-			}
-			if plain != query {
-				t.Fatalf("changed source: %q -> %q", query, plain)
+				plain := highlightSGR.ReplaceAllString(got, "")
+				if mode == HighlightHTML {
+					plain = html.UnescapeString(highlightTags.ReplaceAllString(got, ""))
+				}
+				if plain != query {
+					t.Fatalf("changed source: %q -> %q", query, plain)
+				}
 			}
 		}
 	})

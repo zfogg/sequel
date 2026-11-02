@@ -10,7 +10,13 @@ typedef struct {
   size_t flat_width;
 } format_token;
 
-static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_token *ts) {
+static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *diag, sequel_diagnostic_code_t code,
+                                size_t start, size_t end) {
+  diagnostic_report(s, n, diag, code, start, end);
+  return SIZE_MAX;
+}
+static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token *ts, bool tolerant,
+                             sequel_diagnostic_t *diag) {
   size_t count = 0, i = 0;
   bool clickhouse_insert = false;
   while (i < n) {
@@ -23,7 +29,7 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
     if (i == n)
       break;
     if (count == TOKEN_MAX)
-      return SIZE_MAX;
+      return format_scan_error(s, n, diag, SEQUEL_DIAG_TOKEN_LIMIT, i, i + 1);
     size_t start = i, end = i + 1;
     int kind = 0;
     unsigned char c = (unsigned char)s[i];
@@ -38,7 +44,7 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
       while (end < n && level) {
         if (end + 1 < n && s[end] == '/' && s[end + 1] == '*') {
           if (++level > 64)
-            return SIZE_MAX;
+            return format_scan_error(s, n, diag, SEQUEL_DIAG_NESTING_LIMIT, end, end + 2);
           end += 2;
         } else if (end + 1 < n && s[end] == '*' && s[end + 1] == '/') {
           --level;
@@ -46,20 +52,36 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
         } else
           ++end;
       }
-      if (level)
-        return SIZE_MAX;
+      if (level) {
+        diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_COMMENT, start, n);
+        if (!tolerant)
+          return SIZE_MAX;
+      }
       kind = 4;
     } else {
       if (d == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, i)) {
         end = clickhouse_quoted_end(s, n, i);
-        if (!end)
-          return SIZE_MAX;
+        if (!end) {
+          diagnostic_report(s, n, diag,
+                            clickhouse_quote(s, n, i) == 0x98 ? SEQUEL_DIAG_UNTERMINATED_STRING
+                                                              : SEQUEL_DIAG_UNTERMINATED_IDENTIFIER,
+                            i, n);
+          if (!tolerant)
+            return SIZE_MAX;
+          end = n;
+        }
         kind = 2;
       }
       if (c == '{' && d == SEQUEL_CLICKHOUSE) {
         end = clickhouse_parameter(s, n, i);
-        if (!end)
-          return SIZE_MAX;
+        if (!end) {
+          if (memchr(s + i, '}', n - i))
+            return format_scan_error(s, n, diag, SEQUEL_DIAG_INVALID_PARAMETER, i, n);
+          diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_PARAMETER, i, n);
+          if (!tolerant)
+            return SIZE_MAX;
+          end = n;
+        }
         kind = 2;
       }
       size_t quote = i;
@@ -76,8 +98,12 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
       }
       if (quote != i) {
         end = quoted(s, n, quote, '\'', d == SEQUEL_MYSQL || c == 'e' || c == 'E');
-        if (!end)
-          return SIZE_MAX;
+        if (!end) {
+          diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_STRING, i, n);
+          if (!tolerant)
+            return SIZE_MAX;
+          end = n;
+        }
         kind = 2;
       }
       /* PostgreSQL dollar strings must be recognized before $parameters. */
@@ -88,9 +114,13 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
           end = tag + 1;
           while (end + len <= n && memcmp(s + end, s + i, len))
             ++end;
-          if (end + len > n)
-            return SIZE_MAX;
-          end += len;
+          if (end + len > n) {
+            diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_STRING, i, n);
+            if (!tolerant)
+              return SIZE_MAX;
+            end = n;
+          } else
+            end += len;
           kind = 2;
         }
       }
@@ -114,9 +144,12 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
         if (end < n && s[end] == '(') {
           while (end < n && s[end] != ')')
             ++end;
-          if (end == n)
-            return SIZE_MAX;
-          ++end;
+          if (end == n) {
+            diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_PARAMETER, i, n);
+            if (!tolerant)
+              return SIZE_MAX;
+          } else
+            ++end;
         }
         kind = 2;
       }
@@ -147,8 +180,15 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
             d == SEQUEL_MYSQL || d == SEQUEL_CLICKHOUSE ||
             (c == '\'' && i && (s[i - 1] == 'e' || s[i - 1] == 'E') && (i == 1 || !part((unsigned char)s[i - 2])));
         end = quoted(s, n, i, c == '[' ? ']' : (char)c, escape);
-        if (!end)
-          return SIZE_MAX;
+        if (!end) {
+          sequel_diagnostic_code_t code = c == '\'' || (d == SEQUEL_MYSQL && c == '"')
+                                              ? SEQUEL_DIAG_UNTERMINATED_STRING
+                                              : SEQUEL_DIAG_UNTERMINATED_IDENTIFIER;
+          diagnostic_report(s, n, diag, code, i, n);
+          if (!tolerant)
+            return SIZE_MAX;
+          end = n;
+        }
         kind = 2;
       } else if (!kind && isdigit(c)) {
         end = dialect_number_end(s, n, i, d);
@@ -162,7 +202,7 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
       if (equal(s + start, end - start, "INSERT"))
         clickhouse_insert = true;
       if (clickhouse_insert && equal(s + start, end - start, "FORMAT"))
-        return SIZE_MAX;
+        return format_scan_error(s, n, diag, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, start, end);
     }
     if (kind == 0 && c == ';')
       clickhouse_insert = false;
@@ -178,6 +218,9 @@ static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_to
     i = end;
   }
   return count;
+}
+static size_t format_scan(const char *s, size_t n, sequel_dialect_t d, format_token *ts) {
+  return format_scan_ex(s, n, d, ts, false, NULL);
 }
 
 static void format_line(output *b, size_t indent) {

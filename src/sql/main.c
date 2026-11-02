@@ -1,6 +1,7 @@
 #include "../utf8.h"
 #include <ctype.h>
 #include <sequel.h>
+#include "diagnostics.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -24,6 +25,7 @@ typedef struct {
 #include "scanner.c"
 #include "summary.c"
 #include "format.c"
+#include "diagnostics.c"
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"

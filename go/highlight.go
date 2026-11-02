@@ -40,6 +40,7 @@ type HighlightOptions struct {
 	SchemeYAML  string
 	Appearance  Appearance
 	Colors      map[string]string
+	Tolerant    bool // Render unfinished lexical tokens; use Diagnose for explanations.
 }
 
 // Colorschemes lists the bundled Base16 palette names in sorted order.
@@ -56,7 +57,7 @@ func Colorschemes() []string {
 // terminal controls and invalid options return an empty result and an error.
 func HighlightSQL(dialect Dialect, query string, options HighlightOptions) (string, error) {
 	if len(query) > 1024*1024 || strings.IndexByte(query, 0) >= 0 {
-		return "", fmt.Errorf("SQL exceeds 1 MiB or contains NUL")
+		return "", &DiagnosticError{Diagnose(dialect, query)}
 	}
 	switch dialect {
 	case "", DialectGeneric, DialectPostgreSQL, DialectDuckDB, DialectSQLite, DialectMySQL, DialectClickHouse:
@@ -66,6 +67,7 @@ func HighlightSQL(dialect Dialect, query string, options HighlightOptions) (stri
 	var native C.sequel_highlight_options_t
 	C.sequel_highlight_options_init(&native)
 	native.dialect = nativeDialect(dialect)
+	native.tolerant = C.bool(options.Tolerant)
 	switch options.Mode {
 	case "", HighlightHTML:
 	case HighlightANSI:
@@ -133,12 +135,13 @@ func HighlightSQL(dialect Dialect, query string, options HighlightOptions) (stri
 	sql := C.CString(query)
 	defer C.free(unsafe.Pointer(sql))
 	var length C.size_t
-	if C.sequel_highlight(sql, &native, nil, 0, &length) != C.SEQUEL_OK {
-		return "", fmt.Errorf("SQL highlighting rejected input")
+	var diagnostic C.sequel_diagnostic_t
+	if C.sequel_highlight_ex(sql, &native, nil, 0, &length, &diagnostic) != C.SEQUEL_OK {
+		return "", &DiagnosticError{diagnosticFromNative(&diagnostic)}
 	}
 	buf := make([]byte, int(length)+1)
-	if C.sequel_highlight(sql, &native, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)), &length) != C.SEQUEL_OK {
-		return "", fmt.Errorf("SQL highlighting rejected input")
+	if C.sequel_highlight_ex(sql, &native, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)), &length, &diagnostic) != C.SEQUEL_OK {
+		return "", &DiagnosticError{diagnosticFromNative(&diagnostic)}
 	}
 	return string(buf[:int(length)]), nil
 }

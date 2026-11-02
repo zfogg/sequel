@@ -22,9 +22,14 @@ add_test(NAME sequel-selective COMMAND sequel-selective-test)
 add_executable(sequel-highlight-test highlight_api_test.c)
 target_link_libraries(sequel-highlight-test PRIVATE sequel::sequel)
 add_test(NAME sequel-highlight-api COMMAND sequel-highlight-test)
+add_executable(sequel-diagnostics-test diagnostics_api_test.c)
+target_link_libraries(sequel-diagnostics-test PRIVATE sequel::sequel)
+add_test(NAME sequel-diagnostics-api COMMAND sequel-diagnostics-test)
 if(SEQUEL_BUILD_CLI)
   add_test(NAME sequel-highlight COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test_highlight.py $<TARGET_FILE:sequel-cli>)
+  add_test(NAME sequel-diagnostics COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_diagnostics.py $<TARGET_FILE:sequel-cli>)
 endif()
 
 if(WIN32 AND BUILD_SHARED_LIBS)

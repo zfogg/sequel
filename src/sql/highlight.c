@@ -311,43 +311,52 @@ static void highlight_ansi(highlight_output *b, uint32_t color, bool background)
   highlight_text(b, code);
 }
 
-sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
-                                 size_t *length) {
+sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_options_t *options, char *out,
+                                    size_t capacity, size_t *length, sequel_diagnostic_t *diagnostic) {
+  sequel_diagnostic_t local;
+  if (!diagnostic)
+    diagnostic = &local;
+  diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_NONE, 0, 0);
   if (out && capacity)
     *out = 0;
-  if (!sql || !length)
+  if (length)
+    *length = 0;
+  if (!sql || !length) {
+    diagnostic_report(NULL, 0, diagnostic, !sql ? SEQUEL_DIAG_NULL_INPUT : SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_NULL;
-  *length = 0;
+  }
   sequel_highlight_options_t defaults;
   if (!options) {
     sequel_highlight_options_init(&defaults);
     options = &defaults;
   }
   if (options->dialect < SEQUEL_GENERIC || options->dialect > SEQUEL_CLICKHOUSE ||
-      (options->mode != SEQUEL_HTML && options->mode != SEQUEL_ANSI) || (!out && capacity) || (out && !capacity))
+      (options->mode != SEQUEL_HTML && options->mode != SEQUEL_ANSI) || (!out && capacity) || (out && !capacity)) {
+    diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
-    if (options->colors[i] > 0xffffff)
-      return SEQUEL_ERR_INVALID_ARGUMENT;
-  size_t n = 0;
-  while (n <= INPUT_MAX && sql[n]) {
-    unsigned char c = (unsigned char)sql[n];
-    if ((c < 32 && c != '\t' && c != '\r' && c != '\n') || c == 127 ||
-        (c == 0xc2 && (unsigned char)sql[n + 1] >= 0x80 && (unsigned char)sql[n + 1] <= 0x9f))
-      return SEQUEL_ERR_INVALID_ARGUMENT;
-    ++n;
   }
-  if (n > INPUT_MAX)
-    return SEQUEL_ERR_OVERFLOW;
-  if (!sequel_utf8_valid(sql, n))
-    return SEQUEL_ERR_INVALID_ARGUMENT;
+  for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
+    if (options->colors[i] > 0xffffff) {
+      diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+    }
+  size_t n = 0;
+  while (n <= INPUT_MAX && sql[n])
+    ++n;
+  sequel_status_t status = diagnostic_input(sql, n, options->dialect, diagnostic);
+  if (status != SEQUEL_OK)
+    return status;
   format_token *ts = calloc(n < TOKEN_MAX ? n + 1 : TOKEN_MAX, sizeof(*ts));
-  if (!ts)
+  if (!ts) {
+    diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
     return SEQUEL_ERR_NOMEM;
-  size_t count = format_scan(sql, n, options->dialect, ts);
+  }
+  size_t count = format_scan_ex(sql, n, options->dialect, ts, options->tolerant, diagnostic);
   if (count == SIZE_MAX) {
     free(ts);
-    return SEQUEL_ERR_INVALID_ARGUMENT;
+    return diagnostic->code == SEQUEL_DIAG_TOKEN_LIMIT || diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT
+               ? SEQUEL_ERR_OVERFLOW
+               : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   highlight_output b = {out, 0, capacity};
   if (options->mode == SEQUEL_HTML) {
@@ -398,9 +407,14 @@ sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options
   if (out) {
     if (capacity <= b.n) {
       *out = 0;
+      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_OUTPUT_LIMIT, 0, 0);
       return SEQUEL_ERR_OVERFLOW;
     }
     out[b.n] = 0;
   }
   return SEQUEL_OK;
+}
+sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
+                                 size_t *length) {
+  return sequel_highlight_ex(sql, options, out, capacity, length, NULL);
 }

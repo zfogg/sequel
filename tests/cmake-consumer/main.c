@@ -18,5 +18,15 @@ int main(void) {
   size_t length;
   if (sequel_highlight("SELECT :id", &highlight, html, sizeof(html), &length) != SEQUEL_OK)
     return 1;
-  return !strstr(html, "background-color:#fdf6e3") || !strstr(html, "color:#123000\">:id") || length != strlen(html);
+  if (!strstr(html, "background-color:#fdf6e3") || !strstr(html, "color:#123000\">:id") || length != strlen(html))
+    return 1;
+  sequel_diagnostic_t diagnostic;
+  if (sequel_diagnose("SELECT 'unfinished", SEQUEL_GENERIC, &diagnostic) != SEQUEL_ERR_INVALID_ARGUMENT ||
+      strcmp(sequel_diagnostic_code_name(diagnostic.code), "unterminated_string") || !diagnostic.incomplete)
+    return 1;
+  highlight.tolerant = true;
+  if (sequel_highlight_ex("SELECT 'unfinished", &highlight, html, sizeof(html), &length, &diagnostic) != SEQUEL_OK ||
+      diagnostic.code != SEQUEL_DIAG_UNTERMINATED_STRING || !strstr(html, "sequel-string"))
+    return 1;
+  return sequel_format_ex("SELECT 1;", SEQUEL_GENERIC, html, sizeof(html), &length, &diagnostic) != SEQUEL_OK;
 }
