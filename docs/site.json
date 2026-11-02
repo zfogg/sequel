@@ -6,5 +6,5 @@
   "python_project": ".",
   "go_directory": "go",
   "languages": {"c": "C", "python": "Python", "go": "Go"},
-  "smoke": {"c": "sequel_8h.html", "python": "sequel.html", "go": "pkg/github.com/zfogg/sequel/go.html"}
+  "smoke": {"c": "sequel_8h.html", "python": ["sequel.html", "sequel/formatting.html", "sequel/highlighting.html", "sequel/diagnostics.html", "sequel/inspection.html", "sequel/sanitization.html", "sequel/dialect.html"], "go": "pkg/github.com/zfogg/sequel/go.html"}
 }
