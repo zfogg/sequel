@@ -61,7 +61,10 @@ static const struct {
      "The per-call memory, output or work budget stopped analysis.",
      "Increase the relevant budget or analyze a smaller document."},
     {"cancelled", "Analysis cancelled", "The caller cancelled SQL analysis before it completed.",
-     "Retry only if analysis is still needed."}};
+     "Retry only if analysis is still needed."},
+    {"ambiguous_literal", "Ambiguous literal syntax",
+     "Dialect or escape modes disagree about literal boundaries. Analysis omitted SQL to avoid exposing fragments.",
+     "Use the correct dialect and an unambiguous supported quote form."}};
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
   return code >= 0 && (size_t)code < sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0])

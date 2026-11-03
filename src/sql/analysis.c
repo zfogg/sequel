@@ -187,6 +187,8 @@ static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char *
   }
   if (p[0] == '?')
     return false;
+  if (!letter((unsigned char)p[1]) && !(d == SEQUEL_SQLITE && isdigit((unsigned char)p[1])))
+    return false;
   *style = SEQUEL_BIND_NAMED;
   if (d != SEQUEL_SQLITE) {
     *key = p + 1;
@@ -608,12 +610,55 @@ static void analysis_format_map(analysis_layout *layout, size_t fn, size_t tn, a
                      : tp == tn ? SEQUEL_MAP_DELETE
                                 : SEQUEL_MAP_REPLACE);
 }
-static void analysis_summary(analysis_layout *layout, analysis_text *safe, sequel_analysis_t *out) {
-  token *tokens = malloc((layout->n ? layout->n : 1) * sizeof(*tokens));
+static void analysis_summary(analysis_layout *layout, analysis_text *safe, format_token *scanned, size_t scanned_count,
+                             sequel_dialect_t dialect, sequel_analysis_t *out) {
+  /* Keep the display view and structural view separate, both derived from the
+   * original lexical scan. Structural bounds retain numeric tokens, while
+   * values and binds become placeholders. Token spacing must survive this view. */
   for (size_t i = 0; i < layout->n; i++) {
     sequel_work_tick(1);
     layout->p[i].t.p = safe->p + layout->p[i].source_offset;
-    tokens[i] = layout->p[i].t;
+  }
+  token *tokens = NULL;
+  size_t count = 0;
+  bool comment_gap = false;
+  for (size_t i = 0; i < scanned_count; i++) {
+    sequel_work_tick(1);
+    format_token f = scanned[i];
+    if (f.kind >= 3) {
+      comment_gap = true;
+      continue;
+    }
+    token t = f.t;
+    t.space = f.gap || comment_gap;
+    comment_gap = false;
+    unsigned char c = (unsigned char)*t.p;
+    bool numeric = isdigit(c) || (c == '.' && t.n > 1 && isdigit((unsigned char)t.p[1]));
+    const char *key;
+    size_t key_length, number;
+    sequel_bind_style_t style;
+    if ((!numeric && analysis_literal(f, dialect)) ||
+        analysis_bind_token(f, dialect, &key, &key_length, &number, &style)) {
+      t.p = "?";
+      t.n = 1;
+      t.word = false;
+    }
+    /* The structural parser historically sees punctuation/operator bytes as
+     * separate tokens. Derive that view directly, without scanning SQL again. */
+    if (numeric && c == '.' && t.n > 1) {
+      tokens = analysis_array(tokens, count + 2, sizeof(*tokens));
+      tokens[count++] = (token){t.p, 1, false, t.space, t.clickhouse};
+      tokens[count++] = (token){t.p + 1, t.n - 1, false, false, t.clickhouse};
+    } else if (f.kind == 0 && !numeric && t.n > 1) {
+      for (size_t k = 0; k < t.n; k++) {
+        sequel_work_tick(1);
+        tokens = analysis_array(tokens, count + 1, sizeof(*tokens));
+        tokens[count++] = (token){t.p + k, 1, false, k == 0 && t.space, t.clickhouse};
+      }
+    } else {
+      tokens = analysis_array(tokens, count + 1, sizeof(*tokens));
+      tokens[count++] = t;
+    }
   }
   size_t capacity = 64;
   char *buffer = malloc(capacity);
@@ -626,10 +671,10 @@ retry:;
   buffer[0] = 0;
   out->operation[0] = 0;
   size_t statements = 0;
-  for (size_t start = 0; start < layout->n;) {
+  for (size_t start = 0; start < count;) {
     sequel_work_tick(1);
     size_t end = start;
-    while (end < layout->n && !sym(tokens[end], ';'))
+    while (end < count && !sym(tokens[end], ';'))
       end++;
     if (end > start) {
       size_t length = end - start;
@@ -663,7 +708,7 @@ retry:;
       summarize(&b, statement, length, 0);
       statements++;
     }
-    start = end < layout->n ? end + 1 : layout->n;
+    start = end < count ? end + 1 : count;
   }
   if (b.overflow) {
     if (capacity > SEQUEL_SUMMARY_MAX / 2)
@@ -733,6 +778,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
   sequel_call *call = sequel_call_new();
   if (!call)
     return analysis_fail(out, n, o.dialect, SEQUEL_ERR_NOMEM, SEQUEL_DIAG_OUT_OF_MEMORY);
+  call->source = sql;
   call->output_limit = o.max_output_bytes ? o.max_output_bytes : SEQUEL_TEXT_MAX;
   call->memory_limit = o.max_memory_bytes ? o.max_memory_bytes : SEQUEL_INPUT_MAX;
   call->work_limit = o.max_work_units;
@@ -770,6 +816,11 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     format_token *tokens = NULL;
     size_t scanned = 0;
     size_t count = format_scan_recover(sql, n, o.dialect, &tokens, false, &first, &scanned);
+    if (call->ambiguous_literal) {
+      diagnostic_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
+                        call->ambiguous_offset + 2);
+      count = SIZE_MAX;
+    }
     analysis_structure(sql, n, tokens, scanned, out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
@@ -801,10 +852,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
                  digest);
         analysis_charge(&a, strlen(out->fingerprint) + 1);
       }
-      analysis_summary(&layout, &safe, out);
+      analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
       analysis_charge(&a, strlen(out->operation) + 1);
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
-      if (safe.n > limit) {
+      if (!o.omit_query_text && safe.n > limit) {
         out->truncated = true;
         utf8_cut(safe.p, limit);
         safe.n = strlen(safe.p);

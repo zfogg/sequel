@@ -22,6 +22,9 @@ union sequel_allocation {
 };
 typedef struct {
   jmp_buf escape;
+  const char *source;
+  bool ambiguous_literal;
+  size_t ambiguous_offset;
   sequel_allocation *allocations;
   size_t live, peak, work, memory_limit, work_limit, poll, output_bytes, output_limit;
   sequel_cancel_fn cancelled;

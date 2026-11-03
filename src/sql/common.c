@@ -49,6 +49,17 @@ static void upper(output *b, token t) {
 }
 static size_t quoted(const char *s, size_t n, size_t i, char close, bool backslash) {
   for (++i; (sequel_work_tick(1), i < n); ++i) {
+    if (!backslash && close == '\'' && sequel_current_call && s[i] == '\\' && i + 1 < n) {
+      if (s[i + 1] == '\\') {
+        ++i;
+        continue;
+      }
+      if (s[i + 1] == close) {
+        sequel_current_call->ambiguous_literal = true;
+        sequel_current_call->ambiguous_offset = (size_t)(s + i - sequel_current_call->source);
+        return 0;
+      }
+    }
     if (backslash && s[i] == '\\') {
       if (++i == n)
         return 0;

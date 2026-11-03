@@ -72,7 +72,8 @@ typedef enum {
   SEQUEL_DIAG_OUTPUT_LIMIT,
   SEQUEL_DIAG_OUT_OF_MEMORY,
   SEQUEL_DIAG_RESOURCE_LIMIT,
-  SEQUEL_DIAG_CANCELLED
+  SEQUEL_DIAG_CANCELLED,
+  SEQUEL_DIAG_AMBIGUOUS_LITERAL
 } sequel_diagnostic_code_t;
 
 /** Diagnostic severity; incomplete SQL is a warning. */

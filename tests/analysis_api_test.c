@@ -96,6 +96,25 @@ static int typed_arguments(void) {
 }
 static int maps_and_metadata(void) {
   {
+    const char *ambiguous[] = {"SELECT $$sensitive$$", "SELECT 'a\\'sensitive\\'b'"};
+    sequel_dialect_t dialects[] = {SEQUEL_MYSQL, SEQUEL_POSTGRESQL};
+    for (size_t i = 0; i < 2; i++) {
+      sequel_analysis_options_t policy = {0};
+      policy.dialect = dialects[i];
+      sequel_analysis_t rejected;
+      CHECK(sequel_analyze(ambiguous[i], &policy, &rejected) == SEQUEL_ERR_INVALID_ARGUMENT);
+      CHECK(clean_failure(&rejected) == 0);
+      CHECK(rejected.diagnostics[0].code == SEQUEL_DIAG_AMBIGUOUS_LITERAL);
+      sequel_analysis_free(&rejected);
+    }
+    sequel_analysis_options_t duck = {0};
+    duck.dialect = SEQUEL_DUCKDB;
+    sequel_analysis_t slice;
+    CHECK(sequel_analyze("SELECT col[123:456] FROM t", &duck, &slice) == SEQUEL_OK);
+    CHECK(strstr(slice.text, "[?:?]") && slice.bind_count == 0);
+    sequel_analysis_free(&slice);
+  }
+  {
     sequel_analysis_options_t mysql = {0};
     mysql.dialect = SEQUEL_MYSQL;
     sequel_analysis_t variables;

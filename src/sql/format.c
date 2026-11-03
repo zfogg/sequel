@@ -113,6 +113,10 @@ static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, f
         }
         kind = 2;
       }
+      /* Unsupported dollar-string forms are ambiguous for telemetry: fail closed
+       * rather than exporting the apparent identifier fragments as query text. */
+      if (c == '$' && sequel_current_call && (d == SEQUEL_MYSQL || d == SEQUEL_SQLITE) && dollar_tag_end(s, n, i, d))
+        return format_scan_error(s, n, diag, SEQUEL_DIAG_AMBIGUOUS_LITERAL, i, n);
       /* PostgreSQL dollar strings must be recognized before $parameters. */
       if (c == '$' && (d == SEQUEL_POSTGRESQL || d == SEQUEL_DUCKDB || d == SEQUEL_CLICKHOUSE || d == SEQUEL_GENERIC)) {
         size_t tag = dollar_tag_end(s, n, i, d);
@@ -174,6 +178,11 @@ static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, f
         ++end;
         kind = 5;
       }
+      if (!kind && sequel_current_call && c == ':' && end < n && isdigit((unsigned char)s[end]) && d != SEQUEL_SQLITE)
+        kind = 5;
+      if (!kind && sequel_current_call && c == '?' && d == SEQUEL_POSTGRESQL && end < n &&
+          isdigit((unsigned char)s[end]))
+        return format_scan_error(s, n, diag, SEQUEL_DIAG_INVALID_PARAMETER, i, end + 1);
       if (!kind && strchr("~!#%^&|+-*/<>=@", c) && !(c == '@' && end < n && letter((unsigned char)s[end]))) {
         while (end < n && strchr("~!#%^&|+-*/<>=@", s[end])) {
           if (end + 1 < n && ((s[end] == '%' && (s[end + 1] == 's' || s[end + 1] == '(')) ||
