@@ -24,6 +24,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.13'
+          enable-cache: false
       - id: version
         shell: bash
         env:
@@ -59,6 +60,8 @@ jobs:
           # x64 reference-test dependencies can launch native Windows ARM EXEs.
           architecture: ${{ matrix.os == 'windows' && 'x64' || matrix.arch }}
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -109,6 +112,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.13'
+          enable-cache: false
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
