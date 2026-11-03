@@ -35,7 +35,7 @@ static const char usage[] = "Usage:\n"
                             "  sequel format [OPTIONS] [SQL | PATH ...]\n"
                             "  sequel sanitize [OPTIONS] [SQL | PATH ...]\n\n"
                             "  sequel highlight [OPTIONS] [SQL | PATH ...]\n\n"
-                            "  sequel explain [--json] [--dialect DIALECT] [SQL | PATH ...]\n"
+                            "  sequel explain [--all] [--json] [--dialect DIALECT] [SQL | PATH ...]\n"
                             "  sequel interactive [HIGHLIGHT OPTIONS] [--json]\n\n"
                             "Read piped or redirected stdin when no SQL or paths are supplied.\n"
                             "Files are read in argument order and results go to stdout by default.\n"
@@ -48,7 +48,9 @@ static const char usage[] = "Usage:\n"
                             "Highlight: --html | --ansi (default: --html).\n"
                             "  --tolerant               Highlight unfinished quotes/comments while editing.\n"
                             "  --interactive            Multiline SQL workbench (ANSI by default; no execution).\n"
-                            "  --json                   JSON explanations (explain/interactive).\n"
+                            "  --json                   JSON explanations (explain/diagnose/interactive).\n"
+                            "  --all                    All safe-boundary diagnostics (explain/diagnose).\n"
+                            "  diagnose                 Alias for explain.\n"
                             "  --colorscheme NAME|PATH  Built-in Base16 name or Base16 YAML file (default-dark).\n"
                             "  --light | --dark         Force appearance; otherwise preserve the scheme.\n"
                             "  --list-colorschemes      List built-in Base16 names.\n"
@@ -176,8 +178,8 @@ static int replace_file(const char *path, const char *sql, size_t n, file_info *
 }
 
 static int process_input(int format, int d, int embedded, const char *language_name, unsigned sanitize_flags, int edit,
-                         int explaining, int json, const sequel_highlight_options_t *highlight, const char *argument,
-                         int source_is_path) {
+                         int explaining, int all_diagnostics, int json, const sequel_highlight_options_t *highlight,
+                         const char *argument, int source_is_path) {
   const char *source_path = source_is_path ? argument : NULL;
   const char *path = edit ? source_path : NULL;
   int language = embedded ? embedded_language(language_name, source_path) : 0;
@@ -223,6 +225,11 @@ static int process_input(int format, int d, int embedded, const char *language_n
   if (failed) {
     free(sql);
     return error("input read error");
+  }
+  if (explaining && all_diagnostics) {
+    sequel_status_t status = diagnose_all(stdout, sql, n, (sequel_dialect_t)d, json);
+    free(sql);
+    return status != SEQUEL_OK || ferror(stdout);
   }
   if (n > MAX_SQL || memchr(sql, 0, n)) {
     sequel_diagnostic_t diagnostic;
@@ -308,11 +315,13 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
     return 0;
   }
   if (argc < 2 || (strcmp(argv[1], "format") && strcmp(argv[1], "sanitize") && strcmp(argv[1], "highlight") &&
-                   strcmp(argv[1], "interactive") && strcmp(argv[1], "explain")))
+                   strcmp(argv[1], "interactive") && strcmp(argv[1], "explain") && strcmp(argv[1], "diagnose")))
     return error(usage);
   int format = !strcmp(argv[1], "format"), options = 1, embedded = 0, edit = 0, count = 0;
   const char *dialect = "generic", *language_name = NULL;
-  int workbench = !strcmp(argv[1], "interactive"), explaining = !strcmp(argv[1], "explain"), json = 0, tolerant = 0;
+  int workbench = !strcmp(argv[1], "interactive"),
+      explaining = !strcmp(argv[1], "explain") || !strcmp(argv[1], "diagnose"), all_diagnostics = 0, json = 0,
+      tolerant = 0;
   int highlighting = !strcmp(argv[1], "highlight") || workbench, output_mode = -1, appearance = 0, list_schemes = 0;
   const char *scheme_name = "default-dark", *overrides[SEQUEL_COLOR_COUNT] = {0};
   unsigned flags = 0;
@@ -336,6 +345,12 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
       if (!highlighting)
         return error("--tolerant requires highlight");
       tolerant = 1;
+      continue;
+    }
+    if (options && !strcmp(arg, "--all")) {
+      if (!explaining)
+        return error("--all requires explain or diagnose");
+      all_diagnostics = 1;
       continue;
     }
     if (options && !strcmp(arg, "--json")) {
@@ -441,7 +456,7 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
   if (language_name && !embedded)
     return error("--language requires --embedded");
   if (json && !explaining && !workbench)
-    return error("--json requires explain or interactive mode");
+    return error("--json requires explain, diagnose or interactive mode");
   if (workbench && (count || edit || embedded || list_schemes))
     return error(
         "interactive mode reads stdin; paths, --edit-file, --embedded and --list-colorschemes are not supported");
@@ -504,7 +519,8 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
   if (workbench)
     return interactive(highlight_options, json);
   if (!count)
-    return process_input(format, d, embedded, language_name, flags, 0, explaining, json, highlight_options, NULL, 0);
+    return process_input(format, d, embedded, language_name, flags, 0, explaining, all_diagnostics, json,
+                         highlight_options, NULL, 0);
   int result = 0;
   for (int i = 0; i < count; ++i) {
     file_info info;
@@ -515,9 +531,9 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
      * multiple arguments are paths; language inference requires a path. */
     if (embedded && !language_name)
       from_path = 1;
-    int status = process_input(format, d, embedded, language_name, flags, edit, explaining, json, highlight_options,
-                               inputs[i], from_path);
-    if (status && from_path)
+    int status = process_input(format, d, embedded, language_name, flags, edit, explaining, all_diagnostics, json,
+                               highlight_options, inputs[i], from_path);
+    if (status && from_path && !all_diagnostics)
       fprintf(stderr, "sequel: failed: %s\n", inputs[i]);
     result |= status;
   }

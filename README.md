@@ -39,6 +39,28 @@ The equivalent library API is `sequel_sanitize_with_flags`, Go's
 Formatting does not sanitize or execute SQL. See [CLI details](src/binary/README.md)
 for embedded source formatting and conservative file editing.
 
+## Unified analysis
+
+Use C `sequel_analyze_n`, Go `Analyze`, or Python `analyze` for sanitized text,
+summary, operation, versioned SHA-256 fingerprints, canonical diagnostics, bind
+arity metadata, original statement ranges and safe numeric source maps from one
+shared token scan. Optional formatting uses sanitized tokens. Original SQL and
+bind values are never retained in the result; malformed input fails closed.
+
+[Analysis contracts](docs/c-analysis.md), [Go usage](docs/go-analysis.md), and
+[Python usage](docs/python-analysis.md) document ownership, versioned transport,
+UTF-8/UTF-16 conversions, configurable budgets and cancellation. Existing APIs
+remain available. Fingerprints normalize literal values and marker spelling while
+preserving repeated binding relationships and dialect semantics.
+
+The existing C CLI provides multiple safe-boundary diagnostics with `sequel diagnose --all --json`
+(and interactive `:explain-all`); its default diagnostic schema is preserved.
+
+The full JSON analysis binding example is available with `go run ./cmd/sequel-analyze -dialect postgresql`;
+pass SQL on stdin. `-format`, `-omit-maps`, `-omit-binds`, `-max-memory-bytes`,
+`-max-output-bytes` and `-max-work-units` configure optional output and budgets.
+Errors remain machine-readable and never echo the input.
+
 ## C API
 
 Include `<sequel.h>` and link `sequel::sequel`. All public types and functions

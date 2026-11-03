@@ -6,7 +6,7 @@
 [Go API](https://zfogg.github.io/sequel/go/)
 
 Build the standalone C executable from a complete repository checkout using
-CMake 3.24+ and a C99 compiler. No Go toolchain or network download is required.
+CMake 3.24+ and a C11 compiler. No Go toolchain or network download is required.
 The binary embeds the sequel library and the bundled utf8proc sources.
 
 ```sh
@@ -115,3 +115,42 @@ file extensions otherwise select it. Conservative detection and unsupported
 interpolated/template forms are retained, so embedded sanitization is not a
 whole-file secrets scrubber. Malformed recognized SQL rejects sanitization before
 writing a file. Selection flags also apply inside embedded SQL.
+
+## Diagnostics and the SQL workbench
+
+`explain` reports the first lexical/delimiter diagnostic and completion state;
+`diagnose` is an alias. Their default `--json` output remains one diagnostic
+object per input. Add `--all` to collect multiple issues at safe statement
+boundaries without exporting SQL text or bind values:
+
+```sh
+sequel diagnose --all --json --dialect postgresql queries.sql
+printf 'SELECT ); SELECT ];' | sequel explain --all
+```
+
+`--all --json` emits one versioned envelope per input:
+
+```json
+{"schema_version":1,"original_length":9,"status":"malformed","diagnostics":[{"code":"unmatched_close"}]}
+```
+
+The example abbreviates each diagnostic; actual entries also contain severity,
+original UTF-8 byte ranges, Unicode scalar line/columns, incomplete/completion
+flags, and canonical catalog messages, explanations, and hints. `original_length`
+is the input byte count, including embedded NULs. `status` distinguishes `ok`,
+`malformed`, `limit`, `cancelled`, and `error`; valid input has an empty diagnostics
+array. Text mode prints every issue. Malformed input returns a nonzero exit code;
+multiple paths are processed in order, each producing its own result.
+
+Recovery never splits semicolons inside quotes, comments, or opaque parameter
+syntax. An unfinished quoted tail prevents recovery into apparent statements
+inside that tail. Diagnostic output contains canonical explanations and numeric
+locations, not original SQL snippets. These are lexical and delimiter checks,
+not database grammar validation. `--all` does not edit files or process embedded
+host-language source.
+
+The `interactive` workbench accepts `:explain-all` for the same multi-issue view;
+`--json` selects the versioned envelope for that command. Existing `:explain`
+keeps its first-issue/completion output. Workbench `:show`, previews, formatting,
+and highlighting preserve SQL content; diagnostic redaction does not change
+those explicit display commands.

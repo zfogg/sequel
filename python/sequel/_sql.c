@@ -182,7 +182,15 @@ static PyObject *colorschemes(PyObject *self, PyObject *unused) {
   }
   return result;
 }
+#include "_analysis.c"
 static PyMethodDef methods[] = {
+    {"analyze", analyze_sql, METH_VARARGS, "Analyze SQL with bounded work and privacy-safe metadata."},
+    {"diagnostic_catalog", analysis_catalog, METH_NOARGS, "List canonical public diagnostics."},
+    {"canonicalize_diagnostic", analysis_canonicalize, METH_VARARGS, "Validate and canonicalize diagnostic transport."},
+    {"map_range", analysis_map_range, METH_VARARGS, "Map a UTF-8 range through numeric provenance."},
+    {"utf8_to_utf16", analysis_utf8_to_utf16, METH_VARARGS, "Convert UTF-8 byte boundaries to UTF-16 units."},
+    {"utf16_to_utf8", analysis_utf16_to_utf8, METH_VARARGS, "Convert UTF-16 unit boundaries to UTF-8 bytes."},
+    {"check_binds", analysis_check_binds, METH_VARARGS, "Check bind slots without reading values."},
     {"diagnose", diagnose_sql, METH_VARARGS, "Locate and explain the first lexical/delimiter issue."},
     {"highlight", highlight_sql, METH_VARARGS, "Highlight SQL as escaped HTML or truecolor ANSI."},
     {"colorschemes", colorschemes, METH_NOARGS, "List bundled Base16 names."},

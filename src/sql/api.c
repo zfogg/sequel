@@ -9,7 +9,7 @@ static void utf8_cut(char *s, size_t limit) {
 }
 static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
-  for (size_t i = 0; i + 2 < n; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i + 2 < n); ++i) {
     /* Retained comments and quoted identifiers are opaque to IN collapsing. */
     unsigned char c = (unsigned char)s[i];
     if (dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, i)) {
@@ -58,7 +58,7 @@ static void collapse_in(char *s, sequel_dialect_t dialect) {
       continue;
     size_t k = j + 1, count = 0;
     bool comma = false;
-    for (;;) {
+    for (; (sequel_work_tick(1), 1);) {
       while (k < n && isspace((unsigned char)s[k]))
         ++k;
       if (k == n || s[k] != '?')
@@ -184,9 +184,9 @@ retry_summary:;
   out->statement_count = 0;
   *out->operation = 0;
   bool mixed_operations = false;
-  for (size_t start = 0; start < count;) {
+  for (size_t start = 0; (sequel_work_tick(1), start < count);) {
     size_t end = start, nesting = 0;
-    for (; end < count; ++end) {
+    for (; (sequel_work_tick(1), end < count); ++end) {
       if (sym(tokens[end], '('))
         ++nesting;
       else if (sym(tokens[end], ')') && nesting)
@@ -202,7 +202,7 @@ retry_summary:;
       while (op < length && sym(statement[op], '('))
         ++op;
       if (kw(statement[0], "WITH"))
-        for (op = 1; op < length; ++op) {
+        for (op = 1; (sequel_work_tick(1), op < length); ++op) {
           if (sym(statement[op], '(')) {
             op = close_group(statement, length, op);
             continue;

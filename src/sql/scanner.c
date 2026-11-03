@@ -5,7 +5,7 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
   bool space = false;
   int arrays = 0;
   bool clickhouse_insert = false;
-  for (size_t i = 0; i < n;) {
+  for (size_t i = 0; (sequel_work_tick(1), i < n);) {
     unsigned char c = (unsigned char)s[i];
     if (isspace(c)) {
       space = true;
@@ -63,7 +63,7 @@ static bool sanitize_policy(const char *s, size_t n, sequel_dialect_t dialect, b
       size_t j = dollar_tag_end(s, n, i, dialect);
       if (j) {
         size_t tag = j - i + 1, k = j + 1;
-        while (k + tag <= n && memcmp(s + k, s + i, tag))
+        while (k + tag <= n && (sequel_work_tick(tag), memcmp(s + k, s + i, tag)))
           ++k;
         if (k + tag > n)
           return false;
@@ -222,7 +222,7 @@ static bool sanitize(const char *s, size_t n, sequel_dialect_t dialect, bool num
 static size_t tokenize(const char *s, token **tokens, sequel_dialect_t dialect) {
   size_t n = strlen(s), count = 0, cap = 0;
   token *t = *tokens;
-  for (size_t i = 0; i < n;) {
+  for (size_t i = 0; (sequel_work_tick(1), i < n);) {
     if (isspace((unsigned char)s[i])) {
       ++i;
       continue;

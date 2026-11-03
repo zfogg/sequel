@@ -3,6 +3,8 @@
 Sequel formats, sanitizes, inspects and highlights SQL without executing it.
 Include `<sequel.h>` and link the CMake target `sequel::sequel`.
 See the [public header reference](sequel_8h.html) for all functions and types.
+The [unified analysis contract](sequel_analysis_contract.html) covers fingerprints,
+safe source maps, bind metadata, diagnostic transport, and per-call budgets.
 
 ## Formatting and highlighting
 

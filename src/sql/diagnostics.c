@@ -9,7 +9,7 @@ static const struct {
      "Pass an empty string to represent empty input."},
     {"invalid_argument", "Invalid API argument", "The dialect, options or output buffer arguments are invalid.",
      "Use a supported dialect and initialize options with the provided initializer."},
-    {"input_limit", "SQL exceeds the 1 GiB input limit",
+    {"input_limit", "SQL exceeds the configured input limit",
      "Input is bounded to keep parsing and rendering resource use predictable.",
      "Split the input into smaller SQL documents."},
     {"invalid_utf8", "Invalid UTF-8 input",
@@ -56,7 +56,12 @@ static const struct {
      "Measure with out=NULL and capacity=0, then allocate length+1 bytes."},
     {"out_of_memory", "Cannot allocate working memory",
      "The library could not allocate its parsing or rendering buffers.",
-     "Reduce the input size or retry after freeing memory."}};
+     "Reduce the input size or retry after freeing memory."},
+    {"resource_limit", "Analysis resource budget exceeded",
+     "The per-call memory, output or work budget stopped analysis.",
+     "Increase the relevant budget or analyze a smaller document."},
+    {"cancelled", "Analysis cancelled", "The caller cancelled SQL analysis before it completed.",
+     "Retry only if analysis is still needed."}};
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
   return code >= 0 && (size_t)code < sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0])
@@ -69,7 +74,7 @@ static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t
     return;
   if (offset > n)
     offset = n;
-  for (size_t i = 0; i < offset; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < offset); ++i) {
     unsigned char c = (unsigned char)sql[i];
     if (c == '\r') {
       ++*line;
@@ -116,7 +121,7 @@ static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialec
     diagnostic_report(sql, INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, INPUT_MAX, INPUT_MAX);
     return SEQUEL_ERR_OVERFLOW;
   }
-  for (size_t i = 0; i < n;) {
+  for (size_t i = 0; (sequel_work_tick(1), i < n);) {
     unsigned char c = (unsigned char)sql[i];
     size_t width = c < 0x80                 ? 1
                    : c >= 0xc2 && c <= 0xdf ? 2
@@ -151,7 +156,7 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
                                                     : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   size_t stack[64], depth = 0, last = SIZE_MAX;
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     if (ts[i].kind >= 3)
       continue;
     last = i;

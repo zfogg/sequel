@@ -20,7 +20,7 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
   }
   output b = {out, 0, capacity};
   const char *previous = sql;
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     token t = ts[i].t;
     size_t gap = (size_t)(t.p - previous);
     if (gap) {

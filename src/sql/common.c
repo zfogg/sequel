@@ -15,7 +15,7 @@ static bool part(unsigned char c) { return letter(c) || isdigit(c) || c == '$' |
 static bool equal(const char *s, size_t n, const char *word) {
   if (strlen(word) != n)
     return false;
-  for (size_t i = 0; i < n; ++i)
+  for (size_t i = 0; (sequel_work_tick(1), i < n); ++i)
     if (toupper((unsigned char)s[i]) != toupper((unsigned char)word[i]))
       return false;
   return true;
@@ -23,10 +23,13 @@ static bool equal(const char *s, size_t n, const char *word) {
 static bool kw(token t, const char *word) { return t.word && equal(t.p, t.n, word); }
 static bool sym(token t, char c) { return t.n == 1 && *t.p == c; }
 static void put(output *b, const char *s, size_t n) {
+  if (b->charge_output)
+    sequel_output_tick(n);
   if (n > b->cap - b->n - 1) {
     b->overflow = true;
     n = b->cap - b->n - 1;
   }
+  sequel_work_tick(n);
   memcpy(b->p + b->n, s, n);
   b->n += n;
   b->p[b->n] = 0;
@@ -39,13 +42,13 @@ static void item(output *b, const char *s) {
 }
 static void emit_token(output *b, token t) { put(b, t.p, t.n); }
 static void upper(output *b, token t) {
-  for (size_t i = 0; i < t.n; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < t.n); ++i) {
     char c = (char)toupper((unsigned char)t.p[i]);
     put(b, &c, 1);
   }
 }
 static size_t quoted(const char *s, size_t n, size_t i, char close, bool backslash) {
-  for (++i; i < n; ++i) {
+  for (++i; (sequel_work_tick(1), i < n); ++i) {
     if (backslash && s[i] == '\\') {
       if (++i == n)
         return 0;
@@ -89,7 +92,7 @@ static unsigned char clickhouse_quote(const char *s, size_t n, size_t i) {
 }
 static size_t clickhouse_quoted_end(const char *s, size_t n, size_t i) {
   unsigned char close = clickhouse_quote(s, n, i) + 1;
-  for (size_t j = i + 3; j + 2 < n; ++j)
+  for (size_t j = i + 3; (sequel_work_tick(1), j + 2 < n); ++j)
     if ((unsigned char)s[j] == 0xe2 && (unsigned char)s[j + 1] == 0x80 && (unsigned char)s[j + 2] == close)
       return j + 3;
   return 0;
@@ -135,7 +138,7 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
   if (j == n || s[j++] != ':')
     return 0;
   size_t start = j, depth = 0;
-  for (; j < n; ++j) {
+  for (; (sequel_work_tick(1), j < n); ++j) {
     if (s[j] == '\'' || s[j] == '"' || s[j] == '`') {
       size_t end = quoted(s, n, j, s[j], true);
       if (!end)

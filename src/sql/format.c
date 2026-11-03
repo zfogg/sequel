@@ -8,6 +8,7 @@ typedef struct {
   size_t matching;
   bool multiline;
   size_t flat_width;
+  size_t source_offset, rendered_offset;
 } format_token;
 
 static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *diag, sequel_diagnostic_code_t code,
@@ -15,8 +16,9 @@ static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *di
   diagnostic_report(s, n, diag, code, start, end);
   return SIZE_MAX;
 }
-static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
-                             sequel_diagnostic_t *diag) {
+static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
+                                  sequel_diagnostic_t *diag, size_t *scanned) {
+  *scanned = 0;
   size_t count = 0, i = 0, capacity = 0;
   format_token *ts = *tokens;
   bool clickhouse_insert = false;
@@ -117,7 +119,7 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
         if (tag) {
           size_t len = tag - i + 1;
           end = tag + 1;
-          while (end + len <= n && memcmp(s + end, s + i, len))
+          while (end + len <= n && (sequel_work_tick(len), memcmp(s + end, s + i, len)))
             ++end;
           if (end + len > n) {
             diagnostic_report(s, n, diag, SEQUEL_DIAG_UNTERMINATED_STRING, i, n);
@@ -128,6 +130,16 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
             end += len;
           kind = 2;
         }
+      }
+      if (!kind && c == '@' && end < n && s[end] == '@') {
+        ++end;
+        while (end < n && part((unsigned char)s[end]))
+          ++end;
+        kind = 2;
+      }
+      if (!kind && c == '%' && end < n && s[end] == 's') {
+        end++;
+        kind = 2;
       }
       if (!kind && c == '%' && end < n && s[end] == '(') {
         size_t marker = end + 1;
@@ -164,6 +176,9 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
       }
       if (!kind && strchr("~!#%^&|+-*/<>=@", c) && !(c == '@' && end < n && letter((unsigned char)s[end]))) {
         while (end < n && strchr("~!#%^&|+-*/<>=@", s[end])) {
+          if (end + 1 < n && ((s[end] == '%' && (s[end + 1] == 's' || s[end + 1] == '(')) ||
+                              (s[end] == '@' && letter((unsigned char)s[end + 1]))))
+            break;
           if (end + 1 < n && ((s[end] == '/' && (s[end + 1] == '*' || (d == SEQUEL_CLICKHOUSE && s[end + 1] == '/'))) ||
                               (s[end] == '-' && s[end + 1] == '-')))
             break;
@@ -172,7 +187,7 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
         /* Separate trailing unary signs in >=-1 and x+-y. PostgreSQL custom
          * operators containing special operator characters stay opaque. */
         bool custom = false;
-        for (size_t k = i; k < end; ++k)
+        for (size_t k = i; (sequel_work_tick(1), k < end); ++k)
           if (strchr("~!#%^&|@", s[k]))
             custom = true;
         if (!custom)
@@ -195,7 +210,7 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
           end = n;
         }
         kind = 2;
-      } else if (!kind && isdigit(c)) {
+      } else if (!kind && (isdigit(c) || (c == '.' && end < n && isdigit((unsigned char)s[end])))) {
         end = dialect_number_end(s, n, i, d);
       } else if (!kind && (letter(c) || c >= 128 || c == '$' || c == '?' || c == ':' || c == '@')) {
         while (end < n && part((unsigned char)s[end]) && !(d == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, end)))
@@ -219,17 +234,22 @@ static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format
                                false,
                                0};
     ts[count].flat_width = (count ? ts[count - 1].flat_width : 0) + end - start + 1;
-    ++count;
+    *scanned = ++count;
     i = end;
   }
   return count;
 }
 
+static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
+                             sequel_diagnostic_t *diag) {
+  size_t scanned;
+  return format_scan_recover(s, n, d, tokens, tolerant, diag, &scanned);
+}
 static void format_line(output *b, size_t indent) {
   if (b->n && b->p[b->n - 1] != '\n')
     text(b, "\n");
   if (b->n)
-    for (size_t i = 0; i < indent; ++i)
+    for (size_t i = 0; (sequel_work_tick(1), i < indent); ++i)
       text(b, "  ");
 }
 
@@ -265,7 +285,7 @@ static bool format_join(format_token *ts, size_t n, size_t i) {
     return true;
   if (!(kw(t, "LEFT") || kw(t, "RIGHT") || kw(t, "FULL") || kw(t, "INNER") || kw(t, "CROSS") || kw(t, "NATURAL")))
     return false;
-  for (size_t j = i + 1; j < n && j < i + 4; ++j) {
+  for (size_t j = i + 1; (sequel_work_tick(1), j < n && j < i + 4); ++j) {
     if (kw(ts[j].t, "JOIN"))
       return true;
     if (!(kw(ts[j].t, "OUTER") || kw(ts[j].t, "LEFT") || kw(ts[j].t, "RIGHT") || kw(ts[j].t, "FULL") ||
@@ -298,7 +318,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   /* Match groups once, then propagate multiline constructs out through their
    * containing function calls. This avoids repeatedly scanning nested SQL. */
   size_t opens[65] = {0}, level = 0;
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     token t = ts[i].t;
     if (ts[i].kind == 0 && t.n == 1 && strchr("([{", *t.p)) {
       if (level == 64)
@@ -328,7 +348,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   size_t depth = 0, case_count = 0, line_indent = 0;
   size_t previous = SIZE_MAX;
   bool after_comparison = false, join_head = false;
-  for (size_t i = 0; i < count; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     format_token f = ts[i];
     token t = f.t;
     bool open = f.kind == 0 && t.n == 1 && strchr("([{", *t.p);
@@ -375,7 +395,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       case_ctx->condition = true;
       case_ctx->multiline = false;
       size_t nested = 0;
-      for (size_t j = i + 1; j < count; ++j) {
+      for (size_t j = i + 1; (sequel_work_tick(1), j < count); ++j) {
         if (sym(ts[j].t, '(') || sym(ts[j].t, '[') || sym(ts[j].t, '{'))
           j = ts[j].matching;
         else if (kw(ts[j].t, "CASE"))
@@ -449,6 +469,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
                 (previous != SIZE_MAX && sym(ts[previous].t, ',')))) {
       format_space(b);
     }
+    ts[i].rendered_offset = b->n;
     emit_token(b, t);
     after_comparison = spaced_operator;
     if (f.kind >= 3)
@@ -506,7 +527,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
          * Count only commas at this level; function arguments are opaque. */
         size_t end = next;
         bool list = false;
-        for (size_t j = next + 1; j < count; ++j) {
+        for (size_t j = next + 1; (sequel_work_tick(1), j < count); ++j) {
           token item = ts[j].t;
           if (sym(item, ')') || kw(item, "ORDER") || kw(item, "ROWS") || kw(item, "RANGE") || kw(item, "GROUPS"))
             break;
@@ -551,7 +572,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
           (previous == SIZE_MAX || !ts[previous].t.word || kw(ts[previous].t, "AND") || kw(ts[previous].t, "OR") ||
            kw(ts[previous].t, "NOT") || kw(ts[previous].t, "WHERE") || kw(ts[previous].t, "HAVING") ||
            kw(ts[previous].t, "ON"))) {
-        for (size_t j = i + 1; j < ts[i].matching; ++j) {
+        for (size_t j = i + 1; (sequel_work_tick(1), j < ts[i].matching); ++j) {
           if (ts[j].kind == 0 && ts[j].t.n == 1 && strchr("([{", *ts[j].t.p))
             j = ts[j].matching;
           else if (kw(ts[j].t, "AND") || kw(ts[j].t, "OR"))

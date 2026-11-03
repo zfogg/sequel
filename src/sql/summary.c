@@ -1,6 +1,6 @@
 static size_t close_group(token *t, size_t n, size_t i) {
   size_t depth = 0;
-  for (size_t j = i; j < n; ++j) {
+  for (size_t j = i; (sequel_work_tick(1), j < n); ++j) {
     if (sym(t[j], '('))
       ++depth;
     else if (sym(t[j], ')') && --depth == 0)
@@ -27,14 +27,14 @@ static bool boundary(token t) {
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW"};
   if (t.clickhouse && (kw(t, "PREWHERE") || kw(t, "SETTINGS") || kw(t, "FORMAT") || kw(t, "SAMPLE") || kw(t, "VALUES")))
     return true;
-  for (size_t i = 0; i < sizeof(words) / sizeof(*words); ++i)
+  for (size_t i = 0; (sequel_work_tick(1), i < sizeof(words) / sizeof(*words)); ++i)
     if (kw(t, words[i]))
       return true;
   return sym(t, ';') || sym(t, ')');
 }
 static size_t clause_end(token *t, size_t n, size_t i) {
   unsigned cases = 0;
-  for (; i < n; ++i) {
+  for (; (sequel_work_tick(1), i < n); ++i) {
     if (sym(t[i], '(')) {
       i = close_group(t, n, i);
       continue;
@@ -70,7 +70,7 @@ static void nested(output *b, token *t, size_t n, unsigned depth) {
     item(b, "…");
     return;
   }
-  for (size_t i = 0; i < n; ++i)
+  for (size_t i = 0; (sequel_work_tick(1), i < n); ++i)
     if (sym(t[i], '(')) {
       size_t end = close_group(t, n, i);
       if (i + 1 < end && query_start(t[i + 1])) {
@@ -92,7 +92,7 @@ static bool join_modifier(token t) {
                          "CROSS",   "SEMI", "ANTI",  "ASOF", "POSITIONAL"};
   if (t.clickhouse && (kw(t, "GLOBAL") || kw(t, "ANY") || kw(t, "ALL") || kw(t, "ARRAY")))
     return true;
-  for (size_t i = 0; i < sizeof(words) / sizeof(*words); ++i)
+  for (size_t i = 0; (sequel_work_tick(1), i < sizeof(words) / sizeof(*words)); ++i)
     if (kw(t, words[i]))
       return true;
   return false;
@@ -111,7 +111,7 @@ static size_t join_at(token *t, size_t n, size_t i) {
 }
 static void expression(output *b, token *t, size_t n, unsigned depth) {
   size_t started = b->n;
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0; (sequel_work_tick(1), i < n); ++i) {
     if (t[i].space && b->n > started && b->p[b->n - 1] != ' ')
       text(b, " ");
     if (sym(t[i], '(')) {
@@ -196,7 +196,7 @@ static void relations(output *b, token *t, size_t n, unsigned depth) {
     size_t next = join_at(t, n, i);
     if (next > i) {
       text(b, " ");
-      for (; i < next; ++i) {
+      for (; (sequel_work_tick(1), i < next); ++i) {
         upper(b, t[i]);
         text(b, " ");
       }
@@ -210,7 +210,7 @@ static void relations(output *b, token *t, size_t n, unsigned depth) {
       text(b, " ");
       size_t start = i;
       int cases = 0;
-      for (; i < n; ++i) {
+      for (; (sequel_work_tick(1), i < n); ++i) {
         if (sym(t[i], '(')) {
           i = close_group(t, n, i);
           continue;
@@ -250,12 +250,12 @@ static void bound(output *b, token *t, size_t n) {
   bool valid = n == 1 || (n == 2 && (sym(t[0], '-') || sym(t[0], '+')));
   if (valid) {
     token v = t[n - 1];
-    for (size_t i = 0; i < v.n; ++i)
+    for (size_t i = 0; (sequel_work_tick(1), i < v.n); ++i)
       if (!isdigit((unsigned char)v.p[i]))
         valid = false;
   }
   if (valid) {
-    for (size_t i = 0; i < n; ++i)
+    for (size_t i = 0; (sequel_work_tick(1), i < n); ++i)
       emit_token(b, t[i]);
   } else
     text(b, "?");
@@ -271,7 +271,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
   if (t[0].clickhouse && kw(t[0], "WITH")) {
     /* Scalar aliases and CTEs share WITH in ClickHouse. Preserve the outer
      * query shape without exporting arbitrary scalar expressions. */
-    for (size_t j = 1; j < n; ++j) {
+    for (size_t j = 1; (sequel_work_tick(1), j < n); ++j) {
       if (sym(t[j], '(')) {
         j = close_group(t, n, j);
         continue;
@@ -290,7 +290,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
       text(b, "RECURSIVE ");
       ++i;
     }
-    for (;;) {
+    for (; (sequel_work_tick(1), 1);) {
       size_t next = name(b, t, n, i);
       if (next == i) {
         text(b, "SQL");
@@ -336,7 +336,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
     ++i;
     if (i < n && sym(t[i], '(')) {
       size_t end = close_group(t, n, i);
-      for (size_t j = i + 1; j < end; ++j)
+      for (size_t j = i + 1; (sequel_work_tick(1), j < end); ++j)
         if (kw(t[j], "ANALYZE")) {
           text(b, " ANALYZE");
           break;
@@ -367,7 +367,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
                                 "CREATE", "ALTER",  "DROP",     "VACUUM", "ANALYZE", "PRAGMA", "SHOW",   "SET",
                                 "BEGIN",  "COMMIT", "ROLLBACK", "VALUES", "REPLACE", "PIVOT",  "UNPIVOT"};
     bool supported = false;
-    for (size_t j = 0; j < sizeof(operations) / sizeof(*operations); ++j)
+    for (size_t j = 0; (sequel_work_tick(1), j < sizeof(operations) / sizeof(*operations)); ++j)
       if (kw(op, operations[j]))
         supported = true;
     if (!supported) {
@@ -420,7 +420,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
       size_t end = clause_end(t, n, i);
       char function_text[4097] = {0};
       output functions = {function_text, 0, sizeof(function_text)};
-      for (size_t j = i; j < end; ++j) {
+      for (size_t j = i; (sequel_work_tick(1), j < end); ++j) {
         if (sym(t[j], '(')) {
           j = close_group(t, n, j);
           continue;
@@ -444,7 +444,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
       else
         item(b, "…");
       nested(b, t + i, end - i, depth + 1);
-      for (size_t j = i; j < end; ++j) {
+      for (size_t j = i; (sequel_work_tick(1), j < end); ++j) {
         if (sym(t[j], '(')) {
           j = close_group(t, n, j);
           continue;
@@ -527,7 +527,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
       size_t end = clause_end(t, n, i + 1), comma = i + 1;
       size_t bound_end = end, by = end;
       if (v.clickhouse)
-        for (size_t j = i + 1; j < end; ++j)
+        for (size_t j = i + 1; (sequel_work_tick(1), j < end); ++j)
           if (kw(t[j], "BY")) {
             by = j;
             bound_end = j;
@@ -558,7 +558,7 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
       while (i < n) {
         bool matched = false;
         const char *locks[] = {"UPDATE", "NO", "KEY", "SHARE", "SKIP", "LOCKED", "NOWAIT"};
-        for (size_t j = 0; j < sizeof(locks) / sizeof(*locks); ++j)
+        for (size_t j = 0; (sequel_work_tick(1), j < sizeof(locks) / sizeof(*locks)); ++j)
           if (kw(t[i], locks[j])) {
             item(b, locks[j]);
             matched = true;

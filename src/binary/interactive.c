@@ -118,6 +118,7 @@ int interactive(const sequel_highlight_options_t *options, int json) {
       if (!strcmp(line, ":help")) {
         fputs(":show     Highlight the current SQL buffer\n"
               ":explain  Explain the first diagnostic and show completion state\n"
+              ":explain-all  Explain all safe-boundary diagnostics\n"
               ":format   Format the current complete SQL buffer\n"
               ":clear    Clear the buffer\n:quit     Exit (:q also works)\n"
               "SQL accumulates across lines. A final semicolon starts a new buffer on the next SQL line.\n"
@@ -131,6 +132,14 @@ int interactive(const sequel_highlight_options_t *options, int json) {
         if (!strcmp(line, ":clear")) {
           sql[used = 0] = 0;
           finished = 0;
+          continue;
+        }
+        if (!strcmp(line, ":explain-all")) {
+          diagnose_all(stdout, sql, used, options->dialect, json);
+          if (fflush(stdout) || ferror(stdout)) {
+            result = 1;
+            break;
+          }
           continue;
         }
         if (!strcmp(line, ":explain")) {

@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "resources.h"
+
 #define INPUT_MAX SEQUEL_INPUT_MAX
 typedef struct {
   const char *p;
@@ -16,7 +18,7 @@ typedef struct {
 typedef struct {
   char *p;
   size_t n, cap;
-  bool overflow;
+  bool overflow, charge_output;
 } output;
 
 // clang-format off
@@ -28,4 +30,7 @@ typedef struct {
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"
+#include "contracts.c"
+#include "sha256.c"
+#include "analysis.c"
 // clang-format on
