@@ -7,6 +7,7 @@ import json
 import os
 import pkgutil
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -18,7 +19,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = json.loads((ROOT / "docs/site.json").read_text(encoding="utf-8"))
-GENERATORS = {"c": "Doxygen", "python": "pdoc", "go": "Golds", "typescript": "TypeDoc"}
+GENERATORS = {"c": "Doxygen", "python": "pdoc", "go": "Golds", "rust": "rustdoc", "typescript": "TypeDoc"}
 
 
 def run(*command, cwd=ROOT, capture=False):
@@ -65,6 +66,28 @@ def build_go(output):
         f"-dir={output / 'go'}",
         "./...",
         cwd=ROOT / CONFIG["go_directory"],
+    )
+
+
+def build_rust(output):
+    target = ROOT / "build/docs-rust"
+    run(
+        "cargo",
+        "doc",
+        "--locked",
+        "--no-deps",
+        "--manifest-path",
+        str(ROOT / CONFIG.get("rust_directory", ".") / "Cargo.toml"),
+        "--target-dir",
+        str(target),
+    )
+    shutil.copytree(target / "doc", output / "rust", dirs_exist_ok=True)
+    package = CONFIG["package"].replace("-", "_")
+    (output / "rust/index.html").write_text(
+        f'<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" '
+        f'content="0;url={package}/index.html"><title>Rust API</title></head>'
+        f'<body><a href="{package}/index.html">Rust API reference</a></body></html>',
+        encoding="utf-8",
     )
 
 
@@ -247,7 +270,7 @@ def publish(ref):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["python", "go", "typescript", "site", "verify", "publish"])
+    parser.add_argument("command", choices=["python", "go", "rust", "typescript", "site", "verify", "publish"])
     parser.add_argument("--output", type=Path, default=ROOT / "build/docs/site")
     parser.add_argument("--url")
     parser.add_argument("--revision", default=None)
@@ -263,7 +286,9 @@ def main():
     elif args.command == "publish":
         publish(args.ref)
     else:
-        {"python": build_python, "go": build_go, "typescript": build_typescript, "site": assemble}[args.command](output)
+        {"python": build_python, "go": build_go, "rust": build_rust, "typescript": build_typescript, "site": assemble}[
+            args.command
+        ](output)
 
 
 if __name__ == "__main__":

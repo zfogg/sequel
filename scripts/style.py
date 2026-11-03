@@ -17,17 +17,19 @@ def run(*command):
 go_files = sorted(str(p.relative_to(root)) for d in ("go", "cmd") for p in (root / d).rglob("*.go"))
 c_files = sorted(
     str(p.relative_to(root))
-    for d in ("src", "include", "tests", "python/sequel")
+    for d in ("src", "include", "tests", "python/sequel", "rust")
     for p in (root / d).rglob("*")
     if p.suffix in (".c", ".h")
 )
 if args.fix:
+    run("cargo", "fmt")
     run("gofmt", "-w", *go_files)
     run("clang-format", "-i", *c_files)
     run("ruff", "format", "python", "tests", "scripts", "setup.py")
     run("ruff", "check", "--fix", "python", "tests", "scripts", "setup.py")
     run("python", "scripts/sync_native.py")
 else:
+    run("cargo", "fmt", "--check")
     result = subprocess.run(["gofmt", "-l", *go_files], cwd=root, text=True, capture_output=True, check=True)
     if result.stdout:
         raise SystemExit("Run gofmt on:\n" + result.stdout)

@@ -82,3 +82,14 @@ if(WIN32 AND BUILD_SHARED_LIBS)
       "PATH=path_list_prepend:$<TARGET_FILE_DIR:sequel>")
   endforeach()
 endif()
+
+# Release binaries must exercise assertions too, rather than silently removing
+# the C API checks under NDEBUG.
+get_property(_sequel_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_target IN LISTS _sequel_test_targets)
+  if(MSVC)
+    target_compile_options(${_target} PRIVATE /UNDEBUG)
+  else()
+    target_compile_options(${_target} PRIVATE -UNDEBUG)
+  endif()
+endforeach()

@@ -20,6 +20,13 @@ foreach(language IN ITEMS python go)
 endforeach()
 string(JSON _docs_typescript ERROR_VARIABLE _docs_no_typescript GET "${_docs_config}" languages typescript)
 set(_docs_languages docs-c docs-python docs-go)
+string(JSON _docs_rust ERROR_VARIABLE _docs_no_rust GET "${_docs_config}" languages rust)
+if(NOT _docs_no_rust)
+  add_custom_target(docs-rust
+    COMMAND ${_docs_command} rust --output "${DOCS_OUTPUT_DIR}"
+    WORKING_DIRECTORY "${_docs_root}" VERBATIM USES_TERMINAL)
+  list(APPEND _docs_languages docs-rust)
+endif()
 if(NOT _docs_no_typescript)
   add_custom_target(docs-typescript
     COMMAND ${_docs_command} typescript --output "${DOCS_OUTPUT_DIR}"
