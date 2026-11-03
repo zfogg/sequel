@@ -42,7 +42,8 @@ prebuilt-library option requires a matching engine version and target; Windows
 static Rust consumers must enable `crt-static`. Keep these contracts in the
 README rather than implying that downloading the CLI installs language modules.
 
-After the tag run finishes, verify all twelve native ZIPs, six platform wheels,
+After the tag run finishes, verify all twelve native ZIPs, wheels covering all six targets
+(macOS may share one validated universal2 wheel),
 the sdist, Rust crate, binding-source ZIP and `SHA256SUMS`. Download/check hashes,
 inspect representative contents and confirm the latest release resolves correctly.
 GitHub publication does not publish to PyPI or crates.io. Registry publication

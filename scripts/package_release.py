@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import struct
 import subprocess
 import tomllib
@@ -119,9 +120,72 @@ def package_bindings(tag: str, output: Path) -> Path:
     return destination
 
 
+def assemble_release(tag: str, stage: Path, output: Path) -> None:
+    """Flatten Actions' preserved artifact directories, rejecting missing/conflicting files."""
+    validate_version(tag)
+    expected = {
+        f"sequel-{tag}-{system}-{arch}-{linkage}.zip"
+        for system in ("linux", "macos", "windows")
+        for arch in ("x64", "arm64")
+        for linkage in ("static", "shared")
+    }
+    expected.update((f"sequel-{tag[1:]}.crate", f"sequel-{tag[1:]}.tar.gz", f"sequel-bindings-{tag}.zip"))
+    sources = {}
+    for path in sorted(stage.rglob("*")):
+        if not path.is_file() or path.name == "SHA256SUMS":
+            continue
+        if not path.name.endswith((".zip", ".whl", ".crate", ".tar.gz")):
+            raise ValueError(f"Unexpected release artifact: {path.name}")
+        previous = sources.get(path.name)
+        if previous and previous.read_bytes() != path.read_bytes():
+            if (
+                path.name.endswith("_universal2.whl")
+                and universal_macos_wheel(previous)
+                and universal_macos_wheel(path)
+            ):
+                # Both macOS runners build the same two-architecture wheel. Each
+                # tests its native slice; retain the first validated universal
+                # payload deterministically instead of overwriting raced bytes.
+                continue
+            raise ValueError(f"Conflicting release artifact: {path.name}")
+        sources[path.name] = path
+    wheel_count = sum(name.endswith(".whl") for name in sources)
+    universal = any(name.endswith("_universal2.whl") for name in sources)
+    if (
+        not expected.issubset(sources)
+        or wheel_count != (5 if universal else 6)
+        or len(sources) != len(expected) + wheel_count
+    ):
+        raise ValueError(f"Incomplete release artifacts: {sorted(sources)}")
+    output.mkdir(parents=True, exist_ok=True)
+    for name, source in sources.items():
+        shutil.copy2(source, output / name)
+
+
+def universal_macos_wheel(path: Path) -> bool:
+    """Require a genuine x64+ARM64 Mach-O extension before deduplicating wheels."""
+    with zipfile.ZipFile(path) as archive:
+        extensions = [name for name in archive.namelist() if name.endswith(".so")]
+        if len(extensions) != 1:
+            return False
+        data = archive.read(extensions[0])
+    if len(data) < 48 or data[:8] != b"\xca\xfe\xba\xbe\x00\x00\x00\x02":
+        return False
+    targets = set()
+    for index in range(2):
+        cpu, _, offset, size, _ = struct.unpack_from(">IIIII", data, 8 + index * 20)
+        if offset + size > len(data) or size < 32:
+            return False
+        target = binary_target(data[offset : offset + size])
+        if cpu not in (0x01000007, 0x0100000C):
+            return False
+        targets.add(target)
+    return targets == {("macos", "x64"), ("macos", "arm64")}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("kind", choices=["native", "bindings", "validate", "checksums"])
+    parser.add_argument("kind", choices=["native", "bindings", "validate", "assemble", "checksums"])
     parser.add_argument("--tag", required=True)
     parser.add_argument("--stage", type=Path)
     parser.add_argument("--os", choices=["linux", "macos", "windows"])
@@ -132,7 +196,11 @@ def main() -> None:
     validate_version(args.tag)
     if args.kind == "validate":
         return
-    if args.kind == "native":
+    if args.kind == "assemble":
+        if not args.stage:
+            parser.error("assemble needs --stage")
+        assemble_release(args.tag, args.stage, args.output)
+    elif args.kind == "native":
         if not all([args.stage, args.os, args.arch, args.linkage]):
             parser.error("native packaging needs --stage, --os, --arch and --linkage")
         print(package_native(args.tag, args.stage, args.os, args.arch, args.linkage, args.output))

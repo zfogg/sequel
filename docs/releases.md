@@ -32,7 +32,8 @@ path. Windows static consumers must also use the static MSVC CRT (`/MT`).
 
 ## Python
 
-Release wheels are compiled for CPython 3.13 on all six platform targets. Install
+Release wheels are compiled for CPython 3.13 on all six platform targets. macOS
+uses one universal2 wheel containing both x64 and ARM64 native code. Install
 the wheel matching your interpreter/OS/architecture with `uv pip install
 /path/to/sequel-...whl` in your environment. Then `import sequel` as usual.
 These wheels already contain the C engine; no separate ZIP or compiler is needed.

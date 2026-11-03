@@ -35,6 +35,57 @@ def binary(system, arch, interpreter=False):
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_actions_artifact_layout_is_flattened_and_validated(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            stage, output = root / "downloaded", root / "release"
+            paths = []
+            for system in ("linux", "macos", "windows"):
+                for arch in ("x64", "arm64"):
+                    prefix = stage / f"release-{system}-{arch}"
+                    for linkage in ("static", "shared"):
+                        paths.append(prefix / "release" / f"sequel-v0.2.0-{system}-{arch}-{linkage}.zip")
+                    paths.append(prefix / "wheels" / f"sequel-0.2.0-{system}-{arch}.whl")
+            paths.extend(
+                stage / "sources" / name
+                for name in ("sequel-0.2.0.crate", "sequel-0.2.0.tar.gz", "sequel-bindings-v0.2.0.zip")
+            )
+            for path in paths:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(path.name.encode())
+            release.assemble_release("v0.2.0", stage, output)
+            self.assertEqual(len(list(output.iterdir())), 21)
+            for path in paths:
+                self.assertEqual((output / path.name).read_bytes(), path.read_bytes())
+            duplicate = stage / "duplicate" / paths[0].name
+            duplicate.parent.mkdir()
+            duplicate.write_bytes(b"conflicting upload")
+            with self.assertRaisesRegex(ValueError, "Conflicting"):
+                release.assemble_release("v0.2.0", stage, output)
+            duplicate.unlink()
+            paths[0].unlink()
+            with self.assertRaisesRegex(ValueError, "Incomplete"):
+                release.assemble_release("v0.2.0", stage, output)
+
+    def test_universal_wheels_must_contain_both_native_slices(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "sequel_universal2.whl"
+            fat = bytearray(384)
+            fat[:8] = b"\xca\xfe\xba\xbe\x00\x00\x00\x02"
+            for index, arch in enumerate(("x64", "arm64")):
+                offset = 64 + index * 160
+                struct.pack_into(
+                    ">IIIII", fat, 8 + index * 20, 0x01000007 if arch == "x64" else 0x0100000C, 0, offset, 160, 0
+                )
+                fat[offset : offset + 160] = binary("macos", arch)
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("sequel/_sql.so", fat)
+            self.assertTrue(release.universal_macos_wheel(path))
+            fat[224:384] = binary("macos", "x64")
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("sequel/_sql.so", fat)
+            self.assertFalse(release.universal_macos_wheel(path))
+
     def test_all_six_architectures_and_static_interpreter(self):
         with tempfile.TemporaryDirectory() as temporary:
             executable = Path(temporary) / "binary"
