@@ -85,7 +85,7 @@ jobs:
           python-version: '3.13'
           architecture: arm64
       - name: Build native Python wheel
-        run: uv build --wheel --python python --out-dir dist/raw
+        run: python scripts/build_release_wheel.py
       - name: Repair Linux wheel platform metadata
         if: matrix.os == 'linux'
         shell: bash

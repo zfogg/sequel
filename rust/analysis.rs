@@ -7,7 +7,7 @@ use std::{
 
 /// Per-call analysis policy. Zero budgets preserve the native defaults (1 GiB,
 /// except zero work units means unlimited). Callbacks must not re-enter analysis.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct AnalysisOptions<'a> {
     /// SQL dialect.
     pub dialect: Dialect,
