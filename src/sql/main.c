@@ -34,3 +34,14 @@ typedef struct {
 #include "sha256.c"
 #include "analysis.c"
 // clang-format on
+
+/* Resource instrumentation belongs only to the SQL implementation. In unity
+ * builds, subsequent sources must retain their own libc allocation ABI and
+ * loop semantics (notably utf8proc_map's caller-owned malloc/free contract). */
+#undef malloc
+#undef calloc
+#undef realloc
+#undef free
+#undef while
+#undef sequel_checkpoint
+#undef INPUT_MAX

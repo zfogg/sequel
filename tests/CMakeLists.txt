@@ -62,6 +62,19 @@ target_include_directories(sequel-sha256-test PRIVATE ../include)
 target_link_libraries(sequel-sha256-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 add_test(NAME sequel-sha256-api COMMAND sequel-sha256-test)
 
+# Keep the bundled utf8proc malloc/free ABI and scan accounting unchanged when
+# the SQL implementation is followed by other sources in cgo's unity build.
+add_executable(sequel-unity-test unity_api_test.c)
+target_include_directories(sequel-unity-test PRIVATE ../include ../third_party)
+target_compile_definitions(sequel-unity-test PRIVATE SEQUEL_TEST_UNITY UTF8PROC_STATIC)
+target_compile_features(sequel-unity-test PRIVATE c_std_11)
+add_test(NAME sequel-unity-api COMMAND sequel-unity-test)
+
+add_executable(sequel-layout-probe unity_api_test.c)
+target_link_libraries(sequel-layout-probe PRIVATE sequel::sequel ${SEQUEL_UTF8PROC_TARGET})
+add_test(NAME sequel-layout-parity COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_unity.py $<TARGET_FILE:sequel-unity-test> $<TARGET_FILE:sequel-layout-probe>)
+
 if(WIN32 AND BUILD_SHARED_LIBS)
   get_property(_tests DIRECTORY PROPERTY TESTS)
   foreach(test IN LISTS _tests)
