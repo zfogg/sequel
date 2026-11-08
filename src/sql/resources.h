@@ -1,9 +1,13 @@
 #pragma once
 /* Per-call accounting. The allocation registry permits nonlocal cancellation of
  * deeply nested legacy transforms without retaining partially sanitized output. */
+#if defined(__MINGW64__) && defined(__aarch64__)
+/* Use the paired non-SEH setjmp/longjmp implementation across cgo frames. */
+#define __USE_MINGW_SETJMP_NON_SEH
+#endif
 #include <setjmp.h>
 #include <stdalign.h>
-#if defined(__MINGW64__) && defined(_WIN64)
+#if defined(__MINGW64__) && defined(_WIN64) && !defined(__aarch64__)
 /* cgo owns the surrounding Windows stack; bypass foreign SEH unwinding. */
 #define sequel_checkpoint(context) _setjmp((context)->escape, NULL)
 #else
