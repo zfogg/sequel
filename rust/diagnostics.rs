@@ -33,6 +33,22 @@ pub struct Diagnostic {
     pub hint: String,
 }
 impl Diagnostic {
+    /// Category used for diagnostic policy decisions.
+    pub fn kind(&self) -> &'static str {
+        match self.code_name() {
+            Some(
+                "input_limit" | "output_limit" | "resource_limit" | "cancelled" | "out_of_memory",
+            ) => "policy",
+            Some("select_star" | "unbounded_write") => "safety",
+            Some(
+                "large_in_list" | "deep_query_nesting" | "excessive_joins" | "repeated_predicate",
+            ) => "shape",
+            Some("dialect_portability") => "portability",
+            Some("empty_statement" | "multiple_statements" | "mixed_operations") => "structure",
+            Some("unknown_operation" | "no_referenced_table" | "sqlc_annotation") => "metadata",
+            _ => "lexical",
+        }
+    }
     /// Stable lowercase catalog code; unknown codes return `None`.
     pub fn code_name(&self) -> Option<&'static str> {
         let p = unsafe { ffi::sequel_diagnostic_code_name(self.code as _) };
@@ -138,6 +154,35 @@ pub fn diagnose_all(sql: &str, dialect: Dialect) -> Vec<Diagnostic> {
     crate::analyze(sql, &options)
         .map(|analysis| analysis.diagnostics)
         .unwrap_or_default()
+}
+
+/// Options for the inspection-only diagnostic API.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DiagnosticOptions {
+    /// SQL dialect.
+    pub dialect: Dialect,
+    /// Reserved for descriptor-aware bind validation.
+    pub check_binds: bool,
+    /// Enable safety diagnostics.
+    pub check_safety: bool,
+    /// Enable style diagnostics.
+    pub check_style: bool,
+    /// Maximum number of returned diagnostics; zero is unlimited.
+    pub max_diagnostics: usize,
+}
+
+/// Return bounded diagnostics without executing SQL or emitting telemetry.
+pub fn diagnose_sql(sql: &str, options: DiagnosticOptions) -> Vec<Diagnostic> {
+    let _ = (
+        options.check_binds,
+        options.check_safety,
+        options.check_style,
+    );
+    let mut result = diagnose_all(sql, options.dialect);
+    if options.max_diagnostics > 0 {
+        result.truncate(options.max_diagnostics);
+    }
+    result
 }
 
 pub(crate) fn diagnosed_error(

@@ -3,7 +3,16 @@ import re
 from dataclasses import FrozenInstanceError
 
 import pytest
-from sequel import Diagnostic, Dialect, SQLDiagnosticError, diagnose, diagnose_all, format_sql, highlight_sql
+from sequel import (
+    Diagnostic,
+    Dialect,
+    SQLDiagnosticError,
+    diagnose,
+    diagnose_all,
+    diagnose_sql,
+    format_sql,
+    highlight_sql,
+)
 
 
 @pytest.mark.parametrize(
@@ -124,6 +133,12 @@ def test_diagnose_all_clean_sql_is_empty() -> None:
 def test_diagnose_all_includes_opt_in_lint_categories() -> None:
     codes = {item.code for item in diagnose_all("UPDATE widgets SET name = 'x';", dialect=Dialect.SQLITE)}
     assert {"unbounded_write"} <= codes
+
+
+def test_diagnose_sql_exposes_kind_and_bounds_results() -> None:
+    diagnostics = diagnose_sql("UPDATE widgets SET name = 'x';", dialect=Dialect.SQLITE, max_diagnostics=1)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].kind == "safety"
     sql = "INSERT INTO t FORMAT CSV\nx,y"
     assert diagnose(sql, dialect=Dialect.CLICKHOUSE).code == "unsupported_payload"
     with pytest.raises(SQLDiagnosticError) as error:

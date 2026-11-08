@@ -27,6 +27,20 @@ fn diagnose_all_includes_opt_in_lint_categories() {
 }
 
 #[test]
+fn diagnose_sql_exposes_kind_and_bounds_results() {
+    let diagnostics = diagnose_sql(
+        "UPDATE widgets SET name = 'x';",
+        DiagnosticOptions {
+            dialect: Dialect::Sqlite,
+            max_diagnostics: 1,
+            ..Default::default()
+        },
+    );
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].kind(), "safety");
+}
+
+#[test]
 #[cfg(feature = "abi-check")]
 fn checked_in_ffi_matches_target_c_abi() {
     unsafe extern "C" {

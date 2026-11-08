@@ -113,3 +113,10 @@ func TestDiagnoseAllIncludesOptInLintCategories(t *testing.T) {
 		t.Fatalf("missing unbounded_write in %#v", diagnostics)
 	}
 }
+
+func TestDiagnoseSQLOptionsBoundResults(t *testing.T) {
+	diagnostics := DiagnoseSQL("UPDATE widgets SET name = 'x';", DiagnosticOptions{Dialect: DialectSQLite, MaxDiagnostics: 1})
+	if len(diagnostics) != 1 || diagnostics[0].Kind != "safety" {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}

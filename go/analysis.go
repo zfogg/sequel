@@ -254,6 +254,24 @@ func DiagnoseAll(query string, dialect Dialect) []Diagnostic {
 	return append([]Diagnostic{}, a.Diagnostics...)
 }
 
+// DiagnosticOptions controls the inspection-only diagnostic API.
+type DiagnosticOptions struct {
+	Dialect        Dialect
+	CheckBinds     bool
+	CheckSafety    bool
+	CheckStyle     bool
+	MaxDiagnostics int
+}
+
+// DiagnoseSQL returns bounded diagnostics without executing SQL or emitting telemetry.
+func DiagnoseSQL(query string, options DiagnosticOptions) []Diagnostic {
+	diagnostics := DiagnoseAll(query, options.Dialect)
+	if options.MaxDiagnostics > 0 && len(diagnostics) > options.MaxDiagnostics {
+		diagnostics = diagnostics[:options.MaxDiagnostics]
+	}
+	return diagnostics
+}
+
 // Fingerprint returns a versioned SHA-256 query-shape identifier. It excludes
 // literals, comments, whitespace and bind spelling while preserving repeated
 // marker relationships, token boundaries, quoted identifiers and dialect.
