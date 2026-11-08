@@ -81,6 +81,8 @@ func diagnosticFromNative(d *C.sequel_diagnostic_t) Diagnostic {
 
 func diagnosticKind(code string) string {
 	switch {
+	case code == "bind_missing" || code == "bind_extra" || code == "bind_invalid":
+		return "bind"
 	case code == "input_limit" || code == "output_limit" || code == "resource_limit" || code == "cancelled" || code == "out_of_memory":
 		return "policy"
 	case code == "select_star" || code == "unbounded_write":

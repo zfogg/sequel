@@ -350,3 +350,36 @@ func CheckBinds(binds []BindDescriptor, statementIndex, suppliedSlots int) error
 	}
 	return nil
 }
+
+// CheckBindsDiagnostic validates bind arity and returns the canonical diagnostic
+// for missing, extra, or invalid descriptors.
+func CheckBindsDiagnostic(binds []BindDescriptor, statementIndex, suppliedSlots int) (Diagnostic, error) {
+	if statementIndex < 0 || suppliedSlots < 0 {
+		return Diagnostic{}, errors.New("invalid bind count or statement index")
+	}
+	var pointer *C.sequel_bind_descriptor_t
+	if len(binds) > 0 {
+		allocation := C.malloc(C.size_t(len(binds)) * C.size_t(C.sizeof_sequel_bind_descriptor_t))
+		if allocation == nil {
+			return Diagnostic{}, errors.New("cannot allocate bind descriptors")
+		}
+		defer C.free(allocation)
+		pointer = (*C.sequel_bind_descriptor_t)(allocation)
+		for i, b := range binds {
+			style, err := bindStyleNative(b.Style)
+			if err != nil {
+				return Diagnostic{}, err
+			}
+			unsafe.Slice(pointer, len(binds))[i] = C.sequel_bind_descriptor_t{
+				ordinal: C.size_t(b.Ordinal), slot: C.size_t(b.Slot), statement_index: C.size_t(b.StatementIndex),
+				offset: C.size_t(b.Offset), end_offset: C.size_t(b.EndOffset), style: style,
+			}
+		}
+	}
+	var native C.sequel_diagnostic_t
+	status := C.sequel_check_binds_diagnostic(pointer, C.size_t(len(binds)), C.size_t(statementIndex), C.size_t(suppliedSlots), &native)
+	if status == C.SEQUEL_OK {
+		return Diagnostic{}, nil
+	}
+	return diagnosticFromNative(&native), errors.New(C.GoString(&native.message[0]))
+}

@@ -120,3 +120,10 @@ func TestDiagnoseSQLOptionsBoundResults(t *testing.T) {
 		t.Fatalf("diagnostics = %#v", diagnostics)
 	}
 }
+
+func TestCheckBindsDiagnostic(t *testing.T) {
+	diagnostic, err := CheckBindsDiagnostic([]BindDescriptor{{Ordinal: 1, Slot: 2, StatementIndex: 0, Offset: 7, EndOffset: 9, Style: "numbered"}}, 0, 1)
+	if err == nil || diagnostic.Code != "bind_missing" || diagnostic.Kind != "bind" {
+		t.Fatalf("diagnostic=%#v err=%v", diagnostic, err)
+	}
+}
