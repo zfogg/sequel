@@ -1,5 +1,5 @@
 PROJECT_NAME = "Sequel C++ API"
-PROJECT_BRIEF = "C++27 ownership and expected facade for Sequel"
+PROJECT_BRIEF = "C++2d ownership and expected facade for Sequel"
 OUTPUT_DIRECTORY = "@DOCS_OUTPUT_DIR@/cxx"
 INPUT = "@_docs_root@/cpp/include/sequel" "@_docs_root@/docs/cxx.md"
 HTML_OUTPUT = .
