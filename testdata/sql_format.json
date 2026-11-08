@@ -4749,157 +4749,157 @@
       "valid": true
     },
     {
-      "name": "layout/projection",
+      "name": "layout/compact-clause-list",
       "dialect": "postgresql",
-      "sql": "SELECT a,b FROM t WHERE id=$1 AND active=true",
-      "expected": "SELECT\n  a,\n  b\nFROM t\nWHERE\n  id = $1\n  AND active = true",
+      "sql": "SELECT COUNT(*) AS span_count, COUNT(*) FILTER (WHERE parent_span_id = ? OR parent_span_id IS ?) AS trace_count, (SELECT COUNT(*) FROM logs WHERE (? = ? OR session_id = ?)) AS log_count, (SELECT COUNT(*) FROM sessions) AS session_count, COALESCE((SELECT MIN(created_at) FROM sessions), ?) AS oldest_session_at FROM spans WHERE (? = ? OR session_id = ?)",
+      "expected": "SELECT COUNT(*) AS span_count,\n  COUNT(*) FILTER (\n    WHERE parent_span_id = ? OR parent_span_id IS ?) AS trace_count,\n  (\n    SELECT COUNT(*) FROM logs\n    WHERE (? = ? OR session_id = ?)\n  ) AS log_count, (\n    SELECT COUNT(*) FROM sessions\n  ) AS session_count,\n  COALESCE(\n    (\n      SELECT MIN(created_at) FROM sessions\n    ),\n    ?\n  ) AS oldest_session_at\nFROM spans\nWHERE (? = ? OR session_id = ?)",
       "valid": true
     },
     {
       "name": "layout/cte",
       "dialect": "postgresql",
       "sql": "WITH a AS (SELECT id,team FROM users WHERE active=1), b AS (SELECT team,count(*) AS n FROM a GROUP BY team) SELECT team,n FROM b ORDER BY n DESC,team",
-      "expected": "WITH a AS (\n  SELECT\n    id,\n    team\n  FROM users\n  WHERE\n    active = 1\n),\nb AS (\n  SELECT\n    team,\n    count(*) AS n\n  FROM a\n  GROUP BY\n    team\n)\nSELECT\n  team,\n  n\nFROM b\nORDER BY\n  n DESC,\n  team",
+      "expected": "WITH a AS (\n  SELECT id, team\n  FROM users\n  WHERE active = 1\n),\nb AS (\n  SELECT team, count(*) AS n\n  FROM a\n  GROUP BY team\n)\nSELECT team, n\nFROM b\nORDER BY n DESC, team",
       "valid": true
     },
     {
       "name": "layout/boolean-groups",
       "dialect": "postgresql",
       "sql": "SELECT id FROM t WHERE (x=$1 OR x=$2) AND (active=1 AND score>10)",
-      "expected": "SELECT\n  id\nFROM t\nWHERE\n  (x = $1 OR x = $2)\n  AND (active = 1 AND score > 10)",
+      "expected": "SELECT id\nFROM t\nWHERE (x = $1 OR x = $2)\n  AND (active = 1 AND score > 10)",
       "valid": true
     },
     {
       "name": "layout/case",
       "dialect": "postgresql",
       "sql": "SELECT CASE WHEN active=1 THEN 'yes' ELSE 'no' END AS status FROM t",
-      "expected": "SELECT\n  CASE\n    WHEN active = 1 THEN 'yes'\n    ELSE 'no'\n  END AS status\nFROM t",
+      "expected": "SELECT CASE\n  WHEN active = 1 THEN 'yes'\n  ELSE 'no'\nEND AS status\nFROM t",
       "valid": true
     },
     {
       "name": "layout/nested-case",
       "dialect": "postgresql",
       "sql": "SELECT CASE WHEN active=1 THEN CASE WHEN score>10 THEN 'high' ELSE 'low' END ELSE 'off' END AS status FROM t",
-      "expected": "SELECT\n  CASE\n    WHEN active = 1 THEN\n      CASE\n        WHEN score > 10 THEN 'high'\n        ELSE 'low'\n      END\n    ELSE 'off'\n  END AS status\nFROM t",
+      "expected": "SELECT CASE\n  WHEN active = 1 THEN\n    CASE\n      WHEN score > 10 THEN 'high'\n      ELSE 'low'\n    END\n  ELSE 'off'\nEND AS status\nFROM t",
       "valid": true
     },
     {
       "name": "layout/joins",
       "dialect": "postgresql",
       "sql": "SELECT u.id,e.name FROM users u LEFT OUTER JOIN events e ON e.user_id=u.id AND e.active=1 INNER JOIN teams t ON t.id=u.team_id WHERE u.active=1",
-      "expected": "SELECT\n  u.id,\n  e.name\nFROM users u\nLEFT OUTER JOIN events e\n  ON e.user_id = u.id\n  AND e.active = 1\nINNER JOIN teams t\n  ON t.id = u.team_id\nWHERE\n  u.active = 1",
+      "expected": "SELECT u.id,\n  e.name\nFROM users u\nLEFT OUTER JOIN events e\n  ON e.user_id = u.id\n  AND e.active = 1\nINNER JOIN teams t\n  ON t.id = u.team_id\nWHERE u.active = 1",
       "valid": true
     },
     {
       "name": "layout/group-having",
       "dialect": "postgresql",
       "sql": "SELECT team,count(*) AS n FROM users GROUP BY team HAVING count(*)>1 AND sum(score)>10 ORDER BY n DESC,team LIMIT 20",
-      "expected": "SELECT\n  team,\n  count(*) AS n\nFROM users\nGROUP BY\n  team\nHAVING\n  count(*) > 1\n  AND sum(score) > 10\nORDER BY\n  n DESC,\n  team\nLIMIT 20",
+      "expected": "SELECT team,\n  count(*) AS n\nFROM users\nGROUP BY team\nHAVING count(*) > 1\n  AND sum(score) > 10\nORDER BY n DESC, team\nLIMIT 20",
       "valid": true
     },
     {
       "name": "layout/union",
       "dialect": "postgresql",
       "sql": "SELECT id FROM current_users UNION ALL SELECT id FROM old_users",
-      "expected": "SELECT\n  id\nFROM current_users\nUNION ALL\nSELECT\n  id\nFROM old_users",
+      "expected": "SELECT id\nFROM current_users\nUNION ALL\nSELECT id\nFROM old_users",
       "valid": true
     },
     {
       "name": "layout/update",
       "dialect": "postgresql",
       "sql": "UPDATE users SET active=1,score=COALESCE(score,0)+1 WHERE id=$1 AND team=$2 RETURNING id,score",
-      "expected": "UPDATE users\nSET\n  active = 1,\n  score = COALESCE(score, 0) + 1\nWHERE\n  id = $1\n  AND team = $2\nRETURNING\n  id,\n  score",
+      "expected": "UPDATE users\nSET active = 1,\n  score = COALESCE(\n    score,\n    0\n  ) + 1\nWHERE id = $1\n  AND team = $2\nRETURNING id, score",
       "valid": true
     },
     {
       "name": "layout/insert",
       "dialect": "postgresql",
       "sql": "INSERT INTO users(id,name) VALUES ($1,$2),($3,$4) RETURNING id,name",
-      "expected": "INSERT INTO users(id, name)\nVALUES\n  ($1, $2),\n  ($3, $4)\nRETURNING\n  id,\n  name",
+      "expected": "INSERT INTO users(id, name)\nVALUES ($1, $2), ($3, $4)\nRETURNING id, name",
       "valid": true
     },
     {
       "name": "layout/distinct-on",
       "dialect": "postgresql",
       "sql": "SELECT DISTINCT ON (team) id,name FROM users WHERE active=1 ORDER BY team,id",
-      "expected": "SELECT DISTINCT ON (team)\n  id,\n  name\nFROM users\nWHERE\n  active = 1\nORDER BY\n  team,\n  id",
+      "expected": "SELECT DISTINCT ON (team) id, name\nFROM users\nWHERE active = 1\nORDER BY team, id",
       "valid": true
     },
     {
       "name": "layout/between",
       "dialect": "postgresql",
       "sql": "SELECT id FROM users WHERE score BETWEEN 1 AND 10 AND active=1",
-      "expected": "SELECT\n  id\nFROM users\nWHERE\n  score BETWEEN 1 AND 10\n  AND active = 1",
+      "expected": "SELECT id\nFROM users\nWHERE score BETWEEN 1 AND 10\n  AND active = 1",
       "valid": true
     },
     {
       "name": "layout/correlated-subquery",
       "dialect": "postgresql",
       "sql": "SELECT u.id,(SELECT max(score) FROM events e WHERE e.user_id=u.id) AS score FROM users u",
-      "expected": "SELECT\n  u.id,\n  (\n    SELECT\n      max(score)\n    FROM events e\n    WHERE\n      e.user_id = u.id\n  ) AS score\nFROM users u",
+      "expected": "SELECT u.id,\n  (\n    SELECT max(score) FROM events e\n    WHERE e.user_id = u.id\n  ) AS score\nFROM users u",
       "valid": true
     },
     {
       "name": "layout/case-function",
       "dialect": "postgresql",
       "sql": "SELECT COALESCE(SUM(CASE WHEN active=1 THEN score ELSE 0 END),0) AS total FROM users",
-      "expected": "SELECT\n  COALESCE(\n    SUM(\n      CASE\n        WHEN active = 1 THEN score\n        ELSE 0\n      END\n    ),\n    0\n  ) AS total\nFROM users",
+      "expected": "SELECT COALESCE(\n    SUM(\n      CASE\n        WHEN active = 1 THEN score\n        ELSE 0\n      END\n    ),\n    0\n  ) AS total\nFROM users",
       "valid": true
     },
     {
       "name": "layout/comments",
       "dialect": "postgresql",
       "sql": "-- name: Find :many\nSELECT a,b FROM t WHERE id=$1; -- trailing  ",
-      "expected": "-- name: Find :many\nSELECT\n  a,\n  b\nFROM t\nWHERE\n  id = $1; -- trailing  ",
+      "expected": "-- name: Find :many\nSELECT a, b\nFROM t\nWHERE id = $1; -- trailing  ",
       "valid": true
     },
     {
       "name": "layout/sqlite-parameters",
       "dialect": "sqlite",
       "sql": "SELECT ?1,:name,@name,$scope::name(select) FROM [table name]",
-      "expected": "SELECT\n  ?1,\n  :name,\n  @name,\n  $scope::name(select)\nFROM [table name]",
+      "expected": "SELECT ?1, :name, @name, $scope::name(select)\nFROM [table name]",
       "valid": true
     },
     {
       "name": "layout/mysql-upsert",
       "dialect": "mysql",
       "sql": "INSERT INTO `users`(id,name) VALUES (?,?) ON DUPLICATE KEY UPDATE name=VALUES(name)",
-      "expected": "INSERT INTO `users`(id, name)\nVALUES\n  (?, ?)\nON DUPLICATE KEY UPDATE name = VALUES(name)",
+      "expected": "INSERT INTO `users`(id, name)\nVALUES (?, ?)\nON DUPLICATE KEY UPDATE name = VALUES(name)",
       "valid": true
     },
     {
       "name": "layout/duckdb-qualify",
       "dialect": "duckdb",
       "sql": "SELECT * EXCLUDE(secret) FROM users QUALIFY row_number() OVER(PARTITION BY team ORDER BY id)=1",
-      "expected": "SELECT\n  * EXCLUDE(secret)\nFROM users\nQUALIFY\n  row_number() OVER (\n    PARTITION BY team\n    ORDER BY id\n  ) = 1",
+      "expected": "SELECT * EXCLUDE(secret)\nFROM users\nQUALIFY row_number() OVER (\n    PARTITION BY team\n    ORDER BY id\n  ) = 1",
       "valid": true
     },
     {
       "name": "layout/function-space",
       "dialect": "postgresql",
       "sql": "SELECT COALESCE( score,0 ),count( * ) FROM users",
-      "expected": "SELECT\n  COALESCE(score, 0),\n  count(*)\nFROM users",
+      "expected": "SELECT COALESCE(\n    score,\n    0\n  ), count(*)\nFROM users",
       "valid": true
     },
     {
       "name": "layout/arithmetic",
       "dialect": "postgresql",
       "sql": "SELECT -1 AS negative,1e-3 AS tiny,a+b AS sum,a/b AS ratio FROM t WHERE value>=-1",
-      "expected": "SELECT\n  -1 AS negative,\n  1e-3 AS tiny,\n  a + b AS sum,\n  a / b AS ratio\nFROM t\nWHERE\n  value >= -1",
+      "expected": "SELECT -1 AS negative, 1e-3 AS tiny, a + b AS sum,\n  a / b AS ratio\nFROM t\nWHERE value >= -1",
       "valid": true
     },
     {
       "name": "layout/complex-report",
       "dialect": "postgresql",
       "sql": "-- Revenue report: keep this comment exactly.\nWITH eligible_orders AS (\n  SELECT\n    o.id,\n    o.customer_id,\n    o.region_id,\n    o.created_at,\n    o.total\n  FROM orders o\n  INNER JOIN customers c\n    ON c.id = o.customer_id\n    AND c.deleted_at IS NULL\n  WHERE\n    o.created_at >= $1\n    AND o.created_at < $2\n    AND (\n      (\n        o.status = 'paid'\n        AND (\n          c.tier IN ('gold', 'platinum')\n          OR c.lifetime_spend >= $3\n        )\n      )\n      OR (\n        o.status = 'refunded'\n        AND EXISTS (\n          SELECT\n            1\n          FROM refunds r\n          WHERE\n            r.order_id = o.id\n            AND r.reason <> 'fraud'\n        )\n      )\n    )\n    AND NOT (\n      o.is_test = true\n      OR c.email LIKE '%@example.com'\n    )\n),\nregional_totals AS (\n  SELECT\n    e.region_id,\n    COUNT(*) AS order_count,\n    SUM(e.total) AS revenue\n  FROM eligible_orders e\n  GROUP BY\n    e.region_id\n  HAVING\n    SUM(e.total) > $4\n    AND (\n      COUNT(*) >= $5\n      OR SUM(e.total) > $6\n    )\n)\nSELECT\n  c.id,\n  c.name,\n  COALESCE(r.name, 'Unknown') AS region,\n  CASE\n    WHEN t.revenue >= $7 AND (c.tier = 'platinum' OR c.lifetime_spend > $8) THEN\n      CASE\n        WHEN c.vip = true THEN 'priority'\n        ELSE 'growth'\n      END\n    ELSE 'standard'\n  END AS segment,\n  COUNT(DISTINCT e.id) AS orders,\n  SUM(e.total) AS customer_revenue,\n  ROW_NUMBER() OVER (PARTITION BY e.region_id ORDER BY SUM(e.total) DESC) AS regional_rank\nFROM eligible_orders e\nINNER JOIN customers c\n  ON c.id = e.customer_id\nLEFT OUTER JOIN regions r\n  ON r.id = e.region_id\n  AND (\n    r.enabled = true\n    OR r.id = $9\n  )\nINNER JOIN regional_totals t\n  ON t.region_id = e.region_id\nLEFT JOIN account_flags f\n  ON f.customer_id = c.id\n  AND f.expires_at > CURRENT_TIMESTAMP\nWHERE\n  (\n    f.blocked = false\n    OR f.blocked IS NULL\n  )\n  AND (\n    c.country = $10\n    OR (\n      c.country = $11\n      AND c.created_at BETWEEN $12 AND $13\n    )\n  ) /* preserve $14 inside this comment */\nGROUP BY\n  c.id,\n  c.name,\n  c.tier,\n  c.lifetime_spend,\n  c.vip,\n  e.region_id,\n  r.name,\n  t.revenue\nHAVING\n  COUNT(DISTINCT e.id) >= $14\n  AND (\n    SUM(e.total) > $15\n    OR MAX(e.total) > $16\n  )\nORDER BY\n  customer_revenue DESC,\n  c.id\nLIMIT $17\nOFFSET $18; -- trailing comment",
-      "expected": "-- Revenue report: keep this comment exactly.\nWITH eligible_orders AS (\n  SELECT\n    o.id,\n    o.customer_id,\n    o.region_id,\n    o.created_at,\n    o.total\n  FROM orders o\n  INNER JOIN customers c\n    ON c.id = o.customer_id\n    AND c.deleted_at IS NULL\n  WHERE\n    o.created_at >= $1\n    AND o.created_at < $2\n    AND (\n      (\n        o.status = 'paid'\n        AND (c.tier IN ('gold', 'platinum') OR c.lifetime_spend >= $3)\n      )\n      OR (\n        o.status = 'refunded'\n        AND EXISTS (\n          SELECT\n            1\n          FROM refunds r\n          WHERE\n            r.order_id = o.id\n            AND r.reason <> 'fraud'\n        )\n      )\n    )\n    AND NOT (o.is_test = true OR c.email LIKE '%@example.com')\n),\nregional_totals AS (\n  SELECT\n    e.region_id,\n    COUNT(*) AS order_count,\n    SUM(e.total) AS revenue\n  FROM eligible_orders e\n  GROUP BY\n    e.region_id\n  HAVING\n    SUM(e.total) > $4\n    AND (COUNT(*) >= $5 OR SUM(e.total) > $6)\n)\nSELECT\n  c.id,\n  c.name,\n  COALESCE(r.name, 'Unknown') AS region,\n  CASE\n    WHEN t.revenue >= $7\n      AND (c.tier = 'platinum' OR c.lifetime_spend > $8)\n    THEN\n      CASE\n        WHEN c.vip = true THEN 'priority'\n        ELSE 'growth'\n      END\n    ELSE 'standard'\n  END AS segment,\n  COUNT(DISTINCT e.id) AS orders,\n  SUM(e.total) AS customer_revenue,\n  ROW_NUMBER() OVER (\n    PARTITION BY e.region_id\n    ORDER BY SUM(e.total) DESC\n  ) AS regional_rank\nFROM eligible_orders e\nINNER JOIN customers c\n  ON c.id = e.customer_id\nLEFT OUTER JOIN regions r\n  ON r.id = e.region_id\n  AND (r.enabled = true OR r.id = $9)\nINNER JOIN regional_totals t\n  ON t.region_id = e.region_id\nLEFT JOIN account_flags f\n  ON f.customer_id = c.id\n  AND f.expires_at > CURRENT_TIMESTAMP\nWHERE\n  (f.blocked = false OR f.blocked IS NULL)\n  AND (\n    c.country = $10\n    OR (c.country = $11 AND c.created_at BETWEEN $12 AND $13)\n  ) /* preserve $14 inside this comment */\nGROUP BY\n  c.id,\n  c.name,\n  c.tier,\n  c.lifetime_spend,\n  c.vip,\n  e.region_id,\n  r.name,\n  t.revenue\nHAVING\n  COUNT(DISTINCT e.id) >= $14\n  AND (SUM(e.total) > $15 OR MAX(e.total) > $16)\nORDER BY\n  customer_revenue DESC,\n  c.id\nLIMIT $17\nOFFSET $18; -- trailing comment",
+      "expected": "-- Revenue report: keep this comment exactly.\nWITH eligible_orders AS (\n  SELECT o.id, o.customer_id, o.region_id, o.created_at,\n    o.total\n  FROM orders o\n  INNER JOIN customers c\n    ON c.id = o.customer_id\n    AND c.deleted_at IS NULL\n  WHERE o.created_at >= $1\n    AND o.created_at < $2\n    AND ((o.status = 'paid' AND (c.tier IN ('gold', 'platinum') OR c.lifetime_spend >= $3)) OR (o.status = 'refunded' AND EXISTS (\n      SELECT 1 FROM refunds r\n      WHERE r.order_id = o.id AND r.reason <> 'fraud'\n    )))\n    AND NOT (o.is_test = true OR c.email LIKE '%@example.com')\n),\nregional_totals AS (\n  SELECT e.region_id, COUNT(*) AS order_count,\n    SUM(e.total) AS revenue\n  FROM eligible_orders e\n  GROUP BY e.region_id\n  HAVING SUM(e.total) > $4\n    AND (COUNT(*) >= $5 OR SUM(e.total) > $6)\n)\nSELECT c.id, c.name, COALESCE(\n    r.name,\n    'Unknown'\n  ) AS region,\n  CASE\n    WHEN t.revenue >= $7\n      AND (c.tier = 'platinum' OR c.lifetime_spend > $8)\n    THEN\n      CASE\n        WHEN c.vip = true THEN 'priority'\n        ELSE 'growth'\n      END\n    ELSE 'standard'\n  END AS segment, COUNT(DISTINCT e.id) AS orders,\n  SUM(e.total) AS customer_revenue,\n  ROW_NUMBER() OVER (\n    PARTITION BY e.region_id\n    ORDER BY SUM(e.total) DESC\n  ) AS regional_rank\nFROM eligible_orders e\nINNER JOIN customers c\n  ON c.id = e.customer_id\nLEFT OUTER JOIN regions r\n  ON r.id = e.region_id\n  AND (r.enabled = true OR r.id = $9)\nINNER JOIN regional_totals t\n  ON t.region_id = e.region_id\nLEFT JOIN account_flags f\n  ON f.customer_id = c.id\n  AND f.expires_at > CURRENT_TIMESTAMP\nWHERE (f.blocked = false OR f.blocked IS NULL)\n  AND (c.country = $10 OR (c.country = $11 AND c.created_at BETWEEN $12 AND $13)) /* preserve $14 inside this comment */\nGROUP BY c.id, c.name, c.tier, c.lifetime_spend, c.vip, e.region_id, r.name,\n  t.revenue\nHAVING COUNT(DISTINCT e.id) >= $14\n  AND (SUM(e.total) > $15 OR MAX(e.total) > $16)\nORDER BY customer_revenue DESC,\n  c.id\nLIMIT $17\nOFFSET $18; -- trailing comment",
       "valid": true
     },
     {
       "name": "layout/case-between",
       "dialect": "postgresql",
       "sql": "SELECT CASE WHEN score BETWEEN $1 AND $2 AND enabled=true THEN 'yes' ELSE 'no' END FROM users",
-      "expected": "SELECT\n  CASE\n    WHEN score BETWEEN $1 AND $2\n      AND enabled = true\n    THEN 'yes'\n    ELSE 'no'\n  END\nFROM users",
+      "expected": "SELECT CASE\n  WHEN score BETWEEN $1 AND $2\n    AND enabled = true\n  THEN 'yes'\n  ELSE 'no'\nEND\nFROM users",
       "valid": true
     },
     {
@@ -4907,11 +4907,11 @@
       "dialect": "postgresql",
       "valid": true,
       "sql": "SELECT SUM(amount) OVER (PARTITION BY team,region ORDER BY created_at DESC,id) FROM sales",
-      "expected": "SELECT\n  SUM(amount) OVER (\n    PARTITION BY\n      team,\n      region\n    ORDER BY\n      created_at DESC,\n      id\n  )\nFROM sales"
+      "expected": "SELECT SUM(amount) OVER (\n    PARTITION BY team, region\n    ORDER BY created_at DESC, id\n  )\nFROM sales"
     },
     {
       "dialect": "sqlite",
-      "expected": "SELECT\n  COUNT(*)\nFROM spans\nWHERE\n  (parent_span_id = ? OR parent_span_id IS ?)\n  AND (? = ? OR duration_ns >= ?)",
+      "expected": "SELECT COUNT(*)\nFROM spans\nWHERE (parent_span_id = ? OR parent_span_id IS ?)\n  AND (? = ? OR duration_ns >= ?)",
       "name": "layout/optional-span-filters",
       "sql": "SELECT COUNT(*) FROM spans WHERE (parent_span_id = ? OR parent_span_id IS ?) AND (? = ? OR duration_ns >= ?)",
       "valid": true

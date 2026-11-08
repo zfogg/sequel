@@ -149,7 +149,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertIn(b"background-color:#fdf6e3", result.stdout)
         self.assertIn(b"unterminated_comment", result.stderr)
         self.assertIn(b":clear", result.stderr)
-        self.assertIn("select\n  a,\n  b\nfrom t;", plain_html(result.stdout))
+        self.assertIn("select a, b\nfrom t;", plain_html(result.stdout))
 
     def test_workbench_completion_and_eof(self):
         for dialect, start, end in [

@@ -345,6 +345,16 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
  * limited to SEQUEL_INPUT_MAX / 64 nesting levels. Not a SQL validator.
  * length receives the output byte count (excluding NUL). Pass out=NULL and
  * capacity=0 to measure. On failure a supplied output buffer is emptied. */
+typedef struct {
+  /** Inline layout budget for clause arguments and list items; zero selects 80 columns. */
+  size_t inline_width;
+} sequel_format_options_t;
+
+/** Format using explicit layout options. NULL options select the defaults. */
+sequel_status_t sequel_format_with_options(const char *sql, sequel_dialect_t dialect,
+                                           const sequel_format_options_t *options, char *out, size_t capacity,
+                                           size_t *length);
+
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
 
 /** Format with a structured diagnostic; NULL diagnostic is permitted. @see sequel_format */

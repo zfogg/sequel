@@ -242,7 +242,7 @@ static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, f
                                0,
                                false,
                                0};
-    ts[count].flat_width = (count ? ts[count - 1].flat_width : 0) + end - start + 1;
+    ts[count].flat_width = (count ? ts[count - 1].flat_width : 0) + utf8_display_width_n(s + start, end - start) + 1;
     *scanned = ++count;
     i = end;
   }
@@ -268,7 +268,7 @@ enum { F_NONE, F_SELECT, F_FROM, F_CONDITION, F_ORDER, F_SET, F_VALUES, F_WITH, 
 typedef struct {
   size_t base, closing, header_end;
   int clause;
-  bool active, pending, multiline, between, deleting, inserting, values_seen, window;
+  bool active, pending, multiline, between, deleting, inserting, values_seen, window, subquery, compact, filter;
 } format_frame;
 typedef struct {
   size_t depth, base;
@@ -287,6 +287,44 @@ static size_t format_body(format_frame f) {
 static void format_space(output *b) {
   if (b->n && b->p[b->n - 1] != ' ' && b->p[b->n - 1] != '\n')
     text(b, " ");
+}
+static size_t format_content_width(const output *b, size_t indent) {
+  size_t i = b->n;
+  while (i && b->p[i - 1] != '\n')
+    --i;
+  size_t width = b->n - i, indentation = indent * 2;
+  return width > indentation ? width - indentation : 0;
+}
+static size_t format_list_item_width(format_token *ts, size_t n, size_t start) {
+  size_t depth = 0, end = start;
+  for (; end < n; ++end) {
+    token t = ts[end].t;
+    if (sym(t, '(') || sym(t, '[') || sym(t, '{'))
+      ++depth;
+    else if (sym(t, ')') || sym(t, ']') || sym(t, '}')) {
+      if (depth)
+        --depth;
+    } else if (!depth && sym(t, ','))
+      break;
+  }
+  if (end == start)
+    return 0;
+  return ts[end - 1].flat_width - ts[start].flat_width + utf8_display_width_n(ts[start].t.p, ts[start].t.n);
+}
+static bool format_clause_has_comma(format_token *ts, size_t n, size_t start) {
+  size_t depth = 0;
+  for (size_t i = start; i < n; ++i) {
+    token t = ts[i].t;
+    if (sym(t, '(') || sym(t, '[') || sym(t, '{'))
+      ++depth;
+    else if (sym(t, ')') || sym(t, ']') || sym(t, '}')) {
+      if (!depth)
+        break;
+      --depth;
+    } else if (!depth && sym(t, ','))
+      return true;
+  }
+  return false;
 }
 static bool format_join(format_token *ts, size_t n, size_t i) {
   token t = ts[i].t;
@@ -323,7 +361,7 @@ static bool format_spaced_operator(format_token *ts, size_t i, size_t previous) 
                      kw(p, "BY") || kw(p, "AND") || kw(p, "OR") || kw(p, "NOT") || kw(p, "WHERE") || kw(p, "SET") ||
                      kw(p, "VALUES") || kw(p, "RETURNING") || kw(p, "AS"));
 }
-static bool format_layout(format_token *ts, size_t count, output *b) {
+static bool format_layout(format_token *ts, size_t count, output *b, size_t inline_width) {
   /* Match groups once, then propagate multiline constructs out through their
    * containing function calls. This avoids repeatedly scanning nested SQL. */
   size_t opens[65] = {0}, level = 0;
@@ -343,10 +381,10 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
         return false;
       ts[start].matching = i;
       ts[i].matching = start;
-      ts[start].multiline |= ts[i].flat_width - ts[start].flat_width > 70;
+      ts[start].multiline |= start && kw(ts[start - 1].t, "FILTER");
       if (level && ts[start].multiline)
         ts[opens[level]].multiline = true;
-    } else if (level && (kw(t, "SELECT") || kw(t, "WITH") || kw(t, "CASE") || ts[i].kind == 3)) {
+    } else if (level && (kw(t, "CASE") || ts[i].kind == 3 || (kw(t, "SELECT") && i && kw(ts[i - 1].t, "AS")))) {
       ts[opens[level]].multiline = true;
     }
   }
@@ -365,11 +403,12 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
     bool line = false;
     size_t indent = format_body(frames[depth]);
     if (close) {
-      line = frames[depth].multiline;
+      line = frames[depth].multiline && !frames[depth].filter;
       indent = frames[depth].closing;
       --depth;
     }
     format_frame *ctx = &frames[depth];
+    bool compact_subquery = ctx->compact;
     size_t next = f.kind >= 3 ? i + 1 : format_next(ts, count, i + 1);
     bool head = ctx->pending && i <= ctx->header_end;
     bool select = kw(t, "SELECT");
@@ -426,13 +465,16 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
                           kw(ts[previous].t, "OVER") || kw(ts[previous].t, "FILTER") || kw(ts[previous].t, "USING") ||
                           kw(ts[previous].t, "ON") || kw(ts[previous].t, "AND") || kw(ts[previous].t, "OR") ||
                           kw(ts[previous].t, "NOT"));
-    if (select || with || modifier || (from && !ctx->deleting) || condition || order || set || values || returning ||
-        conflict || bound || setop) {
+    if ((!compact_subquery && (select || with || modifier || (from && !ctx->deleting) || condition || order || set ||
+                               values || returning || conflict || bound || setop))) {
       line = true;
       indent = ctx->base;
-    } else if (on || logical) {
+    } else if (!compact_subquery && (on || logical)) {
       line = true;
       indent = ctx->base + 1;
+    } else if (compact_subquery && condition) {
+      line = true;
+      indent = ctx->base;
     } else if (ctx->pending && !head && f.kind < 3 && !close) {
       line = true;
       indent = format_body(*ctx);
@@ -496,7 +538,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       ctx->active = true;
       ctx->deleting = false;
       ctx->clause = F_SELECT;
-      ctx->pending = true;
+      ctx->pending = false;
       ctx->header_end = i;
       size_t j = next;
       if (j < count && (kw(ts[j].t, "DISTINCT") || kw(ts[j].t, "ALL"))) {
@@ -520,7 +562,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       ctx->clause = F_FROM;
     } else if (condition || on) {
       ctx->clause = on ? F_ON : F_CONDITION;
-      ctx->pending = !on;
+      ctx->pending = false;
       ctx->header_end = i;
       ctx->between = false;
     } else if (order || set || values || returning) {
@@ -529,7 +571,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
         ctx->values_seen = true;
       }
       ctx->clause = set ? F_SET : values ? F_VALUES : F_ORDER;
-      ctx->pending = true;
+      ctx->pending = false;
       ctx->header_end = order ? next : i;
       if (order && ctx->window) {
         /* Short single-expression window clauses read naturally inline.
@@ -552,8 +594,10 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
     } else if (bound || setop || conflict) {
       ctx->clause = F_OTHER;
     } else if (sym(t, ',')) {
-      ctx->pending = format_list(ctx->clause) || ctx->clause == F_WITH || ctx->clause == F_FROM ||
-                     (ctx->multiline && ctx->clause == F_NONE);
+      ctx->pending =
+          (format_list(ctx->clause) &&
+           format_content_width(b, line_indent) + 2 + format_list_item_width(ts, count, next) > inline_width) ||
+          ctx->clause == F_WITH || ctx->clause == F_FROM || (ctx->multiline && ctx->clause == F_NONE);
       ctx->header_end = i;
     } else if (sym(t, ';')) {
       ctx->active = false;
@@ -591,7 +635,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       /* Short boolean groups fit inline; only expanded groups need clause
        * state that breaks their AND/OR tokens onto separate lines. */
       boolean = boolean && (ts[i].multiline || subquery);
-      bool multiline = ts[i].multiline || subquery;
+      bool multiline = subquery || ts[i].multiline || (previous != SIZE_MAX && kw(ts[previous].t, "COALESCE"));
       if (ctx->clause == F_WITH)
         closing = ctx->base;
       frames[++depth] = (format_frame){.base = closing + (multiline && !boolean ? 1 : 0),
@@ -601,6 +645,9 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
                                        .pending = multiline,
                                        .header_end = i,
                                        .multiline = multiline,
+                                       .subquery = subquery,
+                                       .compact = subquery && (previous == SIZE_MAX || !kw(ts[previous].t, "AS")),
+                                       .filter = previous != SIZE_MAX && kw(ts[previous].t, "FILTER"),
                                        .window = window};
     }
     previous = i;
@@ -608,7 +655,9 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   return !case_count && !b->overflow;
 }
 
-sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length) {
+sequel_status_t sequel_format_with_options(const char *sql, sequel_dialect_t dialect,
+                                           const sequel_format_options_t *options, char *out, size_t capacity,
+                                           size_t *length) {
   if (out && capacity)
     *out = 0;
   if (!sql || !length)
@@ -639,8 +688,9 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
       status = SEQUEL_ERR_NOMEM;
     goto done;
   }
+  size_t inline_width = options && options->inline_width ? options->inline_width : 80;
   output b = {buf, 0, cap};
-  while (!format_layout(ts, count, &b)) {
+  while (!format_layout(ts, count, &b, inline_width)) {
     if (!b.overflow) {
       status = SEQUEL_ERR_INVALID_ARGUMENT;
       goto done;
@@ -674,4 +724,8 @@ done:
   free(ts);
   free(buf);
   return status;
+}
+
+sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length) {
+  return sequel_format_with_options(sql, dialect, NULL, out, capacity, length);
 }

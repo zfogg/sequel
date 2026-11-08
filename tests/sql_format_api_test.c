@@ -31,6 +31,12 @@ int main(void) {
   CHECK(sequel_format("SELECT \xff", SEQUEL_POSTGRESQL, out, sizeof(out), &length) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(!*out);
   CHECK(sequel_format("", SEQUEL_POSTGRESQL, out, 1, &length) == SEQUEL_OK && length == 0 && !*out);
+  sequel_format_options_t narrow = {.inline_width = 20};
+  CHECK(sequel_format_with_options("SELECT abcdef,ghijkl FROM t", SEQUEL_POSTGRESQL, &narrow, out, sizeof(out),
+                                   &length) == SEQUEL_OK);
+  CHECK(!strcmp(out, "SELECT abcdef,\n  ghijkl\nFROM t"));
+  CHECK(sequel_format_with_options("SELECT 'é', '🙂'", SEQUEL_POSTGRESQL, NULL, out, sizeof(out), &length) ==
+        SEQUEL_OK);
   char nested[512] = "SELECT ";
   size_t used = strlen(nested);
   for (int i = 0; i < 40; ++i) {

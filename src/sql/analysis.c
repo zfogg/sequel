@@ -51,8 +51,8 @@ static void *analysis_array(void *pointer, size_t count, size_t element) {
   }
   return realloc(pointer, next);
 }
-static void analysis_layout_add(analysis_layout *layout, size_t start, size_t length, int kind, bool gap,
-                                sequel_dialect_t dialect) {
+static void analysis_layout_add(analysis_layout *layout, const char *text, size_t start, size_t length, int kind,
+                                bool gap, sequel_dialect_t dialect) {
   layout->p = analysis_array(layout->p, layout->n + 1, sizeof(*layout->p));
   format_token t = {0};
   t.t.n = length;
@@ -61,7 +61,7 @@ static void analysis_layout_add(analysis_layout *layout, size_t start, size_t le
   t.kind = kind;
   t.gap = gap;
   t.source_offset = start;
-  t.flat_width = (layout->n ? layout->p[layout->n - 1].flat_width : 0) + length + 1;
+  t.flat_width = (layout->n ? layout->p[layout->n - 1].flat_width : 0) + utf8_display_width_n(text, length) + 1;
   layout->p[layout->n++] = t;
 }
 static void analysis_append(analysis_text *b, const char *p, size_t n) {
@@ -625,14 +625,14 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
         size_t close = (size_t)(ts[t.matching].t.p - sql);
         analysis_segment(map, end, close, before + 1, before + 2, SEQUEL_MAP_REPLACE);
       }
-      analysis_layout_add(layout, before, 1, 0, token_gap, a->options.dialect);
-      analysis_layout_add(layout, before + 1, 1, 0, false, a->options.dialect);
+      analysis_layout_add(layout, safe->p + before, before, 1, 0, token_gap, a->options.dialect);
+      analysis_layout_add(layout, safe->p + before + 1, before + 1, 1, 0, false, a->options.dialect);
       collapse_end = t.matching;
     } else {
       analysis_append(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
       if (map)
         analysis_segment(map, start, end, before, safe->n, literal || bind ? SEQUEL_MAP_REPLACE : SEQUEL_MAP_COPY);
-      analysis_layout_add(layout, before, safe->n - before, literal || bind ? 0 : t.kind, token_gap,
+      analysis_layout_add(layout, safe->p + before, before, safe->n - before, literal || bind ? 0 : t.kind, token_gap,
                           a->options.dialect);
     }
     if (!a->options.omit_query_text) {
@@ -958,7 +958,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           size_t before = call->output_bytes;
           output b = {formatted, 0, capacity, false, true};
           formatted[0] = 0;
-          while (!format_layout(layout.p, layout.n, &b)) {
+          while (!format_layout(layout.p, layout.n, &b, 80)) {
             if (!b.overflow) {
               free(formatted);
               formatted = NULL;

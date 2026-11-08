@@ -12,7 +12,7 @@ from pathlib import Path
 
 BINARY = str(Path(sys.argv.pop(1)).resolve())
 SQL = "SELECT id,name FROM users WHERE id=42;"
-PRETTY = "SELECT\n  id,\n  name\nFROM users\nWHERE\n  id = 42;"
+PRETTY = "SELECT id, name\nFROM users\nWHERE id = 42;"
 
 
 def run(source, language, *options):

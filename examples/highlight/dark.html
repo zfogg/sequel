@@ -1,23 +1,15 @@
 <pre class="sequel" style="color:#d8d8d8;background-color:#181818"><code><span class="sequel-comment" style="color:#585858">-- A report with quoted identifiers, parameters, literals and a CTE.</span>
 <span class="sequel-keyword" style="color:#ba8baf">with</span> <span class="sequel-identifier" style="color:#d8d8d8">totals</span> <span class="sequel-keyword" style="color:#ba8baf">as</span> <span class="sequel-punctuation" style="color:#d8d8d8">(</span>
-  <span class="sequel-keyword" style="color:#ba8baf">select</span>
-    <span class="sequel-identifier" style="color:#d8d8d8">account_id</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
+  <span class="sequel-keyword" style="color:#ba8baf">select</span> <span class="sequel-identifier" style="color:#d8d8d8">account_id</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
     <span class="sequel-function" style="color:#7cafc2">sum</span><span class="sequel-punctuation" style="color:#d8d8d8">(</span><span class="sequel-identifier" style="color:#d8d8d8">amount</span><span class="sequel-operator" style="color:#d8d8d8">::</span><span class="sequel-type" style="color:#f7ca88">decimal</span><span class="sequel-punctuation" style="color:#d8d8d8">)</span> <span class="sequel-keyword" style="color:#ba8baf">as</span> <span class="sequel-identifier" style="color:#d8d8d8">total</span>
   <span class="sequel-keyword" style="color:#ba8baf">from</span> <span class="sequel-identifier" style="color:#d8d8d8">payments</span>
-  <span class="sequel-keyword" style="color:#ba8baf">where</span>
-    <span class="sequel-identifier" style="color:#d8d8d8">created_at</span> <span class="sequel-operator" style="color:#d8d8d8">&gt;=</span> <span class="sequel-variable" style="color:#ab4642">:since</span>
+  <span class="sequel-keyword" style="color:#ba8baf">where</span> <span class="sequel-identifier" style="color:#d8d8d8">created_at</span> <span class="sequel-operator" style="color:#d8d8d8">&gt;=</span> <span class="sequel-variable" style="color:#ab4642">:since</span>
     <span class="sequel-keyword" style="color:#ba8baf">and</span> <span class="sequel-identifier" style="color:#d8d8d8">status</span> <span class="sequel-operator" style="color:#d8d8d8">=</span> <span class="sequel-string" style="color:#a1b56c">&#39;paid &amp; settled&#39;</span>
-  <span class="sequel-keyword" style="color:#ba8baf">group</span> <span class="sequel-keyword" style="color:#ba8baf">by</span>
-    <span class="sequel-identifier" style="color:#d8d8d8">account_id</span>
+  <span class="sequel-keyword" style="color:#ba8baf">group</span> <span class="sequel-keyword" style="color:#ba8baf">by</span> <span class="sequel-identifier" style="color:#d8d8d8">account_id</span>
 <span class="sequel-punctuation" style="color:#d8d8d8">)</span>
-<span class="sequel-keyword" style="color:#ba8baf">select</span>
-  <span class="sequel-identifier" style="color:#d8d8d8">&quot;account_id&quot;</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
-  <span class="sequel-identifier" style="color:#d8d8d8">total</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
-  <span class="sequel-boolean" style="color:#dc9656">true</span> <span class="sequel-keyword" style="color:#ba8baf">as</span> <span class="sequel-identifier" style="color:#d8d8d8">active</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
+<span class="sequel-keyword" style="color:#ba8baf">select</span> <span class="sequel-identifier" style="color:#d8d8d8">&quot;account_id&quot;</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span> <span class="sequel-identifier" style="color:#d8d8d8">total</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span> <span class="sequel-boolean" style="color:#dc9656">true</span> <span class="sequel-keyword" style="color:#ba8baf">as</span> <span class="sequel-identifier" style="color:#d8d8d8">active</span><span class="sequel-punctuation" style="color:#d8d8d8">,</span>
   <span class="sequel-null" style="color:#dc9656">null</span> <span class="sequel-keyword" style="color:#ba8baf">as</span> <span class="sequel-identifier" style="color:#d8d8d8">note</span>
 <span class="sequel-keyword" style="color:#ba8baf">from</span> <span class="sequel-identifier" style="color:#d8d8d8">totals</span>
-<span class="sequel-keyword" style="color:#ba8baf">where</span>
-  <span class="sequel-identifier" style="color:#d8d8d8">total</span> <span class="sequel-operator" style="color:#d8d8d8">&gt;</span> <span class="sequel-number" style="color:#dc9656">123.45</span>
-<span class="sequel-keyword" style="color:#ba8baf">order</span> <span class="sequel-keyword" style="color:#ba8baf">by</span>
-  <span class="sequel-identifier" style="color:#d8d8d8">total</span> <span class="sequel-keyword" style="color:#ba8baf">desc</span>
+<span class="sequel-keyword" style="color:#ba8baf">where</span> <span class="sequel-identifier" style="color:#d8d8d8">total</span> <span class="sequel-operator" style="color:#d8d8d8">&gt;</span> <span class="sequel-number" style="color:#dc9656">123.45</span>
+<span class="sequel-keyword" style="color:#ba8baf">order</span> <span class="sequel-keyword" style="color:#ba8baf">by</span> <span class="sequel-identifier" style="color:#d8d8d8">total</span> <span class="sequel-keyword" style="color:#ba8baf">desc</span>
 <span class="sequel-keyword" style="color:#ba8baf">limit</span> <span class="sequel-number" style="color:#dc9656">20</span><span class="sequel-punctuation" style="color:#d8d8d8">;</span></code></pre>
