@@ -44,3 +44,21 @@ def diagnose(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> Diagnostic:
     Incomplete input is a warning. This is not a SQL grammar validator.
     """
     return Diagnostic(**_sql.diagnose(sql, int(Dialect(dialect))))
+
+
+def diagnose_all(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> tuple[Diagnostic, ...]:
+    """Return every safe-boundary diagnostic in original UTF-8 coordinates.
+
+    Valid SQL returns an empty tuple. This uses unified analysis without
+    retaining sanitized text, source maps, bind descriptors, or fingerprints.
+    It does not validate database grammar or execute SQL.
+    """
+    from .analysis import analyze
+
+    return analyze(
+        sql,
+        dialect=dialect,
+        omit_query_text=True,
+        omit_source_maps=True,
+        omit_bind_descriptors=True,
+    ).diagnostics

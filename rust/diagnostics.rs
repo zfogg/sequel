@@ -123,6 +123,22 @@ pub fn diagnose_bytes(sql: &[u8], dialect: Dialect) -> Diagnostic {
     Diagnostic::from_native(&unsafe { d.assume_init() })
 }
 
+/// Return every safe-boundary diagnostic in original UTF-8 coordinates.
+/// Valid SQL returns an empty vector. This does not retain sanitized text,
+/// source maps, bind descriptors, or fingerprints.
+pub fn diagnose_all(sql: &str, dialect: Dialect) -> Vec<Diagnostic> {
+    let options = crate::AnalysisOptions {
+        dialect,
+        omit_query_text: true,
+        omit_source_maps: true,
+        omit_bind_descriptors: true,
+        ..Default::default()
+    };
+    crate::analyze(sql, &options)
+        .map(|analysis| analysis.diagnostics)
+        .unwrap_or_default()
+}
+
 pub(crate) fn diagnosed_error(
     code: ffi::sequel_status_t,
     diagnostic: &ffi::sequel_diagnostic_t,

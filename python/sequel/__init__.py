@@ -18,7 +18,7 @@ from .analysis import (
     utf16_to_utf8,
     validate_diagnostic,
 )
-from .diagnostics import Diagnostic, SQLDiagnosticError, diagnose
+from .diagnostics import Diagnostic, SQLDiagnosticError, diagnose, diagnose_all
 from .dialect import Dialect
 from .formatting import format_sql, format_sql_or_original
 from .highlighting import Appearance, HighlightMode, colorschemes, highlight_sql
@@ -51,6 +51,7 @@ __all__ = [
     "Diagnostic",
     "SQLDiagnosticError",
     "diagnose",
+    "diagnose_all",
     "HighlightMode",
     "Query",
     "SQLInspectionError",
