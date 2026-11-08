@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sequel Release"
+  short_description: "Release Sequel binaries, SDKs and language bindings"
+  default_prompt: "Use $sequel-release to validate and publish a Sequel GitHub release."

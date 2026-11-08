@@ -25,9 +25,8 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ query, code string }{
-		{"select \x00 x", "control_character"}, {"\xff", "invalid_utf8"},
-		{"\x1b[2J", "control_character"}, {strings.Repeat("x ", 65537) + "'broken", "unterminated_string"},
-		{strings.Repeat("(", 65), "nesting_limit"},
+		{"select \x00 x", "control_character"}, {"\xff", "invalid_utf8"}, {"\x1b[2J", "control_character"},
+		{strings.Repeat("x ", 65537) + "'broken", "unterminated_string"}, {strings.Repeat("(", 65), "nesting_limit"},
 		{"select )", "unmatched_close"}, {"select (1", "unclosed_group"},
 	} {
 		got := Diagnose(DialectGeneric, tc.query)
@@ -59,10 +58,8 @@ func TestTolerantHighlight(t *testing.T) {
 		dialect Dialect
 		query   string
 	}{
-		{DialectGeneric, "select '<script>&"}, {DialectPostgreSQL, "select $tag$body"},
-		{DialectPostgreSQL, "/* outer /* inner */"}, {DialectMySQL, "select `name"},
-		{DialectSQLite, "select [name"}, {DialectClickHouse, "select {id:UInt64"},
-		{DialectSQLite, "select $name::suffix(open"},
+		{DialectGeneric, "select '<script>&"}, {DialectPostgreSQL, "select $tag$body"}, {DialectPostgreSQL, "/* outer /* inner */"},
+		{DialectMySQL, "select `name"}, {DialectSQLite, "select [name"}, {DialectClickHouse, "select {id:UInt64"}, {DialectSQLite, "select $name::suffix(open"},
 	} {
 		_, err := HighlightSQL(tc.dialect, tc.query, HighlightOptions{})
 		var diagnosticError *DiagnosticError
@@ -87,5 +84,32 @@ func TestTolerantHighlight(t *testing.T) {
 		if _, err := HighlightSQL(DialectGeneric, query, HighlightOptions{Tolerant: true}); err == nil {
 			t.Fatal("tolerated hard error")
 		}
+	}
+}
+
+func TestDiagnoseAllReturnsEverySafeBoundaryIssue(t *testing.T) {
+	diagnostics := DiagnoseAll("SELECT ); SELECT ]", DialectPostgreSQL)
+	if len(diagnostics) != 2 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+	if diagnostics[0].Code != "unmatched_close" || diagnostics[1].Code != "unmatched_close" {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestDiagnoseAllCleanSQLIsEmpty(t *testing.T) {
+	if diagnostics := DiagnoseAll("SELECT 1 FROM widgets", DialectSQLite); diagnostics == nil || len(diagnostics) != 0 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestDiagnoseAllIncludesOptInLintCategories(t *testing.T) {
+	diagnostics := DiagnoseAll("UPDATE widgets SET name = 'x';", DialectSQLite)
+	codes := make(map[string]bool, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		codes[diagnostic.Code] = true
+	}
+	if !codes["unbounded_write"] {
+		t.Fatalf("missing unbounded_write in %#v", diagnostics)
 	}
 }

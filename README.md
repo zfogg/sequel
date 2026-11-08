@@ -3,7 +3,8 @@
 [Documentation](https://zfogg.github.io/sequel/) ·
 [C API](https://zfogg.github.io/sequel/c/) ·
 [Python API](https://zfogg.github.io/sequel/python/) ·
-[Go API](https://zfogg.github.io/sequel/go/)
+[Go API](https://zfogg.github.io/sequel/go/) ·
+[Rust API](https://zfogg.github.io/sequel/rust/)
 
 A C11 library and command-line program for SQL formatting, syntax highlighting, sanitization and
 structural summaries. Supports generic SQL, PostgreSQL, SQLite, MySQL, DuckDB
@@ -21,6 +22,20 @@ The library is `sequel::sequel`; the executable is `sequel`.
 `SEQUEL_BUILD_TESTS` and `SEQUEL_BUILD_CLI` default to off when embedded through
 CMake FetchContent or add_subdirectory. Both static and shared builds are supported.
 Installed consumers can use `find_package(sequel CONFIG REQUIRED)`.
+
+## Release downloads
+
+[GitHub Releases](https://github.com/zfogg/sequel/releases) provides native CLI
+and static/shared C SDK ZIPs for **Linux, macOS and Windows, each on x64 and
+ARM64**, plus Python wheels/sdist, a Rust source crate, complete binding sources
+and checksums. The static ZIP contains the CLI. Linux binaries are fully static;
+Windows uses the static CRT; macOS retains Apple's required system library.
+See [release installation and linking](docs/releases.md) for exact asset names,
+Python compatibility, CMake/Rust prebuilt linking and Go module usage.
+
+The CLI and bindings are independent: downloading the executable does not install
+a Python module or Rust/Go package. Python wheels contain their native engine;
+Rust and Go compile bundled C by default. Neither shells out to the executable.
 
 ```sh
 echo 'select a,b from users where id=42' | sequel format --dialect postgresql
@@ -120,6 +135,32 @@ print(format_sql("select a,b from users", dialect=Dialect.POSTGRESQL))
 
 Source installs compile the same C engine. Neither binding depends on gotel.
 Gotel imports sequel directly and owns the OpenTelemetry adapters.
+
+## Rust
+
+```toml
+[dependencies]
+sequel = { git = "https://github.com/zfogg/sequel", tag = "v0.2.0" }
+```
+
+```rust
+let options = sequel::AnalysisOptions {
+    dialect: sequel::Dialect::PostgreSql,
+    format: true,
+    ..Default::default()
+};
+let query = sequel::analyze("SELECT * FROM users WHERE id=$1", &options)?;
+query.check_binds(0, 1)?;
+let html = sequel::highlight(&query.formatted, &Default::default())?;
+# Ok::<(), sequel::Error>(())
+```
+
+The safe API owns its results, validates UTF-8/UTF-16 boundaries, contains callback
+panics and supports the same budgets, multiple diagnostics, fingerprints, maps,
+bind metadata and Base16 highlighting as C. The source crate includes C code and
+licenses; Cargo needs a C11 compiler but no CMake, libclang or installed CLI.
+[Rust details](rust/README.md) also explain using a matching prebuilt release.
+Run `cargo test --locked` and `cargo clippy --all-targets -- -D warnings`.
 
 ## Syntax highlighting
 

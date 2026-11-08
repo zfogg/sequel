@@ -20,6 +20,11 @@ jobs:
           go-version-file: go.mod
           cache: false
       - uses: astral-sh/setup-uv@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test --locked --features abi-check
+      - run: cargo clippy --locked --all-targets -- -D warnings
       - run: uv pip install --system -r tests/requirements-format.txt
       - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=${{ matrix.shared }}
       - run: cmake --build build --config Debug --parallel 4

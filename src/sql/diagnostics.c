@@ -64,7 +64,36 @@ static const struct {
      "Retry only if analysis is still needed."},
     {"ambiguous_literal", "Ambiguous literal syntax",
      "Dialect or escape modes disagree about literal boundaries. Analysis omitted SQL to avoid exposing fragments.",
-     "Use the correct dialect and an unambiguous supported quote form."}};
+     "Use the correct dialect and an unambiguous supported quote form."},
+    {"empty_statement", "Empty SQL statement", "A statement boundary contains no executable tokens.",
+     "Remove the empty statement or keep it only when the target driver explicitly permits it."},
+    {"multiple_statements", "Multiple SQL statements", "The input contains more than one nonempty statement.",
+     "Split statements before execution when the driver expects one statement per call."},
+    {"mixed_operations", "Mixed SQL operations", "The document combines different top-level SQL operations.",
+     "Analyze or execute each operation as a separate statement."},
+    {"select_star", "Wildcard projection", "SELECT * couples the query to the current table shape.",
+     "Name the required columns explicitly when a stable result contract matters."},
+    {"unbounded_write", "Unbounded write", "UPDATE or DELETE has no detectable WHERE clause.",
+     "Add an explicit predicate or require an intentional full-table operation."},
+    {"large_in_list", "Large IN list", "The query contains a large literal or bind list.",
+     "Prefer a temporary table, array parameter, or bulk join for large inputs."},
+    {"deep_query_nesting", "Deep query nesting", "Nested expressions exceed the conservative query-shape threshold.",
+     "Split the query into named CTEs or smaller operations."},
+    {"excessive_joins", "Many joins",
+     "The query contains many JOIN clauses and may be difficult to maintain or optimize.",
+     "Review join selectivity and consider a purpose-built intermediate relation."},
+    {"repeated_predicate", "Repeated predicate", "The same predicate token sequence appears more than once.",
+     "Factor the predicate into a CTE or a named condition when practical."},
+    {"unknown_operation", "Unknown SQL operation", "No recognized top-level SQL operation was found.",
+     "Use a supported statement form or provide an application-owned operation name."},
+    {"no_referenced_table", "No referenced table", "The statement has no detectable table reference.",
+     "Confirm that the statement is intentionally relation-free or use an explicit source."},
+    {"dialect_portability", "Dialect portability warning",
+     "The query uses syntax that may not be portable to the selected dialect.",
+     "Verify the construct against every target database dialect."},
+    {"sqlc_annotation", "Malformed SQLC annotation",
+     "A SQLC name annotation does not have the expected directive form.",
+     "Use a complete -- name: Operation :one|:many|:exec annotation."}};
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
   return code >= 0 && (size_t)code < sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0])
@@ -99,7 +128,10 @@ static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *ou
   out->code = code;
   out->incomplete = code >= SEQUEL_DIAG_UNTERMINATED_STRING && code <= SEQUEL_DIAG_UNTERMINATED_PARAMETER;
   out->incomplete |= code == SEQUEL_DIAG_UNCLOSED_GROUP;
-  out->severity = code == SEQUEL_DIAG_NONE ? SEQUEL_NOTE : out->incomplete ? SEQUEL_WARNING : SEQUEL_ERROR;
+  out->severity = code == SEQUEL_DIAG_NONE              ? SEQUEL_NOTE
+                  : code >= SEQUEL_DIAG_EMPTY_STATEMENT ? SEQUEL_WARNING
+                  : out->incomplete                     ? SEQUEL_WARNING
+                                                        : SEQUEL_ERROR;
   out->offset = start;
   out->end_offset = end;
   diagnostic_position(sql, n, start, &out->line, &out->column);

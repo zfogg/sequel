@@ -567,7 +567,7 @@ class Analysis:
         diagnostics = tuple(
             _diagnostic_from_dict(item, original_length) for item in _sequence(_field(data, "diagnostics"))
         )
-        if status == "ok" and diagnostics:
+        if status == "ok" and any(item.severity == "error" for item in diagnostics):
             raise ValueError("Successful analysis cannot contain error diagnostics")
         return cls(
             ANALYSIS_SCHEMA_VERSION,
@@ -606,6 +606,7 @@ def analyze(
     keep_in_lists: bool = False,
     omit_source_maps: bool = False,
     omit_bind_descriptors: bool = False,
+    include_lints: bool = False,
     cancelled: Callable[[], bool] | None = None,
 ) -> Analysis:
     """Analyze SQL once without executing it or inspecting driver values.
@@ -677,7 +678,7 @@ def analyze(
         _integer(limit)
     if type(max_query_text_bytes) is not int:
         raise ValueError("Query text limit must be an integer")
-    for flag in (omit_query_text, format, keep_in_lists, omit_source_maps, omit_bind_descriptors):
+    for flag in (omit_query_text, format, keep_in_lists, omit_source_maps, omit_bind_descriptors, include_lints):
         _boolean(flag)
     result = _sql.analyze(
         sql,
@@ -692,6 +693,7 @@ def analyze(
         keep_in_lists,
         omit_source_maps,
         omit_bind_descriptors,
+        include_lints,
         cancelled,
     )
     return Analysis.from_dict(result)

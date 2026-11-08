@@ -5,6 +5,6 @@
   "description": "SQL formatting, sanitization, inspection and syntax highlighting from one C engine.",
   "python_project": ".",
   "go_directory": "go",
-  "languages": {"c": "C", "python": "Python", "go": "Go"},
-  "smoke": {"c": "sequel_8h.html", "python": ["sequel.html", "sequel/formatting.html", "sequel/highlighting.html", "sequel/diagnostics.html", "sequel/analysis.html", "sequel/inspection.html", "sequel/sanitization.html", "sequel/dialect.html"], "go": "pkg/github.com/zfogg/sequel/go.html"}
+  "languages": {"c": "C", "cxx": "C++", "python": "Python", "go": "Go", "rust": "Rust"},
+  "smoke": {"c": "sequel_8h.html", "cxx": "index.html", "python": ["sequel.html", "sequel/formatting.html", "sequel/highlighting.html", "sequel/diagnostics.html", "sequel/analysis.html", "sequel/inspection.html", "sequel/sanitization.html", "sequel/dialect.html"], "go": "pkg/github.com/zfogg/sequel/go.html", "rust": ["sequel/index.html", "sequel/fn.analyze.html", "sequel/struct.Analysis.html", "sequel/struct.HighlightOptions.html"]}
 }

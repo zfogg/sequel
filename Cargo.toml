@@ -1,0 +1,21 @@
+[package]
+name = "sequel"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.85"
+description = "SQL analysis, formatting, sanitization and highlighting using Sequel's C engine"
+license = "MIT"
+repository = "https://github.com/zfogg/sequel"
+readme = "rust/README.md"
+links = "sequel"
+build = "rust/build.rs"
+include = ["/Cargo.toml", "/Cargo.lock", "/rust/**", "/include/sequel.h", "/src/sql/**", "/src/utf8.c", "/src/utf8.h", "/third_party/**", "/LICENSE"]
+
+[lib]
+path = "rust/lib.rs"
+
+[features]
+abi-check = []
+
+[build-dependencies]
+cc = "1.2"

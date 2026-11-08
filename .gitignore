@@ -10,3 +10,6 @@ __pycache__/
 
 /install*/
 /.ruff_cache/
+/target/
+*.so
+*.dylib
