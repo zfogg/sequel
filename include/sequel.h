@@ -86,7 +86,10 @@ typedef enum {
   SEQUEL_DIAG_UNKNOWN_OPERATION,
   SEQUEL_DIAG_NO_REFERENCED_TABLE,
   SEQUEL_DIAG_DIALECT_PORTABILITY,
-  SEQUEL_DIAG_SQLC_ANNOTATION
+  SEQUEL_DIAG_SQLC_ANNOTATION,
+  SEQUEL_DIAG_BIND_MISSING,
+  SEQUEL_DIAG_BIND_EXTRA,
+  SEQUEL_DIAG_BIND_INVALID
 } sequel_diagnostic_code_t;
 
 /** Diagnostic severity; incomplete SQL is a warning. */
@@ -199,6 +202,11 @@ typedef struct {
  * the maximum driver slot, so $3 requires 3 supplied slots even if used once. */
 sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement_index,
                                    size_t supplied_slots);
+
+/** Validate bind arity and return a canonical diagnostic on mismatch. */
+sequel_status_t sequel_check_binds_diagnostic(const sequel_bind_descriptor_t *binds, size_t count,
+                                              size_t statement_index, size_t supplied_slots,
+                                              sequel_diagnostic_t *diagnostic);
 
 /** Cancellation callback: return true to stop; must not re-enter this analysis. */
 typedef bool (*sequel_cancel_fn)(void *userdata);

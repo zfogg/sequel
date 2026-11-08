@@ -93,7 +93,14 @@ static const struct {
      "Verify the construct against every target database dialect."},
     {"sqlc_annotation", "Malformed SQLC annotation",
      "A SQLC name annotation does not have the expected directive form.",
-     "Use a complete -- name: Operation :one|:many|:exec annotation."}};
+     "Use a complete -- name: Operation :one|:many|:exec annotation."},
+    {"bind_missing", "Missing bind values",
+     "The supplied bind count is smaller than the slots required by the statement.",
+     "Supply every required bind slot, including numbered gaps."},
+    {"bind_extra", "Extra bind values", "The supplied bind count exceeds the slots used by the statement.",
+     "Remove unused values or update the SQL template and its bind descriptors."},
+    {"bind_invalid", "Invalid bind descriptors", "Bind metadata is inconsistent or contains an unsupported style.",
+     "Regenerate descriptors from the original SQL and preserve marker order and ranges."}};
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
   return code >= 0 && (size_t)code < sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0])
@@ -128,10 +135,10 @@ static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *ou
   out->code = code;
   out->incomplete = code >= SEQUEL_DIAG_UNTERMINATED_STRING && code <= SEQUEL_DIAG_UNTERMINATED_PARAMETER;
   out->incomplete |= code == SEQUEL_DIAG_UNCLOSED_GROUP;
-  out->severity = code == SEQUEL_DIAG_NONE              ? SEQUEL_NOTE
-                  : code >= SEQUEL_DIAG_EMPTY_STATEMENT ? SEQUEL_WARNING
-                  : out->incomplete                     ? SEQUEL_WARNING
-                                                        : SEQUEL_ERROR;
+  out->severity = code == SEQUEL_DIAG_NONE                                                 ? SEQUEL_NOTE
+                  : code >= SEQUEL_DIAG_EMPTY_STATEMENT && code < SEQUEL_DIAG_BIND_MISSING ? SEQUEL_WARNING
+                  : out->incomplete                                                        ? SEQUEL_WARNING
+                                                                                           : SEQUEL_ERROR;
   out->offset = start;
   out->end_offset = end;
   diagnostic_position(sql, n, start, &out->line, &out->column);

@@ -1053,3 +1053,33 @@ sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t
   }
   return supplied == needed ? SEQUEL_OK : SEQUEL_ERR_INVALID_ARGUMENT;
 }
+
+sequel_status_t sequel_check_binds_diagnostic(const sequel_bind_descriptor_t *binds, size_t count, size_t statement,
+                                              size_t supplied, sequel_diagnostic_t *diagnostic) {
+  if (!diagnostic)
+    return SEQUEL_ERR_NULL;
+  diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_NONE, 0, 0);
+  if (!binds && count) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_INVALID, 0, 0);
+    return SEQUEL_ERR_NULL;
+  }
+  size_t needed = 0;
+  for (size_t i = 0; i < count; ++i) {
+    if (!binds[i].slot || !binds[i].ordinal || binds[i].offset >= binds[i].end_offset ||
+        binds[i].style < SEQUEL_BIND_POSITIONAL || binds[i].style > SEQUEL_BIND_TYPED) {
+      diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_INVALID, binds[i].offset, binds[i].end_offset);
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+    }
+    if (binds[i].statement_index == statement && binds[i].slot > needed)
+      needed = binds[i].slot;
+  }
+  if (supplied < needed) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_MISSING, 0, 0);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  if (supplied > needed) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_EXTRA, 0, 0);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  return SEQUEL_OK;
+}

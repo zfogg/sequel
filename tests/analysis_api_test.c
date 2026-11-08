@@ -249,6 +249,11 @@ static int bind_tests(void) {
   CHECK(a.bind_count == 3 && a.binds[0].slot == 1 && a.binds[1].slot == 1 && a.binds[2].slot == 2);
   CHECK(a.binds[0].ordinal == 1 && a.binds[2].ordinal == 3);
   CHECK(sequel_check_binds(a.binds, a.bind_count, 0, 2) == SEQUEL_OK);
+  sequel_diagnostic_t bind_diagnostic;
+  CHECK(sequel_check_binds_diagnostic(a.binds, a.bind_count, 0, 1, &bind_diagnostic) == SEQUEL_ERR_INVALID_ARGUMENT);
+  CHECK(bind_diagnostic.code == SEQUEL_DIAG_BIND_MISSING && bind_diagnostic.severity == SEQUEL_ERROR);
+  CHECK(sequel_check_binds_diagnostic(a.binds, a.bind_count, 0, 3, &bind_diagnostic) == SEQUEL_ERR_INVALID_ARGUMENT);
+  CHECK(bind_diagnostic.code == SEQUEL_DIAG_BIND_EXTRA && bind_diagnostic.severity == SEQUEL_ERROR);
   sequel_analysis_free(&a);
   CHECK(sequel_analyze("SELECT $3,$3; SELECT $1,$2", &o, &a) == SEQUEL_OK);
   CHECK(a.bind_count == 4 && a.statement_count == 2);
@@ -260,6 +265,8 @@ static int bind_tests(void) {
   sequel_analysis_free(&a);
   CHECK(sequel_check_binds(NULL, 0, 0, 0) == SEQUEL_OK);
   CHECK(sequel_check_binds(NULL, 1, 0, 0) == SEQUEL_ERR_NULL);
+  CHECK(sequel_check_binds_diagnostic(NULL, 1, 0, 0, &bind_diagnostic) == SEQUEL_ERR_NULL);
+  CHECK(bind_diagnostic.code == SEQUEL_DIAG_BIND_INVALID);
   o.dialect = SEQUEL_SQLITE;
   CHECK(sequel_analyze("SELECT ?,?1,:x,:x,@x,$x", &o, &a) == SEQUEL_OK && a.bind_count == 6);
   CHECK(a.binds[0].slot == 1 && a.binds[1].slot == 1 && a.binds[2].slot == 2 && a.binds[3].slot == 2 &&
