@@ -279,6 +279,7 @@ pub struct sequel_analysis_options_t {
     pub omit_source_maps: bool,
     #[doc = "< Default false. Avoid exported bind descriptors; fingerprint still tracks identities."]
     pub omit_bind_descriptors: bool,
+    pub include_lints: bool,
     #[doc = "< Optional per-call callback, polled during native work."]
     pub cancelled: sequel_cancel_fn,
     #[doc = "< Opaque caller-owned context passed to cancelled."]

@@ -14,7 +14,16 @@ fn diagnose_all_returns_every_safe_boundary_issue() {
 
 #[test]
 fn diagnose_all_clean_sql_is_empty() {
-    assert!(diagnose_all("SELECT 1", Dialect::Sqlite).is_empty());
+    assert!(diagnose_all("SELECT 1 FROM widgets", Dialect::Sqlite).is_empty());
+}
+
+#[test]
+fn diagnose_all_includes_opt_in_lint_categories() {
+    let codes: Vec<_> = diagnose_all("UPDATE widgets SET name = 'x';", Dialect::Sqlite)
+        .iter()
+        .filter_map(Diagnostic::code_name)
+        .collect();
+    assert!(codes.contains(&"unbounded_write"));
 }
 
 #[test]

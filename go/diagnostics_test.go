@@ -98,7 +98,18 @@ func TestDiagnoseAllReturnsEverySafeBoundaryIssue(t *testing.T) {
 }
 
 func TestDiagnoseAllCleanSQLIsEmpty(t *testing.T) {
-	if diagnostics := DiagnoseAll("SELECT 1", DialectSQLite); diagnostics == nil || len(diagnostics) != 0 {
+	if diagnostics := DiagnoseAll("SELECT 1 FROM widgets", DialectSQLite); diagnostics == nil || len(diagnostics) != 0 {
 		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestDiagnoseAllIncludesOptInLintCategories(t *testing.T) {
+	diagnostics := DiagnoseAll("UPDATE widgets SET name = 'x';", DialectSQLite)
+	codes := make(map[string]bool, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		codes[diagnostic.Code] = true
+	}
+	if !codes["unbounded_write"] {
+		t.Fatalf("missing unbounded_write in %#v", diagnostics)
 	}
 }

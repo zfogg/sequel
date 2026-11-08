@@ -118,7 +118,12 @@ def test_diagnose_all_returns_safe_boundary_issues() -> None:
 
 
 def test_diagnose_all_clean_sql_is_empty() -> None:
-    assert diagnose_all("SELECT 1", dialect=Dialect.SQLITE) == ()
+    assert diagnose_all("SELECT 1 FROM widgets", dialect=Dialect.SQLITE) == ()
+
+
+def test_diagnose_all_includes_opt_in_lint_categories() -> None:
+    codes = {item.code for item in diagnose_all("UPDATE widgets SET name = 'x';", dialect=Dialect.SQLITE)}
+    assert {"unbounded_write"} <= codes
     sql = "INSERT INTO t FORMAT CSV\nx,y"
     assert diagnose(sql, dialect=Dialect.CLICKHOUSE).code == "unsupported_payload"
     with pytest.raises(SQLDiagnosticError) as error:

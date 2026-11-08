@@ -132,6 +132,7 @@ pub fn diagnose_all(sql: &str, dialect: Dialect) -> Vec<Diagnostic> {
         omit_query_text: true,
         omit_source_maps: true,
         omit_bind_descriptors: true,
+        include_lints: true,
         ..Default::default()
     };
     crate::analyze(sql, &options)

@@ -61,4 +61,5 @@ def diagnose_all(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> tuple[Diagn
         omit_query_text=True,
         omit_source_maps=True,
         omit_bind_descriptors=True,
+        include_lints=True,
     ).diagnostics

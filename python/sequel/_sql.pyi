@@ -101,6 +101,7 @@ def analyze(
     keep_in_lists: bool,
     omit_source_maps: bool,
     omit_bind_descriptors: bool,
+    include_lints: bool,
     cancelled: Callable[[], bool] | None,
 ) -> AnalysisDict: ...
 def diagnostic_catalog() -> tuple[DiagnosticDict, ...]: ...
