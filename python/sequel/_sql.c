@@ -25,7 +25,7 @@ static PyObject *render_result(const char *text, size_t length, const sequel_dia
   }
   return Py_BuildValue("(NN)", value, diagnostic);
 }
-static PyObject *diagnose_sql(PyObject *self, PyObject *args) {
+static PyObject *diagnose_native(PyObject *self, PyObject *args) {
   const char *sql;
   Py_ssize_t n;
   int dialect;
@@ -191,7 +191,7 @@ static PyMethodDef methods[] = {
     {"utf8_to_utf16", analysis_utf8_to_utf16, METH_VARARGS, "Convert UTF-8 byte boundaries to UTF-16 units."},
     {"utf16_to_utf8", analysis_utf16_to_utf8, METH_VARARGS, "Convert UTF-16 unit boundaries to UTF-8 bytes."},
     {"check_binds", analysis_check_binds, METH_VARARGS, "Check bind slots without reading values."},
-    {"diagnose", diagnose_sql, METH_VARARGS, "Locate and explain the first lexical/delimiter issue."},
+    {"diagnose", diagnose_native, METH_VARARGS, "Locate and explain SQL diagnostics."},
     {"highlight", highlight_sql, METH_VARARGS, "Highlight SQL as escaped HTML or truecolor ANSI."},
     {"colorschemes", colorschemes, METH_NOARGS, "List bundled Base16 names."},
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},
