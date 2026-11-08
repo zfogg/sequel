@@ -73,7 +73,23 @@ typedef enum {
   SEQUEL_DIAG_OUT_OF_MEMORY,
   SEQUEL_DIAG_RESOURCE_LIMIT,
   SEQUEL_DIAG_CANCELLED,
-  SEQUEL_DIAG_AMBIGUOUS_LITERAL
+  SEQUEL_DIAG_AMBIGUOUS_LITERAL,
+  SEQUEL_DIAG_EMPTY_STATEMENT,
+  SEQUEL_DIAG_MULTIPLE_STATEMENTS,
+  SEQUEL_DIAG_MIXED_OPERATIONS,
+  SEQUEL_DIAG_SELECT_STAR,
+  SEQUEL_DIAG_UNBOUNDED_WRITE,
+  SEQUEL_DIAG_LARGE_IN_LIST,
+  SEQUEL_DIAG_DEEP_QUERY_NESTING,
+  SEQUEL_DIAG_EXCESSIVE_JOINS,
+  SEQUEL_DIAG_REPEATED_PREDICATE,
+  SEQUEL_DIAG_UNKNOWN_OPERATION,
+  SEQUEL_DIAG_NO_REFERENCED_TABLE,
+  SEQUEL_DIAG_DIALECT_PORTABILITY,
+  SEQUEL_DIAG_SQLC_ANNOTATION,
+  SEQUEL_DIAG_BIND_MISSING,
+  SEQUEL_DIAG_BIND_EXTRA,
+  SEQUEL_DIAG_BIND_INVALID
 } sequel_diagnostic_code_t;
 
 /** Diagnostic severity; incomplete SQL is a warning. */
@@ -187,6 +203,11 @@ typedef struct {
 sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement_index,
                                    size_t supplied_slots);
 
+/** Validate bind arity and return a canonical diagnostic on mismatch. */
+sequel_status_t sequel_check_binds_diagnostic(const sequel_bind_descriptor_t *binds, size_t count,
+                                              size_t statement_index, size_t supplied_slots,
+                                              sequel_diagnostic_t *diagnostic);
+
 /** Cancellation callback: return true to stop; must not re-enter this analysis. */
 typedef bool (*sequel_cancel_fn)(void *userdata);
 
@@ -207,6 +228,7 @@ typedef struct {
   bool omit_source_maps;       /**< Default false. Avoid generating either numeric map. */
   bool omit_bind_descriptors;  /**< Default false. Avoid exported bind descriptors; fingerprint still tracks identities.
                                 */
+  bool include_lints;          /**< Default false; emit opt-in structural, safety, shape and portability warnings. */
   sequel_cancel_fn cancelled;  /**< Optional per-call callback, polled during native work. */
   void *cancel_userdata;       /**< Opaque caller-owned context passed to cancelled. */
 } sequel_analysis_options_t;

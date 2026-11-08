@@ -28,6 +28,23 @@ class Diagnostic:
     explanation: str
     hint: str
 
+    @property
+    def kind(self) -> str:
+        """Category used for policy decisions without inspecting the code."""
+        if self.code in {"input_limit", "output_limit", "resource_limit", "cancelled", "out_of_memory"}:
+            return "policy"
+        if self.code in {"select_star", "unbounded_write"}:
+            return "safety"
+        if self.code in {"large_in_list", "deep_query_nesting", "excessive_joins", "repeated_predicate"}:
+            return "shape"
+        if self.code == "dialect_portability":
+            return "portability"
+        if self.code in {"empty_statement", "multiple_statements", "mixed_operations"}:
+            return "structure"
+        if self.code in {"unknown_operation", "no_referenced_table", "sqlc_annotation"}:
+            return "metadata"
+        return "lexical"
+
 
 class SQLDiagnosticError(ValueError):
     """SQL transformation failure with a structured `diagnostic` attribute."""
@@ -44,3 +61,44 @@ def diagnose(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> Diagnostic:
     Incomplete input is a warning. This is not a SQL grammar validator.
     """
     return Diagnostic(**_sql.diagnose(sql, int(Dialect(dialect))))
+
+
+def diagnose_all(sql: str, *, dialect: Dialect = Dialect.GENERIC) -> tuple[Diagnostic, ...]:
+    """Return every safe-boundary diagnostic in original UTF-8 coordinates.
+
+    Valid SQL returns an empty tuple. This uses unified analysis without
+    retaining sanitized text, source maps, bind descriptors, or fingerprints.
+    It does not validate database grammar or execute SQL.
+    """
+    from .analysis import analyze
+
+    return analyze(
+        sql,
+        dialect=dialect,
+        omit_query_text=True,
+        omit_source_maps=True,
+        omit_bind_descriptors=True,
+        include_lints=True,
+    ).diagnostics
+
+
+def diagnose_sql(
+    sql: str,
+    *,
+    dialect: Dialect = Dialect.GENERIC,
+    check_binds: bool = False,
+    check_safety: bool = False,
+    check_style: bool = False,
+    max_diagnostics: int = 0,
+) -> tuple[Diagnostic, ...]:
+    """Return bounded inspection diagnostics using the common diagnostic contract.
+
+    ``check_binds`` is reserved for descriptor-aware validation; callers should
+    use :func:`sequel.check_binds` when descriptors and supplied arity are known.
+    Safety/style flags are accepted for API parity and remain conservative.
+    """
+    del check_binds, check_safety, check_style
+    if type(max_diagnostics) is not int or max_diagnostics < 0:
+        raise ValueError("max_diagnostics must be a nonnegative integer")
+    result = diagnose_all(sql, dialect=dialect)
+    return result[:max_diagnostics] if max_diagnostics else result

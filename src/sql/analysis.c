@@ -380,6 +380,82 @@ static void analysis_structure(const char *sql, size_t n, format_token *ts, size
   if (start != SIZE_MAX)
     analysis_add_statement(out, start, last);
 }
+static bool analysis_word(format_token t, const char *word) {
+  size_t n = strlen(word);
+  if (t.kind != 1 || t.t.n != n)
+    return false;
+  for (size_t i = 0; i < n; ++i)
+    if (toupper((unsigned char)t.t.p[i]) != toupper((unsigned char)word[i]))
+      return false;
+  return true;
+}
+static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t count, sequel_dialect_t dialect,
+                           sequel_analysis_t *out) {
+  (void)sql;
+  if (out->statement_count > 1)
+    analysis_add_diagnostic(out, SEQUEL_DIAG_MULTIPLE_STATEMENTS, out->statements[1].offset,
+                            out->statements[1].end_offset);
+  size_t depth = 0, joins = 0, in_items = 0, in_start = SIZE_MAX;
+  bool write = false, where = false, table = false, operation = false, star = false;
+  for (size_t i = 0; i < count; ++i) {
+    format_token t = ts[i];
+    if (t.kind >= 3)
+      continue;
+    if (sym(t.t, '(')) {
+      if (++depth > 16)
+        analysis_add_diagnostic(out, SEQUEL_DIAG_DEEP_QUERY_NESTING, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+      if (in_start != SIZE_MAX)
+        ++in_items;
+    } else if (sym(t.t, ')')) {
+      if (in_start != SIZE_MAX && depth == in_start) {
+        if (in_items > 32)
+          analysis_add_diagnostic(out, SEQUEL_DIAG_LARGE_IN_LIST, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+        in_start = SIZE_MAX;
+        in_items = 0;
+      }
+      if (depth)
+        --depth;
+    }
+    if (sym(t.t, ';') && i + 1 < count && sym(ts[i + 1].t, ';'))
+      analysis_add_diagnostic(out, SEQUEL_DIAG_EMPTY_STATEMENT, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+    if (t.kind == 1) {
+      if (!operation) {
+        operation = true;
+        if (analysis_word(t, "UPDATE") || analysis_word(t, "DELETE"))
+          write = true;
+        if (analysis_word(t, "SELECT") || analysis_word(t, "INSERT") || analysis_word(t, "UPDATE") ||
+            analysis_word(t, "DELETE") || analysis_word(t, "MERGE") || analysis_word(t, "WITH")) {
+          /* recognized */
+        } else {
+          analysis_add_diagnostic(out, SEQUEL_DIAG_UNKNOWN_OPERATION, (size_t)(t.t.p - sql),
+                                  (size_t)(t.t.p - sql) + t.t.n);
+        }
+      }
+      if (analysis_word(t, "FROM") || analysis_word(t, "INTO") || analysis_word(t, "UPDATE") ||
+          analysis_word(t, "USING"))
+        table = true;
+      if (analysis_word(t, "WHERE"))
+        where = true;
+      if (analysis_word(t, "JOIN"))
+        ++joins;
+      if (analysis_word(t, "IN"))
+        in_start = depth;
+      if (analysis_word(t, "ILIKE") && dialect != SEQUEL_POSTGRESQL && dialect != SEQUEL_DUCKDB)
+        analysis_add_diagnostic(out, SEQUEL_DIAG_DIALECT_PORTABILITY, (size_t)(t.t.p - sql),
+                                (size_t)(t.t.p - sql) + t.t.n);
+    }
+    if (sym(t.t, '*') && i > 0 && analysis_word(ts[i - 1], "SELECT"))
+      star = true;
+  }
+  if (!table)
+    analysis_add_diagnostic(out, SEQUEL_DIAG_NO_REFERENCED_TABLE, 0, n);
+  if (write && !where)
+    analysis_add_diagnostic(out, SEQUEL_DIAG_UNBOUNDED_WRITE, 0, n);
+  if (star)
+    analysis_add_diagnostic(out, SEQUEL_DIAG_SELECT_STAR, 0, n);
+  if (joins > 8)
+    analysis_add_diagnostic(out, SEQUEL_DIAG_EXCESSIVE_JOINS, 0, n);
+}
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
 static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_t count, analysis_state *a,
@@ -864,6 +940,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
       out->status = "ok";
       out->omission_reason = o.omit_query_text ? "policy" : !safe.n ? "empty" : "";
+      if (o.include_lints) {
+        analysis_lints(sql, n, tokens, count, o.dialect, out);
+        analysis_positions(sql, out);
+      }
       if (o.omit_query_text)
         free(safe.p);
       else {
@@ -972,4 +1052,34 @@ sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t
       needed = binds[i].slot;
   }
   return supplied == needed ? SEQUEL_OK : SEQUEL_ERR_INVALID_ARGUMENT;
+}
+
+sequel_status_t sequel_check_binds_diagnostic(const sequel_bind_descriptor_t *binds, size_t count, size_t statement,
+                                              size_t supplied, sequel_diagnostic_t *diagnostic) {
+  if (!diagnostic)
+    return SEQUEL_ERR_NULL;
+  diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_NONE, 0, 0);
+  if (!binds && count) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_INVALID, 0, 0);
+    return SEQUEL_ERR_NULL;
+  }
+  size_t needed = 0;
+  for (size_t i = 0; i < count; ++i) {
+    if (!binds[i].slot || !binds[i].ordinal || binds[i].offset >= binds[i].end_offset ||
+        binds[i].style < SEQUEL_BIND_POSITIONAL || binds[i].style > SEQUEL_BIND_TYPED) {
+      diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_INVALID, binds[i].offset, binds[i].end_offset);
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+    }
+    if (binds[i].statement_index == statement && binds[i].slot > needed)
+      needed = binds[i].slot;
+  }
+  if (supplied < needed) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_MISSING, 0, 0);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  if (supplied > needed) {
+    diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_BIND_EXTRA, 0, 0);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  return SEQUEL_OK;
 }

@@ -124,10 +124,11 @@ static bool analysis_cancel(void *userdata) {
 static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   const char *sql;
   Py_ssize_t length;
-  int dialect, omit, format, keep, omit_maps, omit_binds;
+  int dialect, omit, format, keep, omit_maps, omit_binds, include_lints;
   PyObject *input_limit, *output_limit, *memory_limit, *work_limit, *query_limit, *callback;
-  if (!PyArg_ParseTuple(args, "s#iOOOOOpppppO", &sql, &length, &dialect, &input_limit, &output_limit, &memory_limit,
-                        &work_limit, &query_limit, &omit, &format, &keep, &omit_maps, &omit_binds, &callback))
+  if (!PyArg_ParseTuple(args, "s#iOOOOOppppppO", &sql, &length, &dialect, &input_limit, &output_limit, &memory_limit,
+                        &work_limit, &query_limit, &omit, &format, &keep, &omit_maps, &omit_binds, &include_lints,
+                        &callback))
     return NULL;
   sequel_analysis_options_t options = {0};
   options.dialect = (sequel_dialect_t)dialect;
@@ -143,6 +144,7 @@ static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   options.keep_in_lists = keep;
   options.omit_source_maps = omit_maps;
   options.omit_bind_descriptors = omit_binds;
+  options.include_lints = include_lints;
   if (callback != Py_None) {
     if (!PyCallable_Check(callback)) {
       PyErr_SetString(PyExc_TypeError, "cancelled must be a callable or None");

@@ -15,6 +15,8 @@ import (
 // Diagnostic describes a lexical/delimiter issue, not database grammar. Offsets
 // are UTF-8 bytes; lines/Unicode scalar columns are one-based; ends are exclusive.
 type Diagnostic struct {
+	// Kind classifies the diagnostic for callers that want category-level policy.
+	Kind string `json:"kind"`
 	// Code identifies the issue, such as "unterminated_string" or "input_limit".
 	// "none" means the lexical and delimiter checks found no issue.
 	Code string `json:"code"`
@@ -68,11 +70,31 @@ func diagnosticFromNative(d *C.sequel_diagnostic_t) Diagnostic {
 		severity = "error"
 	}
 	return Diagnostic{
+		Kind: diagnosticKind(C.GoString(C.sequel_diagnostic_code_name(d.code))),
 		Code: C.GoString(C.sequel_diagnostic_code_name(d.code)), Severity: severity,
 		Offset: int(d.offset), EndOffset: int(d.end_offset), Line: int(d.line), Column: int(d.column),
 		EndLine: int(d.end_line), EndColumn: int(d.end_column), Incomplete: bool(d.incomplete),
 		StatementComplete: bool(d.statement_complete), Message: C.GoString(&d.message[0]),
 		Explanation: C.GoString(&d.explanation[0]), Hint: C.GoString(&d.hint[0]),
+	}
+}
+
+func diagnosticKind(code string) string {
+	switch {
+	case code == "input_limit" || code == "output_limit" || code == "resource_limit" || code == "cancelled" || code == "out_of_memory":
+		return "policy"
+	case code == "select_star" || code == "unbounded_write":
+		return "safety"
+	case code == "large_in_list" || code == "deep_query_nesting" || code == "excessive_joins" || code == "repeated_predicate":
+		return "shape"
+	case code == "dialect_portability":
+		return "portability"
+	case code == "empty_statement" || code == "multiple_statements" || code == "mixed_operations":
+		return "structure"
+	case code == "unknown_operation" || code == "no_referenced_table" || code == "sqlc_annotation":
+		return "metadata"
+	default:
+		return "lexical"
 	}
 }
 
