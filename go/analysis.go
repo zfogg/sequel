@@ -245,32 +245,6 @@ func Analyze(query string, options AnalysisOptions) Analysis {
 	return out
 }
 
-// DiagnoseAll returns every safe-boundary diagnostic for query in original
-// UTF-8 coordinates. It is a convenience wrapper around Analyze for callers
-// that do not need sanitized text, fingerprints, maps, or bind descriptors.
-// The returned slice is always non-nil; valid SQL returns an empty slice.
-func DiagnoseAll(query string, dialect Dialect) []Diagnostic {
-	a := Analyze(query, AnalysisOptions{Dialect: dialect, OmitQueryText: true, OmitSourceMaps: true, OmitBindDescriptors: true, IncludeLints: true})
-	return append([]Diagnostic{}, a.Diagnostics...)
-}
-
-// DiagnosticOptions controls the inspection-only diagnostic API.
-type DiagnosticOptions struct {
-	Dialect        Dialect
-	CheckBinds     bool
-	CheckSafety    bool
-	CheckStyle     bool
-	MaxDiagnostics int
-}
-
-// DiagnoseSQL returns bounded diagnostics without executing SQL or emitting telemetry.
-func DiagnoseSQL(query string, options DiagnosticOptions) []Diagnostic {
-	diagnostics := DiagnoseAll(query, options.Dialect)
-	if options.MaxDiagnostics > 0 && len(diagnostics) > options.MaxDiagnostics {
-		diagnostics = diagnostics[:options.MaxDiagnostics]
-	}
-	return diagnostics
-}
 
 // Fingerprint returns a versioned SHA-256 query-shape identifier. It excludes
 // literals, comments, whitespace and bind spelling while preserving repeated

@@ -87,40 +87,6 @@ func TestTolerantHighlight(t *testing.T) {
 	}
 }
 
-func TestDiagnoseAllReturnsEverySafeBoundaryIssue(t *testing.T) {
-	diagnostics := DiagnoseAll("SELECT ); SELECT ]", DialectPostgreSQL)
-	if len(diagnostics) != 2 {
-		t.Fatalf("diagnostics = %#v", diagnostics)
-	}
-	if diagnostics[0].Code != "unmatched_close" || diagnostics[1].Code != "unmatched_close" {
-		t.Fatalf("diagnostics = %#v", diagnostics)
-	}
-}
-
-func TestDiagnoseAllCleanSQLIsEmpty(t *testing.T) {
-	if diagnostics := DiagnoseAll("SELECT 1 FROM widgets", DialectSQLite); diagnostics == nil || len(diagnostics) != 0 {
-		t.Fatalf("diagnostics = %#v", diagnostics)
-	}
-}
-
-func TestDiagnoseAllIncludesOptInLintCategories(t *testing.T) {
-	diagnostics := DiagnoseAll("UPDATE widgets SET name = 'x';", DialectSQLite)
-	codes := make(map[string]bool, len(diagnostics))
-	for _, diagnostic := range diagnostics {
-		codes[diagnostic.Code] = true
-	}
-	if !codes["unbounded_write"] {
-		t.Fatalf("missing unbounded_write in %#v", diagnostics)
-	}
-}
-
-func TestDiagnoseSQLOptionsBoundResults(t *testing.T) {
-	diagnostics := DiagnoseSQL("UPDATE widgets SET name = 'x';", DiagnosticOptions{Dialect: DialectSQLite, MaxDiagnostics: 1})
-	if len(diagnostics) != 1 || diagnostics[0].Kind != "safety" {
-		t.Fatalf("diagnostics = %#v", diagnostics)
-	}
-}
-
 func TestCheckBindsDiagnostic(t *testing.T) {
 	diagnostic, err := CheckBindsDiagnostic([]BindDescriptor{{Ordinal: 1, Slot: 2, StatementIndex: 0, Offset: 7, EndOffset: 9, Style: "numbered"}}, 0, 1)
 	if err == nil || diagnostic.Code != "bind_missing" || diagnostic.Kind != "bind" {

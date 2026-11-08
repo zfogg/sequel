@@ -140,52 +140,6 @@ pub fn diagnose_bytes(sql: &[u8], dialect: Dialect) -> Diagnostic {
     Diagnostic::from_native(&unsafe { d.assume_init() })
 }
 
-/// Return every safe-boundary diagnostic in original UTF-8 coordinates.
-/// Valid SQL returns an empty vector. This does not retain sanitized text,
-/// source maps, bind descriptors, or fingerprints.
-pub fn diagnose_all(sql: &str, dialect: Dialect) -> Vec<Diagnostic> {
-    let options = crate::AnalysisOptions {
-        dialect,
-        omit_query_text: true,
-        omit_source_maps: true,
-        omit_bind_descriptors: true,
-        include_lints: true,
-        ..Default::default()
-    };
-    crate::analyze(sql, &options)
-        .map(|analysis| analysis.diagnostics)
-        .unwrap_or_default()
-}
-
-/// Options for the inspection-only diagnostic API.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct DiagnosticOptions {
-    /// SQL dialect.
-    pub dialect: Dialect,
-    /// Reserved for descriptor-aware bind validation.
-    pub check_binds: bool,
-    /// Enable safety diagnostics.
-    pub check_safety: bool,
-    /// Enable style diagnostics.
-    pub check_style: bool,
-    /// Maximum number of returned diagnostics; zero is unlimited.
-    pub max_diagnostics: usize,
-}
-
-/// Return bounded diagnostics without executing SQL or emitting telemetry.
-pub fn diagnose_sql(sql: &str, options: DiagnosticOptions) -> Vec<Diagnostic> {
-    let _ = (
-        options.check_binds,
-        options.check_safety,
-        options.check_style,
-    );
-    let mut result = diagnose_all(sql, options.dialect);
-    if options.max_diagnostics > 0 {
-        result.truncate(options.max_diagnostics);
-    }
-    result
-}
-
 pub(crate) fn diagnosed_error(
     code: ffi::sequel_status_t,
     diagnostic: &ffi::sequel_diagnostic_t,

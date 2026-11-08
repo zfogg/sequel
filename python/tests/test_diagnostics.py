@@ -10,8 +10,6 @@ from sequel import (
     SQLDiagnosticError,
     check_binds_diagnostic,
     diagnose,
-    diagnose_all,
-    diagnose_sql,
     format_sql,
     highlight_sql,
 )
@@ -128,26 +126,6 @@ def test_groups_and_unsupported() -> None:
     assert diagnose("select (1]", dialect=Dialect.POSTGRESQL).code == "unmatched_close"
     assert diagnose("select )").offset == 7
 
-
-def test_diagnose_all_returns_safe_boundary_issues() -> None:
-    diagnostics = diagnose_all("SELECT ); SELECT ]", dialect=Dialect.POSTGRESQL)
-    assert [item.code for item in diagnostics] == ["unmatched_close", "unmatched_close"]
-    assert all(item.offset < item.end_offset for item in diagnostics)
-
-
-def test_diagnose_all_clean_sql_is_empty() -> None:
-    assert diagnose_all("SELECT 1 FROM widgets", dialect=Dialect.SQLITE) == ()
-
-
-def test_diagnose_all_includes_opt_in_lint_categories() -> None:
-    codes = {item.code for item in diagnose_all("UPDATE widgets SET name = 'x';", dialect=Dialect.SQLITE)}
-    assert {"unbounded_write"} <= codes
-
-
-def test_diagnose_sql_exposes_kind_and_bounds_results() -> None:
-    diagnostics = diagnose_sql("UPDATE widgets SET name = 'x';", dialect=Dialect.SQLITE, max_diagnostics=1)
-    assert len(diagnostics) == 1
-    assert diagnostics[0].kind == "safety"
     sql = "INSERT INTO t FORMAT CSV\nx,y"
     assert diagnose(sql, dialect=Dialect.CLICKHOUSE).code == "unsupported_payload"
     with pytest.raises(SQLDiagnosticError) as error:
