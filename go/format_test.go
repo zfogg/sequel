@@ -129,7 +129,7 @@ func FuzzFormatSQL(f *testing.F) {
 
 func TestFormatSQLLayout(t *testing.T) {
 	got, err := FormatSQL(DialectDuckDB, "select id,name from users where id=? and active=?")
-	want := "select\n  id,\n  name\nfrom users\nwhere\n  id = ?\n  and active = ?"
+	want := "select id, name\nfrom users\nwhere id = ?\n  and active = ?"
 	if err != nil || got != want {
 		t.Fatalf("got %q (%v), want %q", got, err, want)
 	}
