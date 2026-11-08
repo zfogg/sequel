@@ -31,6 +31,8 @@ class Diagnostic:
     @property
     def kind(self) -> str:
         """Category used for policy decisions without inspecting the code."""
+        if self.code in {"bind_missing", "bind_extra", "bind_invalid"}:
+            return "bind"
         if self.code in {"input_limit", "output_limit", "resource_limit", "cancelled", "out_of_memory"}:
             return "policy"
         if self.code in {"select_star", "unbounded_write"}:

@@ -783,3 +783,47 @@ def check_binds(binds: Sequence[BindDescriptor], supplied_slots: int, *, stateme
             )
         )
     _sql.check_binds(values, statement_index, supplied_slots)
+
+
+def check_binds_diagnostic(
+    binds: Sequence[BindDescriptor], supplied_slots: int, *, statement_index: int = 0
+) -> Diagnostic | None:
+    """Return a canonical bind diagnostic, or ``None`` when arity is valid."""
+    _integer(supplied_slots)
+    _integer(statement_index)
+    needed = 0
+    for bind in binds:
+        if bind.style not in _BIND_STYLES:
+            return Diagnostic(
+                "bind_invalid",
+                "error",
+                bind.offset,
+                bind.end_offset,
+                1,
+                1,
+                1,
+                1,
+                False,
+                False,
+                "Invalid bind descriptors",
+                "Bind metadata is inconsistent or contains an unsupported style.",
+                "Regenerate descriptors from the original SQL and preserve marker order and ranges.",
+            )
+        if bind.statement_index == statement_index:
+            needed = max(needed, bind.slot)
+    if supplied_slots == needed:
+        check_binds(binds, supplied_slots, statement_index=statement_index)
+        return None
+    code = "bind_missing" if supplied_slots < needed else "bind_extra"
+    message = "Missing bind values" if code == "bind_missing" else "Extra bind values"
+    explanation = (
+        "The supplied bind count is smaller than the slots required by the statement."
+        if code == "bind_missing"
+        else "The supplied bind count exceeds the slots used by the statement."
+    )
+    hint = (
+        "Supply every required bind slot, including numbered gaps."
+        if code == "bind_missing"
+        else "Remove unused values or update the SQL template and its bind descriptors."
+    )
+    return Diagnostic(code, "error", 0, 0, 1, 1, 1, 1, False, False, message, explanation, hint)

@@ -4,15 +4,24 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 from sequel import (
+    BindDescriptor,
     Diagnostic,
     Dialect,
     SQLDiagnosticError,
+    check_binds_diagnostic,
     diagnose,
     diagnose_all,
     diagnose_sql,
     format_sql,
     highlight_sql,
 )
+
+
+def test_check_binds_diagnostic_reports_missing_slots() -> None:
+    diagnostic = check_binds_diagnostic((BindDescriptor(1, 2, 0, 7, 9, "numbered"),), 1)
+    assert diagnostic is not None
+    assert diagnostic.code == "bind_missing"
+    assert diagnostic.kind == "bind"
 
 
 @pytest.mark.parametrize(
