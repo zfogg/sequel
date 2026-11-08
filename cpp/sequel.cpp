@@ -29,7 +29,7 @@ template <typename F> std::expected<std::string, error> measure(F &&function) {
 } // namespace
 
 std::string diagnostic::code_name() const { return sequel_diagnostic_code_name(native.code); }
-std::string diagnostic::message() const { return native.message ? native.message : ""; }
+std::string diagnostic::message() const { return native.message; }
 std::string error::message() const { return detail ? detail->message() : "Sequel operation failed"; }
 
 metadata::~metadata() { sequel_metadata_free(&native_); }
