@@ -1,0 +1,37 @@
+name: Install C++2d compiler
+description: Install Clang 23 and expose its C and C++ compiler paths
+runs:
+  using: composite
+  steps:
+    - name: Install Clang on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        curl -fsSLo "$RUNNER_TEMP/llvm.sh" https://apt.llvm.org/llvm.sh
+        chmod +x "$RUNNER_TEMP/llvm.sh"
+        sudo "$RUNNER_TEMP/llvm.sh" 23
+        echo 'SEQUEL_CC=clang-23' >> "$GITHUB_ENV"
+        echo 'SEQUEL_CXX=clang++-23' >> "$GITHUB_ENV"
+    - name: Install Clang on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        if brew list --versions llvm >/dev/null; then
+          if brew outdated --quiet llvm | grep -q .; then brew upgrade llvm; fi
+        else
+          brew install llvm
+        fi
+        echo "SEQUEL_CC=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
+        echo "SEQUEL_CXX=$(brew --prefix llvm)/bin/clang++" >> "$GITHUB_ENV"
+    - name: Install Clang on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $archive = Join-Path $env:RUNNER_TEMP 'llvm.tar.xz'
+        $prefix = Join-Path $env:RUNNER_TEMP 'llvm23'
+        New-Item -ItemType Directory -Force $prefix | Out-Null
+        Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.5/clang%2Bllvm-23.1.5-x86_64-pc-windows-msvc.tar.xz' -OutFile $archive
+        tar -xf $archive -C $prefix --strip-components 1
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        "SEQUEL_CC=$prefix/bin/clang-cl.exe" >> $env:GITHUB_ENV
+        "SEQUEL_CXX=$prefix/bin/clang-cl.exe" >> $env:GITHUB_ENV

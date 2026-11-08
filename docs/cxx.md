@@ -1,7 +1,7 @@
 /** @mainpage Sequel C++ API
 
 Sequel's C++ facade is available from `<sequel/sequel.hpp>` and the CMake target
-`sequel::cxx`. It wraps the C engine with C++27 ownership and
+`sequel::cxx`. It wraps the C engine with C++2d ownership and
 `std::expected<T, sequel::error>` results.
 
 @section cxx_intro Usage

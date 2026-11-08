@@ -12,6 +12,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: ./.github/actions/setup-cxx2d
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -26,7 +29,8 @@ jobs:
       - run: cargo test --locked --features abi-check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: uv pip install --system -r tests/requirements-format.txt
-      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=${{ matrix.shared }}
+      - run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER="$SEQUEL_CC" -DCMAKE_CXX_COMPILER="$SEQUEL_CXX" -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=${{ matrix.shared }}
+        shell: bash
       - run: cmake --build build --config Debug --parallel 4
       - run: ctest --test-dir build -C Debug --output-on-failure --parallel 4
       - run: cmake --install build --config Debug --prefix install
@@ -35,7 +39,8 @@ jobs:
       - run: uv run --extra test pytest -q
       - run: uv run --extra test python scripts/style.py
       - run: uv build
-      - run: cmake -S tests/cmake-consumer -B build-consumer -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install
+      - run: cmake -S tests/cmake-consumer -B build-consumer -G Ninja -DCMAKE_C_COMPILER="$SEQUEL_CC" -DCMAKE_CXX_COMPILER="$SEQUEL_CXX" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/install"
+        shell: bash
       - run: cmake --build build-consumer --config Debug
       - run: ctest --test-dir build-consumer -C Debug --output-on-failure
   fuzz:
@@ -61,6 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
+      - uses: ./.github/actions/setup-cxx2d
+      - run: cmake -S . -B build -DCMAKE_C_COMPILER="$SEQUEL_CC" -DCMAKE_CXX_COMPILER="$SEQUEL_CXX" -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
       - run: cmake --build build --parallel 4
       - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective|highlight-api|diagnostics-api)$' --output-on-failure
