@@ -1,6 +1,6 @@
 # sequel
 
-[GitHub Pages documentation](https://zfogg.github.io/sequel/) ·
+[Documentation](https://zfogg.github.io/sequel/) ·
 [C API](https://zfogg.github.io/sequel/c/) ·
 [Python API](https://zfogg.github.io/sequel/python/) ·
 [Go API](https://zfogg.github.io/sequel/go/) ·
