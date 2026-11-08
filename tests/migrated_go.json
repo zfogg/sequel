@@ -129,7 +129,7 @@
   },
   {
     "query": "SELECT 'secret FROM passwords' AS value",
-    "summary": "SELECT …"
+    "summary": "SELECT ? AS value"
   },
   {
     "query": "SELECT 'unterminated",

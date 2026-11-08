@@ -37,6 +37,8 @@ static size_t clause_end(token *t, size_t n, size_t i) {
   for (; (sequel_work_tick(1), i < n); ++i) {
     if (sym(t[i], '(')) {
       i = close_group(t, n, i);
+      if (i == n)
+        return n;
       continue;
     }
     if (kw(t[i], "CASE")) {
@@ -441,8 +443,18 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
         item(b, "…");
       else if (functions.n)
         item(b, function_text);
-      else
-        item(b, "…");
+      else {
+        char scalar_text[65] = {0};
+        output scalar = {scalar_text, 0, sizeof(scalar_text)};
+        bool simple = end > i;
+        for (size_t j = i; (sequel_work_tick(1), j < end); ++j)
+          if (sym(t[j], ',') || kw(t[j], "SELECT") || kw(t[j], "WITH") || kw(t[j], "CASE") ||
+              (!t[j].word && strchr("\"`[", *t[j].p)))
+            simple = false;
+        if (simple)
+          expression(&scalar, t + i, end - i, depth + 1);
+        item(b, simple && scalar.n && !scalar.overflow ? scalar_text : "…");
+      }
       nested(b, t + i, end - i, depth + 1);
       for (size_t j = i; (sequel_work_tick(1), j < end); ++j) {
         if (sym(t[j], '(')) {
