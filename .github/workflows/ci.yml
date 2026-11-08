@@ -67,6 +67,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cxx2d
-      - run: cmake -S . -B build -DCMAKE_C_COMPILER="$SEQUEL_CC" -DCMAKE_CXX_COMPILER="$SEQUEL_CXX" -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
+      - run: cmake -S . -B build -DCMAKE_C_COMPILER="$SEQUEL_CC" -DCMAKE_CXX_COMPILER="$SEQUEL_CXX" -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" -DSEQUEL_BUILD_CLI=OFF
       - run: cmake --build build --parallel 4
       - run: ctest --test-dir build -R 'sequel-(sql|sql_sanitize|sql_clickhouse|migrated|api|selective|highlight-api|diagnostics-api)$' --output-on-failure
