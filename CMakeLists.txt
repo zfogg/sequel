@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(sequel VERSION 0.2.0 LANGUAGES C)
+project(sequel VERSION 0.2.0 LANGUAGES C CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 option(SEQUEL_BUILD_DOCS "Enable API documentation and publication targets" OFF)
@@ -30,13 +30,26 @@ else()
 endif()
 add_library(sequel src/sql/main.c src/utf8.c)
 add_library(sequel::sequel ALIAS sequel)
-target_compile_features(sequel PUBLIC c_std_11)
+target_compile_features(sequel PUBLIC c_std_23)
 target_include_directories(sequel PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_link_libraries(sequel PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 set_target_properties(sequel PROPERTIES POSITION_INDEPENDENT_CODE ON
   WINDOWS_EXPORT_ALL_SYMBOLS ON VERSION ${PROJECT_VERSION} SOVERSION 0)
+
+option(SEQUEL_BUILD_CXX "Build the C++27 facade" ON)
+if(SEQUEL_BUILD_CXX)
+  set(SEQUEL_CXX_STANDARD 27 CACHE STRING "C++ standard for the facade; use 26 with current compilers")
+  add_library(sequel_cxx cpp/sequel.cpp)
+  add_library(sequel::cxx ALIAS sequel_cxx)
+  set_target_properties(sequel_cxx PROPERTIES CXX_STANDARD ${SEQUEL_CXX_STANDARD} CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
+  target_include_directories(sequel_cxx PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cpp/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  target_link_libraries(sequel_cxx PUBLIC sequel::sequel)
+  set_target_properties(sequel_cxx PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 if(SEQUEL_BUILD_CLI)
   add_executable(sequel-cli src/binary/main.c src/binary/embedded.c src/binary/diagnostics.c src/binary/interactive.c)
   target_link_libraries(sequel-cli PRIVATE sequel::sequel)
@@ -61,6 +74,13 @@ if(TARGET sequel_utf8proc)
   install(TARGETS sequel_utf8proc EXPORT sequelTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 install(FILES include/sequel.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(SEQUEL_BUILD_CXX)
+  install(TARGETS sequel_cxx EXPORT sequelTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(DIRECTORY cpp/include/sequel DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 install(FILES LICENSE third_party/UTF8PROC_LICENSE.md third_party/BASE16_LICENSE.md DESTINATION ${CMAKE_INSTALL_DATADIR}/sequel)
 install(EXPORT sequelTargets NAMESPACE sequel:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sequel)
 configure_package_config_file(cmake/sequelConfig.cmake.in
