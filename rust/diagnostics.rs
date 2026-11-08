@@ -36,6 +36,7 @@ impl Diagnostic {
     /// Category used for diagnostic policy decisions.
     pub fn kind(&self) -> &'static str {
         match self.code_name() {
+            Some("bind_missing" | "bind_extra" | "bind_invalid") => "bind",
             Some(
                 "input_limit" | "output_limit" | "resource_limit" | "cancelled" | "out_of_memory",
             ) => "policy",

@@ -249,6 +249,13 @@ unsafe extern "C" {
         statement_index: usize,
         supplied_slots: usize,
     ) -> sequel_status_t;
+    pub fn sequel_check_binds_diagnostic(
+        binds: *const sequel_bind_descriptor_t,
+        count: usize,
+        statement_index: usize,
+        supplied_slots: usize,
+        diagnostic: *mut sequel_diagnostic_t,
+    ) -> sequel_status_t;
 }
 #[doc = " Cancellation callback: return true to stop; must not re-enter this analysis."]
 pub type sequel_cancel_fn =

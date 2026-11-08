@@ -211,6 +211,32 @@ pub fn check_binds(
     })
 }
 
+/// Validate bind arity and return the canonical diagnostic on failure.
+pub fn check_binds_diagnostic(
+    binds: &[BindDescriptor],
+    statement_index: usize,
+    supplied_slots: usize,
+) -> Result<(), Diagnostic> {
+    let raw: Vec<_> = binds.iter().map(BindDescriptor::native).collect();
+    let mut diagnostic = std::mem::MaybeUninit::zeroed();
+    let status = unsafe {
+        ffi::sequel_check_binds_diagnostic(
+            raw.as_ptr(),
+            raw.len(),
+            statement_index,
+            supplied_slots,
+            diagnostic.as_mut_ptr(),
+        )
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(Diagnostic::from_native(&unsafe {
+            diagnostic.assume_init()
+        }))
+    }
+}
+
 struct NativeAnalysis(Box<ffi::sequel_analysis_t>);
 impl Drop for NativeAnalysis {
     fn drop(&mut self) {

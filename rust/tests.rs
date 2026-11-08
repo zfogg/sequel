@@ -41,6 +41,21 @@ fn diagnose_sql_exposes_kind_and_bounds_results() {
 }
 
 #[test]
+fn check_binds_diagnostic_reports_missing_slots() {
+    let bind = BindDescriptor {
+        ordinal: 1,
+        slot: 2,
+        statement_index: 0,
+        offset: 7,
+        end_offset: 9,
+        style: 1,
+    };
+    let diagnostic = check_binds_diagnostic(&[bind], 0, 1).unwrap_err();
+    assert_eq!(diagnostic.code_name(), Some("bind_missing"));
+    assert_eq!(diagnostic.kind(), "bind");
+}
+
+#[test]
 #[cfg(feature = "abi-check")]
 fn checked_in_ffi_matches_target_c_abi() {
     unsafe extern "C" {
