@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn diagnose_all_returns_every_safe_boundary_issue() {
+    let diagnostics = diagnose_all("SELECT ); SELECT ]", Dialect::PostgreSql);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code_name().unwrap())
+            .collect::<Vec<_>>(),
+        ["unmatched_close", "unmatched_close"]
+    );
+}
+
+#[test]
+fn diagnose_all_clean_sql_is_empty() {
+    assert!(diagnose_all("SELECT 1 FROM widgets", Dialect::Sqlite).is_empty());
+}
+
+#[test]
+fn diagnose_all_includes_opt_in_lint_categories() {
+    let codes: Vec<_> = diagnose_all("UPDATE widgets SET name = 'x';", Dialect::Sqlite)
+        .iter()
+        .filter_map(Diagnostic::code_name)
+        .collect();
+    assert!(codes.contains(&"unbounded_write"));
+}
+
+#[test]
 #[cfg(feature = "abi-check")]
 fn checked_in_ffi_matches_target_c_abi() {
     unsafe extern "C" {

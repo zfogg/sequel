@@ -31,6 +31,8 @@ pub struct AnalysisOptions<'a> {
     pub omit_source_maps: bool,
     /// Avoid generating value-free bind metadata.
     pub omit_bind_descriptors: bool,
+    /// Emit opt-in structural, safety, shape and portability diagnostics.
+    pub include_lints: bool,
     /// Synchronous cancellation probe; return true to stop. Panics become errors.
     pub cancelled: Option<&'a dyn Fn() -> bool>,
 }
@@ -252,6 +254,7 @@ pub fn analyze_bytes(sql: &[u8], options: &AnalysisOptions<'_>) -> Result<Analys
         keep_in_lists: options.keep_in_lists,
         omit_source_maps: options.omit_source_maps,
         omit_bind_descriptors: options.omit_bind_descriptors,
+        include_lints: options.include_lints,
         cancelled: cancellation
             .as_ref()
             .map(|_| cancel as unsafe extern "C" fn(*mut std::ffi::c_void) -> bool),

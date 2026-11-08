@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = json.loads((ROOT / "docs/site.json").read_text(encoding="utf-8"))
-GENERATORS = {"c": "Doxygen", "python": "pdoc", "go": "Golds", "rust": "rustdoc", "typescript": "TypeDoc"}
+GENERATORS = {"c": "Doxygen", "cxx": "Doxygen", "python": "pdoc", "go": "Golds", "rust": "rustdoc", "typescript": "TypeDoc"}
 
 
 def run(*command, cwd=ROOT, capture=False):

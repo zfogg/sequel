@@ -57,6 +57,8 @@ type AnalysisOptions struct {
 	OmitSourceMaps bool
 	// OmitBindDescriptors skips exported marker descriptors; fingerprint identity is still computed.
 	OmitBindDescriptors bool
+	// IncludeLints emits opt-in structural, safety, shape and portability diagnostics.
+	IncludeLints bool
 	// Format requests layout of sanitized text; false leaves Formatted and its map empty.
 	Format bool
 	// KeepInLists preserves individual placeholders; false collapses IN lists containing only literals/markers.
@@ -177,6 +179,7 @@ func Analyze(query string, options AnalysisOptions) Analysis {
 		omit_query_text:       C.bool(options.OmitQueryText),
 		omit_source_maps:      C.bool(options.OmitSourceMaps),
 		omit_bind_descriptors: C.bool(options.OmitBindDescriptors),
+		include_lints:         C.bool(options.IncludeLints),
 		format:                C.bool(options.Format),
 		keep_in_lists:         C.bool(options.KeepInLists),
 	}
@@ -240,6 +243,15 @@ func Analyze(query string, options AnalysisOptions) Analysis {
 		}
 	}
 	return out
+}
+
+// DiagnoseAll returns every safe-boundary diagnostic for query in original
+// UTF-8 coordinates. It is a convenience wrapper around Analyze for callers
+// that do not need sanitized text, fingerprints, maps, or bind descriptors.
+// The returned slice is always non-nil; valid SQL returns an empty slice.
+func DiagnoseAll(query string, dialect Dialect) []Diagnostic {
+	a := Analyze(query, AnalysisOptions{Dialect: dialect, OmitQueryText: true, OmitSourceMaps: true, OmitBindDescriptors: true, IncludeLints: true})
+	return append([]Diagnostic{}, a.Diagnostics...)
 }
 
 // Fingerprint returns a versioned SHA-256 query-shape identifier. It excludes
