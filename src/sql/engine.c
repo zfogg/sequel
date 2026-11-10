@@ -22,17 +22,17 @@ typedef struct {
 } output;
 
 // clang-format off
-#include "common.c"
-#include "scanner.c"
-#include "summary.c"
-#include "formatter.c"
-#include "diagnostics.c"
-#include "api.c"
-#include "compact.c"
-#include "highlight.c"
-#include "contracts.c"
-#include "sha256.c"
-#include "analysis.c"
+#include "legacy_common.c"
+#include "legacy_scanner.c"
+#include "legacy_summary.c"
+#include "legacy_formatter.c"
+#include "legacy_diagnostics.c"
+#include "legacy_api.c"
+#include "legacy_compact.c"
+#include "legacy_highlight.c"
+#include "legacy_contracts.c"
+#include "legacy_sha256.c"
+#include "legacy_analysis.c"
 // clang-format on
 
 #undef malloc
