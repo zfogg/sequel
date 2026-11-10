@@ -60,6 +60,8 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/formatter.c
   ../lib/fingerprint.c
   ../lib/summary/document.c
+  ../lib/summary/buffer.c
+  ../lib/summary/options.c
   ../lib/sanitizer.c
   )
 

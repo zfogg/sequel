@@ -6,62 +6,10 @@
 #include <sequel/summary.h>
 #include <sequel/sanitizer.h>
 
-void sequel_summary_options_init(sequel_summary_options_t *options) {
-  if (options)
-    *options = (sequel_summary_options_t){.include_operation = true,
-                                          .include_tables = true,
-                                          .include_joins = true,
-                                          .include_predicates = true,
-                                          .include_bind_count = true,
-                                          .redact_literals = true,
-                                          .redact_relations = false,
-                                          .max_length = 0};
-}
+#include "internal.h"
 
-static int append_text(char **text, size_t *length, size_t *capacity, const char *value) {
-  size_t amount = strlen(value);
-  if (amount > SIZE_MAX - *length)
-    return 0;
-  size_t required = *length + amount;
-  if (required + 1 > *capacity) {
-    size_t next = *capacity ? *capacity : 64;
-    while (next < required + 1) {
-      if (next > SIZE_MAX / 2)
-        return 0;
-      next *= 2;
-    }
-    char *grown = realloc(*text, next);
-    if (!grown)
-      return 0;
-    *text = grown;
-    *capacity = next;
-  }
-  memcpy(*text + *length, value, amount);
-  *length += amount;
-  (*text)[*length] = 0;
-  return 1;
-}
-
-static int append_bytes(char **text, size_t *length, size_t *capacity, const char *value, size_t amount) {
-  if (amount > SIZE_MAX - *length || *length + amount + 1 > *capacity) {
-    size_t required = *length + amount + 1;
-    size_t next = *capacity ? *capacity : 64;
-    while (next < required) {
-      if (next > SIZE_MAX / 2)
-        return 0;
-      next *= 2;
-    }
-    char *grown = realloc(*text, next);
-    if (!grown)
-      return 0;
-    *text = grown;
-    *capacity = next;
-  }
-  memcpy(*text + *length, value, amount);
-  *length += amount;
-  (*text)[*length] = 0;
-  return 1;
-}
+#define append_text sequel_summary_append_text
+#define append_bytes sequel_summary_append_bytes
 
 static const char summary_ellipsis[] = "\342\200\246";
 
@@ -1541,6 +1489,30 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_text(&text, &length, &capacity, " SET …") ||
           (where && (!append_text(&text, &length, &capacity, " WHERE …"))) ||
           (order && (!append_text(&text, &length, &capacity, " ORDER BY …"))) ||
+          (limit && (!append_text(&text, &length, &capacity, " LIMIT ") ||
+                     !append_bytes(&text, &length, &capacity, limit + 7,
+                                   (source.data + source.length) - (limit + 7)))))
+        goto no_memory;
+    }
+  }
+  if (text && summary_word(source.data, source.length, 0, "DELETE") && strstr(source.data, " ORDER BY ")) {
+    const char *from = strstr(source.data, " FROM ");
+    const char *where = from ? strstr(from, " WHERE ") : NULL;
+    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
+    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+    if (from && where && order) {
+      const char *table = from + 6;
+      const char *table_end = where;
+      while (table_end > table && isspace((unsigned char)table_end[-1]))
+        --table_end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "DELETE FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+          !append_text(&text, &length, &capacity, " WHERE ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " ORDER BY ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           (limit && (!append_text(&text, &length, &capacity, " LIMIT ") ||
                      !append_bytes(&text, &length, &capacity, limit + 7,
                                    (source.data + source.length) - (limit + 7)))))

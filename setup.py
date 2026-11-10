@@ -19,6 +19,8 @@ setup(
                 "lib/formatter.c",
                 "lib/fingerprint.c",
                 "lib/summary/document.c",
+                "lib/summary/buffer.c",
+                "lib/summary/options.c",
                 "lib/sanitizer.c",
                 "lib/util/utf8.c",
                 "third_party/utf8proc/utf8proc.c",
