@@ -102,6 +102,18 @@ int main(void) {
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
     return 1;
+  const char malformed[] = "SELECT (id";
+  sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
+  sequel_syntax_document_t *malformed_syntax = NULL;
+  if (!check(sequel_parse_sql(&malformed_source, &options, NULL, &malformed_syntax) == SEQUEL_OK, "recovered parse"))
+    return 1;
+  size_t issue_count = 0;
+  const sequel_parse_issue_t *issues = sequel_syntax_issues(malformed_syntax, &issue_count);
+  if (!check(issue_count == 1 && issues[0].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP &&
+                 issues[0].recovery == SEQUEL_RECOVERY_INSERTED_TOKEN,
+             "unclosed group recovery"))
+    return 1;
+  sequel_syntax_document_free(malformed_syntax);
   sequel_text_edit_t edit = {.start = 7, .old_end = 9, .replacement = "name", .replacement_length = 4};
   sequel_syntax_document_t *updated = NULL;
   if (!check(sequel_reparse(syntax, &edit, &options, NULL, &updated) == SEQUEL_OK, "incremental reparse"))

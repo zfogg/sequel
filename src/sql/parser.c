@@ -10,6 +10,8 @@ struct sequel_syntax_document {
   size_t node_count;
   size_t *children;
   size_t child_count;
+  sequel_parse_issue_t *issues;
+  size_t issue_count;
 };
 
 static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed, size_t token_index) {
@@ -78,6 +80,16 @@ static int append_child(sequel_syntax_document_t *document, size_t parent, size_
   return 1;
 }
 
+static int append_issue(sequel_syntax_document_t *document, sequel_parse_issue_t issue) {
+  size_t count = document->issue_count + 1;
+  sequel_parse_issue_t *issues = realloc(document->issues, count * sizeof(*issues));
+  if (!issues)
+    return 0;
+  document->issues = issues;
+  document->issues[document->issue_count++] = issue;
+  return 1;
+}
+
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
                              const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out) {
   if (!lexed || !out)
@@ -90,6 +102,8 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   size_t start_token = 0;
+  size_t delimiter_stack[64];
+  size_t delimiter_depth = 0;
   for (size_t i = 0; i <= token_count; ++i) {
     if (cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata)) {
       sequel_syntax_document_free(document);
@@ -98,6 +112,41 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
     bool boundary = i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF ||
                     (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1 &&
                      sequel_lexed_source(lexed).data[tokens[i].range.start] == ';');
+    if (!boundary)
+      ;
+    else {
+      /* Statement segmentation is handled below; delimiter validation runs for every token. */
+    }
+    if (i < token_count && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION) {
+      sequel_source_view_t source = sequel_lexed_source(lexed);
+      char punctuation = source.data[tokens[i].range.start];
+      if (punctuation == '(' || punctuation == '[') {
+        if (delimiter_depth < (options && options->max_nesting ? options->max_nesting : 64))
+          delimiter_stack[delimiter_depth++] = i;
+      } else if (punctuation == ')' || punctuation == ']') {
+        if (!delimiter_depth) {
+          if (!append_issue(document,
+                            (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE, SEQUEL_RECOVERY_SKIPPED_TOKEN,
+                                                   tokens[i].range, SIZE_MAX})) {
+            sequel_syntax_document_free(document);
+            return SEQUEL_ERR_NOMEM;
+          }
+        } else {
+          size_t opening = delimiter_stack[delimiter_depth - 1];
+          char expected = punctuation == ')' ? '(' : '[';
+          if (source.data[tokens[opening].range.start] != expected) {
+            if (!append_issue(document,
+                              (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN, SEQUEL_RECOVERY_SKIPPED_TOKEN,
+                                                     tokens[i].range, SIZE_MAX})) {
+              sequel_syntax_document_free(document);
+              return SEQUEL_ERR_NOMEM;
+            }
+          } else {
+            --delimiter_depth;
+          }
+        }
+      }
+    }
     if (!boundary)
       continue;
     size_t first = start_token;
@@ -156,6 +205,17 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
       break;
     start_token = i + (i < token_count && tokens[i].kind != SEQUEL_TOKEN_EOF ? 1 : 0);
   }
+  if (delimiter_depth) {
+    sequel_source_view_t source = sequel_lexed_source(lexed);
+    size_t opening = delimiter_stack[delimiter_depth - 1];
+    if (!append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP,
+                                                       SEQUEL_RECOVERY_INSERTED_TOKEN,
+                                                       {tokens[opening].range.start, source.length},
+                                                       SIZE_MAX})) {
+      sequel_syntax_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
   (void)options;
   *out = document;
   return SEQUEL_OK;
@@ -166,9 +226,16 @@ void sequel_syntax_document_free(sequel_syntax_document_t *document) {
     return;
   free(document->nodes);
   free(document->children);
+  free(document->issues);
   if (document->owns_lexed)
     sequel_lexed_document_free((sequel_lexed_document_t *)document->lexed);
   free(document);
+}
+
+const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count) {
+  if (count)
+    *count = document ? document->issue_count : 0;
+  return document ? document->issues : NULL;
 }
 
 const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document) {

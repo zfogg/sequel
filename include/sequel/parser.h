@@ -24,6 +24,28 @@ typedef struct {
   size_t replacement_length;
 } sequel_text_edit_t;
 
+typedef enum {
+  SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE = 1,
+  SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP,
+  SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
+  SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN
+} sequel_parse_issue_code_t;
+
+typedef enum {
+  SEQUEL_RECOVERY_NONE = 0,
+  SEQUEL_RECOVERY_INSERTED_TOKEN,
+  SEQUEL_RECOVERY_SKIPPED_TOKEN,
+  SEQUEL_RECOVERY_SYNCHRONIZED_CLAUSE,
+  SEQUEL_RECOVERY_OPAQUE_REGION
+} sequel_recovery_kind_t;
+
+typedef struct {
+  sequel_parse_issue_code_t code;
+  sequel_recovery_kind_t recovery;
+  sequel_source_range_t range;
+  size_t statement_index;
+} sequel_parse_issue_t;
+
 typedef bool (*sequel_cancel_callback_t)(void *userdata);
 
 typedef struct {
@@ -82,6 +104,8 @@ const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *
 
 /** Return child node indexes for a syntax node. */
 const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count);
 
 sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
                                     const sequel_syntax_visitor_t *visitor);
