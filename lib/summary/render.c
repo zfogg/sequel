@@ -1652,6 +1652,8 @@ summary_postprocess:
     }
   }
   sequel_summary_redact_rendered_literals(text, &length);
+  while (length && isspace((unsigned char)text[length - 1]))
+    --length;
   text[length] = 0;
   sequel_text_result_free(out);
   *out =

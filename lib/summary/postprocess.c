@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdbool.h>
 #include <string.h>
 
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
