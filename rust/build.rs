@@ -49,11 +49,11 @@ fn main() {
             "src/sql/analysis_document.c",
             "src/sql/serialization.c",
             "src/sql/diagnostic.c",
-            "src/sql/format_document.c",
+            "src/sql/formatter.c",
             "src/sql/fingerprint.c",
             "src/sql/summary_document.c",
             "src/sql/sanitizer.c",
-            "src/sql/diagnostics_bridge.c",
+            "src/sql/diagnostics.c",
             "src/utf8.c",
             "third_party/utf8proc.c",
         ])
