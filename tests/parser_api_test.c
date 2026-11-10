@@ -25,6 +25,27 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 }
 
 int main(void) {
+  {
+    const char arithmetic[] = "SELECT value>=-1";
+    sequel_source_view_t arithmetic_source = {arithmetic, strlen(arithmetic)};
+    sequel_parse_options_t arithmetic_options;
+    sequel_parse_options_init(&arithmetic_options);
+    sequel_lexed_document_t *arithmetic_lexed = NULL;
+    if (!check(sequel_lex(&arithmetic_source, &arithmetic_options, NULL, &arithmetic_lexed) == SEQUEL_OK,
+               "operator lexing"))
+      return 1;
+    size_t arithmetic_count = 0;
+    const sequel_token_t *arithmetic_tokens = sequel_lexed_tokens(arithmetic_lexed, &arithmetic_count);
+    if (!check(arithmetic_count >= 6, "operator token count") ||
+        !check(arithmetic_tokens[2].kind == SEQUEL_TOKEN_OPERATOR &&
+                   arithmetic_tokens[2].range.end - arithmetic_tokens[2].range.start == 2,
+               "comparison boundary") ||
+        !check(arithmetic_tokens[3].kind == SEQUEL_TOKEN_OPERATOR &&
+                   arithmetic_tokens[3].range.end - arithmetic_tokens[3].range.start == 1,
+               "unary boundary"))
+      return 1;
+    sequel_lexed_document_free(arithmetic_lexed);
+  }
   const char sql[] =
       "SELECT coalesce(id, 1), 'value' /* removed */ FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
