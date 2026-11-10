@@ -688,6 +688,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       bool nested = false;
+      size_t join_index = SIZE_MAX;
+      for (size_t j = 0; j < sequel_query_join_count(query); ++j)
+        if (joins[j].right_relation == i) {
+          join_index = j;
+          break;
+        }
       for (size_t p = 0; p < sequel_query_predicate_count(query); ++p) {
         const sequel_predicate_info_t *predicate = &sequel_query_predicates(query)[p];
         if (sequel_source_range_contains(predicate->range, relations[i].range)) {
@@ -695,14 +701,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           break;
         }
       }
-      if (nested)
+      if (nested && join_index == SIZE_MAX)
         continue;
-      size_t join_index = SIZE_MAX;
-      for (size_t j = 0; j < sequel_query_join_count(query); ++j)
-        if (joins[j].right_relation == i) {
-          join_index = j;
-          break;
-        }
       if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX && i != 0)
         continue;
       if (operation != SEQUEL_OPERATION_CREATE) {
