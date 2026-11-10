@@ -197,7 +197,8 @@ static int maps_and_metadata(void) {
   CHECK(r.start == 0 && r.end == strlen(a.text));
   sequel_analysis_free(&a);
   options.keep_in_lists = true;
-  CHECK(sequel_analyze("SELECT x IN (1,2,3)", &options, &a) == SEQUEL_OK && strstr(a.text, "(?,?,?)"));
+  CHECK(sequel_analyze("SELECT x IN (1,2,3)", &options, &a) == SEQUEL_OK);
+  CHECK(strstr(a.text, "(?,?,?)"));
   sequel_analysis_free(&a);
   return 0;
 }

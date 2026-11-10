@@ -370,7 +370,7 @@ static void analysis_structure(const char *sql, size_t n, format_token *ts, size
     format_token t = ts[i];
     if (t.kind >= 3)
       continue;
-    size_t off = (size_t)(t.t.p - sql);
+    size_t off = t.source_offset;
     if (start == SIZE_MAX)
       start = off;
     last = off + t.t.n;
@@ -389,7 +389,7 @@ static void analysis_structure(const char *sql, size_t n, format_token *ts, size
         depth--;
     } else if (sym(t.t, ';')) {
       if (depth)
-        analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, (size_t)(ts[stack[depth - 1]].t.p - sql), off);
+        analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, ts[stack[depth - 1]].source_offset, off);
       depth = 0;
       /* Empty semicolon statements are not counted. */
       if (start != off)
@@ -398,9 +398,53 @@ static void analysis_structure(const char *sql, size_t n, format_token *ts, size
     }
   }
   if (depth)
-    analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, (size_t)(ts[stack[depth - 1]].t.p - sql), n);
+    analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, ts[stack[depth - 1]].source_offset, n);
   if (start != SIZE_MAX)
     analysis_add_statement(out, start, last);
+}
+
+static void analysis_structure_from_lexed(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
+  size_t count = 0, start = SIZE_MAX, last = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
+  for (size_t i = 0; i < count; ++i) {
+    const sequel_token_t *token = &tokens[i];
+    if (token->kind == SEQUEL_TOKEN_EOF)
+      break;
+    if (token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
+        token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+      continue;
+    if (start == SIZE_MAX)
+      start = token->range.start;
+    last = token->range.end;
+    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1 &&
+        source.data[token->range.start] == ';') {
+      analysis_add_statement(out, start, last);
+      start = SIZE_MAX;
+    }
+  }
+  if (start != SIZE_MAX)
+    analysis_add_statement(out, start, last);
+}
+
+static void analysis_compact_list_text(analysis_text *text) {
+  size_t read = 0, write = 0;
+  while (read < text->n) {
+    char c = text->p[read++];
+    if (c == '(' || c == ',') {
+      text->p[write++] = c;
+      while (read < text->n && text->p[read] == ' ')
+        ++read;
+      if (c == '(' && read + 1 < text->n && text->p[read] == '?' && text->p[read + 1] == '?')
+        ++read;
+      continue;
+    }
+    if (c == ' ' && read < text->n && (text->p[read] == ',' || text->p[read] == ')'))
+      continue;
+    text->p[write++] = c;
+  }
+  text->n = write;
+  text->p[write] = 0;
 }
 static bool analysis_word(format_token t, const char *word) {
   size_t n = strlen(word);
@@ -425,13 +469,13 @@ static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t c
       continue;
     if (sym(t.t, '(')) {
       if (++depth > 16)
-        analysis_add_diagnostic(out, SEQUEL_DIAG_DEEP_QUERY_NESTING, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+        analysis_add_diagnostic(out, SEQUEL_DIAG_DEEP_QUERY_NESTING, t.source_offset, t.source_offset + 1);
       if (in_start != SIZE_MAX)
         ++in_items;
     } else if (sym(t.t, ')')) {
       if (in_start != SIZE_MAX && depth == in_start) {
         if (in_items > 32)
-          analysis_add_diagnostic(out, SEQUEL_DIAG_LARGE_IN_LIST, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+          analysis_add_diagnostic(out, SEQUEL_DIAG_LARGE_IN_LIST, t.source_offset, t.source_offset + 1);
         in_start = SIZE_MAX;
         in_items = 0;
       }
@@ -439,7 +483,7 @@ static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t c
         --depth;
     }
     if (sym(t.t, ';') && i + 1 < count && sym(ts[i + 1].t, ';'))
-      analysis_add_diagnostic(out, SEQUEL_DIAG_EMPTY_STATEMENT, (size_t)(t.t.p - sql), (size_t)(t.t.p - sql) + 1);
+      analysis_add_diagnostic(out, SEQUEL_DIAG_EMPTY_STATEMENT, t.source_offset, t.source_offset + 1);
     if (t.kind == 1) {
       if (!operation) {
         operation = true;
@@ -449,8 +493,7 @@ static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t c
             analysis_word(t, "DELETE") || analysis_word(t, "MERGE") || analysis_word(t, "WITH")) {
           /* recognized */
         } else {
-          analysis_add_diagnostic(out, SEQUEL_DIAG_UNKNOWN_OPERATION, (size_t)(t.t.p - sql),
-                                  (size_t)(t.t.p - sql) + t.t.n);
+          analysis_add_diagnostic(out, SEQUEL_DIAG_UNKNOWN_OPERATION, t.source_offset, t.source_offset + t.t.n);
         }
       }
       if (analysis_word(t, "FROM") || analysis_word(t, "INTO") || analysis_word(t, "UPDATE") ||
@@ -463,8 +506,7 @@ static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t c
       if (analysis_word(t, "IN"))
         in_start = depth;
       if (analysis_word(t, "ILIKE") && dialect != SEQUEL_POSTGRESQL && dialect != SEQUEL_DUCKDB)
-        analysis_add_diagnostic(out, SEQUEL_DIAG_DIALECT_PORTABILITY, (size_t)(t.t.p - sql),
-                                (size_t)(t.t.p - sql) + t.t.n);
+        analysis_add_diagnostic(out, SEQUEL_DIAG_DIALECT_PORTABILITY, t.source_offset, t.source_offset + t.t.n);
     }
     if (sym(t.t, '*') && i > 0 && analysis_word(ts[i - 1], "SELECT"))
       star = true;
@@ -490,7 +532,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
   for (size_t i = 0; i < count; i++) {
     sequel_work_tick(1);
     format_token t = ts[i];
-    size_t start = (size_t)(t.t.p - sql), end = start + t.t.n;
+    size_t start = t.source_offset, end = start + t.t.n;
     if (collapse_end != SIZE_MAX && i == collapse_end) {
       consumed = start;
       collapse_end = SIZE_MAX;
@@ -657,7 +699,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
       analysis_append(safe, "(?", 2);
       if (map) {
         analysis_segment(map, start, end, before, before + 1, SEQUEL_MAP_COPY);
-        size_t close = (size_t)(ts[t.matching].t.p - sql);
+        size_t close = ts[t.matching].source_offset;
         analysis_segment(map, end, close, before + 1, before + 2, SEQUEL_MAP_REPLACE);
       }
       analysis_layout_add(layout, before, 1, 0, token_gap, a->options.dialect);
@@ -969,6 +1011,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       count = SIZE_MAX;
     }
     analysis_structure(sql, n, tokens, scanned, out);
+    if (syntax && parse_issue_count)
+      analysis_structure_from_lexed(sequel_syntax_lexed(syntax), out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
@@ -1003,6 +1047,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       sha_frame(&hash, 'D', analysis_dialect_name(o.dialect), strlen(analysis_dialect_name(o.dialect)), false);
       bool maps = !o.omit_source_maps && !o.omit_query_text;
       analysis_sanitize(sql, n, tokens, count, &a, &safe, maps ? &map : NULL, &layout, &hash);
+      if (o.keep_in_lists)
+        analysis_compact_list_text(&safe);
       if (out->statement_count) {
         char digest[65];
         sha_final(&hash, digest);
