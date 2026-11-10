@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "internal.h"
@@ -12,6 +13,14 @@ static const char summary_ellipsis[] = "\342\200\246";
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
                                        sequel_source_range_t range, bool preserve_limit) {
   size_t start = summary_skip_space(source, range.end, range.start);
+  if (!summary_word(source, range.end, start, "SELECT")) {
+    const char *select = sequel_summary_find_word(source, range.end, start + 4, "SELECT");
+    if (select)
+      start = (size_t)(select - source);
+  }
+  if (source && sequel_summary_find_text(source, "tradebot_parity_snapshots"))
+    fprintf(stderr, "body start=%zu char=%c from=%s\\n", start, source[start],
+            sequel_summary_find_text(source + start, "FROM") ? "yes" : "no");
   if (summary_word(source, range.end, start, "SELECT")) {
     size_t from = start;
     while (from < range.end && !summary_word(source, range.end, from, "FROM"))
@@ -69,13 +78,52 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       ++table_end;
     if (!append_bytes(text, length, capacity, source + table, table_end - table))
       return 0;
-    size_t where = table_end;
-    while (where < range.end && !summary_word(source, range.end, where, "WHERE"))
-      ++where;
-    if (where < range.end && (!append_text(text, length, capacity, " WHERE ") ||
-                              !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
-      return 0;
     const char *union_all = sequel_summary_find_text(source + table_end, "UNION ALL");
+    if (union_all && union_all < source + range.end) {
+      const char *first_join = sequel_summary_find_text(source + table_end, " JOIN ");
+      const char *first_on = first_join ? sequel_summary_find_text(first_join, " ON ") : NULL;
+      if (first_join && first_join < union_all && first_on && first_on < union_all) {
+        const char *alias = source + table_end;
+        while (alias < first_join && isspace((unsigned char)*alias))
+          ++alias;
+        const char *alias_end = alias;
+        while (alias_end < first_join && !isspace((unsigned char)*alias_end))
+          ++alias_end;
+        const char *join_table = first_join + 6;
+        while (join_table < first_on && isspace((unsigned char)*join_table))
+          ++join_table;
+        const char *join_table_end = join_table;
+        while (join_table_end < first_on && !isspace((unsigned char)*join_table_end))
+          ++join_table_end;
+        const char *join_alias = join_table_end;
+        while (join_alias < first_on && isspace((unsigned char)*join_alias))
+          ++join_alias;
+        const char *join_alias_end = join_alias;
+        while (join_alias_end < first_on && !isspace((unsigned char)*join_alias_end))
+          ++join_alias_end;
+        if (!append_text(text, length, capacity, " AS ") ||
+            !append_bytes(text, length, capacity, alias, alias_end - alias) ||
+            !append_text(text, length, capacity, " JOIN ") ||
+            !append_bytes(text, length, capacity, join_table, join_table_end - join_table) ||
+            !append_text(text, length, capacity, " AS ") ||
+            !append_bytes(text, length, capacity, join_alias, join_alias_end - join_alias) ||
+            !append_text(text, length, capacity, " ON ") ||
+            !append_bytes(text, length, capacity, first_on + 4, (size_t)(union_all - (first_on + 4))))
+          return 0;
+      }
+    }
+    size_t where = table_end;
+    while (where < range.end && (!union_all || where < (size_t)(union_all - source)) &&
+           !summary_word(source, range.end, where, "WHERE"))
+      ++where;
+    const char *first_join = sequel_summary_find_text(source + table_end, " JOIN ");
+    if (first_join && (!where || first_join < source + where) &&
+        !append_bytes(text, length, capacity, source + table_end, (size_t)(where - table_end)))
+      return 0;
+    if (!union_all && where < range.end &&
+        (!append_text(text, length, capacity, " WHERE ") ||
+         !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+      return 0;
     if (union_all && union_all < source + range.end) {
       const char *second = sequel_summary_find_text(union_all, "SELECT ");
       const char *second_from = second ? sequel_summary_find_text(second, " FROM ") : NULL;
