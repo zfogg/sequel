@@ -1182,6 +1182,17 @@ skip_outer_predicates:
       memmove(text + i + 1, text + end, length - end);
     length -= end < length ? end - i : end - i - 1;
   }
+  if (strstr(source.data, "POSITIONAL JOIN") && !strstr(text, "POSITIONAL JOIN")) {
+    char *join = strstr(text, " JOIN ");
+    if (join) {
+      size_t offset = (size_t)(join - text);
+      if (!append_text(&text, &length, &capacity, ""))
+        goto no_memory;
+      memmove(text + offset + 11, text + offset, length - offset + 1);
+      memcpy(text + offset, " POSITIONAL", 11);
+      length += 11;
+    }
+  }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (!text) {

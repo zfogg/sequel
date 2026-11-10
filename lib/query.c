@@ -141,6 +141,18 @@ static int is_reserved_relation_alias(const sequel_source_view_t *source, const 
          toupper((unsigned char)source->data[token->range.start + 4]) == 'L';
 }
 
+static int is_join_modifier(const sequel_source_view_t *source, const sequel_token_t *token) {
+  if (!is_identifier_token(token) || token->range.end > source->length)
+    return 0;
+  size_t length = token->range.end - token->range.start;
+  const char *modifiers[] = {"NATURAL", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "INNER", "LATERAL", "ASOF",
+                             "SEMI", "ANTI", "POSITIONAL"};
+  for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); ++i)
+    if (length == strlen(modifiers[i]) && !_strnicmp(source->data + token->range.start, modifiers[i], length))
+      return 1;
+  return 0;
+}
+
 static int token_in_subquery(const sequel_token_t *tokens, size_t index, const sequel_source_view_t *source) {
   size_t depth = 0;
   size_t subquery_depth = SIZE_MAX;
@@ -492,6 +504,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       ++alias;
     sequel_source_range_t alias_range = {end, end};
     if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
+        !is_join_modifier(&source, &tokens[alias]) &&
         !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
