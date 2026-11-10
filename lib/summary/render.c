@@ -1210,9 +1210,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         break;
       }
   }
-  if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      !sequel_summary_find_text(text ? text : "", "LATERAL (") && !sequel_summary_find_text(source.data, " JOIN (")) {
-    for (size_t i = 0; i < source.length; ++i)
+  if (settings->include_tables && statement_count && !sequel_summary_find_text(text ? text : "", "LATERAL (") &&
+      !sequel_summary_find_text(source.data, " JOIN (")) {
+    for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;
         while (start < source.length && isspace((unsigned char)source.data[start]))
