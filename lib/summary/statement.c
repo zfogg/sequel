@@ -28,6 +28,8 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
       ++end;
     return end > start && append_bytes(text, length, capacity, source.data + start, end - start);
   }
+  if (summary_word(source.data, source.length, 0, "REINDEX"))
+    return append_text(text, length, capacity, "SQL");
   if (statement->operation != SEQUEL_OPERATION_UNKNOWN) {
     return append_text(text, length, capacity, operation_name(statement->operation));
   }

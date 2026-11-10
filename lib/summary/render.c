@@ -254,9 +254,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         break;
       }
   }
-  if (settings->include_tables &&
-      sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) != SEQUEL_MYSQL &&
-      statement_count &&
+  if (settings->include_tables && statement_count &&
       statements[0].operation == SEQUEL_OPERATION_CREATE) {
     size_t index = SIZE_MAX;
     for (size_t i = 0; i < source.length; ++i)
@@ -293,7 +291,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       size_t end = name;
-      if (name < source.length && source.data[name] != '\'' && !summary_word(source.data, source.length, name, "ON")) {
+      sequel_dialect_t dialect = sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query)));
+      if (name < source.length && source.data[name] != '\'' &&
+          !(dialect == SEQUEL_MYSQL &&
+            (source.data[name] == '"' || source.data[name] == '`')) &&
+          !summary_word(source.data, source.length, name, "ON")) {
         if (source.data[name] == '"' || source.data[name] == '`') {
           size_t quoted_name = name;
           char quote = source.data[name++];
