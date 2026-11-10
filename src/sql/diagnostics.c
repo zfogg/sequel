@@ -191,6 +191,15 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
     if (sql[i] == ')' && nesting)
       --nesting;
   }
+  size_t comment_depth = 0;
+  for (size_t i = 0; i + 1 < n; ++i) {
+    if (sql[i] == '/' && sql[i + 1] == '*' && ++comment_depth > 64) {
+      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 2);
+      return SEQUEL_ERR_OVERFLOW;
+    }
+    if (sql[i] == '*' && sql[i + 1] == '/' && comment_depth)
+      --comment_depth;
+  }
   if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
     const char *format = strstr(sql, " FORMAT ") + 1;
     diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
