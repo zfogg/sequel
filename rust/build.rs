@@ -50,6 +50,7 @@ fn main() {
             "src/sql/serialization.c",
             "src/sql/diagnostic.c",
             "src/sql/format_document.c",
+            "src/sql/fingerprint.c",
             "src/sql/diagnostics_bridge.c",
             "src/utf8.c",
             "third_party/utf8proc.c",

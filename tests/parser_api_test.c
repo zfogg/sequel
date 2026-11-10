@@ -196,6 +196,17 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
+  char token_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  char syntax_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  char query_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  if (!check(sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_TOKENS, token_fingerprint) == SEQUEL_OK &&
+                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_SYNTAX, syntax_fingerprint) ==
+                     SEQUEL_OK &&
+                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, query_fingerprint) ==
+                     SEQUEL_OK &&
+                 strlen(token_fingerprint) == 16 && strlen(syntax_fingerprint) == 16 && strlen(query_fingerprint) == 16,
+             "document fingerprints"))
+    return 1;
   sequel_query_analysis_free(document_analysis);
   sequel_buffer_t serialized = {0};
   if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,
