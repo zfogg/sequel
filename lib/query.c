@@ -199,8 +199,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t cursor = i + 1;
     while (cursor < token_count && (is_trivia(&tokens[cursor])))
       ++cursor;
-    if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_KEYWORD &&
-        tokens[cursor].range.end - tokens[cursor].range.start == 9 &&
+    if (cursor < token_count && tokens[cursor].range.end - tokens[cursor].range.start == 9 &&
         !memcmp(source.data + tokens[cursor].range.start, "RECURSIVE", 9))
       ++cursor;
     for (;;) {
@@ -227,12 +226,27 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         while (cursor < token_count && is_trivia(&tokens[cursor]))
           ++cursor;
       }
-      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_KEYWORD ||
-          tokens[cursor].keyword_id != SEQUEL_KEYWORD_AS)
+      if (cursor >= token_count || tokens[cursor].range.end - tokens[cursor].range.start != 2 ||
+          memcmp(source.data + tokens[cursor].range.start, "AS", 2) != 0)
         break;
       ++cursor;
       while (cursor < token_count && is_trivia(&tokens[cursor]))
         ++cursor;
+      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_IDENTIFIER) {
+        size_t modifier = tokens[cursor].range.end - tokens[cursor].range.start;
+        if ((modifier == 12 && !memcmp(source.data + tokens[cursor].range.start, "MATERIALIZED", 12)) ||
+            (modifier == 3 && !memcmp(source.data + tokens[cursor].range.start, "NOT", 3))) {
+          ++cursor;
+          while (cursor < token_count && is_trivia(&tokens[cursor]))
+            ++cursor;
+          if (modifier == 3 && cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_IDENTIFIER &&
+              tokens[cursor].range.end - tokens[cursor].range.start == 12 &&
+              !memcmp(source.data + tokens[cursor].range.start, "MATERIALIZED", 12))
+            ++cursor;
+          while (cursor < token_count && is_trivia(&tokens[cursor]))
+            ++cursor;
+        }
+      }
       if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
           source.data[tokens[cursor].range.start] != '(')
         break;
