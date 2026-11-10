@@ -266,6 +266,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t cte_prefix_end = 0;
   bool nested_cte_scope = false;
   bool insert_values_scope = false;
+  bool cte_insert_scope = false;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
@@ -313,6 +314,36 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       nested_cte_scope = true;
+    }
+    const char *outer_insert = strstr(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
+    if (!outer_insert)
+      outer_insert = strstr(source.data, "INSERT INTO");
+    if (outer_insert) {
+      const char *target = outer_insert + 12, *target_end = target;
+      while (*target_end && !isspace((unsigned char)*target_end) && *target_end != '(')
+        ++target_end;
+      const char *outer_from = strstr(target_end, " FROM ");
+      if (outer_from) {
+        const char *relation = outer_from + 6, *relation_end = relation;
+        while (*relation_end && !isspace((unsigned char)*relation_end) && *relation_end != ';')
+          ++relation_end;
+        if (!append_text(&text, &length, &capacity, "INSERT INTO ") ||
+            !append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
+            !append_text(&text, &length, &capacity, " SELECT ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !append_text(&text, &length, &capacity, " FROM ") ||
+            !append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)))
+          goto no_memory;
+        cte_insert_scope = true;
+      }
+    }
+    if (cte_insert_scope) {
+      char *returning = strstr(text, " RETURNING ");
+      if (returning) {
+        char *close = strchr(returning, ')');
+        if (close)
+          memmove(returning, close, strlen(close) + 1);
+      }
     }
   }
   if (statement_count > 1 && settings->redact_literals) {
@@ -404,7 +435,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = multi, .length = multi_length, .capacity = multi_capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  if (settings->include_operation && statement_count && !nested_cte_scope) {
+  if (settings->include_operation && statement_count && !nested_cte_scope && !cte_insert_scope) {
     if (statements[0].operation != SEQUEL_OPERATION_UNKNOWN) {
       if (!append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
         goto no_memory;
@@ -538,7 +569,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_tables && !nested_cte_scope && !insert_values_scope) {
+  if (settings->include_tables && !nested_cte_scope && !insert_values_scope && !cte_insert_scope) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
