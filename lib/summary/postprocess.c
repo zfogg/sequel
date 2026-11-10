@@ -1,8 +1,29 @@
+#include <ctype.h>
 #include <string.h>
 
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
+  for (size_t i = 0; i + 1 < *length; ++i) {
+    if (text[i] != '$')
+      continue;
+    size_t delimiter_end = i + 1;
+    while (delimiter_end < *length && (isalnum((unsigned char)text[delimiter_end]) || text[delimiter_end] == '_'))
+      ++delimiter_end;
+    if (delimiter_end >= *length || text[delimiter_end] != '$')
+      continue;
+    size_t delimiter_length = delimiter_end + 1 - i;
+    size_t end = delimiter_end + 1;
+    while (end + delimiter_length <= *length &&
+           memcmp(text + end, text + i, delimiter_length) != 0)
+      ++end;
+    if (end + delimiter_length > *length)
+      continue;
+    text[i] = '?';
+    memmove(text + i + 1, text + end + delimiter_length, *length - end - delimiter_length + 1);
+    *length -= end + delimiter_length - i - 1;
+    --i;
+  }
   for (size_t i = 0; i < *length; ++i) {
     if (text[i] != '\'')
       continue;
@@ -17,12 +38,13 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
       }
       ++end;
     }
-    text[i] = '?';
-    if (end < *length)
-      memmove(text + i + 1, text + end + 1, *length - end - 1);
-    else
-      memmove(text + i + 1, text + end, *length - end);
-    *length -= end < *length ? end - i : end - i - 1;
+    size_t start = i;
+    if (start && text[start - 1] == 'E')
+      --start;
+    text[start] = '?';
+    memmove(text + start + 1, text + end + 1, *length - end - 1);
+    *length -= end - start;
+    i = start;
   }
 }
 
