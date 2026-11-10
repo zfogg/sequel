@@ -41,10 +41,13 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       break;
     if (token->range.end > source.length || token->range.start > token->range.end)
       goto invalid;
+    if (token->flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED))
+      goto invalid;
     if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
         (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       continue;
-    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)) {
+    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) &&
+        ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
       continue;

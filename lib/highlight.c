@@ -287,6 +287,11 @@ static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *token
     return SEQUEL_COLOR_VARIABLE;
   if (token->kind == SEQUEL_TOKEN_OPERATOR)
     return SEQUEL_COLOR_OPERATOR;
+  if (token->kind == SEQUEL_TOKEN_IDENTIFIER &&
+      highlight_text_word(text, length,
+                          "BIGINT INTEGER INT DATE DATETIME DECIMAL DOUBLE FLOAT JSON NUMERIC REAL TEXT TIME "
+                          "TIMESTAMP UUID VARCHAR"))
+    return SEQUEL_COLOR_TYPE;
   if (token->kind == SEQUEL_TOKEN_KEYWORD) {
     if (highlight_text_word(text, length, "TRUE FALSE"))
       return SEQUEL_COLOR_BOOLEAN;
@@ -406,8 +411,12 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_syntax_issues(document, &issue_count);
   if (issue_count)
     (void)sequel_syntax_diagnostic(document, 0, diagnostic);
-  if (issue_count && (!options->tolerant || diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER ||
-                      diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT)) {
+  bool lexical_failure = diagnostic->code == SEQUEL_DIAG_UNTERMINATED_STRING ||
+                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER ||
+                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_COMMENT ||
+                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
+  if (issue_count && (diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER ||
+                      diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT || (!options->tolerant && lexical_failure))) {
     sequel_syntax_document_free(document);
     return diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW : SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -415,6 +424,16 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   for (size_t i = 0; i < token_count; ++i) {
+    if (!options->tolerant && (tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED)) {
+      sequel_syntax_document_free(document);
+      diagnostic_report(sql, n, diagnostic,
+                       tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                       : tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                       : tokens[i].kind == SEQUEL_TOKEN_PARAMETER ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
+                                                                    : SEQUEL_DIAG_UNTERMINATED_STRING,
+                       tokens[i].range.start, tokens[i].range.end);
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+    }
     if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT && (tokens[i].flags & SEQUEL_TOKEN_FLAG_RECOVERED)) {
       sequel_syntax_document_free(document);
       diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start,

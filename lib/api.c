@@ -7,6 +7,59 @@ static void utf8_cut(char *s, size_t limit) {
   while (limit && isspace((unsigned char)s[limit - 1]))
     s[--limit] = 0;
 }
+
+static void normalize_sanitized_text(char *text) {
+  size_t read = 0, write = 0;
+  bool pending_space = false, line_comment = false, quoted = false;
+  char quote = 0;
+  while (text[read]) {
+    char c = text[read];
+    if (line_comment) {
+      text[write++] = c;
+      ++read;
+      if (c == '\n' || c == '\r')
+        line_comment = false;
+      continue;
+    }
+    if (quoted) {
+      text[write++] = c;
+      ++read;
+      if (c == quote && (read < 2 || text[read - 2] != '\\'))
+        quoted = false;
+      continue;
+    }
+    if ((c == '-' && text[read + 1] == '-') || (c == '/' && text[read + 1] == '*')) {
+      if (pending_space && write)
+        text[write++] = ' ';
+      pending_space = false;
+      line_comment = c == '-';
+      text[write++] = text[read++];
+      text[write++] = text[read++];
+      continue;
+    }
+    if (c == '\'' || c == '"' || c == '`') {
+      if (pending_space && write)
+        text[write++] = ' ';
+      pending_space = false;
+      quoted = true;
+      quote = c;
+      text[write++] = text[read++];
+      continue;
+    }
+    if (isspace((unsigned char)c)) {
+      pending_space = write != 0;
+      ++read;
+      continue;
+    }
+    if (pending_space && write)
+      text[write++] = ' ';
+    pending_space = false;
+    text[write++] = text[read++];
+  }
+  while (write && isspace((unsigned char)text[write - 1]))
+    --write;
+  text[write] = 0;
+}
 static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
   for (size_t i = 0; (sequel_work_tick(1), i + 2 < n); ++i) {
@@ -118,6 +171,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return status;
   if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
     collapse_in(result.data, dialect);
+  normalize_sanitized_text(result.data);
   *truncated = result.length > limit;
   utf8_cut(result.data, limit);
   result.length = strlen(result.data);

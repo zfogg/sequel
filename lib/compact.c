@@ -30,6 +30,15 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
     if (current->kind == SEQUEL_TOKEN_EOF)
       break;
     size_t gap = current->range.start - previous;
+    if (current->kind == SEQUEL_TOKEN_WHITESPACE) {
+      if (memchr(sql + current->range.start, '\n', current->range.end - current->range.start) ||
+          memchr(sql + current->range.start, '\r', current->range.end - current->range.start))
+        put(&b, sql + current->range.start, current->range.end - current->range.start);
+      else if (b.n && b.p[b.n - 1] != ' ')
+        text(&b, " ");
+      previous = current->range.end;
+      continue;
+    }
     if (gap) {
       if (memchr(sql + previous, '\n', gap) || memchr(sql + previous, '\r', gap))
         put(&b, sql + previous, gap);

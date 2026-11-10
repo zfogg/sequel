@@ -135,7 +135,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       kind = SEQUEL_TOKEN_WHITESPACE;
     } else if (source->data[i] == '-' && i + 1 < source->length && source->data[i + 1] == '-') {
       i += 2;
-      while (i < source->length && source->data[i] != '\n')
+      while (i < source->length && source->data[i] != '\n' && source->data[i] != '\r')
         ++i;
       kind = SEQUEL_TOKEN_LINE_COMMENT;
       flags = SEQUEL_TOKEN_FLAG_COMMENT;
@@ -165,6 +165,48 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       if (!settings->retain_comments)
         continue;
+    } else if (source->data[i] == '#' &&
+               (settings->dialect == SEQUEL_MYSQL || settings->dialect == SEQUEL_CLICKHOUSE)) {
+      ++i;
+      while (i < source->length && source->data[i] != '\n' && source->data[i] != '\r')
+        ++i;
+      kind = SEQUEL_TOKEN_LINE_COMMENT;
+      flags = SEQUEL_TOKEN_FLAG_COMMENT;
+      if (!settings->retain_comments)
+        continue;
+    } else if (settings->dialect == SEQUEL_MYSQL && source->data[i] == '_' && i + 1 < source->length) {
+      size_t prefix_end = i + 1;
+      while (prefix_end < source->length && is_word_part((unsigned char)source->data[prefix_end]))
+        ++prefix_end;
+      if (prefix_end < source->length && source->data[prefix_end] == '\'') {
+        i = scan_quoted(source->data, source->length, prefix_end, '\'');
+        kind = SEQUEL_TOKEN_STRING;
+        flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
+        if (i == source->length && !quoted_token_is_terminated(source->data, prefix_end, i, source->length, '\''))
+          flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+      } else {
+        ++i;
+        while (i < source->length && is_word_part((unsigned char)source->data[i]))
+          ++i;
+        kind = SEQUEL_TOKEN_IDENTIFIER;
+      }
+    } else if (settings->dialect == SEQUEL_CLICKHOUSE && i + 2 < source->length &&
+               (unsigned char)source->data[i] == 0xe2 && (unsigned char)source->data[i + 1] == 0x80 &&
+               ((unsigned char)source->data[i + 2] == 0x98 || (unsigned char)source->data[i + 2] == 0x9b ||
+                (unsigned char)source->data[i + 2] == 0x9c || (unsigned char)source->data[i + 2] == 0x9d)) {
+      unsigned char opener = (unsigned char)source->data[i + 2];
+      unsigned char closer = opener == 0x98 ? 0x99 : opener == 0x9b ? 0x9d : opener == 0x9c ? 0x9d : opener;
+      i += 3;
+      while (i + 2 < source->length &&
+             !((unsigned char)source->data[i] == 0xe2 && (unsigned char)source->data[i + 1] == 0x80 &&
+               (unsigned char)source->data[i + 2] == closer))
+        ++i;
+      if (i + 2 < source->length)
+        i += 3;
+      kind = opener == 0x98 ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
+      flags = opener == 0x98 ? SEQUEL_TOKEN_FLAG_LITERAL : 0;
+      if (i == source->length && (unsigned char)source->data[i - 1] != closer)
+        flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
@@ -191,8 +233,11 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     } else if (isdigit((unsigned char)source->data[i]) ||
                (source->data[i] == '.' && i + 1 < source->length && isdigit((unsigned char)source->data[i + 1]))) {
       ++i;
+      if (source->data[start] == '0' && i < source->length && (source->data[i] == 'x' || source->data[i] == 'X'))
+        ++i;
       while (i < source->length &&
-             (isdigit((unsigned char)source->data[i]) || source->data[i] == '.' || source->data[i] == '_'))
+             (isalnum((unsigned char)source->data[i]) || source->data[i] == '.' || source->data[i] == '_' ||
+              source->data[i] == '+' || source->data[i] == '-'))
         ++i;
       if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E')) {
         size_t exponent = i++;
@@ -207,7 +252,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       kind = SEQUEL_TOKEN_NUMBER;
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
     } else if (source->data[i] == '$' &&
-               (settings->dialect == SEQUEL_POSTGRESQL || settings->dialect == SEQUEL_DUCKDB ||
+               (settings->dialect == SEQUEL_GENERIC || settings->dialect == SEQUEL_POSTGRESQL ||
+                settings->dialect == SEQUEL_DUCKDB ||
                 settings->dialect == SEQUEL_SQLITE)) {
       size_t tag_end = i + 1;
       while (tag_end < source->length &&
@@ -229,7 +275,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
           ++i;
         if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
-          if (memchr(source->data + start, '(', i - start)) {
+          if (memchr(source->data + start, '(', source->length - start)) {
             while (i < source->length && source->data[i] != ')' && source->data[i] != ';')
               ++i;
             if (i < source->length && source->data[i] == ')')
@@ -275,13 +321,22 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       }
       kind = SEQUEL_TOKEN_PARAMETER;
       flags |= SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
-    } else if (source->data[i] == '?' || source->data[i] == '$' ||
-               (source->data[i] == ':' && i + 1 < source->length &&
+    } else if (source->data[i] == ':' && i + 1 < source->length && source->data[i + 1] == ':') {
+      i += 2;
+      kind = SEQUEL_TOKEN_OPERATOR;
+    } else if ((source->data[i] == '?' &&
+                (settings->dialect == SEQUEL_SQLITE || settings->dialect == SEQUEL_MYSQL)) ||
+               source->data[i] == '$' ||
+               (source->data[i] == ':' && i > 0 && source->data[i - 1] != ':' &&
+                i + 1 < source->length &&
                 (is_word_start((unsigned char)source->data[i + 1]) ||
                  (settings->dialect == SEQUEL_SQLITE && isdigit((unsigned char)source->data[i + 1])))) ||
                (source->data[i] == '@' &&
-                (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1])))) {
+                (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1]) ||
+                 (settings->dialect == SEQUEL_MYSQL && source->data[i + 1] == '@')))) {
       ++i;
+      if (source->data[start] == '@' && i < source->length && source->data[i] == '@')
+        ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
@@ -292,6 +347,24 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         if (memchr(source->data + start, '(', i - start) && !memchr(source->data + start, ')', i - start))
           flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       }
+    } else if (source->data[i] == '%' && i + 1 < source->length &&
+               (source->data[i + 1] == 's' || source->data[i + 1] == '(')) {
+      i += 2;
+      if (source->data[start + 1] == '(') {
+        while (i < source->length && source->data[i] != ')')
+          ++i;
+        if (i < source->length)
+          ++i;
+        if (i < source->length && source->data[i] == 's')
+          ++i;
+      }
+      kind = SEQUEL_TOKEN_PARAMETER;
+      flags = SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
+    } else if (source->data[i] == '?') {
+      ++i;
+      while (i < source->length && is_operator_char((unsigned char)source->data[i]))
+        ++i;
+      kind = SEQUEL_TOKEN_OPERATOR;
     } else if (is_operator_char((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && is_operator_char((unsigned char)source->data[i]))
