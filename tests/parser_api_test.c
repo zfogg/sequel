@@ -92,7 +92,9 @@ int main(void) {
     return 1;
   size_t operator_count = 0;
   const sequel_token_t *operator_tokens = sequel_lexed_tokens(operator_lexed, &operator_count);
-  if (!check(operator_tokens[1].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER, "bracket identifier"))
+  if (!check(operator_tokens[1].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER &&
+                 !(operator_tokens[1].flags & SEQUEL_TOKEN_FLAG_LITERAL),
+             "quoted identifier is not a literal"))
     return 1;
   if (!check(operator_tokens[4].kind == SEQUEL_TOKEN_OPERATOR, "multi-character operator"))
     return 1;
