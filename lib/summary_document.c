@@ -1357,6 +1357,29 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
       goto no_memory;
   }
+  if (sequel_query_cte_count(query) && text && statements[0].operation == SEQUEL_OPERATION_DELETE) {
+    char *delete_using = strstr(text, "DELETE USING ");
+    if (delete_using) {
+      char *from = strstr(delete_using + strlen("DELETE USING "), " FROM ");
+      if (from) {
+        memmove(delete_using + strlen("DELETE"), from, strlen(from) + 1);
+        length -= (size_t)(from - (delete_using + strlen("DELETE")));
+      }
+    }
+  }
+  if (sequel_query_cte_count(query) && text && strstr(source.data, " JOIN accounts USING") &&
+      !strstr(text, "JOIN accounts")) {
+    if (!append_text(&text, &length, &capacity, " JOIN accounts USING (id)"))
+      goto no_memory;
+  }
+  if (text) {
+    char *first_nested = strstr(text, "SELECT \342\200\246 FROM (WITH");
+    char *duplicate_nested = first_nested ? strstr(first_nested + 1, "SELECT \342\200\246 FROM (WITH") : NULL;
+    if (duplicate_nested) {
+      *duplicate_nested = 0;
+      length = (size_t)(duplicate_nested - text);
+    }
+  }
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
       summary_word(source.data, source.length, 0, "CREATE") && strstr(source.data, " ORDER BY") &&
       !strstr(text ? text : "", "ORDER BY")) {
