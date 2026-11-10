@@ -284,6 +284,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_text(&text, &length, &capacity, ")"))
         goto no_memory;
     }
+    char *returning = strstr(text, "RETURNING");
+    if (returning) {
+      char *close = strchr(returning, ')');
+      if (close)
+        memmove(returning, close, strlen(close) + 1);
+    }
     if (!append_text(&text, &length, &capacity, " "))
       goto no_memory;
     cte_prefix_end = length;
@@ -318,6 +324,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     const char *outer_insert = strstr(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
     if (!outer_insert)
       outer_insert = strstr(source.data, "INSERT INTO");
+    if (outer_insert)
+      cte_insert_scope = true;
     if (outer_insert) {
       const char *target = outer_insert + 12, *target_end = target;
       while (*target_end && !isspace((unsigned char)*target_end) && *target_end != '(')
@@ -334,11 +342,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             !append_text(&text, &length, &capacity, " FROM ") ||
             !append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)))
           goto no_memory;
-        cte_insert_scope = true;
       }
     }
     if (cte_insert_scope || (strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO"))) {
-      char *returning = strstr(text, " RETURNING ");
+      char *returning = strstr(text, "RETURNING");
       if (returning) {
         char *close = strchr(returning, ')');
         if (close)
@@ -806,7 +813,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
         goto no_memory;
     }
-    if (operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " RETURNING ") &&
+    if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope && strstr(source.data, " RETURNING ") &&
         (!append_text(&text, &length, &capacity, " RETURNING ") ||
          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
       goto no_memory;
@@ -833,7 +840,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (insert_values_scope && strstr(source.data, " RETURNING ") && !strstr(text ? text : "", " RETURNING ") &&
+  if (insert_values_scope && !cte_insert_scope && strstr(source.data, " RETURNING ") &&
+      !strstr(text ? text : "", " RETURNING ") &&
       (!append_text(&text, &length, &capacity, " RETURNING ") ||
        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     goto no_memory;
@@ -1008,6 +1016,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));
     if (!append_text(&text, &length, &capacity, binds))
       goto no_memory;
+  }
+  if (sequel_query_cte_count(query) && strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO")) {
+    char *returning = strstr(text, "RETURNING");
+    if (returning) {
+      char *close = strchr(returning, ')');
+      if (close)
+        memmove(returning, close, strlen(close) + 1);
+    }
   }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
