@@ -20,6 +20,8 @@ static const char summary_ellipsis[] = "\342\200\246";
 #define summary_word sequel_summary_word
 #define summary_skip_space sequel_summary_skip_space
 
+#define normalize_projection sequel_summary_normalize_projection
+
 
 sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, const sequel_summary_options_t *options,
                                        sequel_text_result_t *out) {
@@ -678,7 +680,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (okay)
         ++rendered_relations;
-      free(name);
       if (!okay)
         goto no_memory;
     }
@@ -1244,6 +1245,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
+  normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (text && strstr(text, " OVER (…) FILTER (…) FROM ")) {

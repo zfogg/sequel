@@ -14,3 +14,5 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
                                        sequel_source_range_t range);
 int sequel_summary_append_relation_name(char **text, size_t *length, size_t *capacity,
                                         sequel_source_view_t source, const sequel_relation_info_t *relation);
+
+void sequel_summary_normalize_projection(char *text, size_t *length);
