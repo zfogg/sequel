@@ -65,6 +65,8 @@ static sequel_syntax_kind_t clause_kind(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return SEQUEL_SYNTAX_ERROR;
   switch (token->keyword_id) {
+  case SEQUEL_KEYWORD_SELECT:
+    return SEQUEL_SYNTAX_SELECT_LIST;
   case 6:
     return SEQUEL_SYNTAX_FROM_CLAUSE;
   case 7:
@@ -174,6 +176,14 @@ static sequel_syntax_kind_t expression_atom_kind(const sequel_token_t *token) {
   return SEQUEL_SYNTAX_ERROR;
 }
 
+static size_t next_expression_token(const sequel_token_t *tokens, size_t index, size_t end) {
+  while (index < end &&
+         (tokens[index].kind == SEQUEL_TOKEN_WHITESPACE || tokens[index].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+          tokens[index].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    ++index;
+  return index;
+}
+
 static int append_expression(sequel_syntax_document_t *document, const sequel_token_t *tokens,
                              const sequel_source_view_t *source, size_t start, size_t end, size_t *out_index) {
   while (start < end &&
@@ -186,6 +196,80 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
     --end;
   if (start >= end)
     return 0;
+  size_t opening = next_expression_token(tokens, start + 1, end);
+  if (opening < end &&
+      (tokens[start].kind == SEQUEL_TOKEN_IDENTIFIER || tokens[start].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER) &&
+      tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION && source->data[tokens[opening].range.start] == '(') {
+    size_t closing = end;
+    size_t group_depth = 0;
+    for (size_t i = opening; i < end; ++i) {
+      if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION)
+        continue;
+      char punctuation = source->data[tokens[i].range.start];
+      if (punctuation == '(')
+        ++group_depth;
+      else if (punctuation == ')' && group_depth && --group_depth == 0) {
+        closing = i;
+        break;
+      }
+    }
+    if (closing < end && next_expression_token(tokens, closing + 1, end) == end) {
+      sequel_syntax_kind_t call_kind = SEQUEL_SYNTAX_FUNCTION_CALL;
+      sequel_syntax_node_t node = {.kind = call_kind,
+                                   .range = {tokens[start].range.start, tokens[closing].range.end},
+                                   .header_range = tokens[start].range,
+                                   .first_token = start,
+                                   .token_count = closing + 1 - start,
+                                   .production_id = (uint32_t)call_kind};
+      if (!append_node(document, node))
+        return -1;
+      size_t index = document->node_count - 1;
+      size_t argument = next_expression_token(tokens, opening + 1, closing);
+      if (argument < closing) {
+        size_t argument_node = 0;
+        if (append_expression(document, tokens, source, argument, closing, &argument_node) < 0 ||
+            !append_child(document, index, argument_node))
+          return -1;
+      }
+      *out_index = index;
+      return 1;
+    }
+  }
+  if (tokens[start].kind == SEQUEL_TOKEN_PUNCTUATION && source->data[tokens[start].range.start] == '(') {
+    size_t closing = end;
+    size_t group_depth = 0;
+    for (size_t i = start; i < end; ++i) {
+      if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION)
+        continue;
+      char punctuation = source->data[tokens[i].range.start];
+      if (punctuation == '(')
+        ++group_depth;
+      else if (punctuation == ')' && group_depth && --group_depth == 0) {
+        closing = i;
+        break;
+      }
+    }
+    if (closing < end && next_expression_token(tokens, closing + 1, end) == end) {
+      sequel_syntax_node_t node = {.kind = SEQUEL_SYNTAX_GROUP,
+                                   .range = {tokens[start].range.start, tokens[closing].range.end},
+                                   .header_range = tokens[start].range,
+                                   .first_token = start,
+                                   .token_count = closing + 1 - start,
+                                   .production_id = SEQUEL_SYNTAX_GROUP};
+      if (!append_node(document, node))
+        return -1;
+      size_t index = document->node_count - 1;
+      size_t inner = next_expression_token(tokens, start + 1, closing);
+      if (inner < closing) {
+        size_t inner_node = 0;
+        if (append_expression(document, tokens, source, inner, closing, &inner_node) < 0 ||
+            !append_child(document, index, inner_node))
+          return -1;
+      }
+      *out_index = index;
+      return 1;
+    }
+  }
   size_t depth = 0, split = SIZE_MAX;
   int precedence = INT_MAX;
   for (size_t i = start; i < end; ++i) {
@@ -330,7 +414,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
         return SEQUEL_ERR_NOMEM;
       }
       size_t parent = document->node_count - 1;
-      for (size_t token_index = first + 1; token_index < last; ++token_index) {
+      for (size_t token_index = first; token_index < last; ++token_index) {
         sequel_syntax_kind_t child_kind = clause_kind(&tokens[token_index]);
         if (child_kind == SEQUEL_SYNTAX_ERROR)
           continue;

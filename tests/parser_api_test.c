@@ -25,7 +25,7 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 }
 
 int main(void) {
-  const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1 AND id IN (1, 2); SELECT 2";
+  const char sql[] = "SELECT coalesce(id, 1), 'value' FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
   sequel_source_t *owned_source = NULL;
   if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
@@ -55,7 +55,10 @@ int main(void) {
     return 1;
   if (!check(tokens[0].kind == SEQUEL_TOKEN_KEYWORD && tokens[0].keyword_id != 0, "keyword token"))
     return 1;
-  if (!check(tokens[3].kind == SEQUEL_TOKEN_STRING, "string token"))
+  int found_string = 0;
+  for (size_t i = 0; i < token_count; ++i)
+    found_string |= tokens[i].kind == SEQUEL_TOKEN_STRING;
+  if (!check(found_string, "string token"))
     return 1;
   const char operator_sql[] = "SELECT [users] WHERE active >= TRUE";
   sequel_source_view_t operator_source = {operator_sql, strlen(operator_sql)};
@@ -104,6 +107,24 @@ int main(void) {
       ++binary_count;
     }
   if (!check(found_binary && binary_count >= 3, "keyword and comparison precedence nodes"))
+    return 1;
+  int found_call = 0;
+  int found_group = 0;
+  for (size_t i = 0; i < node_count; ++i) {
+    found_call |= nodes[i].kind == SEQUEL_SYNTAX_FUNCTION_CALL;
+    found_group |= nodes[i].kind == SEQUEL_SYNTAX_GROUP;
+  }
+  const char call_sql[] = "SELECT count(id)";
+  sequel_source_view_t call_source = {call_sql, strlen(call_sql)};
+  sequel_syntax_document_t *call_syntax = NULL;
+  if (!check(sequel_parse_sql(&call_source, &options, NULL, &call_syntax) == SEQUEL_OK, "function parse"))
+    return 1;
+  size_t call_nodes = 0;
+  const sequel_syntax_node_t *call_tree = sequel_syntax_nodes(call_syntax, &call_nodes);
+  for (size_t i = 0; i < call_nodes; ++i)
+    found_call |= call_tree[i].kind == SEQUEL_SYNTAX_FUNCTION_CALL;
+  sequel_syntax_document_free(call_syntax);
+  if (!check(found_call && found_group, "function and grouped expression nodes"))
     return 1;
   const char family_sql[] = "EXPLAIN SELECT id FROM users WHERE id = 1 RETURNING id;";
   sequel_source_view_t family_source = {family_sql, strlen(family_sql)};
