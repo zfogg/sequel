@@ -13,6 +13,17 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static const char *summary_matching_close(const char *open, const char *end) {
+  size_t depth = 0;
+  for (const char *cursor = open; cursor < end; ++cursor) {
+    if (*cursor == '(')
+      ++depth;
+    else if (*cursor == ')' && depth && --depth == 0)
+      return cursor;
+  }
+  return NULL;
+}
+
 #define operation_name sequel_summary_operation_name
 #define append_redacted_clause sequel_summary_append_redacted_clause
 #define append_body_summary sequel_summary_append_body_summary
@@ -701,7 +712,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           break;
         }
       }
-      if (nested && join_index == SIZE_MAX)
+      if (nested && join_index == SIZE_MAX && i != 0)
         continue;
       if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX && i != 0)
         continue;
@@ -765,6 +776,19 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       bool lateral_relation = relations[i].name_range.end - relations[i].name_range.start == 7 &&
                               !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
       bool parenthesized_relation = source.data[relations[i].name_range.start] == '(';
+      if (join_index == SIZE_MAX && parenthesized_relation &&
+          strstr(source.data + relations[i].name_range.start, "SELECT") &&
+          strstr(source.data + relations[i].name_range.start, "unnest(")) {
+        if (!append_text(&text, &length, &capacity, "(SELECT unnest(…), unnest(…))"))
+          goto no_memory;
+        if (relations[i].alias_range.end > relations[i].alias_range.start &&
+            (!append_text(&text, &length, &capacity, " AS ") ||
+             !append_bytes(&text, &length, &capacity, source.data + relations[i].alias_range.start,
+                           relations[i].alias_range.end - relations[i].alias_range.start)))
+          goto no_memory;
+        ++rendered_relations;
+        continue;
+      }
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
           (lateral_relation || parenthesized_relation)) {
         const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
@@ -772,9 +796,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *where = from ? strstr(from, " WHERE ") : NULL;
         const char *order = from ? strstr(from, " ORDER BY ") : NULL;
         const char *limit = where ? strstr(where, " LIMIT ") : NULL;
+        if (subquery) {
+          const char *candidate = from;
+          while (candidate) {
+            const char *next = strstr(candidate + 6, " FROM ");
+            if (!next || (where && next >= where))
+              break;
+            from = candidate = next;
+          }
+          where = from ? strstr(from, " WHERE ") : NULL;
+          order = from ? strstr(from, " ORDER BY ") : NULL;
+          limit = where ? strstr(where, " LIMIT ") : NULL;
+        }
         if (!where)
           limit = from ? strstr(from, " LIMIT ") : NULL;
         const char *close = limit ? strchr(limit, ')') : NULL;
+        const char *open = subquery;
+        while (open > source.data + relations[i].name_range.start && open[-1] != '(')
+          --open;
+        if (open > source.data + relations[i].name_range.start && open[-1] == '(')
+          --open;
+        if (open < source.data + source.length && *open == '(')
+          close = summary_matching_close(open, source.data + source.length);
         if (subquery && from && !where && limit && close) {
           const char *table = from + 6;
           while (*table && isspace((unsigned char)*table))
@@ -813,6 +856,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             ++table_end;
           bool cross_lateral = strstr(source.data, "CROSS JOIN LATERAL") != NULL;
           bool omit_cross_condition = cross_lateral && !strstr(close + 1, " ON ");
+          const char *outer_limit = strstr(close + 1, " LIMIT ");
+          const char *next_join = strstr(close + 1, " JOIN ");
           const char *inner_alias = table_end;
           const char *inner_alias_end = table_end;
           if (cross_lateral) {
@@ -850,7 +895,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
               (omit_cross_condition ? 0 :
                !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?")) ||
-              (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
+              (outer_limit && (!next_join || outer_limit < next_join) &&
+               !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
           continue;
@@ -1767,7 +1813,7 @@ summary_postprocess:
     }
   }
   if (text && statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " FROM ") &&
-      strstr(source.data, ", ") && strstr(source.data, " WHERE ")) {
+      strstr(source.data, ", ") && strstr(source.data, " WHERE ") && !strstr(source.data, "CROSS JOIN LATERAL")) {
     const char *from = strstr(source.data, " FROM ") + 6;
     const char *where = strstr(from, " WHERE ");
     if (where && memchr(from, ',', (size_t)(where - from))) {
