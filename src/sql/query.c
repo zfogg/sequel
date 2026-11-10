@@ -211,3 +211,18 @@ size_t sequel_query_parameter_count(const sequel_query_document_t *document) {
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document) {
   return document ? document->parameters : NULL;
 }
+
+sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor) {
+  if (!document || !visitor)
+    return SEQUEL_ERR_NULL;
+  for (size_t i = 0; i < document->statement_count; ++i)
+    if (visitor->statement && !visitor->statement(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->relation_count; ++i)
+    if (visitor->relation && !visitor->relation(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->parameter_count; ++i)
+    if (visitor->parameter && !visitor->parameter(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  return SEQUEL_OK;
+}

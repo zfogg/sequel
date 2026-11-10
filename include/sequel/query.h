@@ -65,6 +65,13 @@ typedef struct {
   uint64_t identity;
 } sequel_parameter_info_t;
 
+typedef struct {
+  bool (*statement)(const sequel_query_document_t *document, size_t statement_index, void *userdata);
+  bool (*relation)(const sequel_query_document_t *document, size_t relation_index, void *userdata);
+  bool (*parameter)(const sequel_query_document_t *document, size_t parameter_index, void *userdata);
+  void *userdata;
+} sequel_query_visitor_t;
+
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
                                             const sequel_parse_options_t *options, sequel_query_document_t **out);
 void sequel_query_document_free(sequel_query_document_t *document);
@@ -74,3 +81,5 @@ size_t sequel_query_relation_count(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document);
+
+sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor);

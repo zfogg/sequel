@@ -17,6 +17,13 @@ static bool saw_from(const sequel_syntax_document_t *document, size_t node_index
   return true;
 }
 
+static bool count_relations(const sequel_query_document_t *document, size_t index, void *userdata) {
+  (void)document;
+  (void)index;
+  ++*(size_t *)userdata;
+  return true;
+}
+
 int main(void) {
   const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1; SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
@@ -65,6 +72,10 @@ int main(void) {
   if (!check(sequel_query_parameters(query)[0].style == SEQUEL_BIND_NUMBERED &&
                  sequel_query_parameters(query)[0].explicit_number == 1,
              "numbered parameter"))
+    return 1;
+  size_t visited_relations = 0;
+  sequel_query_visitor_t query_visitor = {.relation = count_relations, .userdata = &visited_relations};
+  if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK && visited_relations == 1, "query visitor"))
     return 1;
   if (!check(sequel_query_relation_count(query) == 1, "relation count"))
     return 1;
