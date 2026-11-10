@@ -34,7 +34,7 @@ static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics, seque
   return 1;
 }
 
-static sequel_status_t collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
+sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
                                                        sequel_diagnostic_list_t *diagnostics) {
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
   if (sequel_lexed_dialect(lexed) == target)
@@ -189,11 +189,12 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           status = SEQUEL_ERR_CANCELLED;
           break;
         }
-        status =
-            collect_portability_diagnostics(syntax, analysis->options.portability_targets[i], &portability_diagnostics);
+        status = sequel_collect_portability_diagnostics(syntax, analysis->options.portability_targets[i],
+                                                        &portability_diagnostics);
       }
     } else {
-      status = collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
+      status =
+          sequel_collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
     }
   }
   if (status == SEQUEL_OK && analysis->options.include_summary) {

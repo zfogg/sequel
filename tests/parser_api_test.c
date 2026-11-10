@@ -332,6 +332,12 @@ int main(void) {
       return 1;
   sequel_diagnostic_list_free(&semantic_diagnostics);
   sequel_diagnostic_list_free(&policy_diagnostics);
+  sequel_diagnostic_list_t portability_diagnostics = {0};
+  if (!check(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK &&
+                 portability_diagnostics.count == 0,
+             "portability diagnostic pass"))
+    return 1;
+  sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_query_analysis_options_t analysis_options;
   sequel_query_analysis_options_init(&analysis_options);
   sequel_query_analysis_t *document_analysis = NULL;
