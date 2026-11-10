@@ -86,8 +86,6 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   }
 }
 
-#include "internal.h"
-
 static void normalize_function_arguments(char *text, size_t *length) {
   for (char *function = text; function;) {
     function = sequel_summary_find_text(function, "argMax(");
