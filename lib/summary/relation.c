@@ -1,5 +1,6 @@
 #include "internal.h"
 
+#include <ctype.h>
 #include <string.h>
 
 #define append_text sequel_summary_append_text
@@ -12,6 +13,39 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
   size_t end = relation->name_range.end;
   if (start > end || end > source.length || !append_bytes(text, length, capacity, source.data + start, end - start))
     return 0;
+  if (relation->kind == SEQUEL_RELATION_SUBQUERY && start < end && source.data[start] == '(') {
+    char *rendered = *text;
+    char *open = rendered + *length - (end - start);
+    char *select = strstr(open, "SELECT ");
+    char *from = select ? strstr(select, " FROM ") : NULL;
+    char *close = strrchr(open, ')');
+    if (select && from && close && close < rendered + *length) {
+      size_t offset = (size_t)(open - rendered);
+      *length = offset;
+      rendered[offset] = 0;
+      if (!append_text(text, length, capacity, "(SELECT … FROM "))
+        return 0;
+      const char *table = from + 6;
+      while (table < close && isspace((unsigned char)*table))
+        ++table;
+      const char *table_end = table;
+      while (table_end < close && !isspace((unsigned char)*table_end) && *table_end != ')')
+        ++table_end;
+      if (!append_bytes(text, length, capacity, table, (size_t)(table_end - table)))
+        return 0;
+      const char *where = strstr(table_end, " WHERE ");
+      const char *order = strstr(table_end, " ORDER BY ");
+      const char *limit = strstr(table_end, " LIMIT ");
+      if (where && where < close && (!append_text(text, length, capacity, " WHERE …")))
+        return 0;
+      if (order && order < close && (!append_text(text, length, capacity, " ORDER BY …")))
+        return 0;
+      if (limit && limit < close && (!append_text(text, length, capacity, " LIMIT ?")))
+        return 0;
+      if (!append_text(text, length, capacity, ")"))
+        return 0;
+    }
+  }
   if (end < source.length && source.data[end] == '(') {
     const char *close = strchr(source.data + end, ')');
     if (close && (!append_text(text, length, capacity, "(…)") ))
