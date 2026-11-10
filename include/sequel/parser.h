@@ -6,6 +6,7 @@
 #include <sequel/dialect.h>
 #include <sequel/lexer.h>
 #include <sequel/status.h>
+#include <sequel/syntax.h>
 
 typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
@@ -56,6 +57,15 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
 
 /** Release a syntax document. NULL is permitted. */
 void sequel_syntax_document_free(sequel_syntax_document_t *document);
+
+/** Return the lexical document retained by a syntax document. */
+const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document);
+
+/** Return the immutable syntax-node array. */
+const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *document, size_t *count);
+
+/** Return child node indexes for a syntax node. */
+const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
 
 /** Parse and lex explicit UTF-8 source bytes in one operation. */
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
