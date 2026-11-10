@@ -67,6 +67,13 @@ sequel_status_t sequel_fingerprint_document(const sequel_syntax_document_t *synt
       hash_u64(&hash, predicates[i].normalized_hash);
       hash_u64(&hash, predicates[i].depth);
     }
+    size_t parameter_count = sequel_query_parameter_count(query);
+    const sequel_parameter_info_t *parameters = sequel_query_parameters(query);
+    for (size_t i = 0; i < parameter_count; ++i) {
+      hash_u64(&hash, parameters[i].style);
+      hash_u64(&hash, parameters[i].statement_index);
+      hash_u64(&hash, parameters[i].identity);
+    }
   }
   snprintf(out, SEQUEL_FINGERPRINT_LENGTH, "%016llx", (unsigned long long)hash);
   return SEQUEL_OK;

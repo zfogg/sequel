@@ -224,6 +224,22 @@ int main(void) {
                      sequel_query_parameters(repeated_bind_query)[1].identity,
              "repeated named bind identity"))
     return 1;
+  char repeated_bind_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  char distinct_bind_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  sequel_source_view_t distinct_bind_source = {"SELECT :account, :user", strlen("SELECT :account, :user")};
+  sequel_syntax_document_t *distinct_bind_syntax = NULL;
+  sequel_query_document_t *distinct_bind_query = NULL;
+  if (!check(sequel_parse_sql(&distinct_bind_source, &options, NULL, &distinct_bind_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(distinct_bind_syntax, &options, &distinct_bind_query) == SEQUEL_OK &&
+                 sequel_fingerprint_document(repeated_bind_syntax, repeated_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE,
+                                             repeated_bind_fingerprint) == SEQUEL_OK &&
+                 sequel_fingerprint_document(distinct_bind_syntax, distinct_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE,
+                                             distinct_bind_fingerprint) == SEQUEL_OK &&
+                 strcmp(repeated_bind_fingerprint, distinct_bind_fingerprint) != 0,
+             "query fingerprint bind identity"))
+    return 1;
+  sequel_query_document_free(distinct_bind_query);
+  sequel_syntax_document_free(distinct_bind_syntax);
   sequel_query_document_free(repeated_bind_query);
   sequel_syntax_document_free(repeated_bind_syntax);
   size_t visited_relations = 0;
