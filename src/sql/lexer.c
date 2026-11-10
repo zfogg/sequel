@@ -220,6 +220,12 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
       flags = SEQUEL_TOKEN_FLAG_BIND;
+      if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
+        while (i < source->length && !isspace((unsigned char)source->data[i]) && source->data[i] != ';')
+          ++i;
+        if (memchr(source->data + start, '(', i - start) && !memchr(source->data + start, ')', i - start))
+          flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+      }
     } else if (is_operator_char((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && is_operator_char((unsigned char)source->data[i]))
