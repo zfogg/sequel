@@ -56,6 +56,17 @@ int main(void) {
     return 1;
   if (!check(tokens[0].kind == SEQUEL_TOKEN_KEYWORD && tokens[0].keyword_id != 0, "keyword token"))
     return 1;
+  sequel_source_view_t numeric_source = {"SELECT .123, 0.123e9", strlen("SELECT .123, 0.123e9")};
+  sequel_lexed_document_t *numeric_lexed = NULL;
+  if (!check(sequel_lex(&numeric_source, &options, NULL, &numeric_lexed) == SEQUEL_OK, "numeric lexing"))
+    return 1;
+  size_t numeric_count = 0;
+  const sequel_token_t *numeric_tokens = sequel_lexed_tokens(numeric_lexed, &numeric_count);
+  if (!check(numeric_count >= 5 && numeric_tokens[1].kind == SEQUEL_TOKEN_NUMBER &&
+                 numeric_tokens[3].kind == SEQUEL_TOKEN_NUMBER,
+             "numeric token boundaries"))
+    return 1;
+  sequel_lexed_document_free(numeric_lexed);
   if (!check(sequel_lexed_source_object(lexed) != NULL &&
                  sequel_source_dialect(sequel_lexed_source_object(lexed)) == SEQUEL_POSTGRESQL,
              "lexed source ownership"))

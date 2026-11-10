@@ -186,10 +186,22 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
               ((quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC : 0);
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
-    } else if (isdigit((unsigned char)source->data[i])) {
+    } else if (isdigit((unsigned char)source->data[i]) ||
+               (source->data[i] == '.' && i + 1 < source->length && isdigit((unsigned char)source->data[i + 1]))) {
       ++i;
-      while (i < source->length && (isdigit((unsigned char)source->data[i]) || source->data[i] == '.'))
+      while (i < source->length &&
+             (isdigit((unsigned char)source->data[i]) || source->data[i] == '.' || source->data[i] == '_'))
         ++i;
+      if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E')) {
+        size_t exponent = i++;
+        if (i < source->length && (source->data[i] == '+' || source->data[i] == '-'))
+          ++i;
+        size_t exponent_digits = i;
+        while (i < source->length && (isdigit((unsigned char)source->data[i]) || source->data[i] == '_'))
+          ++i;
+        if (i == exponent_digits)
+          i = exponent;
+      }
       kind = SEQUEL_TOKEN_NUMBER;
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
     } else if (source->data[i] == '$' &&
