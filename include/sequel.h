@@ -12,6 +12,7 @@
 
 #include <sequel/dialect.h>
 #include <sequel/binds.h>
+#include <sequel/analysis.h>
 #include <sequel/lexer.h>
 #include <sequel/parser.h>
 #include <sequel/query.h>

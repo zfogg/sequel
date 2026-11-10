@@ -118,6 +118,14 @@ int main(void) {
   if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0,
              "predicate metadata"))
     return 1;
+  sequel_query_analysis_options_t analysis_options;
+  sequel_query_analysis_options_init(&analysis_options);
+  sequel_query_analysis_t *document_analysis = NULL;
+  if (!check(sequel_analyze_document(syntax, &analysis_options, &document_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_query(document_analysis) != NULL,
+             "document analysis"))
+    return 1;
+  sequel_query_analysis_free(document_analysis);
   int found_from = 0;
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
