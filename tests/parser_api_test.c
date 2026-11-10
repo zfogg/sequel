@@ -328,8 +328,9 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
-  size_t relation_count = 0, projection_count = 0, predicate_count = 0, parameter_count = 0;
+  size_t relation_count = 0, join_count = 0, projection_count = 0, predicate_count = 0, parameter_count = 0;
   if (!check(sequel_query_analysis_relations(document_analysis, &relation_count) != NULL && relation_count == 1 &&
+                 sequel_query_analysis_joins(document_analysis, &join_count) == NULL && join_count == 0 &&
                  sequel_query_analysis_projections(document_analysis, &projection_count) != NULL &&
                  projection_count >= 2 &&
                  sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL &&

@@ -306,6 +306,12 @@ const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query
   return analysis && analysis->options.include_relations ? sequel_query_relations(analysis->query) : NULL;
 }
 
+const sequel_join_info_t *sequel_query_analysis_joins(const sequel_query_analysis_t *analysis, size_t *count) {
+  if (count)
+    *count = analysis && analysis->options.include_relations ? sequel_query_join_count(analysis->query) : 0;
+  return analysis && analysis->options.include_relations ? sequel_query_joins(analysis->query) : NULL;
+}
+
 const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
                                                                   size_t *count) {
   if (count)

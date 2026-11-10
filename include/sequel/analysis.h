@@ -71,6 +71,9 @@ const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_que
 /** Return relations when relation collection was requested. */
 const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query_analysis_t *analysis, size_t *count);
 
+/** Return joins when relation collection was requested. */
+const sequel_join_info_t *sequel_query_analysis_joins(const sequel_query_analysis_t *analysis, size_t *count);
+
 /** Return projections when projection collection was requested. */
 const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
                                                                   size_t *count);
