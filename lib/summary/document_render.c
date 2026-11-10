@@ -1064,11 +1064,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ") && text) {
     char *join = strstr(text, " JOIN ");
-    char *alias = join ? strchr(join + 6, ' ') : NULL;
-    if (join && alias && !strncmp(alias, " flags f", 8)) {
+    char *alias = join ? strstr(join + 6, "flags f") : NULL;
+    if (join && alias) {
       const char replacement[] = " flags AS f";
-      memmove(alias + sizeof(replacement) - 1, alias + 8, strlen(alias + 8) + 1);
-      memcpy(alias, replacement, sizeof(replacement) - 1);
+      memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
+      memcpy(alias - 1, replacement, sizeof(replacement) - 1);
       length = strlen(text);
     }
   }
