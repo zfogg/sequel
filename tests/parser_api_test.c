@@ -202,6 +202,23 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
+  sequel_source_view_t broken_source = {"select 'unterminated", strlen("select 'unterminated")};
+  sequel_syntax_document_t *broken_syntax = NULL;
+  if (!check(sequel_parse_sql(&broken_source, &options, NULL, &broken_syntax) == SEQUEL_OK,
+             "recoverable lexical parse"))
+    return 1;
+  sequel_query_document_t *broken_query = NULL;
+  if (!check(sequel_build_query_document(broken_syntax, &options, &broken_query) == SEQUEL_OK,
+             "recoverable lexical query"))
+    return 1;
+  sequel_query_analysis_t *broken_analysis = NULL;
+  if (!check(sequel_analyze_document(broken_syntax, broken_query, &analysis_options, NULL, &broken_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_diagnostics(broken_analysis)->count > 0,
+             "analysis includes lexical diagnostics"))
+    return 1;
+  sequel_query_analysis_free(broken_analysis);
+  sequel_query_document_free(broken_query);
+  sequel_syntax_document_free(broken_syntax);
   size_t analysis_parameter_count = 0;
   const sequel_parameter_info_t *analysis_parameters =
       sequel_query_analysis_parameters(document_analysis, &analysis_parameter_count);

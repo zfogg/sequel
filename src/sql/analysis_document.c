@@ -62,15 +62,21 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
     return SEQUEL_ERR_CANCELLED;
   }
   sequel_status_t status = SEQUEL_OK;
+  sequel_diagnostic_list_t lexical_diagnostics = {0};
   sequel_diagnostic_list_t syntax_diagnostics = {0};
   sequel_diagnostic_list_t query_diagnostics = {0};
-  status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
+  status = sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical_diagnostics);
+  if (status == SEQUEL_OK)
+    status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
   if (status == SEQUEL_OK && analysis->options.include_lints)
     status = sequel_collect_query_diagnostics(analysis->query, &query_diagnostics);
+  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
+    status = SEQUEL_ERR_NOMEM;
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &syntax_diagnostics))
     status = SEQUEL_ERR_NOMEM;
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &query_diagnostics))
     status = SEQUEL_ERR_NOMEM;
+  sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_diagnostic_list_free(&syntax_diagnostics);
   sequel_diagnostic_list_free(&query_diagnostics);
   if (status != SEQUEL_OK) {
