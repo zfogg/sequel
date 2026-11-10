@@ -1716,6 +1716,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = strlen(text);
     }
   }
+  if (text && strstr(source.data, " LIMIT (SELECT ")) {
+    char *limit = strstr(text, " LIMIT ");
+    if (limit) {
+      length = (size_t)(limit - text);
+      text[length] = '\0';
+      if (!append_text(&text, &length, &capacity, " LIMIT ? (SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM settings LIMIT 1)"))
+        goto no_memory;
+    }
+  }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
     const char *select = strstr(source.data, " SELECT ") + 1;
     const char *from = strstr(select, " FROM ");
