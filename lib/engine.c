@@ -225,7 +225,7 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
 
 
 // clang-format off
-#include "summary.c"
+static bool boundary(token t);
 #include "layout.c"
 #undef malloc
 #undef calloc
