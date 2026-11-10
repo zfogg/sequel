@@ -92,15 +92,15 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
-        (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
-      continue;
     if (token->range.end > source.length || token->range.start > token->range.end)
       return SEQUEL_ERR_INVALID_ARGUMENT;
     if (segment_count == SIZE_MAX / sizeof(**owned_segments))
       return SEQUEL_ERR_OVERFLOW;
     ++segment_count;
-    output_offset += (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)
+    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
+                      (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+                         ? 0
+                         : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)
                          ? 1
                          : token->range.end - token->range.start;
   }
@@ -113,15 +113,16 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
-        (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
-      continue;
     size_t source_length = token->range.end - token->range.start;
+    bool removed = (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
+                   (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT);
     bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL);
-    size_t result_length = replaced ? 1 : source_length;
+    size_t result_length = removed ? 0 : replaced ? 1 : source_length;
     segments[segment++] = (sequel_analysis_map_segment_t){
         token->range.start, token->range.end, output_offset, output_offset + result_length,
-        replaced ? SEQUEL_ANALYSIS_MAP_REPLACE : SEQUEL_ANALYSIS_MAP_COPY};
+        removed ? SEQUEL_ANALYSIS_MAP_DELETE
+                : replaced ? SEQUEL_ANALYSIS_MAP_REPLACE
+                           : SEQUEL_ANALYSIS_MAP_COPY};
     output_offset += result_length;
   }
   *owned_segments = segments;

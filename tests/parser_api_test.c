@@ -25,7 +25,8 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 }
 
 int main(void) {
-  const char sql[] = "SELECT coalesce(id, 1), 'value' FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
+  const char sql[] =
+      "SELECT coalesce(id, 1), 'value' /* removed */ FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
   sequel_source_t *owned_source = NULL;
   if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
@@ -272,14 +273,19 @@ int main(void) {
   output_options.include_formatted_sql = true;
   output_options.include_source_maps = true;
   sequel_query_analysis_t *output_analysis = NULL;
+  bool has_deleted_segment = false;
   if (!check(sequel_analyze_document(syntax, query, &output_options, NULL, &output_analysis) == SEQUEL_OK &&
                  sequel_query_analysis_sanitized_sql(output_analysis) != NULL &&
                  sequel_query_analysis_formatted_sql(output_analysis) != NULL &&
                  sequel_query_analysis_sanitized_map(output_analysis) != NULL &&
                  sequel_query_analysis_formatted_map(output_analysis) != NULL &&
-                 sequel_query_analysis_sanitized_map(output_analysis)->count > 1 &&
-                 sequel_query_analysis_sanitized_map(output_analysis)->segments[0].kind == SEQUEL_ANALYSIS_MAP_COPY,
+                 sequel_query_analysis_sanitized_map(output_analysis)->count > 1,
              "analysis rendered outputs"))
+    return 1;
+  const sequel_analysis_source_map_t *sanitized_map = sequel_query_analysis_sanitized_map(output_analysis);
+  for (size_t i = 0; i < sanitized_map->count; ++i)
+    has_deleted_segment |= sanitized_map->segments[i].kind == SEQUEL_ANALYSIS_MAP_DELETE;
+  if (!check(has_deleted_segment, "analysis deleted-token provenance"))
     return 1;
   sequel_query_analysis_free(output_analysis);
   sequel_source_view_t broken_source = {"select 'unterminated", strlen("select 'unterminated")};
