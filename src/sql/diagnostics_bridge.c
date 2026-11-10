@@ -48,6 +48,8 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
         code = SEQUEL_DIAG_UNTERMINATED_IDENTIFIER;
       else if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT)
         code = SEQUEL_DIAG_UNTERMINATED_COMMENT;
+      else if (tokens[i].kind == SEQUEL_TOKEN_PARAMETER)
+        code = SEQUEL_DIAG_UNTERMINATED_PARAMETER;
       break;
     }
   }

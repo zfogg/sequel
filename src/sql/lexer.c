@@ -129,10 +129,20 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         continue;
     } else if (source->data[i] == '/' && i + 1 < source->length && source->data[i + 1] == '*') {
       i += 2;
-      while (i + 1 < source->length && !(source->data[i] == '*' && source->data[i + 1] == '/'))
-        ++i;
-      int terminated = i + 1 < source->length;
-      i = terminated ? i + 2 : source->length;
+      size_t depth = 1;
+      while (i + 1 < source->length && depth) {
+        if (source->data[i] == '/' && source->data[i + 1] == '*') {
+          ++depth;
+          i += 2;
+        } else if (source->data[i] == '*' && source->data[i + 1] == '/') {
+          --depth;
+          i += 2;
+        } else {
+          ++i;
+        }
+      }
+      int terminated = depth == 0;
+      i = terminated ? i : source->length;
       kind = SEQUEL_TOKEN_BLOCK_COMMENT;
       flags = SEQUEL_TOKEN_FLAG_COMMENT;
       if (!terminated)
@@ -189,6 +199,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         kind = SEQUEL_TOKEN_PARAMETER;
         flags = SEQUEL_TOKEN_FLAG_BIND;
       }
+    } else if (source->data[i] == '{' && settings->dialect == SEQUEL_CLICKHOUSE) {
+      ++i;
+      while (i < source->length && source->data[i] != '}')
+        ++i;
+      int terminated = i < source->length;
+      if (terminated)
+        ++i;
+      kind = SEQUEL_TOKEN_PARAMETER;
+      flags = SEQUEL_TOKEN_FLAG_BIND | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
     } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' || source->data[i] == '@') {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
