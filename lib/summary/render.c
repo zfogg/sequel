@@ -722,6 +722,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
     for (size_t i = 0; i < relation_count; ++i) {
+      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+          sequel_summary_find_text(source.data, " LEFT JOIN LATERAL "))
+        break;
       if (grouped_relation)
         break;
       if (operation == SEQUEL_OPERATION_CREATE) {
@@ -1055,10 +1058,24 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       const char *end = table;
       while (*end && !isspace((unsigned char)*end) && *end != ';' && *end != ')')
         ++end;
+      const char *alias = end;
+      while (*alias && isspace((unsigned char)*alias))
+        ++alias;
+      const char *alias_end = alias;
+      while (*alias_end && !isspace((unsigned char)*alias_end))
+        ++alias_end;
+      if (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LEFT") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "JOIN") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "ORDER"))
+        alias = alias_end = end;
       if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
+          (alias < alias_end && !sequel_summary_append_text(&text, &length, &capacity, " AS ")) ||
+          (alias < alias_end &&
+           !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))))
         goto no_memory;
       size_t first_outer_relation = SIZE_MAX;
       size_t relation_count = sequel_query_relation_count(query);
@@ -1074,9 +1091,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && relations[i].kind != SEQUEL_RELATION_SUBQUERY)
             continue;
           if (relations[i].kind == SEQUEL_RELATION_SUBQUERY) {
-            const char *subquery = source.data + relations[i].name_range.start;
+            const char *subquery = source.data + relations[i].range.start;
             const char *from =
-                sequel_summary_find_word(subquery, source.length - relations[i].name_range.start, 0, "FROM");
+                sequel_summary_word(subquery, source.length - relations[i].range.start, 0, "FROM")
+                    ? subquery
+                    : sequel_summary_find_word(subquery, source.length - relations[i].range.start, 0, "FROM");
             const char *where =
                 from ? sequel_summary_find_word(from, source.length - (size_t)(from - source.data), 0, "WHERE") : NULL;
             const char *order =
@@ -1103,7 +1122,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                 (order && (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
                            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis,
                                                         sizeof(summary_ellipsis) - 1))) ||
-                !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?) AS ") ||
+                !sequel_summary_append_text(&text, &length, &capacity,
+                                            sequel_summary_find_text(from, " LIMIT ") ? " LIMIT ?) AS " : ") AS ") ||
                 (alias &&
                  !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " ON ?"))

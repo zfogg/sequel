@@ -62,8 +62,13 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       size_t expression = sequel_summary_skip_space(source, range.end, start + 6);
       const char *open = strchr(source + expression, '(');
       const char *close = open ? strchr(open, ')') : NULL;
-      if (!open || !close || close >= source + range.end ||
-          !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+      if (!open || !close || close >= source + range.end) {
+        if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+            !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+          return 0;
+        return 1;
+      }
+      if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
           !sequel_summary_append_bytes(text, length, capacity, source + expression,
                                        (size_t)(open - (source + expression))) ||
           !sequel_summary_append_text(text, length, capacity, "(") ||
