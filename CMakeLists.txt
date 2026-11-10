@@ -99,6 +99,7 @@ if(TARGET sequel_utf8proc)
   install(TARGETS sequel_utf8proc EXPORT sequelTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 install(FILES include/sequel.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/sequel DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 if(SEQUEL_BUILD_CXX)
   install(TARGETS sequel_cxx EXPORT sequelTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
