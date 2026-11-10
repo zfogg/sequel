@@ -896,9 +896,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     sequel_source_view_t parse_source = {sql, n};
     sequel_syntax_document_t *syntax = NULL;
     sequel_query_document_t *query = NULL;
+    size_t parse_issue_count = 0;
     sequel_status_t parse_status = sequel_parse_sql(&parse_source, &parse_options, NULL, &syntax);
     if (parse_status == SEQUEL_OK) {
-      size_t parse_issue_count = 0;
       sequel_syntax_issues(syntax, &parse_issue_count);
       if (!parse_issue_count && sequel_build_query_document(syntax, &parse_options, &query) != SEQUEL_OK) {
         valid = SEQUEL_ERR_NOMEM;
