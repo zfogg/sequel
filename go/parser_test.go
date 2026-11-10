@@ -28,6 +28,20 @@ func TestParseExposesLosslessTokensAndQueryModel(t *testing.T) {
 	if fingerprint, err := document.Fingerprint(FingerprintQueryShape); err != nil || len(fingerprint) != 16 {
 		t.Fatalf("fingerprint = %q, %v", fingerprint, err)
 	}
+	if diagnostics := document.Diagnostics(); len(diagnostics) != 0 {
+		t.Fatalf("diagnostics = %#v", diagnostics)
+	}
+}
+
+func TestParseReturnsLayeredDiagnostics(t *testing.T) {
+	document, err := Parse("SELECT * FROM users; SELECT 1", DialectGeneric)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer document.Close()
+	if len(document.Diagnostics()) == 0 {
+		t.Fatal("expected query diagnostics")
+	}
 }
 
 func TestParseReturnsRecoveryIssues(t *testing.T) {

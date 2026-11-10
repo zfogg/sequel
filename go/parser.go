@@ -21,6 +21,8 @@ static size_t sequel_go_relation_name_start(const sequel_relation_info_t *relati
 static size_t sequel_go_relation_name_end(const sequel_relation_info_t *relation) { return relation->name_range.end; }
 static size_t sequel_go_relation_alias_start(const sequel_relation_info_t *relation) { return relation->alias_range.start; }
 static size_t sequel_go_relation_alias_end(const sequel_relation_info_t *relation) { return relation->alias_range.end; }
+static size_t sequel_go_diagnostic_start(const sequel_diagnostic_record_t *diagnostic) { return diagnostic->range.start; }
+static size_t sequel_go_diagnostic_end(const sequel_diagnostic_record_t *diagnostic) { return diagnostic->range.end; }
 */
 import "C"
 
@@ -52,6 +54,15 @@ type ParseIssue struct {
 	Start     int
 	End       int
 	Statement int
+}
+
+// LayeredDiagnostic is a copied parser or query-policy diagnostic.
+type LayeredDiagnostic struct {
+	Origin   int
+	Code     int
+	Severity int
+	Start    int
+	End      int
 }
 
 // QueryDocument exposes normalized statement and relation metadata derived
@@ -169,6 +180,33 @@ func (d *Document) Issues() []ParseIssue {
 	out := make([]ParseIssue, len(native))
 	for i, issue := range native {
 		out[i] = ParseIssue{Code: int(issue.code), Recovery: int(issue.recovery), Start: int(C.sequel_go_issue_start(&native[i])), End: int(C.sequel_go_issue_end(&native[i])), Statement: int(issue.statement_index)}
+	}
+	return out
+}
+
+// Diagnostics returns lexical, syntax, and query-policy diagnostics.
+func (d *Document) Diagnostics() []LayeredDiagnostic {
+	if d == nil || d.syntax == nil || d.query == nil {
+		return nil
+	}
+	var lexical, syntax, query C.sequel_diagnostic_list_t
+	lexed := C.sequel_syntax_lexed(d.syntax)
+	if C.sequel_collect_lexical_diagnostics(lexed, &lexical) != C.SEQUEL_OK ||
+		C.sequel_collect_syntax_diagnostics(d.syntax, &syntax) != C.SEQUEL_OK ||
+		C.sequel_collect_query_diagnostics(d.query, &query) != C.SEQUEL_OK {
+		C.sequel_diagnostic_list_free(&lexical)
+		C.sequel_diagnostic_list_free(&syntax)
+		C.sequel_diagnostic_list_free(&query)
+		return nil
+	}
+	defer C.sequel_diagnostic_list_free(&lexical)
+	defer C.sequel_diagnostic_list_free(&syntax)
+	defer C.sequel_diagnostic_list_free(&query)
+	out := make([]LayeredDiagnostic, 0, int(lexical.count+syntax.count+query.count))
+	for _, list := range []*C.sequel_diagnostic_list_t{&lexical, &syntax, &query} {
+		for _, item := range unsafe.Slice(list.records, int(list.count)) {
+			out = append(out, LayeredDiagnostic{Origin: int(item.origin), Code: int(item.code), Severity: int(item.severity), Start: int(C.sequel_go_diagnostic_start(&item)), End: int(C.sequel_go_diagnostic_end(&item))})
+		}
 	}
 	return out
 }
