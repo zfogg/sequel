@@ -57,7 +57,7 @@ set(SEQUEL_PARSER_SOURCES
   ../src/sql/query.c
   ../src/sql/diagnostics_bridge.c)
 
-add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/main.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
+add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/engine.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-limit-boundary-test PRIVATE ../include)
 target_link_libraries(sequel-limit-boundary-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 target_compile_definitions(sequel-limit-boundary-test PRIVATE

@@ -1,4 +1,4 @@
-/* Public transport contracts. Included by main.c after diagnostic definitions. */
+/* Public transport contracts. Included by engine.c after diagnostic definitions. */
 size_t sequel_diagnostic_catalog_count(void) { return sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0]); }
 
 sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out) {

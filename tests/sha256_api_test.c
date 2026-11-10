@@ -1,6 +1,6 @@
 /* Compile the private engine into this test only. This tests standard SHA-256
  * vectors directly without adding a public hash API or linking a second engine. */
-#include "../src/sql/main.c"
+#include "../src/sql/engine.c"
 
 #define CHECK(condition)                                                                                               \
   do {                                                                                                                 \

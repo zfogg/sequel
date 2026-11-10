@@ -1,7 +1,7 @@
 /* Exercise the cgo unity layout and an independently linked layout with the
  * same public calls. SQL's private macros must not alter subsequent sources. */
 #ifdef SEQUEL_TEST_UNITY
-#include "../src/sql/main.c"
+#include "../src/sql/engine.c"
 
 #if defined(malloc) || defined(calloc) || defined(realloc) || defined(free) || defined(while)
 #error SQL resource macros escaped the SQL implementation
