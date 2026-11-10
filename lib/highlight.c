@@ -456,6 +456,11 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       continue;
+    if (token->kind == SEQUEL_TOKEN_WHITESPACE) {
+      highlight_source(&b, source.data + token->range.start, token->range.end - token->range.start, options->mode);
+      cursor = source.data + token->range.end;
+      continue;
+    }
     highlight_source(&b, cursor, token->range.start - (size_t)(cursor - sql), options->mode);
     size_t token_length = token->range.end - token->range.start;
     sequel_highlight_color_t kind = highlight_token_kind(tokens, token_count, i, &source, options->dialect);

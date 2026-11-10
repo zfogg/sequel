@@ -247,8 +247,11 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
-/* The public diagnostic entry points share this module's diagnostic records. */
+/* The public entry points are included only by the unity engine; standalone
+ * parser/diagnostic tests need the canonical records without engine helpers. */
+#ifdef SEQUEL_DIAGNOSTICS_ENGINE
 #include "diagnostic_api.c"
+#endif
 
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics) {
