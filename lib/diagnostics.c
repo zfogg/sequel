@@ -88,7 +88,7 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   return SEQUEL_OK;
 }
 
-static int append_record(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
+bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
   if (diagnostics->count == diagnostics->capacity) {
     size_t capacity = diagnostics->capacity ? diagnostics->capacity * 2 : 8;
     if (capacity < diagnostics->count || capacity > SIZE_MAX / sizeof(*diagnostics->records))
@@ -140,7 +140,7 @@ sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t
                                          .syntax_node = SIZE_MAX,
                                          .incomplete = 1,
                                          .recovered = 1};
-    if (!append_record(diagnostics, record)) {
+    if (!sequel_diagnostic_list_append(diagnostics, record)) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
     }
@@ -173,7 +173,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = projections[i].range,
                                          .statement_index = projections[i].statement_index,
                                          .syntax_node = projections[i].expression_node};
-    if (!append_record(diagnostics, record))
+    if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
   size_t statement_count = sequel_query_statement_count(query);
@@ -185,7 +185,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = statements[1].range,
                                          .statement_index = 1,
                                          .syntax_node = statements[1].syntax_node};
-    if (!append_record(diagnostics, record))
+    if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
   for (size_t i = 0; i < statement_count; ++i) {
@@ -196,7 +196,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                            .range = statements[i].range,
                                            .statement_index = i,
                                            .syntax_node = statements[i].syntax_node};
-      if (!append_record(diagnostics, record))
+      if (!sequel_diagnostic_list_append(diagnostics, record))
         goto no_memory;
     }
     if ((statements[i].operation == SEQUEL_OPERATION_UPDATE || statements[i].operation == SEQUEL_OPERATION_DELETE) &&
@@ -207,7 +207,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                            .range = statements[i].range,
                                            .statement_index = i,
                                            .syntax_node = statements[i].syntax_node};
-      if (!append_record(diagnostics, record))
+      if (!sequel_diagnostic_list_append(diagnostics, record))
         goto no_memory;
     }
   }
@@ -226,7 +226,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                            .range = statements[i].range,
                                            .statement_index = i,
                                            .syntax_node = statements[i].syntax_node};
-      if (!append_record(diagnostics, record))
+      if (!sequel_diagnostic_list_append(diagnostics, record))
         goto no_memory;
     }
   }
@@ -238,7 +238,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = joins[8].range,
                                          .statement_index = SIZE_MAX,
                                          .syntax_node = joins[8].condition_node};
-    if (!append_record(diagnostics, record))
+    if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
   return SEQUEL_OK;
@@ -260,7 +260,7 @@ static sequel_status_t collect_query_diagnostics_by_origin(const sequel_query_do
   for (size_t i = 0; i < all.count; ++i) {
     if (all.records[i].origin != origin)
       continue;
-    if (!append_record(diagnostics, all.records[i])) {
+    if (!sequel_diagnostic_list_append(diagnostics, all.records[i])) {
       sequel_diagnostic_list_free(&all);
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
@@ -598,7 +598,7 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
         .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
                       issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
         .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
-    if (!append_record(diagnostics, record))
+    if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
   return SEQUEL_OK;

@@ -78,6 +78,9 @@ typedef struct {
 
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 
+/** Append one record, growing the owned list; returns false on overflow or allocation failure. */
+bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record);
+
 /** Collect recoverable lexical-token diagnostics from a lossless token document. */
 sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed,
                                                    sequel_diagnostic_list_t *diagnostics);

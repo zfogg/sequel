@@ -19,21 +19,6 @@ struct sequel_query_analysis {
   sequel_analysis_map_segment_t formatted_segment;
 };
 
-static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
-  if (diagnostics->count == diagnostics->capacity) {
-    size_t capacity = diagnostics->capacity ? diagnostics->capacity * 2 : 8;
-    if (capacity < diagnostics->count || capacity > SIZE_MAX / sizeof(*diagnostics->records))
-      return 0;
-    sequel_diagnostic_record_t *records = realloc(diagnostics->records, capacity * sizeof(*records));
-    if (!records)
-      return 0;
-    diagnostics->records = records;
-    diagnostics->capacity = capacity;
-  }
-  diagnostics->records[diagnostics->count++] = record;
-  return 1;
-}
-
 sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
                                                        sequel_diagnostic_list_t *diagnostics) {
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
@@ -44,13 +29,14 @@ sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_docum
   for (size_t i = 0; i < count; ++i) {
     if (!(tokens[i].flags & SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC))
       continue;
-    if (!append_diagnostic_record(diagnostics, (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
-                                                                            .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
-                                                                            .severity = SEQUEL_WARNING,
-                                                                            .range = tokens[i].range,
-                                                                            .statement_index = SIZE_MAX,
-                                                                            .syntax_node = SIZE_MAX,
-                                                                            .recovered = 0})) {
+    if (!sequel_diagnostic_list_append(diagnostics,
+                                       (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
+                                                                    .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
+                                                                    .severity = SEQUEL_WARNING,
+                                                                    .range = tokens[i].range,
+                                                                    .statement_index = SIZE_MAX,
+                                                                    .syntax_node = SIZE_MAX,
+                                                                    .recovered = 0})) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
     }
