@@ -1,0 +1,10 @@
+#pragma once
+
+typedef enum {
+  SEQUEL_BIND_POSITIONAL = 0,
+  SEQUEL_BIND_NUMBERED,
+  SEQUEL_BIND_NAMED,
+  SEQUEL_BIND_TYPED,
+  SEQUEL_BIND_FORMAT,
+  SEQUEL_BIND_UNKNOWN
+} sequel_bind_style_t;

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <sequel/parser.h>
+#include <sequel/binds.h>
 #include <sequel/source.h>
 #include <sequel/syntax.h>
 
@@ -52,15 +53,6 @@ typedef struct {
   size_t subquery_statement;
   uint32_t flags;
 } sequel_relation_info_t;
-
-typedef enum {
-  SEQUEL_BIND_POSITIONAL = 0,
-  SEQUEL_BIND_NUMBERED,
-  SEQUEL_BIND_NAMED,
-  SEQUEL_BIND_TYPED,
-  SEQUEL_BIND_FORMAT,
-  SEQUEL_BIND_UNKNOWN
-} sequel_bind_style_t;
 
 typedef struct {
   sequel_source_range_t range;

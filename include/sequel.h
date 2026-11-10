@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include <sequel/dialect.h>
+#include <sequel/binds.h>
 #include <sequel/lexer.h>
 #include <sequel/parser.h>
 #include <sequel/query.h>
@@ -168,8 +169,6 @@ sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_l
                                                sequel_diagnostic_t *out);
 
 /** Bind syntax classification; descriptors never contain names, types or values. */
-typedef enum { SEQUEL_BIND_POSITIONAL, SEQUEL_BIND_NUMBERED, SEQUEL_BIND_NAMED, SEQUEL_BIND_TYPED } sequel_bind_style_t;
-
 /** Ordinal is one-based occurrence order; slot is one-based identity within a
  * zero-based statement_index. Repeated markers share a slot; anonymous markers
  * allocate a new slot. offset/end_offset refer to original UTF-8 bytes. */
