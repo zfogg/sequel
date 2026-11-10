@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <sequel/parser.h>
+#include <sequel/dialect.h>
 
 #ifndef SEQUEL_INPUT_MAX
 #define SEQUEL_INPUT_MAX ((size_t)1024 * 1024 * 1024)
@@ -29,22 +30,6 @@ static int append_token(sequel_lexed_document_t *document, sequel_token_t token,
   document->tokens = tokens;
   document->tokens[document->token_count++] = token;
   return 1;
-}
-
-static int keyword_id(const char *text, size_t length) {
-  static const char *keywords[] = {"SELECT", "INSERT", "UPDATE", "DELETE", "WITH", "FROM", "WHERE", "GROUP",
-                                   "ORDER",  "HAVING", "LIMIT",  "OFFSET", "JOIN", "ON",   "UNION"};
-  for (size_t i = 0; i < sizeof(keywords) / sizeof(*keywords); ++i) {
-    size_t keyword_length = strlen(keywords[i]);
-    if (keyword_length != length)
-      continue;
-    size_t j = 0;
-    for (; j < length && toupper((unsigned char)text[j]) == keywords[i][j]; ++j)
-      ;
-    if (j == length)
-      return (int)i + 1;
-  }
-  return 0;
 }
 
 static size_t scan_quoted(const char *source, size_t length, size_t start, char quote) {
@@ -138,7 +123,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
         ++i;
-      int id = keyword_id(source->data + start, i - start);
+      unsigned id = sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start);
       kind = id ? SEQUEL_TOKEN_KEYWORD : SEQUEL_TOKEN_IDENTIFIER;
       flags = id ? SEQUEL_TOKEN_FLAG_CASE_FOLDED : 0;
     } else if (source->data[i] == '\'' || source->data[i] == '"' || source->data[i] == '`') {
@@ -162,14 +147,16 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       kind = ispunct((unsigned char)source->data[start]) ? SEQUEL_TOKEN_PUNCTUATION : SEQUEL_TOKEN_ERROR;
     }
-    sequel_token_t token = {
-        .kind = kind,
-        .flags = flags,
-        .range = {start, i},
-        .leading_trivia = {start, start},
-        .trailing_trivia = {i, i},
-        .keyword_id = kind == SEQUEL_TOKEN_KEYWORD ? (uint32_t)keyword_id(source->data + start, i - start) : 0,
-        .dialect_id = (uint32_t)settings->dialect};
+    sequel_token_t token = {.kind = kind,
+                            .flags = flags,
+                            .range = {start, i},
+                            .leading_trivia = {start, start},
+                            .trailing_trivia = {i, i},
+                            .keyword_id =
+                                kind == SEQUEL_TOKEN_KEYWORD
+                                    ? sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start)
+                                    : 0,
+                            .dialect_id = (uint32_t)settings->dialect};
     if (!append_token(document, token, limit)) {
       sequel_lexed_document_free(document);
       return SEQUEL_ERR_LIMIT;
