@@ -813,7 +813,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
         goto no_memory;
     }
-    if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope && strstr(source.data, " RETURNING ") &&
+    if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope && !strstr(source.data, "DELETE FROM") &&
+        strstr(source.data, " RETURNING ") &&
         (!append_text(&text, &length, &capacity, " RETURNING ") ||
          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
       goto no_memory;
@@ -1023,6 +1024,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       char *close = strchr(returning, ')');
       if (close)
         memmove(returning, close, strlen(close) + 1);
+    }
+  }
+  if (sequel_query_cte_count(query) && strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO")) {
+    char *returning = strstr(text, " RETURNING ");
+    if (returning) {
+      char *close = strchr(returning, ')');
+      if (close) {
+        memmove(returning, close, strlen(close) + 1);
+        length = strlen(text);
+      }
     }
   }
   if (settings->max_length && length > settings->max_length)
