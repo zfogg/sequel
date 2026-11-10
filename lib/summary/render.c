@@ -792,12 +792,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             condition_end = cursor;
             break;
           }
-        for (const char *join = strstr(source.data + condition_start, " JOIN "); join;
-             join = strstr(join + 6, " JOIN ")) {
-          size_t join_offset = (size_t)(join - source.data);
-          if (join_offset < condition_end)
-            condition_end = join_offset;
-          break;
+        const char *join_markers[] = {" JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " FULL JOIN ",
+                                      " INNER JOIN ", " CROSS JOIN ", " NATURAL JOIN "};
+        for (size_t marker = 0; marker < sizeof(join_markers) / sizeof(join_markers[0]); ++marker) {
+          const char *join = strstr(source.data + condition_start, join_markers[marker]);
+          if (join) {
+            size_t join_offset = (size_t)(join - source.data);
+            if (join_offset < condition_end)
+              condition_end = join_offset;
+          }
         }
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
