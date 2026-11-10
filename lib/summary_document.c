@@ -1643,6 +1643,20 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
+  if (text && summary_word(source.data, source.length, 0, "COPY")) {
+    const char *from = strstr(source.data, " FROM ");
+    if (from) {
+      const char *target = source.data + strlen("COPY ");
+      const char *target_end = from;
+      while (target_end > target && isspace((unsigned char)target_end[-1]))
+        --target_end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "COPY ") ||
+          !append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)))
+        goto no_memory;
+    }
+  }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
     const char *select = strstr(source.data, " SELECT ") + 1;
     const char *from = strstr(select, " FROM ");
