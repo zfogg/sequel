@@ -356,7 +356,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!append_text(&text, &length, &capacity, first_set ? "SELECT " : "SELECT ") ||
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !append_text(&text, &length, &capacity, " FROM ") ||
-          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
+          (strstr(source.data, " WHERE ") &&
+           (!append_text(&text, &length, &capacity, " WHERE ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
         goto no_memory;
       const char *op = strstr(end, " UNION ");
       const char *except = strstr(end, " EXCEPT ");
