@@ -28,6 +28,7 @@ typedef struct {
 #include "legacy_scanner.c"
 #include "legacy_summary.c"
 #include "legacy_formatter.c"
+#include "legacy_token_adapter.c"
 #include "legacy_diagnostics.c"
 #include "legacy_api.c"
 #include "legacy_compact.c"
