@@ -56,6 +56,8 @@ typedef struct {
   uint32_t flags;
 } sequel_relation_info_t;
 
+enum { SEQUEL_RELATION_FLAG_NESTED_SCOPE = 1u << 0 };
+
 typedef struct {
   sequel_source_range_t range;
   sequel_bind_style_t style;

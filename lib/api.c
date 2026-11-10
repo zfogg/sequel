@@ -296,6 +296,25 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
         size_t cursor = start;
         while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
           ++cursor;
+        if (cursor + 4 <= end && toupper((unsigned char)query_source.data[cursor]) == 'W' &&
+            toupper((unsigned char)query_source.data[cursor + 1]) == 'I' &&
+            toupper((unsigned char)query_source.data[cursor + 2]) == 'T' &&
+            toupper((unsigned char)query_source.data[cursor + 3]) == 'H') {
+          const char *body = query_source.data + cursor;
+          const char *select = strstr(body, "SELECT");
+          const char *insert = strstr(body, "INSERT");
+          const char *update = strstr(body, "UPDATE");
+          const char *delete_word = strstr(body, "DELETE");
+          const char *candidate = select;
+          if (!candidate || (insert && insert < candidate))
+            candidate = insert;
+          if (!candidate || (update && update < candidate))
+            candidate = update;
+          if (!candidate || (delete_word && delete_word < candidate))
+            candidate = delete_word;
+          if (candidate)
+            cursor = (size_t)(candidate - query_source.data);
+        }
         amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
         size_t written = 0;
         while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&

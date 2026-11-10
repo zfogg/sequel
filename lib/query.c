@@ -125,6 +125,33 @@ static int is_reserved_relation_alias(const sequel_source_view_t *source, const 
          toupper((unsigned char)source->data[token->range.start + 4]) == 'L';
 }
 
+static int token_in_subquery(const sequel_token_t *tokens, size_t index, const sequel_source_view_t *source) {
+  size_t depth = 0;
+  size_t subquery_depth = SIZE_MAX;
+  for (size_t i = 0; i < index; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION)
+      continue;
+    if (tokens[i].range.end - tokens[i].range.start != 1 || tokens[i].range.start >= source->length)
+      continue;
+    char punctuation = source->data[tokens[i].range.start];
+    if (punctuation == '(') {
+      ++depth;
+      size_t next = i + 1;
+      while (next < index &&
+             (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+              tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+        ++next;
+      if (next < index && tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT)
+        subquery_depth = depth;
+    } else if (punctuation == ')' && depth) {
+      if (subquery_depth == depth)
+        subquery_depth = SIZE_MAX;
+      --depth;
+    }
+  }
+  return subquery_depth != SIZE_MAX && depth >= subquery_depth;
+}
+
 static int is_trivia(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
          token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
@@ -332,6 +359,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                        .syntax_node = SIZE_MAX,
                                        .parent_relation = SIZE_MAX,
                                        .subquery_statement = SIZE_MAX};
+    if (token_in_subquery(tokens, i, &source)) {
+      relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
+      relation.kind = SEQUEL_RELATION_SUBQUERY;
+    }
     if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;

@@ -342,6 +342,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         }
       }
+      if (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE)
+        continue;
       bool nested = false;
       for (size_t p = 0; p < sequel_query_predicate_count(query); ++p) {
         const sequel_predicate_info_t *predicate = &sequel_query_predicates(query)[p];
@@ -368,6 +370,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               prefix = " ASOF LEFT JOIN ";
               break;
             }
+            if (summary_word(source.data, source.length, cursor, "CROSS")) {
+              prefix = " CROSS JOIN LATERAL ";
+              break;
+            }
             if (summary_word(source.data, source.length, cursor, "LEFT")) {
               prefix = " LEFT JOIN ";
               break;
@@ -384,6 +390,42 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
         if (!append_text(&text, &length, &capacity, prefix))
           goto no_memory;
+      }
+      if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
+          summary_word(source.data, source.length, relations[i].name_range.start, "LATERAL")) {
+        const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
+        const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
+        const char *where = from ? strstr(from, " WHERE ") : NULL;
+        const char *order = where ? strstr(where, " ORDER BY ") : NULL;
+        const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+        if (subquery && from && where && order && limit) {
+          const char *table = from + 6;
+          while (*table && isspace((unsigned char)*table))
+            ++table;
+          const char *table_end = table;
+          while (*table_end && !isspace((unsigned char)*table_end))
+            ++table_end;
+          const char *alias = table_end;
+          while (*alias && isspace((unsigned char)*alias))
+            ++alias;
+          const char *alias_end = alias;
+          while (*alias_end && !isspace((unsigned char)*alias_end))
+            ++alias_end;
+          if (!append_text(&text, &length, &capacity, "SELECT ") ||
+              !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              !append_text(&text, &length, &capacity, " FROM ") ||
+              !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+              !append_text(&text, &length, &capacity, " AS ") ||
+              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
+              !append_text(&text, &length, &capacity, " WHERE ") ||
+              !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              !append_text(&text, &length, &capacity, " ORDER BY ") ||
+              !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              !append_bytes(&text, &length, &capacity, limit, strlen(limit)))
+            goto no_memory;
+          ++rendered_relations;
+          continue;
+        }
       }
       size_t start = relations[i].name_range.start;
       size_t end = relations[i].name_range.end;
