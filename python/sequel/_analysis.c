@@ -46,18 +46,19 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   PyObject *result = PyDict_New();
   if (!result)
     return NULL;
+#define ANALYSIS_TEXT(value) PyUnicode_FromString((value) ? (value) : "")
 #define ANALYSIS_FIELD(key, value)                                                                                     \
   if (analysis_set(result, key, value) < 0)                                                                            \
   goto failed
   ANALYSIS_FIELD("schema_version", PyLong_FromUnsignedLong(a->schema_version));
   ANALYSIS_FIELD("dialect", PyLong_FromLong(a->dialect));
-  ANALYSIS_FIELD("status", PyUnicode_FromString(a->status));
-  ANALYSIS_FIELD("omission_reason", PyUnicode_FromString(a->omission_reason));
-  ANALYSIS_FIELD("text", PyUnicode_FromString(a->text));
-  ANALYSIS_FIELD("summary", PyUnicode_FromString(a->summary));
-  ANALYSIS_FIELD("formatted", PyUnicode_FromString(a->formatted));
-  ANALYSIS_FIELD("operation", PyUnicode_FromString(a->operation));
-  ANALYSIS_FIELD("fingerprint", PyUnicode_FromString(a->fingerprint));
+  ANALYSIS_FIELD("status", ANALYSIS_TEXT(a->status));
+  ANALYSIS_FIELD("omission_reason", ANALYSIS_TEXT(a->omission_reason));
+  ANALYSIS_FIELD("text", ANALYSIS_TEXT(a->text));
+  ANALYSIS_FIELD("summary", ANALYSIS_TEXT(a->summary));
+  ANALYSIS_FIELD("formatted", ANALYSIS_TEXT(a->formatted));
+  ANALYSIS_FIELD("operation", ANALYSIS_TEXT(a->operation));
+  ANALYSIS_FIELD("fingerprint", ANALYSIS_TEXT(a->fingerprint));
   ANALYSIS_FIELD("truncated", PyBool_FromLong(a->truncated));
   ANALYSIS_FIELD("original_length", PyLong_FromSize_t(a->original_length));
   ANALYSIS_FIELD("statement_count", PyLong_FromSize_t(a->statement_count));
@@ -108,6 +109,7 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   }
   ANALYSIS_FIELD("statements", statements);
 #undef ANALYSIS_FIELD
+#undef ANALYSIS_TEXT
   return result;
 failed:
   Py_DECREF(result);

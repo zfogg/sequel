@@ -1704,7 +1704,9 @@ static void analysis_summary_from_query(const sequel_query_document_t *query, se
     sequel_abort(SEQUEL_ERR_NOMEM);
   size_t length = summary.length;
   char *copy = analysis_array(NULL, length + 1, sizeof(*copy));
-  memcpy(copy, summary.data, length + 1);
+  if (length && summary.data)
+    memcpy(copy, summary.data, length);
+  copy[length] = 0;
   out->summary = copy;
   sequel_text_result_free(&summary);
 }
@@ -1928,7 +1930,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
       if (query)
         analysis_operation_from_query(query, out);
-      if (query)
+      if (query && sequel_query_statement_count(query))
         analysis_summary_from_query(query, out);
       else
         analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
@@ -1952,7 +1954,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (o.omit_query_text)
         free(safe.p);
       else {
-        out->text = safe.p;
+        /* The sanitizer may have no output allocation for comment-only input.
+         * The public ABI promises non-NULL strings, including empty results. */
+        out->text = safe.p ? safe.p : "";
         analysis_charge(&a, 1);
         if (maps) {
           out->original_to_sanitized = (sequel_source_map_t){n, safe.n, map.p, map.n};
