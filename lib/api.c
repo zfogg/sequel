@@ -184,7 +184,8 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return status;
   if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
     collapse_in(result.data, dialect);
-  normalize_sanitized_text(result.data);
+  if (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS)
+    normalize_sanitized_text(result.data);
   *truncated = result.length > limit;
   utf8_cut(result.data, limit);
   result.length = strlen(result.data);
@@ -218,6 +219,8 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   parse_options.dialect = options ? options->dialect : SEQUEL_GENERIC;
   parse_options.retain_comments = true;
   parse_options.retain_whitespace = true;
+  parse_options.tolerant = true;
+  parse_options.recover_errors = true;
   sequel_source_view_t source = {sql, length};
   sequel_syntax_document_t *syntax = NULL;
   sequel_query_document_t *query = NULL;

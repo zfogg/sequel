@@ -216,9 +216,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
-    } else if ((source->data[i] == 'E' || source->data[i] == 'e' || source->data[i] == 'B' ||
-                source->data[i] == 'b' || source->data[i] == 'X' || source->data[i] == 'x' ||
-                source->data[i] == 'N' || source->data[i] == 'n') &&
+    } else if ((source->data[i] == 'E' || source->data[i] == 'e' || source->data[i] == 'B' || source->data[i] == 'b' ||
+                source->data[i] == 'X' || source->data[i] == 'x' || source->data[i] == 'N' || source->data[i] == 'n') &&
                i + 1 < source->length && source->data[i + 1] == '\'') {
       i = scan_quoted(source->data, source->length, i + 1, '\'');
       kind = SEQUEL_TOKEN_STRING;
@@ -253,9 +252,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       if (source->data[start] == '0' && i < source->length && (source->data[i] == 'x' || source->data[i] == 'X'))
         ++i;
-      while (i < source->length && (isalnum((unsigned char)source->data[i]) || source->data[i] == '.' ||
-                                    source->data[i] == '_' || source->data[i] == '+' || source->data[i] == '-'))
+      while (i < source->length) {
+        unsigned char character = (unsigned char)source->data[i];
+        bool exponent_sign = (character == '+' || character == '-') && i > start &&
+                             (source->data[i - 1] == 'e' || source->data[i - 1] == 'E') && i + 1 < source->length &&
+                             isdigit((unsigned char)source->data[i + 1]);
+        if (!(isalnum(character) || character == '.' || character == '_' || exponent_sign))
+          break;
         ++i;
+      }
       if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E')) {
         size_t exponent = i++;
         if (i < source->length && (source->data[i] == '+' || source->data[i] == '-'))
@@ -268,10 +273,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       }
       kind = SEQUEL_TOKEN_NUMBER;
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
-    } else if (source->data[i] == '$' &&
-               (settings->dialect == SEQUEL_GENERIC || settings->dialect == SEQUEL_POSTGRESQL ||
-                settings->dialect == SEQUEL_MYSQL ||
-                settings->dialect == SEQUEL_DUCKDB || settings->dialect == SEQUEL_SQLITE)) {
+    } else if (source->data[i] == '$' && (settings->dialect == SEQUEL_GENERIC ||
+                                          settings->dialect == SEQUEL_POSTGRESQL || settings->dialect == SEQUEL_MYSQL ||
+                                          settings->dialect == SEQUEL_DUCKDB || settings->dialect == SEQUEL_SQLITE)) {
       size_t tag_end = i + 1;
       while (tag_end < source->length &&
              (isalnum((unsigned char)source->data[tag_end]) || source->data[tag_end] == '_'))

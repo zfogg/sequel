@@ -52,7 +52,7 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
           goto no_memory;
       continue;
     }
-    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) &&
+    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && !(token->flags & SEQUEL_TOKEN_FLAG_COMMENT) &&
         ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
