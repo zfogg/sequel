@@ -16,11 +16,16 @@ sequel_status_t sequel_source_create(const sequel_source_view_t *view, const seq
     return SEQUEL_ERR_NULL;
   *out = NULL;
   sequel_source_storage_t storage = options ? options->storage : SEQUEL_SOURCE_COPIED;
+  sequel_dialect_t dialect = options ? options->dialect : SEQUEL_GENERIC;
+  if (storage != SEQUEL_SOURCE_BORROWED && storage != SEQUEL_SOURCE_COPIED)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!sequel_dialect_definition(dialect))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_source_t *source = calloc(1, sizeof(*source));
   if (!source)
     return SEQUEL_ERR_NOMEM;
   source->storage = storage;
-  source->dialect = options ? options->dialect : SEQUEL_GENERIC;
+  source->dialect = dialect;
   if (storage == SEQUEL_SOURCE_COPIED) {
     source->owned_data = malloc(view->length + 1);
     if (!source->owned_data) {

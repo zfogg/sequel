@@ -89,6 +89,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
   sequel_parse_options_t defaults;
   sequel_parse_options_init(&defaults);
   const sequel_parse_options_t *settings = options ? options : &defaults;
+  if (!sequel_dialect_definition(settings->dialect))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   if (source->length > settings->max_input_bytes || source->length > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   sequel_lexed_document_t *document = calloc(1, sizeof(*document));
