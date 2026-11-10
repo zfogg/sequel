@@ -269,16 +269,9 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
     goto done;
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
-    char *short_summary = realloc(summary.data, limit + 4);
-    if (!short_summary) {
-      status = SEQUEL_ERR_NOMEM;
-      goto done;
-    }
-    summary.data = short_summary;
     memcpy(summary.data + limit, "…", 3);
     summary.data[limit + 3] = 0;
     summary.length = limit + 3;
-    summary.capacity = limit + 4;
   }
   size_t text_length = options && options->omit_query_text ? 0 : sanitized.length;
   size_t summary_length = summary.length;
