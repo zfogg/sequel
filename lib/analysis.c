@@ -1174,46 +1174,6 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   free(events);
 }
 
-static void analysis_structure(const char *sql, size_t n, format_token *ts, size_t count, sequel_analysis_t *out) {
-  size_t stack[64], depth = 0, start = SIZE_MAX, last = 0;
-  for (size_t i = 0; i < count; i++) {
-    sequel_work_tick(1);
-    format_token t = ts[i];
-    if (t.kind >= 3)
-      continue;
-    size_t off = t.source_offset;
-    if (start == SIZE_MAX)
-      start = off;
-    last = off + t.t.n;
-    if (t.kind != 0)
-      continue;
-    if (sym(t.t, '(') || sym(t.t, '[')) {
-      if (depth == 64) {
-        analysis_add_diagnostic(out, SEQUEL_DIAG_NESTING_LIMIT, off, off + 1);
-        depth = 0;
-      } else
-        stack[depth++] = i;
-    } else if (sym(t.t, ')') || sym(t.t, ']')) {
-      if (!depth || (sym(t.t, ')') != sym(ts[stack[depth - 1]].t, '(')))
-        analysis_add_diagnostic(out, SEQUEL_DIAG_UNMATCHED_CLOSE, off, off + 1);
-      else
-        depth--;
-    } else if (sym(t.t, ';')) {
-      if (depth)
-        analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, ts[stack[depth - 1]].source_offset, off);
-      depth = 0;
-      /* Empty semicolon statements are not counted. */
-      if (start != off)
-        analysis_add_statement(out, start, off + 1);
-      start = SIZE_MAX;
-    }
-  }
-  if (depth)
-    analysis_add_diagnostic(out, SEQUEL_DIAG_UNCLOSED_GROUP, ts[stack[depth - 1]].source_offset, n);
-  if (start != SIZE_MAX)
-    analysis_add_statement(out, start, last);
-}
-
 static void analysis_structure_from_lexed(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
   size_t count = 0, start = SIZE_MAX, last = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
@@ -1884,8 +1844,6 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     }
     if (syntax)
       analysis_structure_from_lexed(sequel_syntax_lexed(syntax), out);
-    else
-      analysis_structure(sql, n, tokens, scanned, out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
