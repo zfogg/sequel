@@ -235,7 +235,11 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
       ++i;
-      while (i < source->length && is_word_part((unsigned char)source->data[i]))
+      while (i < source->length && is_word_part((unsigned char)source->data[i]) &&
+             !(i + 2 < source->length && (unsigned char)source->data[i] == 0xe2 &&
+               (unsigned char)source->data[i + 1] == 0x80 &&
+               (unsigned char)source->data[i + 2] >= 0x98 &&
+               (unsigned char)source->data[i + 2] <= 0x9d))
         ++i;
       unsigned id = sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start);
       kind = id == 19 || id == 20 ? SEQUEL_TOKEN_BOOLEAN
