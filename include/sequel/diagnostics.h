@@ -64,10 +64,13 @@ typedef struct {
   sequel_diagnostic_code_t code;
   sequel_severity_t severity;
   sequel_source_range_t range;
+  sequel_source_range_t related_range;
   size_t statement_index;
   size_t syntax_node;
+  size_t query_item;
   int incomplete;
   int recovered;
+  int statement_complete;
 } sequel_diagnostic_record_t;
 
 typedef struct {
