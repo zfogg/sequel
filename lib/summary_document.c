@@ -1547,6 +1547,62 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
+  if (text && statements[0].operation == SEQUEL_OPERATION_MERGE && summary_word(source.data, source.length, 0, "MERGE")) {
+    const char *into = strstr(source.data, "MERGE INTO ");
+    const char *using = into ? strstr(into, " USING ") : NULL;
+    const char *on = using ? strstr(using, " ON ") : NULL;
+    const char *when = on ? strstr(on, " WHEN ") : NULL;
+    if (into && using && on && when) {
+      const char *target = into + strlen("MERGE INTO ");
+      const char *target_end = using;
+      while (target_end > target && isspace((unsigned char)target_end[-1]))
+        --target_end;
+      const char *source_name = using + strlen(" USING ");
+      const char *source_end = on;
+      while (source_end > source_name && isspace((unsigned char)source_end[-1]))
+        --source_end;
+      const char *match = on + strlen(" ON ");
+      const char *match_end = when;
+      while (match_end > match && isspace((unsigned char)match_end[-1]))
+        --match_end;
+      const char *target_alias = target;
+      while (target_alias < target_end && !isspace((unsigned char)*target_alias))
+        ++target_alias;
+      const char *target_alias_start = target_alias;
+      while (target_alias_start < target_end && isspace((unsigned char)*target_alias_start))
+        ++target_alias_start;
+      const char *source_alias = source_name;
+      while (source_alias < source_end && !isspace((unsigned char)*source_alias))
+        ++source_alias;
+      const char *source_alias_start = source_alias;
+      while (source_alias_start < source_end && isspace((unsigned char)*source_alias_start))
+        ++source_alias_start;
+      const char *set = strstr(when, " UPDATE SET ");
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "MERGE INTO ") ||
+          !append_bytes(&text, &length, &capacity, target, (size_t)(target_alias - target)) ||
+          (target_alias_start < target_end &&
+           (!append_text(&text, &length, &capacity, " AS ") ||
+            !append_bytes(&text, &length, &capacity, target_alias_start, (size_t)(target_end - target_alias_start)))) ||
+          !append_text(&text, &length, &capacity, " USING ") ||
+          !append_bytes(&text, &length, &capacity, source_name, (size_t)(source_alias - source_name)) ||
+          (source_alias_start < source_end &&
+           (!append_text(&text, &length, &capacity, " AS ") ||
+            !append_bytes(&text, &length, &capacity, source_alias_start, (size_t)(source_end - source_alias_start)))) ||
+          !append_text(&text, &length, &capacity, " ON ") ||
+          !append_bytes(&text, &length, &capacity, match, (size_t)(match_end - match)) ||
+          (set ? (!append_bytes(&text, &length, &capacity, when, (size_t)(set - when)) ||
+                  !append_text(&text, &length, &capacity, " UPDATE SET ") ||
+                  !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+               : !append_bytes(&text, &length, &capacity, when, source.data + source.length - when)))
+        goto no_memory;
+      for (char *cursor = text; *cursor; ++cursor) {
+        if (*cursor == ',' || *cursor == ';')
+          continue;
+      }
+    }
+  }
   if (!text) {
     text = malloc(1);
     if (!text)
