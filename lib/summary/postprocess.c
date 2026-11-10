@@ -22,6 +22,16 @@ static void normalize_function_arguments(char *text, size_t *length) {
   }
 }
 
+static void collapse_adjacent_ellipsis(char *text, size_t *length) {
+  const char pair[] = "… …";
+  const size_t pair_length = sizeof(pair) - 1;
+  const size_t one_length = sizeof("…") - 1;
+  for (char *match = strstr(text, pair); match; match = strstr(match, pair)) {
+    memmove(match + one_length, match + pair_length, strlen(match + pair_length) + 1);
+    *length -= pair_length - one_length;
+  }
+}
+
 static void collapse_duplicate_relation(char *text, size_t *length) {
   if (strncmp(text, "SELECT *", 8) != 0)
     return;
@@ -45,6 +55,7 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
   if (!text || !length)
     return;
   collapse_duplicate_relation(text, length);
+  collapse_adjacent_ellipsis(text, length);
   normalize_function_arguments(text, length);
   char *projection = strstr(text, "SELECT ");
   if (!projection)

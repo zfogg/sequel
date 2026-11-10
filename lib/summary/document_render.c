@@ -421,13 +421,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     const char *cursor = source.data;
     bool first_set = true;
     while (cursor < source.data + source.length) {
-      const char *select = strstr(cursor, "SELECT ");
+      const char *select = sequel_summary_find_word(source.data, source.length,
+                                                     (size_t)(cursor - source.data), "SELECT");
       if (!select)
         break;
-      const char *from = strstr(select, " FROM ");
+      const char *from = sequel_summary_find_word(source.data, source.length,
+                                                   (size_t)(select - source.data), "FROM");
       if (!from)
         break;
-      const char *table = from + 6;
+      const char *table = from + 5;
       while (*table && isspace((unsigned char)*table))
         ++table;
       const char *end = table;
@@ -440,9 +442,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_text(&text, &length, &capacity, " FROM ") ||
           !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
         goto no_memory;
-      const char *op = strstr(end, " UNION ");
-      const char *except = strstr(end, " EXCEPT ");
-      const char *intersect = strstr(end, " INTERSECT ");
+      const char *op = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "UNION");
+      const char *except = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "EXCEPT");
+      const char *intersect = sequel_summary_find_word(source.data, source.length,
+                                                        (size_t)(end - source.data), "INTERSECT");
       const char *next = op;
       if (!next || (except && except < next))
         next = except;
@@ -450,10 +453,18 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         next = intersect;
       if (!next)
         break;
-      const char *following_select = strstr(next + 1, " SELECT ");
+      const char *where = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "WHERE");
+      if (where && where < next &&
+          (!append_text(&text, &length, &capacity, " WHERE ") ||
+           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+        goto no_memory;
+      const char *following_select = sequel_summary_find_word(source.data, source.length,
+                                                               (size_t)(next - source.data + 1), "SELECT");
       if (!following_select)
-        following_select = strstr(next + 1, "(SELECT ");
+        following_select = sequel_summary_find_word(source.data, source.length,
+                                                    (size_t)(next - source.data + 1), "SELECT");
       if (!following_select ||
+          !append_text(&text, &length, &capacity, " ") ||
           !append_bytes(&text, &length, &capacity, next, (size_t)(following_select - next)))
         goto no_memory;
       cursor = following_select + (following_select[0] == '(' ? 1 : 0);

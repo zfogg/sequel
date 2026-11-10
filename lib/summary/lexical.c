@@ -14,6 +14,13 @@ int sequel_summary_word(const char *source, size_t length, size_t offset, const 
          (offset + n == length || !isalnum((unsigned char)source[offset + n]));
 }
 
+const char *sequel_summary_find_word(const char *source, size_t length, size_t offset, const char *word) {
+  for (size_t i = offset; i < length; ++i)
+    if (sequel_summary_word(source, length, i, word))
+      return source + i;
+  return NULL;
+}
+
 size_t sequel_summary_skip_space(const char *source, size_t length, size_t offset) {
   while (offset < length && isspace((unsigned char)source[offset]))
     ++offset;
