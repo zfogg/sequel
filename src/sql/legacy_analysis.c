@@ -910,7 +910,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     size_t scanned = 0;
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;
-    if (syntax && !parse_issue_count && !legacy_requires_compat_scan(sql, n, o.dialect))
+    if (syntax && !parse_issue_count && !legacy_requires_compat_scan(sql, n))
       adapter_status = legacy_adapt_lexed(sequel_syntax_lexed(syntax), &tokens, &scanned);
     if (adapter_status == SEQUEL_OK)
       count = scanned;

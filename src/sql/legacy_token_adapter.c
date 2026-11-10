@@ -86,14 +86,13 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
-static bool legacy_requires_compat_scan(const char *sql, size_t length, sequel_dialect_t dialect) {
+static bool legacy_requires_compat_scan(const char *sql, size_t length) {
   for (size_t i = 0; i < length; ++i) {
     if (sql[i] == '%' && i + 1 < length && (sql[i + 1] == 's' || sql[i + 1] == '('))
       return true;
     if (sql[i] == '\\' && i + 1 < length && (sql[i + 1] == '\'' || sql[i + 1] == '"'))
       return true;
-    if (sql[i] == '$' && i + 1 < length && sql[i + 1] == '$' &&
-        (dialect == SEQUEL_POSTGRESQL || dialect == SEQUEL_DUCKDB))
+    if (sql[i] == '$' && i + 1 < length && sql[i + 1] == '$')
       return true;
   }
   return false;
