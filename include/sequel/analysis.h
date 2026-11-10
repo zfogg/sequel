@@ -40,3 +40,6 @@ const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_an
 
 /** Return the diagnostics owned by the analysis object. */
 const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_query_analysis_t *analysis);
+
+/** Return canonical bind metadata borrowed from the retained query document. */
+const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis, size_t *count);

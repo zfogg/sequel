@@ -202,6 +202,13 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
+  size_t analysis_parameter_count = 0;
+  const sequel_parameter_info_t *analysis_parameters =
+      sequel_query_analysis_parameters(document_analysis, &analysis_parameter_count);
+  if (!check(analysis_parameter_count == 1 && analysis_parameters[0].ordinal == 1 &&
+                 analysis_parameters[0].style == SEQUEL_BIND_NUMBERED,
+             "analysis bind metadata"))
+    return 1;
   char token_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   char syntax_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   char query_fingerprint[SEQUEL_FINGERPRINT_LENGTH];

@@ -95,3 +95,10 @@ const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_an
 const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_query_analysis_t *analysis) {
   return analysis ? &analysis->diagnostics : NULL;
 }
+
+const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis,
+                                                                size_t *count) {
+  if (count)
+    *count = analysis ? sequel_query_parameter_count(analysis->query) : 0;
+  return analysis ? sequel_query_parameters(analysis->query) : NULL;
+}
