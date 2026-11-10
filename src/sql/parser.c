@@ -144,6 +144,24 @@ static int expression_precedence(char operator) {
   }
 }
 
+static int expression_keyword_precedence(const sequel_token_t *token) {
+  if (token->kind != SEQUEL_TOKEN_KEYWORD)
+    return 0;
+  switch (token->keyword_id) {
+  case SEQUEL_KEYWORD_OR:
+    return 1;
+  case SEQUEL_KEYWORD_AND:
+    return 2;
+  case SEQUEL_KEYWORD_IS:
+  case SEQUEL_KEYWORD_IN:
+  case SEQUEL_KEYWORD_BETWEEN:
+  case SEQUEL_KEYWORD_LIKE:
+    return 3;
+  default:
+    return 0;
+  }
+}
+
 static sequel_syntax_kind_t expression_atom_kind(const sequel_token_t *token) {
   if (token->kind == SEQUEL_TOKEN_PARAMETER)
     return SEQUEL_SYNTAX_PARAMETER;
@@ -171,7 +189,8 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
   size_t depth = 0, split = SIZE_MAX;
   int precedence = INT_MAX;
   for (size_t i = start; i < end; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION && tokens[i].kind != SEQUEL_TOKEN_OPERATOR)
+    if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION && tokens[i].kind != SEQUEL_TOKEN_OPERATOR &&
+        tokens[i].kind != SEQUEL_TOKEN_KEYWORD)
       continue;
     char c = source->data[tokens[i].range.start];
     if (c == '(') {
@@ -182,8 +201,9 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
       --depth;
       continue;
     }
-    if (!depth && tokens[i].kind == SEQUEL_TOKEN_OPERATOR) {
-      int candidate = expression_precedence(c);
+    if (!depth && (tokens[i].kind == SEQUEL_TOKEN_OPERATOR || tokens[i].kind == SEQUEL_TOKEN_KEYWORD)) {
+      int candidate =
+          tokens[i].kind == SEQUEL_TOKEN_KEYWORD ? expression_keyword_precedence(&tokens[i]) : expression_precedence(c);
       if (candidate && candidate <= precedence) {
         precedence = candidate;
         split = i;

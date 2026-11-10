@@ -25,7 +25,7 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 }
 
 int main(void) {
-  const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1; SELECT 2";
+  const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1 AND id IN (1, 2); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
   sequel_source_t *owned_source = NULL;
   if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
@@ -83,9 +83,13 @@ int main(void) {
   if (!check(node_count >= 2, "statement and clause nodes"))
     return 1;
   int found_binary = 0;
+  size_t binary_count = 0;
   for (size_t i = 0; i < node_count; ++i)
-    found_binary |= nodes[i].kind == SEQUEL_SYNTAX_BINARY_EXPRESSION;
-  if (!check(found_binary, "precedence expression node"))
+    if (nodes[i].kind == SEQUEL_SYNTAX_BINARY_EXPRESSION) {
+      found_binary = 1;
+      ++binary_count;
+    }
+  if (!check(found_binary && binary_count >= 3, "keyword and comparison precedence nodes"))
     return 1;
   const char family_sql[] = "EXPLAIN SELECT id FROM users WHERE id = 1 RETURNING id;";
   sequel_source_view_t family_source = {family_sql, strlen(family_sql)};
