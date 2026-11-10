@@ -1527,6 +1527,26 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
+  if (text && summary_word(source.data, source.length, 0, "UPDATE") && !strstr(source.data, " FROM ")) {
+    const char *set = strstr(source.data, " SET ");
+    const char *where = set ? strstr(set, " WHERE ") : NULL;
+    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
+    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+    if (set) {
+      const char *target = source.data + strlen("UPDATE ");
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "UPDATE ") ||
+          !append_bytes(&text, &length, &capacity, target, (size_t)(set - target)) ||
+          !append_text(&text, &length, &capacity, " SET …") ||
+          (where && (!append_text(&text, &length, &capacity, " WHERE …"))) ||
+          (order && (!append_text(&text, &length, &capacity, " ORDER BY …"))) ||
+          (limit && (!append_text(&text, &length, &capacity, " LIMIT ") ||
+                     !append_bytes(&text, &length, &capacity, limit + 7,
+                                   (source.data + source.length) - (limit + 7)))))
+        goto no_memory;
+    }
+  }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (text && strstr(text, " OVER (…) FILTER (…) FROM ")) {
@@ -1771,6 +1791,32 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           (strstr(fetch, " FETCH FIRST ROW ONLY")
                ? !append_text(&text, &length, &capacity, " FETCH FIRST 1 ROWS ONLY")
                : !append_bytes(&text, &length, &capacity, fetch, source.data + source.length - fetch)))
+        goto no_memory;
+    }
+  }
+  if (text && summary_word(source.data, source.length, 0, "UPDATE") && !strstr(source.data, " FROM ")) {
+    const char *set = strstr(source.data, " SET ");
+    const char *where = set ? strstr(set, " WHERE ") : NULL;
+    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
+    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+    if (set) {
+      const char *target = source.data + strlen("UPDATE ");
+      const char *target_end = set;
+      while (target_end > target && isspace((unsigned char)target_end[-1]))
+        --target_end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "UPDATE ") ||
+          !append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
+          !append_text(&text, &length, &capacity, " SET ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          (where && (!append_text(&text, &length, &capacity, " WHERE ") ||
+                     !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+          (order && (!append_text(&text, &length, &capacity, " ORDER BY ") ||
+                     !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+          (limit && (!append_text(&text, &length, &capacity, " LIMIT ") ||
+                     !append_bytes(&text, &length, &capacity, limit + 7,
+                                   (source.data + source.length) - (limit + 7)))) )
         goto no_memory;
     }
   }

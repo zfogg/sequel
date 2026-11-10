@@ -18,7 +18,7 @@ setup(
                 "lib/serialization.c",
                 "lib/formatter.c",
                 "lib/fingerprint.c",
-                "lib/summary_document.c",
+                "lib/summary/document.c",
                 "lib/sanitizer.c",
                 "lib/util/utf8.c",
                 "third_party/utf8proc/utf8proc.c",
