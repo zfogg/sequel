@@ -8,7 +8,7 @@ setup(
             "sequel._sql",
             sources=[
                 "python/sequel/_sql.c",
-                "src/sql/main.c",
+                "src/sql/engine.c",
                 "src/sql/source.c",
                 "src/sql/dialect.c",
                 "src/sql/lexer.c",

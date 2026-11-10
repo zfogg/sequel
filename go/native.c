@@ -1,5 +1,5 @@
 /* C engine SHA256: e9d53057558b4b263ff9c9e89a4348703799dc88a8136d8001371bacc03aa9e9 */
-#include "../src/sql/main.c"
+#include "../src/sql/engine.c"
 #include "../src/sql/source.c"
 #include "../src/sql/dialect.c"
 #include "../src/sql/lexer.c"

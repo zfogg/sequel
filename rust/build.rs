@@ -40,7 +40,7 @@ fn main() {
     let mut build = cc::Build::new();
     build
         .files([
-            "src/sql/main.c",
+            "src/sql/engine.c",
             "src/sql/source.c",
             "src/sql/dialect.c",
             "src/sql/lexer.c",
