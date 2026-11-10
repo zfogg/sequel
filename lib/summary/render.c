@@ -1057,8 +1057,40 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (first_outer_relation != SIZE_MAX) {
         for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
-          if (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE)
+          if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && relations[i].kind != SEQUEL_RELATION_SUBQUERY)
             continue;
+          if (relations[i].kind == SEQUEL_RELATION_SUBQUERY) {
+            const char *subquery = source.data + relations[i].name_range.start;
+            const char *from =
+                sequel_summary_find_word(subquery, source.length - relations[i].name_range.start, 0, "FROM");
+            const char *where =
+                from ? sequel_summary_find_word(from, source.length - (size_t)(from - source.data), 0, "WHERE") : NULL;
+            const char *order =
+                from ? sequel_summary_find_word(from, source.length - (size_t)(from - source.data), 0, "ORDER") : NULL;
+            const char *alias = relations[i].alias_range.end > relations[i].alias_range.start
+                                    ? source.data + relations[i].alias_range.start
+                                    : NULL;
+            const char *alias_end = alias ? source.data + relations[i].alias_range.end : NULL;
+            const char *table = from ? from + 4 : NULL;
+            while (table && isspace((unsigned char)*table))
+              ++table;
+            const char *table_end = table;
+            while (table_end && !isspace((unsigned char)*table_end) && *table_end != ')')
+              ++table_end;
+            if (!from || !table || !append_text(&text, &length, &capacity, " LEFT JOIN LATERAL (SELECT ") ||
+                !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+                !append_text(&text, &length, &capacity, " FROM ") ||
+                !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+                (where && (!append_text(&text, &length, &capacity, " WHERE ") ||
+                           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+                (order && (!append_text(&text, &length, &capacity, " ORDER BY ") ||
+                           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+                !append_text(&text, &length, &capacity, " LIMIT ?) AS ") ||
+                (alias && !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))) ||
+                !append_text(&text, &length, &capacity, " ON ?"))
+              goto no_memory;
+            continue;
+          }
           size_t condition_start = relations[i].range.end;
           while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
             ++condition_start;
