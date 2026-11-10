@@ -214,6 +214,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
       flags = SEQUEL_TOKEN_FLAG_BIND | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
+      if (terminated && !memchr(source->data + start, ':', i - start))
+        flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
     } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' || source->data[i] == '@') {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
