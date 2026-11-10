@@ -28,7 +28,7 @@ typedef struct {
 #include "summary.c"
 #include "layout.c"
 #include "token_adapter.c"
-#include "diagnostic_api.c"
+#include "diagnostics.c"
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"

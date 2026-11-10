@@ -247,6 +247,9 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
+/* The public diagnostic entry points share this module's diagnostic records. */
+#include "diagnostic_api.c"
+
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics) {
   if (!syntax || !diagnostics)
