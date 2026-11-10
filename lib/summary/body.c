@@ -138,8 +138,8 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       while (value_end < range.end && !isspace((unsigned char)source[value_end]) && source[value_end] != ')')
         ++value_end;
       if (!append_text(text, length, capacity, " LIMIT ") ||
-          !append_text(text, length, capacity, (*value == '$' || *value == '?' ||
-                                               (value_end - value >= 9 && !memcmp(value, "sqlc.arg(", 9)))
+          !append_text(text, length, capacity, (source[value] == '$' || source[value] == '?' ||
+                                               (value_end - value >= 9 && !memcmp(source + value, "sqlc.arg(", 9)))
                                                   ? "?"
                                                   : "1"))
         return 0;
