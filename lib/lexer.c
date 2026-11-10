@@ -207,16 +207,19 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                 (unsigned char)source->data[i + 2] == 0x9c || (unsigned char)source->data[i + 2] == 0x9d)) {
       unsigned char opener = (unsigned char)source->data[i + 2];
       unsigned char closer = opener == 0x98 ? 0x99 : opener == 0x9b ? 0x9d : opener == 0x9c ? 0x9d : opener;
+      bool terminated = false;
       i += 3;
       while (i + 2 < source->length &&
              !((unsigned char)source->data[i] == 0xe2 && (unsigned char)source->data[i + 1] == 0x80 &&
                (unsigned char)source->data[i + 2] == closer))
         ++i;
-      if (i + 2 < source->length)
+      if (i + 2 < source->length) {
         i += 3;
+        terminated = true;
+      }
       kind = opener == 0x98 ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       flags = opener == 0x98 ? SEQUEL_TOKEN_FLAG_LITERAL : 0;
-      if (i == source->length && (unsigned char)source->data[i - 1] != closer)
+      if (!terminated)
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if ((source->data[i] == 'U' || source->data[i] == 'u') && i + 2 < source->length &&
                source->data[i + 1] == '&' && source->data[i + 2] == '\'') {
@@ -367,9 +370,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       }
     } else if (source->data[i] == '{' && settings->dialect == SEQUEL_CLICKHOUSE) {
       ++i;
-      while (i < source->length && source->data[i] != '}')
+      size_t type_depth = 0;
+      while (i < source->length && (source->data[i] != '}' || type_depth)) {
+        if (source->data[i] == '(')
+          ++type_depth;
+        else if (source->data[i] == ')' && type_depth)
+          --type_depth;
         ++i;
-      int terminated = i < source->length;
+      }
+      int terminated = i < source->length && type_depth == 0;
       if (terminated)
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
