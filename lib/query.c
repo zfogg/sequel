@@ -544,6 +544,14 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
             tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++alias;
+    if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
+        tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
+      ++alias;
+      while (alias < token_count &&
+             (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+              tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+        ++alias;
+    }
     sequel_source_range_t alias_range = {end, end};
     if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
         !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))

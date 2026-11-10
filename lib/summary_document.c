@@ -962,10 +962,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
-        if (condition_end > condition_start && !summary_word(source.data, source.length, condition_start, "USING"))
-          okay =
-              append_text(&text, &length, &capacity, " ") &&
-              append_bytes(&text, &length, &capacity, source.data + condition_start, condition_end - condition_start);
+        if (condition_end > condition_start && !summary_word(source.data, source.length, condition_start, "USING")) {
+          bool literal_true = summary_word(source.data, source.length, condition_start, "ON") &&
+                              summary_word(source.data, source.length, summary_skip_space(source.data, source.length,
+                                                                                         condition_start + 2), "true");
+          okay = append_text(&text, &length, &capacity, " ") &&
+                 (literal_true ? (append_text(&text, &length, &capacity, "ON ") &&
+                                  append_text(&text, &length, &capacity, "?"))
+                               : append_bytes(&text, &length, &capacity, source.data + condition_start,
+                                              condition_end - condition_start));
+        }
       }
       if (okay && rendered_relations) {
         const char *using = strstr(source.data + relations[i].range.end, "USING");
