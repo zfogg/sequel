@@ -56,9 +56,14 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   if (issue->code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN) {
     size_t token_count = 0;
     const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(document), &token_count);
-    for (size_t i = 0; i < token_count; ++i)
-      if (tokens[i].range.start == issue->range.start && tokens[i].kind == SEQUEL_TOKEN_PARAMETER)
+    for (size_t i = 0; i < token_count; ++i) {
+      if (tokens[i].range.start != issue->range.start)
+        continue;
+      if (tokens[i].kind == SEQUEL_TOKEN_PARAMETER)
         code = SEQUEL_DIAG_INVALID_PARAMETER;
+      else if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION)
+        code = SEQUEL_DIAG_UNMATCHED_CLOSE;
+    }
   }
   memset(diagnostic, 0, sizeof(*diagnostic));
   diagnostic->code = code;
