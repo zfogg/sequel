@@ -268,10 +268,17 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
     size_t table = summary_skip_space(source, range.end, start + 6), end = table;
     while (end < range.end && !isspace((unsigned char)source[end]))
       ++end;
-    return append_text(text, length, capacity, "UPDATE ") &&
-           append_bytes(text, length, capacity, source + table, end - table) &&
-           append_text(text, length, capacity, " SET ") &&
-           append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+    if (!append_text(text, length, capacity, "UPDATE ") ||
+        !append_bytes(text, length, capacity, source + table, end - table) ||
+        !append_text(text, length, capacity, " SET ") ||
+        !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      return 0;
+    size_t returning = end;
+    while (returning < range.end && !summary_word(source, range.end, returning, "RETURNING"))
+      ++returning;
+    return returning >= range.end ||
+           (append_text(text, length, capacity, " RETURNING ") &&
+            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
   }
   if (summary_word(source, range.end, start, "INSERT")) {
     size_t into = start;
@@ -629,8 +636,50 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
+  if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      (strstr(source.data, " UNION ") || strstr(source.data, " EXCEPT ") || strstr(source.data, " INTERSECT "))) {
+    const char *cursor = source.data;
+    bool first_set = true;
+    while (cursor < source.data + source.length) {
+      const char *select = strstr(cursor, "SELECT ");
+      if (!select)
+        break;
+      const char *from = strstr(select, " FROM ");
+      if (!from)
+        break;
+      const char *table = from + 6;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while (end < source.data + source.length && !isspace((unsigned char)*end))
+        ++end;
+      if (!first_set && !append_text(&text, &length, &capacity, " "))
+        goto no_memory;
+      if (!append_text(&text, &length, &capacity, first_set ? "SELECT " : "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+        goto no_memory;
+      const char *op = strstr(end, " UNION ");
+      const char *except = strstr(end, " EXCEPT ");
+      const char *intersect = strstr(end, " INTERSECT ");
+      const char *next = op;
+      if (!next || (except && except < next))
+        next = except;
+      if (!next || (intersect && intersect < next))
+        next = intersect;
+      if (!next)
+        break;
+      if (!append_bytes(&text, &length, &capacity, next, (size_t)(strstr(next + 1, " SELECT ") - next)))
+        goto no_memory;
+      cursor = strstr(next + 1, " SELECT ");
+      first_set = false;
+    }
+  }
   if (settings->include_tables && !sequel_query_cte_count(query) && !nested_cte_scope && !insert_values_scope &&
-      !cte_insert_scope) {
+      !cte_insert_scope && !strstr(source.data, " UNION ") && !strstr(source.data, " EXCEPT ") &&
+      !strstr(source.data, " INTERSECT ")) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
