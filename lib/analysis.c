@@ -290,6 +290,19 @@ static bool analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnos
       return true;
   return false;
 }
+
+static void analysis_sort_diagnostics(sequel_analysis_t *out) {
+  sequel_diagnostic_t *diagnostics = (sequel_diagnostic_t *)out->diagnostics;
+  for (size_t i = 1; i < out->diagnostic_count; ++i) {
+    sequel_diagnostic_t value = diagnostics[i];
+    size_t j = i;
+    while (j && diagnostics[j - 1].offset > value.offset) {
+      diagnostics[j] = diagnostics[j - 1];
+      --j;
+    }
+    diagnostics[j] = value;
+  }
+}
 static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
   size_t count = out->statement_count;
   sequel_output_tick(sizeof(sequel_range_t));
@@ -975,6 +988,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
     }
     if (out->diagnostic_count) {
+      analysis_sort_diagnostics(out);
       analysis_positions(sql, out);
       out->status = "malformed";
       out->omission_reason = "malformed";
