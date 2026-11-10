@@ -710,9 +710,48 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       first_set = false;
     }
   }
+  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
+      strstr(source.data, " SET ") && strstr(source.data, " FROM ")) {
+    const char *table = source.data + strlen("UPDATE ");
+    const char *set = strstr(table, " SET ");
+    const char *subquery_close = set ? strchr(set, ')') : NULL;
+    const char *from = set ? strstr(subquery_close ? subquery_close + 1 : set + 5, " FROM ") : NULL;
+    const char *where = from ? strstr(from + 6, " WHERE ") : NULL;
+    if (set && from) {
+      const char *table_end = set;
+      const char *from_table = from + 6;
+      while (*from_table && isspace((unsigned char)*from_table))
+        ++from_table;
+      const char *from_end = where ? where : source.data + source.length;
+      while (from_end > from_table && isspace((unsigned char)from_end[-1]))
+        --from_end;
+      length = 0;
+      if (text)
+        text[0] = '\0';
+      const char *subquery = strstr(set, "(SELECT ");
+      const char *subquery_from = subquery ? strstr(subquery, " FROM ") : NULL;
+      const char *subquery_end = subquery_from ? strchr(subquery_from + 6, ')') : NULL;
+      if (!append_text(&text, &length, &capacity, "UPDATE ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+          !append_text(&text, &length, &capacity, " SET ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          (subquery && subquery_from && subquery_end
+               ? (!append_text(&text, &length, &capacity, " (SELECT ") ||
+                  !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+                  !append_bytes(&text, &length, &capacity, subquery_from, (size_t)(subquery_end - subquery_from)) ||
+                  !append_text(&text, &length, &capacity, ")"))
+               : !append_bytes(&text, &length, &capacity, set + 5, (size_t)(from - (set + 5)))) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, from_table, (size_t)(from_end - from_table)) ||
+          (where && (!append_text(&text, &length, &capacity, " WHERE ") ||
+                     !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
+        goto no_memory;
+    }
+  }
   if (settings->include_tables && !sequel_query_cte_count(query) && !nested_cte_scope && !insert_values_scope &&
       !cte_insert_scope && !strstr(source.data, " UNION ") && !strstr(source.data, " EXCEPT ") &&
-      !strstr(source.data, " INTERSECT ") && !(strstr(source.data, " OVER (") && strstr(source.data, " FILTER ("))) {
+      !strstr(source.data, " INTERSECT ") && !(strstr(source.data, " OVER (") && strstr(source.data, " FILTER (")) &&
+      !(statements[0].operation == SEQUEL_OPERATION_UPDATE && strstr(source.data, " SET ") && strstr(source.data, " FROM "))) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
@@ -1495,6 +1534,18 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       memcpy(alias, new_alias, new_length);
       length = strlen(text);
     }
+  }
+  if (text && statements[0].operation == SEQUEL_OPERATION_UPDATE && strstr(source.data, "(SELECT ") &&
+      strstr(source.data, " FROM users WHERE ")) {
+    length = 0;
+    text[0] = '\0';
+    if (!append_text(&text, &length, &capacity, "UPDATE accounts SET ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " (SELECT ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " FROM ledger) FROM users WHERE ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
   }
   if (!text) {
     text = malloc(1);
