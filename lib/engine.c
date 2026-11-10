@@ -30,9 +30,17 @@ typedef struct {
 #include "summary.c"
 #include "layout.c"
 #include "token_adapter.c"
+#undef malloc
+#undef calloc
+#undef realloc
+#undef free
 #define SEQUEL_DIAGNOSTICS_ENGINE 1
 #include "diagnostics.c"
 #undef SEQUEL_DIAGNOSTICS_ENGINE
+#define malloc sequel_alloc
+#define calloc sequel_calloc
+#define realloc sequel_realloc
+#define free sequel_dealloc
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"
