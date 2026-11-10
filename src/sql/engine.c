@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "resources.h"
-#include "legacy_tokens.h"
 
 #define INPUT_MAX SEQUEL_INPUT_MAX
 typedef struct {
@@ -21,6 +20,8 @@ typedef struct {
   size_t n, cap;
   bool overflow, charge_output;
 } output;
+
+#include "legacy_tokens.h"
 
 // clang-format off
 #include "legacy_common.c"
