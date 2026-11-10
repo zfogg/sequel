@@ -1995,6 +1995,13 @@ sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, ch
   if (!out)
     return SEQUEL_ERR_NULL;
   out[0] = 0;
+  if (sql) {
+    const char *cursor = sql;
+    while (*cursor && isspace((unsigned char)*cursor))
+      ++cursor;
+    if (!*cursor || (cursor[0] == '-' && cursor[1] == '-') || (cursor[0] == '/' && cursor[1] == '*'))
+      return SEQUEL_OK;
+  }
   sequel_analysis_options_t o = {0};
   o.dialect = dialect;
   o.omit_query_text = true;
