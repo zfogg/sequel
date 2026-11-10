@@ -208,7 +208,8 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   }
   PyObject *result = PyDict_New();
   PyObject *tokens = PyList_New(0), *statements = PyList_New(0), *relations = PyList_New(0), *issues = PyList_New(0);
-  if (!result || !tokens || !statements || !relations || !issues)
+  PyObject *diagnostics = PyList_New(0);
+  if (!result || !tokens || !statements || !relations || !issues || !diagnostics)
     goto error;
   size_t token_count = 0;
   const sequel_token_t *token_values = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &token_count);
@@ -261,6 +262,45 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
     }
     Py_DECREF(value);
   }
+  sequel_diagnostic_list_t diagnostic_values = {0};
+  if (sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &diagnostic_values) != SEQUEL_OK ||
+      sequel_collect_syntax_diagnostics(syntax, &diagnostic_values) != SEQUEL_OK ||
+      sequel_collect_query_diagnostics(query, &diagnostic_values) != SEQUEL_OK)
+    goto error;
+  for (size_t i = 0; i < diagnostic_values.count; ++i) {
+    PyObject *value = Py_BuildValue("{s:i,s:i,s:i,s:n,s:n}", "origin", diagnostic_values.records[i].origin,
+                                    "code", diagnostic_values.records[i].code, "severity",
+                                    diagnostic_values.records[i].severity, "start",
+                                    (Py_ssize_t)diagnostic_values.records[i].range.start, "end",
+                                    (Py_ssize_t)diagnostic_values.records[i].range.end);
+    if (!value || PyList_Append(diagnostics, value) < 0) {
+      Py_XDECREF(value);
+      sequel_diagnostic_list_free(&diagnostic_values);
+      goto error;
+    }
+    Py_DECREF(value);
+  }
+  sequel_diagnostic_list_free(&diagnostic_values);
+  sequel_summary_options_t summary_options;
+  sequel_summary_options_init(&summary_options);
+  sequel_text_result_t summary = {0};
+  char fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  if (sequel_summarize_query(query, &summary_options, &summary) != SEQUEL_OK ||
+      sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, fingerprint) != SEQUEL_OK)
+    goto error;
+  PyObject *summary_value = PyUnicode_DecodeUTF8(summary.data, (Py_ssize_t)summary.length, "strict");
+  PyObject *fingerprint_value = PyUnicode_FromString(fingerprint);
+  sequel_text_result_free(&summary);
+  if (!summary_value || !fingerprint_value ||
+      PyDict_SetItemString(result, "summary", summary_value) < 0 ||
+      PyDict_SetItemString(result, "fingerprint", fingerprint_value) < 0 ||
+      PyDict_SetItemString(result, "diagnostics", diagnostics) < 0) {
+    Py_XDECREF(summary_value);
+    Py_XDECREF(fingerprint_value);
+    goto error;
+  }
+  Py_DECREF(summary_value);
+  Py_DECREF(fingerprint_value);
   if (PyDict_SetItemString(result, "tokens", tokens) < 0 || PyDict_SetItemString(result, "statements", statements) < 0 ||
       PyDict_SetItemString(result, "relations", relations) < 0 || PyDict_SetItemString(result, "issues", issues) < 0)
     goto error;
@@ -268,6 +308,7 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   Py_DECREF(statements);
   Py_DECREF(relations);
   Py_DECREF(issues);
+  Py_DECREF(diagnostics);
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return result;
@@ -277,6 +318,7 @@ error:
   Py_XDECREF(statements);
   Py_XDECREF(relations);
   Py_XDECREF(issues);
+  Py_XDECREF(diagnostics);
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   if (!PyErr_Occurred())

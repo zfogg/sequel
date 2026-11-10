@@ -7,3 +7,6 @@ def test_parse_document_exposes_shared_structure():
     assert document["statements"][0]["operation"] != 0
     assert document["relations"][0]["name_start"] < document["relations"][0]["name_end"]
     assert document["issues"] == []
+    assert document["summary"]
+    assert len(document["fingerprint"]) == 16
+    assert document["diagnostics"] == []
