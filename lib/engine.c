@@ -29,7 +29,6 @@ typedef struct {
 #include "common.c"
 #include "summary.c"
 #include "layout.c"
-#include "token_adapter.c"
 #undef malloc
 #undef calloc
 #undef realloc
