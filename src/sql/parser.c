@@ -193,6 +193,28 @@ const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, s
   return document->children + node->first_child;
 }
 
+static int visit_node(const sequel_syntax_document_t *document, size_t node_index,
+                      const sequel_syntax_visitor_t *visitor) {
+  if (node_index >= document->node_count)
+    return 0;
+  if (visitor->enter_node && !visitor->enter_node(document, node_index, visitor->userdata))
+    return 1;
+  const sequel_syntax_node_t *node = &document->nodes[node_index];
+  for (size_t i = 0; i < node->child_count; ++i)
+    if (!visit_node(document, document->children[node->first_child + i], visitor))
+      return 0;
+  return !visitor->leave_node || visitor->leave_node(document, node_index, visitor->userdata);
+}
+
+sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
+                                    const sequel_syntax_visitor_t *visitor) {
+  if (!document || !visitor)
+    return SEQUEL_ERR_NULL;
+  if (root_node >= document->node_count)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  return visit_node(document, root_node, visitor) ? SEQUEL_OK : SEQUEL_ERR_CANCELLED;
+}
+
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
                                  const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out) {
   sequel_lexed_document_t *lexed = NULL;

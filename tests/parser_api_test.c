@@ -9,6 +9,14 @@ static int check(int condition, const char *message) {
   return condition;
 }
 
+static bool saw_from(const sequel_syntax_document_t *document, size_t node_index, void *userdata) {
+  (void)document;
+  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(document, NULL);
+  if (nodes[node_index].kind == SEQUEL_SYNTAX_FROM_CLAUSE)
+    *(int *)userdata = 1;
+  return true;
+}
+
 int main(void) {
   const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1; SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
@@ -62,6 +70,10 @@ int main(void) {
     return 1;
   if (!check(sequel_query_relations(query)[0].name_range.end > sequel_query_relations(query)[0].name_range.start,
              "relation name range"))
+    return 1;
+  int found_from = 0;
+  sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
+  if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
     return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);

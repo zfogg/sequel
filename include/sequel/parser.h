@@ -11,6 +11,12 @@
 typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
 
+typedef struct {
+  bool (*enter_node)(const sequel_syntax_document_t *document, size_t node_index, void *userdata);
+  bool (*leave_node)(const sequel_syntax_document_t *document, size_t node_index, void *userdata);
+  void *userdata;
+} sequel_syntax_visitor_t;
+
 typedef bool (*sequel_cancel_callback_t)(void *userdata);
 
 typedef struct {
@@ -69,6 +75,9 @@ const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *
 
 /** Return child node indexes for a syntax node. */
 const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
+                                    const sequel_syntax_visitor_t *visitor);
 
 /** Parse and lex explicit UTF-8 source bytes in one operation. */
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
