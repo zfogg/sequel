@@ -228,7 +228,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       kind = quote == '\'' || (quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_STRING
                                                                                   : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
-      flags = SEQUEL_TOKEN_FLAG_LITERAL |
+      flags = (kind == SEQUEL_TOKEN_STRING ? SEQUEL_TOKEN_FLAG_LITERAL : 0) |
               ((quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC : 0);
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
