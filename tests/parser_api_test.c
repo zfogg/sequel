@@ -26,6 +26,22 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 
 int main(void) {
   {
+    const char named_sql[] = "SELECT @token";
+    sequel_source_view_t named_source = {named_sql, strlen(named_sql)};
+    sequel_parse_options_t named_options;
+    sequel_parse_options_init(&named_options);
+    named_options.dialect = SEQUEL_SQLITE;
+    sequel_lexed_document_t *named_lexed = NULL;
+    if (!check(sequel_lex(&named_source, &named_options, NULL, &named_lexed) == SEQUEL_OK, "named marker lexing"))
+      return 1;
+    size_t named_count = 0;
+    const sequel_token_t *named_tokens = sequel_lexed_tokens(named_lexed, &named_count);
+    if (!check(named_count >= 3, "named marker token count") ||
+        !check(named_tokens[1].kind == SEQUEL_TOKEN_PARAMETER, "named marker token kind"))
+      return 1;
+    sequel_lexed_document_free(named_lexed);
+  }
+  {
     const char arithmetic[] = "SELECT value>=-1";
     sequel_source_view_t arithmetic_source = {arithmetic, strlen(arithmetic)};
     sequel_parse_options_t arithmetic_options;

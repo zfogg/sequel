@@ -391,8 +391,11 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       }
     } else if (is_operator_char((unsigned char)source->data[i])) {
       ++i;
-      while (i < source->length && is_operator_char((unsigned char)source->data[i]))
+      while (i < source->length && is_operator_char((unsigned char)source->data[i])) {
+        if (source->data[i] == '@' && i + 1 < source->length && is_word_start((unsigned char)source->data[i + 1]))
+          break;
         ++i;
+      }
       /* Keep a trailing unary sign separate from a preceding comparison or
        * arithmetic operator.  This gives consumers the same token boundary
        * for `x>=-1` as for `x >= -1`, while retaining PostgreSQL custom
