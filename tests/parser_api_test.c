@@ -491,6 +491,21 @@ int main(void) {
   sequel_text_result_free(&prewhere_summary);
   sequel_query_document_free(prewhere_query);
   sequel_syntax_document_free(prewhere_syntax);
+  const char ddl_sql[] = "CREATE INDEX idx_session ON participants(session_string)";
+  sequel_source_view_t ddl_source = {ddl_sql, strlen(ddl_sql)};
+  sequel_syntax_document_t *ddl_syntax = NULL;
+  sequel_query_document_t *ddl_query = NULL;
+  sequel_text_result_t ddl_summary = {0};
+  if (!check(sequel_parse_sql(&ddl_source, &options, NULL, &ddl_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(ddl_syntax, &options, &ddl_query) == SEQUEL_OK &&
+                 sequel_query_relation_count(ddl_query) == 1 &&
+                 sequel_summarize_query(ddl_query, NULL, &ddl_summary) == SEQUEL_OK &&
+                 strstr(ddl_summary.data, " ON participants") != NULL,
+             "ddl relation summary"))
+    return 1;
+  sequel_text_result_free(&ddl_summary);
+  sequel_query_document_free(ddl_query);
+  sequel_syntax_document_free(ddl_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};

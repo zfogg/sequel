@@ -273,7 +273,12 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
-        (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN))
+        (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN &&
+         tokens[i].keyword_id != SEQUEL_KEYWORD_ON))
+      continue;
+    size_t statement = statement_for_range(document, tokens[i].range);
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_ON &&
+        (statement == SIZE_MAX || document->statements[statement].operation != SEQUEL_OPERATION_CREATE))
       continue;
     size_t name = i + 1;
     while (name < token_count &&
@@ -290,7 +295,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       cursor += 2;
     }
     sequel_source_range_t range = {tokens[i].range.start, end};
-    size_t statement = statement_for_range(document, range);
+    statement = statement_for_range(document, range);
     size_t alias = cursor;
     while (alias < token_count &&
            (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||

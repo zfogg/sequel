@@ -84,8 +84,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_source_view_t source = sequel_query_source(query);
+    sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
     for (size_t i = 0; i < relation_count; ++i) {
-      if (!append_text(&text, &length, &capacity, i ? "," : " FROM "))
+      if (!append_text(&text, &length, &capacity, i ? "," : (operation == SEQUEL_OPERATION_CREATE ? " ON " : " FROM ")))
         goto no_memory;
       size_t start = relations[i].name_range.start;
       size_t end = relations[i].name_range.end;
