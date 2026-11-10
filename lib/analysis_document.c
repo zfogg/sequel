@@ -183,6 +183,10 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           sequel_collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
     }
   }
+  sequel_diagnostic_list_sort(&lexical_diagnostics);
+  sequel_diagnostic_list_sort(&syntax_diagnostics);
+  sequel_diagnostic_list_sort(&query_diagnostics);
+  sequel_diagnostic_list_sort(&portability_diagnostics);
   if (status == SEQUEL_OK && analysis->options.include_summary) {
     sequel_summary_options_t summary_options;
     sequel_summary_options_init(&summary_options);

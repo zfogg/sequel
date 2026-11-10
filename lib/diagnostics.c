@@ -103,6 +103,26 @@ bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel
   return 1;
 }
 
+static int diagnostic_record_compare(const void *left, const void *right) {
+  const sequel_diagnostic_record_t *a = left;
+  const sequel_diagnostic_record_t *b = right;
+  if (a->range.start != b->range.start)
+    return a->range.start < b->range.start ? -1 : 1;
+  if (a->range.end != b->range.end)
+    return a->range.end < b->range.end ? -1 : 1;
+  if (a->origin != b->origin)
+    return a->origin < b->origin ? -1 : 1;
+  if (a->code != b->code)
+    return a->code < b->code ? -1 : 1;
+  return 0;
+}
+
+void sequel_diagnostic_list_sort(sequel_diagnostic_list_t *diagnostics) {
+  if (!diagnostics || diagnostics->count < 2 || !diagnostics->records)
+    return;
+  qsort(diagnostics->records, diagnostics->count, sizeof(*diagnostics->records), diagnostic_record_compare);
+}
+
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics) {
   if (!diagnostics)
     return;
