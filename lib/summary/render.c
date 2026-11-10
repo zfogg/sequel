@@ -615,7 +615,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       group_from = candidate;
     if (!group_from)
       group_from = strstr(source.data, "FROM (WITH");
-    if (group_from && (operation == SEQUEL_OPERATION_SELECT || operation == SEQUEL_OPERATION_UNKNOWN)) {
+    if (group_from && !strstr(group_from, "CROSS JOIN LATERAL") && !strstr(group_from, "JOIN LATERAL") &&
+        (operation == SEQUEL_OPERATION_SELECT || operation == SEQUEL_OPERATION_UNKNOWN)) {
       const char *inner = group_from + 6;
       const char *close = strrchr(inner, ')');
       const char *join = strstr(inner, ") q JOIN ");
