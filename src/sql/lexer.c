@@ -196,8 +196,14 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
           ++i;
+        if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
+          while (i < source->length && !isspace((unsigned char)source->data[i]) && source->data[i] != ';')
+            ++i;
+          if (memchr(source->data + start, '(', i - start) && !memchr(source->data + start, ')', i - start))
+            flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+        }
         kind = SEQUEL_TOKEN_PARAMETER;
-        flags = SEQUEL_TOKEN_FLAG_BIND;
+        flags |= SEQUEL_TOKEN_FLAG_BIND;
       }
     } else if (source->data[i] == '{' && settings->dialect == SEQUEL_CLICKHOUSE) {
       ++i;
