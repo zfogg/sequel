@@ -361,6 +361,14 @@ const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *
   return document ? document->nodes : NULL;
 }
 
+const sequel_syntax_node_t *sequel_syntax_node(const sequel_syntax_document_t *document, size_t node_index) {
+  return document && node_index < document->node_count ? &document->nodes[node_index] : NULL;
+}
+
+size_t sequel_syntax_node_count(const sequel_syntax_document_t *document) {
+  return document ? document->node_count : 0;
+}
+
 const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count) {
   if (!document || node_index >= document->node_count) {
     if (count)
@@ -371,6 +379,21 @@ const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, s
   if (count)
     *count = node->child_count;
   return document->children + node->first_child;
+}
+
+const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *document, size_t node_index, size_t *count) {
+  if (count)
+    *count = 0;
+  if (!document || node_index >= document->node_count)
+    return NULL;
+  const sequel_syntax_node_t *node = &document->nodes[node_index];
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(document->lexed, &token_count);
+  if (node->first_token > token_count || node->token_count > token_count - node->first_token)
+    return NULL;
+  if (count)
+    *count = node->token_count;
+  return tokens + node->first_token;
 }
 
 static int visit_node(const sequel_syntax_document_t *document, size_t node_index,
