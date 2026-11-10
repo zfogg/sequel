@@ -121,7 +121,15 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
           return 0;
       }
     }
-    size_t limit = table_end;
+    size_t order = table_end;
+    while (order < range.end && !summary_word(source, range.end, order, "ORDER BY") &&
+           !summary_word(source, range.end, order, "LIMIT"))
+      ++order;
+    if (order < range.end && summary_word(source, range.end, order, "ORDER BY") &&
+        (!append_text(text, length, capacity, " ORDER BY ") ||
+         !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+      return 0;
+    size_t limit = order;
     while (limit < range.end && !summary_word(source, range.end, limit, "LIMIT"))
       ++limit;
     if (limit < range.end) {
@@ -130,7 +138,10 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       while (value_end < range.end && !isspace((unsigned char)source[value_end]) && source[value_end] != ')')
         ++value_end;
       if (!append_text(text, length, capacity, " LIMIT ") ||
-          !append_bytes(text, length, capacity, source + value, value_end - value))
+          !append_text(text, length, capacity, (*value == '$' || *value == '?' ||
+                                               (value_end - value >= 9 && !memcmp(value, "sqlc.arg(", 9)))
+                                                  ? "?"
+                                                  : "1"))
         return 0;
     }
     return 1;
