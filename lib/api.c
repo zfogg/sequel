@@ -300,20 +300,11 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
             toupper((unsigned char)query_source.data[cursor + 1]) == 'I' &&
             toupper((unsigned char)query_source.data[cursor + 2]) == 'T' &&
             toupper((unsigned char)query_source.data[cursor + 3]) == 'H') {
-          const char *body = query_source.data + cursor;
-          const char *select = strstr(body, "SELECT");
-          const char *insert = strstr(body, "INSERT");
-          const char *update = strstr(body, "UPDATE");
-          const char *delete_word = strstr(body, "DELETE");
-          const char *candidate = select;
-          if (!candidate || (insert && insert < candidate))
-            candidate = insert;
-          if (!candidate || (update && update < candidate))
-            candidate = update;
-          if (!candidate || (delete_word && delete_word < candidate))
-            candidate = delete_word;
-          if (candidate)
-            cursor = (size_t)(candidate - query_source.data);
+          size_t cte_count = sequel_query_cte_count(query);
+          if (cte_count)
+            cursor = sequel_query_ctes(query)[cte_count - 1].range.end;
+          while (cursor < end && (isspace((unsigned char)query_source.data[cursor]) || query_source.data[cursor] == ')'))
+            ++cursor;
         }
         amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
         size_t written = 0;

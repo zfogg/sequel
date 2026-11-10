@@ -242,8 +242,22 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
     size_t table = summary_skip_space(source, range.end, from + 4), end = table;
     while (end < range.end && !isspace((unsigned char)source[end]) && source[end] != ')')
       ++end;
-    return append_text(text, length, capacity, "DELETE FROM ") &&
-           append_bytes(text, length, capacity, source + table, end - table);
+    if (!append_text(text, length, capacity, "DELETE FROM ") ||
+        !append_bytes(text, length, capacity, source + table, end - table))
+      return 0;
+    size_t where = end;
+    while (where < range.end && !summary_word(source, range.end, where, "WHERE") &&
+           !summary_word(source, range.end, where, "RETURNING"))
+      ++where;
+    if (where < range.end && summary_word(source, range.end, where, "WHERE") &&
+        (!append_text(text, length, capacity, " WHERE ") ||
+         !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+      return 0;
+    while (where < range.end && !summary_word(source, range.end, where, "RETURNING"))
+      ++where;
+    return where >= range.end ||
+           (append_text(text, length, capacity, " RETURNING ") &&
+            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
   }
   if (summary_word(source, range.end, start, "UPDATE")) {
     size_t table = summary_skip_space(source, range.end, start + 6), end = table;
@@ -254,9 +268,17 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
            append_text(text, length, capacity, " SET ") &&
            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
   }
-  if (summary_word(source, range.end, start, "INSERT"))
-    return append_text(text, length, capacity, "INSERT ") &&
-           append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+  if (summary_word(source, range.end, start, "INSERT")) {
+    if (!append_text(text, length, capacity, "INSERT ") ||
+        !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      return 0;
+    size_t returning = start;
+    while (returning < range.end && !summary_word(source, range.end, returning, "RETURNING"))
+      ++returning;
+    return returning >= range.end ||
+           (append_text(text, length, capacity, " RETURNING ") &&
+            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+  }
   if (summary_word(source, range.end, start, "VALUES"))
     return append_text(text, length, capacity, "VALUES ") &&
            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
@@ -335,8 +357,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       nested_cte_scope = true;
     }
     const char *outer_insert = strstr(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
-    if (!outer_insert)
-      outer_insert = strstr(source.data, "INSERT INTO");
     if (outer_insert)
       cte_insert_scope = true;
     if (outer_insert) {
@@ -357,7 +377,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-    if (cte_insert_scope || (strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO"))) {
+    if (cte_insert_scope) {
       char *returning = strstr(text, "RETURNING");
       if (returning) {
         char *close = strchr(returning, ')');
@@ -1066,7 +1086,7 @@ skip_outer_predicates:
     if (!append_text(&text, &length, &capacity, binds))
       goto no_memory;
   }
-  if (sequel_query_cte_count(query) && strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO")) {
+  if (cte_insert_scope) {
     char *returning = strstr(text, "RETURNING");
     if (returning) {
       char *close = strchr(returning, ')');
@@ -1074,7 +1094,7 @@ skip_outer_predicates:
         memmove(returning, close, strlen(close) + 1);
     }
   }
-  if (sequel_query_cte_count(query) && strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO")) {
+  if (cte_insert_scope) {
     char *returning = strstr(text, " RETURNING ");
     if (returning) {
       char *close = strchr(returning, ')');
