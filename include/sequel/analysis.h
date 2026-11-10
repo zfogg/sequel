@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include <sequel/query.h>
+#include <sequel/diagnostics.h>
 
 typedef struct sequel_query_analysis sequel_query_analysis_t;
 
@@ -26,3 +27,6 @@ void sequel_query_analysis_free(sequel_query_analysis_t *analysis);
 
 /** Return the normalized query document owned by the analysis object. */
 const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis);
+
+/** Return the diagnostics owned by the analysis object. */
+const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_query_analysis_t *analysis);

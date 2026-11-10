@@ -161,6 +161,8 @@ int main(void) {
                  sequel_query_analysis_query(document_analysis) != NULL,
              "document analysis"))
     return 1;
+  if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
+    return 1;
   sequel_query_analysis_free(document_analysis);
   sequel_buffer_t serialized = {0};
   if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,
