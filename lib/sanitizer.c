@@ -56,6 +56,13 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
         ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
+      if (token->kind == SEQUEL_TOKEN_PARAMETER) {
+        const char *cast = strstr(source.data + token->range.start, "::");
+        const char *token_end = source.data + token->range.end;
+        if (cast && cast < token_end &&
+            !sanitizer_append_bytes(&data, &length, &capacity, cast, (size_t)(token_end - cast)))
+          goto no_memory;
+      }
       continue;
     }
     if (!sanitizer_append_bytes(&data, &length, &capacity, source.data + token->range.start,
