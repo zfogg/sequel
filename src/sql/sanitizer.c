@@ -3,7 +3,7 @@
 
 #include <sequel/sanitizer.h>
 
-static int append_bytes(char **data, size_t *length, size_t *capacity, const char *bytes, size_t amount) {
+static int sanitizer_append_bytes(char **data, size_t *length, size_t *capacity, const char *bytes, size_t amount) {
   if (amount > SIZE_MAX - *length)
     return 0;
   size_t required = *length + amount;
@@ -45,12 +45,12 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
         (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       continue;
     if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)) {
-      if (!append_bytes(&data, &length, &capacity, "?", 1))
+      if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
       continue;
     }
-    if (!append_bytes(&data, &length, &capacity, source.data + token->range.start,
-                      token->range.end - token->range.start))
+    if (!sanitizer_append_bytes(&data, &length, &capacity, source.data + token->range.start,
+                                token->range.end - token->range.start))
       goto no_memory;
   }
   if (!data) {

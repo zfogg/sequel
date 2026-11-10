@@ -81,6 +81,19 @@ type RelationInfo struct {
 	Flags                uint32
 }
 
+const (
+	SanitizeRemoveComments  = 1 << 0
+	SanitizeReplaceLiterals = 1 << 1
+)
+
+type FingerprintMode int
+
+const (
+	FingerprintTokens FingerprintMode = iota
+	FingerprintSyntax
+	FingerprintQueryShape
+)
+
 // Document owns the native lexical, syntax and query documents. It is safe to
 // retain after Parse returns and must be released with Close.
 type Document struct {
@@ -177,4 +190,46 @@ func (d *Document) Query() QueryDocument {
 		out.Relations[i] = RelationInfo{Kind: int(item.kind), Start: int(C.sequel_go_relation_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), End: int(C.sequel_go_relation_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), NameStart: int(C.sequel_go_relation_name_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), NameEnd: int(C.sequel_go_relation_name_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), AliasStart: int(C.sequel_go_relation_alias_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), AliasEnd: int(C.sequel_go_relation_alias_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), Statement: int(item.statement_index), SyntaxNode: int(item.syntax_node), Parent: int(item.parent_relation), SubqueryStatement: int(item.subquery_statement), Flags: uint32(item.flags)}
 	}
 	return out
+}
+
+// Sanitize applies token-based redaction to the owned document.
+func (d *Document) Sanitize(flags uint) (string, error) {
+	if d == nil || d.syntax == nil {
+		return "", fmt.Errorf("nil parser document")
+	}
+	var result C.sequel_text_result_t
+	lexed := C.sequel_syntax_lexed(d.syntax)
+	status := C.sequel_sanitize_tokens(lexed, C.uint(flags), &result)
+	if status != C.SEQUEL_OK {
+		return "", fmt.Errorf("sequel sanitization failed with status %d", int(status))
+	}
+	defer C.sequel_text_result_free(&result)
+	return C.GoStringN(result.data, C.int(result.length)), nil
+}
+
+// Summary renders normalized query metadata without rescanning source text.
+func (d *Document) Summary() (string, error) {
+	if d == nil || d.query == nil {
+		return "", fmt.Errorf("nil parser document")
+	}
+	var result C.sequel_text_result_t
+	status := C.sequel_summarize_query(d.query, nil, &result)
+	if status != C.SEQUEL_OK {
+		return "", fmt.Errorf("sequel summary failed with status %d", int(status))
+	}
+	defer C.sequel_text_result_free(&result)
+	return C.GoStringN(result.data, C.int(result.length)), nil
+}
+
+// Fingerprint returns a mode-specific digest of the retained parser model.
+func (d *Document) Fingerprint(mode FingerprintMode) (string, error) {
+	if d == nil || d.syntax == nil || d.query == nil {
+		return "", fmt.Errorf("nil parser document")
+	}
+	var output [C.SEQUEL_FINGERPRINT_LENGTH]C.char
+	status := C.sequel_fingerprint_document(d.syntax, d.query, C.sequel_fingerprint_mode_t(mode), &output[0])
+	if status != C.SEQUEL_OK {
+		return "", fmt.Errorf("sequel fingerprint failed with status %d", int(status))
+	}
+	return C.GoString(&output[0]), nil
 }

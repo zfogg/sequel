@@ -18,6 +18,16 @@ func TestParseExposesLosslessTokensAndQueryModel(t *testing.T) {
 	if len(query.Relations) != 1 {
 		t.Fatalf("relations = %d", len(query.Relations))
 	}
+	sanitized, err := document.Sanitize(SanitizeReplaceLiterals)
+	if err != nil || sanitized == "" {
+		t.Fatalf("sanitize = %q, %v", sanitized, err)
+	}
+	if summary, err := document.Summary(); err != nil || summary == "" {
+		t.Fatalf("summary = %q, %v", summary, err)
+	}
+	if fingerprint, err := document.Fingerprint(FingerprintQueryShape); err != nil || len(fingerprint) != 16 {
+		t.Fatalf("fingerprint = %q, %v", fingerprint, err)
+	}
 }
 
 func TestParseReturnsRecoveryIssues(t *testing.T) {
