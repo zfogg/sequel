@@ -2051,6 +2051,26 @@ summary_postprocess:
         (strstr(source.data, "LIMIT") && !append_text(&text, &length, &capacity, " LIMIT 50")))
       goto no_memory;
   }
+  if (strstr(source.data, "LEFT JOIN LATERAL") && strstr(source.data, " ON ") &&
+      strstr(text, "LEFT JOIN LATERAL") && !strstr(text, " ON ")) {
+    const char *on = strstr(source.data, " ON ");
+    const char *close = on;
+    while (close > source.data && close[-1] != ')')
+      --close;
+    if (close > source.data && close[-1] == ')') {
+      --close;
+      const char *alias = close + 1;
+      while (*alias && isspace((unsigned char)*alias))
+        ++alias;
+      const char *alias_end = alias;
+      while (*alias_end && !isspace((unsigned char)*alias_end))
+        ++alias_end;
+      if (!append_text(&text, &length, &capacity, ") AS ") ||
+          !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
+          !append_text(&text, &length, &capacity, " ON ?"))
+        goto no_memory;
+    }
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
