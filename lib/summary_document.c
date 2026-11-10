@@ -337,7 +337,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         cte_insert_scope = true;
       }
     }
-    if (cte_insert_scope) {
+    if (cte_insert_scope || (strstr(source.data, "DELETE FROM") && strstr(source.data, "INSERT INTO"))) {
       char *returning = strstr(text, " RETURNING ");
       if (returning) {
         char *close = strchr(returning, ')');
