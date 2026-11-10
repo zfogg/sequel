@@ -722,8 +722,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
     for (size_t i = 0; i < relation_count; ++i) {
-      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-          sequel_summary_find_text(source.data, " LEFT JOIN LATERAL "))
+      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT)
         break;
       if (grouped_relation)
         break;
