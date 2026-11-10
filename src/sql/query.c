@@ -77,6 +77,17 @@ static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *n
   return SEQUEL_BIND_UNKNOWN;
 }
 
+static int is_identifier_token(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
+}
+
+static int is_clause_keyword(const sequel_token_t *token) {
+  if (token->kind != SEQUEL_TOKEN_KEYWORD)
+    return 0;
+  return token->keyword_id == 7 || token->keyword_id == 8 || token->keyword_id == 9 || token->keyword_id == 10 ||
+         token->keyword_id == 11 || token->keyword_id == 12 || token->keyword_id == 13 || token->keyword_id == 14;
+}
+
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
                                             const sequel_parse_options_t *options, sequel_query_document_t **out) {
   if (!syntax || !out)
@@ -125,6 +136,46 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         .type_range = {tokens[i].range.end, tokens[i].range.end},
         .identity = explicit_number ? explicit_number : ordinal};
     if (!append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter)) {
+      sequel_query_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != 6 && tokens[i].keyword_id != 13))
+      continue;
+    size_t name = i + 1;
+    while (name < token_count &&
+           (tokens[name].kind == SEQUEL_TOKEN_WHITESPACE || tokens[name].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+            tokens[name].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+      ++name;
+    if (name >= token_count || !is_identifier_token(&tokens[name]))
+      continue;
+    size_t end = tokens[name].range.end;
+    size_t cursor = name + 1;
+    while (cursor + 1 < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
+           source.data[tokens[cursor].range.start] == '.' && is_identifier_token(&tokens[cursor + 1])) {
+      end = tokens[cursor + 1].range.end;
+      cursor += 2;
+    }
+    sequel_source_range_t range = {tokens[i].range.start, end};
+    size_t statement = statement_for_range(document, range);
+    size_t alias = cursor;
+    while (alias < token_count &&
+           (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+            tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+      ++alias;
+    sequel_source_range_t alias_range = {end, end};
+    if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]))
+      alias_range = tokens[alias].range;
+    sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
+                                       .range = {tokens[i].range.start, alias_range.end > end ? alias_range.end : end},
+                                       .name_range = {tokens[name].range.start, end},
+                                       .alias_range = alias_range,
+                                       .statement_index = statement,
+                                       .syntax_node = SIZE_MAX,
+                                       .parent_relation = SIZE_MAX,
+                                       .subquery_statement = SIZE_MAX};
+    if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }

@@ -58,6 +58,11 @@ int main(void) {
                  sequel_query_parameters(query)[0].explicit_number == 1,
              "numbered parameter"))
     return 1;
+  if (!check(sequel_query_relation_count(query) == 1, "relation count"))
+    return 1;
+  if (!check(sequel_query_relations(query)[0].name_range.end > sequel_query_relations(query)[0].name_range.start,
+             "relation name range"))
+    return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return 0;
