@@ -841,8 +841,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (insert_values_scope && !cte_insert_scope && strstr(source.data, " RETURNING ") &&
-      !strstr(text ? text : "", " RETURNING ") &&
+  if (insert_values_scope && !cte_insert_scope && !strstr(source.data, "DELETE FROM") &&
+      strstr(source.data, " RETURNING ") && !strstr(text ? text : "", " RETURNING ") &&
       (!append_text(&text, &length, &capacity, " RETURNING ") ||
        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     goto no_memory;
