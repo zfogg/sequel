@@ -35,6 +35,10 @@ static int append_bytes(sequel_buffer_t *buffer, const void *data, size_t length
 
 static int append_u64(sequel_buffer_t *buffer, uint64_t value) { return append_bytes(buffer, &value, sizeof(value)); }
 
+static int append_range(sequel_buffer_t *buffer, sequel_source_range_t range) {
+  return append_u64(buffer, range.start) && append_u64(buffer, range.end);
+}
+
 static int read_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) {
   if (*remaining < sizeof(*value))
     return 0;
@@ -122,28 +126,49 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
   if (query) {
     size_t count = sequel_query_statement_count(query);
     const sequel_statement_info_t *statements = sequel_query_statements(query);
-    if (!append_bytes(out, statements, count * sizeof(*statements)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_range(out, statements[i].range) || !append_u64(out, statements[i].operation) ||
+          !append_u64(out, statements[i].syntax_node) || !append_u64(out, statements[i].query_body) ||
+          !append_u64(out, statements[i].flags))
+        return SEQUEL_ERR_NOMEM;
     count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
-    if (!append_bytes(out, relations, count * sizeof(*relations)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_u64(out, relations[i].kind) || !append_range(out, relations[i].range) ||
+          !append_range(out, relations[i].name_range) || !append_range(out, relations[i].alias_range) ||
+          !append_u64(out, relations[i].statement_index) || !append_u64(out, relations[i].syntax_node) ||
+          !append_u64(out, relations[i].parent_relation) || !append_u64(out, relations[i].subquery_statement) ||
+          !append_u64(out, relations[i].flags))
+        return SEQUEL_ERR_NOMEM;
     count = sequel_query_parameter_count(query);
     const sequel_parameter_info_t *parameters = sequel_query_parameters(query);
-    if (!append_bytes(out, parameters, count * sizeof(*parameters)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_range(out, parameters[i].range) || !append_u64(out, parameters[i].style) ||
+          !append_u64(out, parameters[i].statement_index) || !append_u64(out, parameters[i].ordinal) ||
+          !append_u64(out, parameters[i].explicit_number) || !append_range(out, parameters[i].name_range) ||
+          !append_range(out, parameters[i].type_range) || !append_u64(out, parameters[i].identity))
+        return SEQUEL_ERR_NOMEM;
     count = sequel_query_join_count(query);
     const sequel_join_info_t *joins = sequel_query_joins(query);
-    if (!append_bytes(out, joins, count * sizeof(*joins)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_u64(out, joins[i].kind) || !append_range(out, joins[i].range) ||
+          !append_u64(out, joins[i].left_relation) || !append_u64(out, joins[i].right_relation) ||
+          !append_u64(out, joins[i].condition_node) || !append_u64(out, joins[i].has_condition))
+        return SEQUEL_ERR_NOMEM;
     count = sequel_query_projection_count(query);
     const sequel_projection_info_t *projections = sequel_query_projections(query);
-    if (!append_bytes(out, projections, count * sizeof(*projections)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_range(out, projections[i].range) || !append_u64(out, projections[i].statement_index) ||
+          !append_u64(out, projections[i].expression_node) || !append_u64(out, projections[i].wildcard) ||
+          !append_range(out, projections[i].alias_range))
+        return SEQUEL_ERR_NOMEM;
     count = sequel_query_predicate_count(query);
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
-    if (!append_bytes(out, predicates, count * sizeof(*predicates)))
-      return SEQUEL_ERR_NOMEM;
+    for (size_t i = 0; i < count; ++i)
+      if (!append_range(out, predicates[i].range) || !append_u64(out, predicates[i].statement_index) ||
+          !append_u64(out, predicates[i].expression_node) || !append_u64(out, predicates[i].normalized_hash) ||
+          !append_u64(out, predicates[i].depth))
+        return SEQUEL_ERR_NOMEM;
   }
   return SEQUEL_OK;
 }
