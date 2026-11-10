@@ -18,6 +18,32 @@ typedef struct {
   unsigned id;
 } sequel_keyword_definition_t;
 
+/** Stable keyword identifiers shared by lexer, parser and query consumers. */
+enum {
+  SEQUEL_KEYWORD_SELECT = 1,
+  SEQUEL_KEYWORD_INSERT = 2,
+  SEQUEL_KEYWORD_UPDATE = 3,
+  SEQUEL_KEYWORD_DELETE = 4,
+  SEQUEL_KEYWORD_WITH = 5,
+  SEQUEL_KEYWORD_FROM = 6,
+  SEQUEL_KEYWORD_WHERE = 7,
+  SEQUEL_KEYWORD_GROUP = 8,
+  SEQUEL_KEYWORD_ORDER = 9,
+  SEQUEL_KEYWORD_LIMIT = 11,
+  SEQUEL_KEYWORD_OFFSET = 12,
+  SEQUEL_KEYWORD_JOIN = 13,
+  SEQUEL_KEYWORD_ON = 14,
+  SEQUEL_KEYWORD_UNION = 15,
+  SEQUEL_KEYWORD_HAVING = 16,
+  SEQUEL_KEYWORD_RETURNING = 17,
+  SEQUEL_KEYWORD_VALUES = 18,
+  SEQUEL_KEYWORD_SET = 29,
+  SEQUEL_KEYWORD_INTO = 30,
+  SEQUEL_KEYWORD_USING = 31,
+  SEQUEL_KEYWORD_WINDOW = 32,
+  SEQUEL_KEYWORD_QUALIFY = 33
+};
+
 typedef struct {
   sequel_dialect_t id;
   const char *name;

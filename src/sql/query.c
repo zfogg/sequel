@@ -102,10 +102,14 @@ static int is_identifier_token(const sequel_token_t *token) {
 static int is_clause_keyword(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return 0;
-  return token->keyword_id == 7 || token->keyword_id == 8 || token->keyword_id == 9 || token->keyword_id == 10 ||
-         token->keyword_id == 11 || token->keyword_id == 12 || token->keyword_id == 13 || token->keyword_id == 14 ||
-         token->keyword_id == 16 || token->keyword_id == 17 || token->keyword_id == 18 || token->keyword_id == 29 ||
-         token->keyword_id == 30 || token->keyword_id == 31 || token->keyword_id == 32 || token->keyword_id == 33;
+  return token->keyword_id == SEQUEL_KEYWORD_WHERE || token->keyword_id == SEQUEL_KEYWORD_GROUP ||
+         token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_LIMIT ||
+         token->keyword_id == SEQUEL_KEYWORD_OFFSET || token->keyword_id == SEQUEL_KEYWORD_JOIN ||
+         token->keyword_id == SEQUEL_KEYWORD_ON || token->keyword_id == SEQUEL_KEYWORD_HAVING ||
+         token->keyword_id == SEQUEL_KEYWORD_RETURNING || token->keyword_id == SEQUEL_KEYWORD_VALUES ||
+         token->keyword_id == SEQUEL_KEYWORD_SET || token->keyword_id == SEQUEL_KEYWORD_INTO ||
+         token->keyword_id == SEQUEL_KEYWORD_USING || token->keyword_id == SEQUEL_KEYWORD_WINDOW ||
+         token->keyword_id == SEQUEL_KEYWORD_QUALIFY;
 }
 
 static int is_trivia(const sequel_token_t *token) {
@@ -177,7 +181,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
     size_t end = first + (statement->syntax_node < node_count ? nodes[statement->syntax_node].token_count : 0);
     size_t select = first;
-    while (select < end && !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == 1))
+    while (select < end &&
+           !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == SEQUEL_KEYWORD_SELECT))
       ++select;
     if (select == end)
       continue;
@@ -193,7 +198,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           --depth;
         boundary = depth == 0 && c == ',';
       }
-      if (!boundary && i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == 6 && depth == 0)
+      if (!boundary && i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD &&
+          tokens[i].keyword_id == SEQUEL_KEYWORD_FROM && depth == 0)
         boundary = true;
       if (!boundary)
         continue;
@@ -217,11 +223,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
       item_start = i + (i < end ? 1 : 0);
-      if (i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == 6)
+      if (i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == SEQUEL_KEYWORD_FROM)
         break;
     }
     for (size_t i = first; i < end; ++i) {
-      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != 7)
+      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE)
         continue;
       size_t predicate_start = i + 1;
       while (predicate_start < end && is_trivia(&tokens[predicate_start]))
@@ -251,7 +257,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != 6 && tokens[i].keyword_id != 13))
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
+        (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN))
       continue;
     size_t name = i + 1;
     while (name < token_count &&
@@ -291,7 +298,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != 13)
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN)
       continue;
     size_t left = SIZE_MAX;
     size_t right = SIZE_MAX;
@@ -310,7 +317,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                .condition_node = SIZE_MAX,
                                .has_condition = false};
     for (size_t j = i + 1; j < token_count && tokens[j].range.start < document->relations[right].range.start; ++j) {
-      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == 14) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         break;
       }
