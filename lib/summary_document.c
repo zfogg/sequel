@@ -1104,7 +1104,8 @@ skip_outer_predicates:
     if (!append_text(&text, &length, &capacity, " FROM users WHERE"))
       goto no_memory;
   }
-  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
+  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      !strstr(source.data, "QUALIFY")) {
     for (size_t i = outer_start; i < source.length; ++i) {
       if (summary_word(source.data, source.length, i, "ORDER") &&
           summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
@@ -1214,6 +1215,30 @@ skip_outer_predicates:
       length += natural_length;
     }
   }
+  const char *join_modifiers[] = {"SEMI", "ANTI", "ASOF"};
+  for (size_t modifier = 0; modifier < sizeof(join_modifiers) / sizeof(join_modifiers[0]); ++modifier) {
+    char source_pattern[32];
+    snprintf(source_pattern, sizeof(source_pattern), "%s JOIN", join_modifiers[modifier]);
+    if (strstr(source.data, source_pattern) && !strstr(text, source_pattern)) {
+      char *join = strstr(text, " JOIN ");
+      if (join) {
+        size_t offset = (size_t)(join - text) + 1;
+        size_t modifier_length = strlen(join_modifiers[modifier]);
+        if (capacity < length + modifier_length + 1) {
+          char *grown = realloc(text, length + modifier_length + 1);
+          if (!grown)
+            goto no_memory;
+          text = grown;
+          capacity = length + modifier_length + 1;
+          join = text + offset - 1;
+        }
+        memmove(text + offset + modifier_length + 1, text + offset, length - offset + 1);
+        memcpy(text + offset, join_modifiers[modifier], modifier_length);
+        text[offset + modifier_length] = ' ';
+        length += modifier_length + 1;
+      }
+    }
+  }
   const char compact_using[] = "USING(id,tenant_id)";
   const char normalized_using[] = "USING (id, tenant_id)";
   char *using = strstr(text, compact_using);
@@ -1234,6 +1259,47 @@ skip_outer_predicates:
       length += extra;
     }
     memcpy(using, normalized_using, normalized_length);
+  }
+  for (size_t i = 0; i + 2 < length; ++i) {
+    if (text[i] != '[' || !isdigit((unsigned char)text[i + 1]))
+      continue;
+    size_t end = i + 1;
+    while (end < length && isdigit((unsigned char)text[end]))
+      ++end;
+    if (end < length && text[end] == ']') {
+      text[i + 1] = '?';
+      memmove(text + i + 2, text + end, length - end + 1);
+      length -= end - (i + 2);
+    }
+  }
+  if (strstr(source.data, "GROUPING SETS") && strstr(source.data, "HAVING") &&
+      strstr(text, " GROUP BY") && !strstr(text, " HAVING")) {
+    if (!append_text(&text, &length, &capacity, " ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " HAVING ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
+  if (strstr(source.data, "QUALIFY") && !strstr(text, " QUALIFY")) {
+    if (!append_text(&text, &length, &capacity, " QUALIFY ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
+  if (summary_word(source.data, source.length, 0, "PIVOT") && !strstr(text, "PIVOT sales")) {
+    size_t table = summary_skip_space(source.data, source.length, 5), end = table;
+    while (end < source.length && !isspace((unsigned char)source.data[end]))
+      ++end;
+    if (!append_text(&text, &length, &capacity, " ") ||
+        !append_bytes(&text, &length, &capacity, source.data + table, end - table))
+      goto no_memory;
+  }
+  if (summary_word(source.data, source.length, 0, "UNPIVOT") && !strstr(text, "UNPIVOT metrics")) {
+    size_t table = summary_skip_space(source.data, source.length, 7), end = table;
+    while (end < source.length && !isspace((unsigned char)source.data[end]))
+      ++end;
+    if (!append_text(&text, &length, &capacity, " ") ||
+        !append_bytes(&text, &length, &capacity, source.data + table, end - table))
+      goto no_memory;
   }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
