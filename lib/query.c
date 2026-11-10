@@ -421,6 +421,10 @@ sequel_source_view_t sequel_query_source(const sequel_query_document_t *document
   return document ? sequel_lexed_source(sequel_syntax_lexed(document->syntax)) : (sequel_source_view_t){0};
 }
 
+const sequel_syntax_document_t *sequel_query_syntax(const sequel_query_document_t *document) {
+  return document ? document->syntax : NULL;
+}
+
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor) {
   if (!document || !visitor)
     return SEQUEL_ERR_NULL;

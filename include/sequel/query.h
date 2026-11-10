@@ -129,6 +129,7 @@ const sequel_projection_info_t *sequel_query_projections(const sequel_query_docu
 size_t sequel_query_predicate_count(const sequel_query_document_t *document);
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document);
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document);
+const sequel_syntax_document_t *sequel_query_syntax(const sequel_query_document_t *document);
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor);
 

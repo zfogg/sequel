@@ -242,6 +242,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
   summary_options.max_length = 0;
+  summary_options.include_bind_count = false;
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;

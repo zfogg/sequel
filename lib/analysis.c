@@ -1696,6 +1696,20 @@ retry:;
   free(tokens);
 }
 
+static void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
+  sequel_summary_options_t options;
+  sequel_summary_options_init(&options);
+  options.include_bind_count = false;
+  sequel_text_result_t summary = {0};
+  if (sequel_summarize_query(query, &options, &summary) != SEQUEL_OK)
+    sequel_abort(SEQUEL_ERR_NOMEM);
+  size_t length = summary.length;
+  char *copy = analysis_array(NULL, length + 1, sizeof(*copy));
+  memcpy(copy, summary.data, length + 1);
+  out->summary = copy;
+  sequel_text_result_free(&summary);
+}
+
 static void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};
   out->schema_version = SEQUEL_ANALYSIS_VERSION;
@@ -1877,7 +1891,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
                  digest);
         analysis_charge(&a, strlen(out->fingerprint) + 1);
       }
-      analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
+      if (query)
+        analysis_summary_from_query(query, out);
+      else
+        analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
       analysis_charge(&a, strlen(out->operation) + 1);
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
       if (!o.omit_query_text && safe.n > limit) {
