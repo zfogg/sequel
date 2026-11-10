@@ -80,6 +80,11 @@ int main(void) {
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   if (!check(node_count >= 2, "statement and clause nodes"))
     return 1;
+  int found_binary = 0;
+  for (size_t i = 0; i < node_count; ++i)
+    found_binary |= nodes[i].kind == SEQUEL_SYNTAX_BINARY_EXPRESSION;
+  if (!check(found_binary, "precedence expression node"))
+    return 1;
   if (!check(nodes[0].kind == SEQUEL_SYNTAX_SELECT_STATEMENT, "select production"))
     return 1;
   sequel_query_document_t *query = NULL;
