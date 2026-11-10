@@ -28,6 +28,7 @@ setup(
                 "lib/summary/relation.c",
                 "lib/summary/postprocess.c",
                 "lib/summary/statement.c",
+                "lib/summary/subquery.c",
                 "lib/sanitizer.c",
                 "lib/util/utf8.c",
                 "third_party/utf8proc/utf8proc.c",
