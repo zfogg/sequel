@@ -281,6 +281,15 @@ static void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_co
   out->diagnostics = ds;
   out->diagnostic_count++;
 }
+
+static bool analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start,
+                                    size_t end) {
+  for (size_t i = 0; i < out->diagnostic_count; ++i)
+    if (out->diagnostics[i].code == code && out->diagnostics[i].offset == start &&
+        out->diagnostics[i].end_offset == end)
+      return true;
+  return false;
+}
 static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
   size_t count = out->statement_count;
   sequel_output_tick(sizeof(sequel_range_t));
@@ -889,6 +898,12 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     out->status = "malformed";
     out->omission_reason = "malformed";
   } else {
+    const char *ambiguous = NULL;
+    if ((o.dialect == SEQUEL_MYSQL && (ambiguous = strstr(sql, "$$"))) ||
+        (o.dialect == SEQUEL_POSTGRESQL && (ambiguous = strstr(sql, "\\'")))) {
+      call->ambiguous_literal = true;
+      call->ambiguous_offset = (size_t)(ambiguous - sql);
+    }
     sequel_parse_options_t parse_options;
     sequel_parse_options_init(&parse_options);
     parse_options.dialect = o.dialect;
@@ -914,7 +929,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     size_t scanned = 0;
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;
-    if (syntax)
+    if (syntax && !parse_issue_count)
       adapter_status = adapt_lexed_tokens(sequel_syntax_lexed(syntax), &tokens, &scanned);
     if (adapter_status == SEQUEL_OK)
       count = scanned;
@@ -938,7 +953,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     } else if (syntax && parse_issue_count) {
       for (size_t issue_index = 0; issue_index < parse_issue_count; ++issue_index) {
         sequel_diagnostic_t parser_diagnostic;
-        if (sequel_syntax_diagnostic(syntax, issue_index, &parser_diagnostic) == SEQUEL_OK)
+        if (sequel_syntax_diagnostic(syntax, issue_index, &parser_diagnostic) == SEQUEL_OK &&
+            !analysis_has_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
+                                     parser_diagnostic.end_offset))
           analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
                                   parser_diagnostic.end_offset);
       }
