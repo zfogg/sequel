@@ -46,6 +46,40 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
     *length -= end - start;
     i = start;
   }
+  for (size_t i = 0; i + 1 < *length;) {
+    if (text[i] == '/' && text[i + 1] == '*') {
+      size_t end = i + 2;
+      while (end + 1 < *length && !(text[end] == '*' && text[end + 1] == '/'))
+        ++end;
+      if (end + 1 < *length)
+        end += 2;
+      memmove(text + i, text + end, *length - end + 1);
+      *length -= end - i;
+      continue;
+    }
+    if (text[i] == '0' && i + 2 < *length && (text[i + 1] == 'x' || text[i + 1] == 'X') &&
+        isxdigit((unsigned char)text[i + 2])) {
+      size_t end = i + 2;
+      while (end < *length && isxdigit((unsigned char)text[end]))
+        ++end;
+      text[i] = '?';
+      memmove(text + i + 1, text + end, *length - end + 1);
+      *length -= end - i - 1;
+      ++i;
+      continue;
+    }
+    bool word_boundary = (i == 0 || !isalnum((unsigned char)text[i - 1])) &&
+                         (i + 4 >= *length || !isalnum((unsigned char)text[i + 4]));
+    if (word_boundary && (!memcmp(text + i, "true", 4) || !memcmp(text + i, "false", 5))) {
+      size_t word_length = text[i] == 't' ? 4 : 5;
+      text[i] = '?';
+      memmove(text + i + 1, text + i + word_length, *length - i - word_length + 1);
+      *length -= word_length - 1;
+      ++i;
+      continue;
+    }
+    ++i;
+  }
 }
 
 #include "internal.h"
