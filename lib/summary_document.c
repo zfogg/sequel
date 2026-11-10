@@ -853,7 +853,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
-          summary_word(source.data, source.length, relations[i].name_range.start, "LATERAL")) {
+          strstr(source.data + (i ? relations[i - 1].range.end : 0), "LATERAL")) {
         const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
         const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
         const char *where = from ? strstr(from, " WHERE ") : NULL;
@@ -1474,6 +1474,27 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       ++end;
     *end = '\0';
     length = (size_t)(end - text);
+  }
+  if (text && strstr(source.data, " JOIN LATERAL ")) {
+    char *inner = strstr(text, "(SELECT *");
+    if (inner) {
+      const char replacement[] = "(SELECT …";
+      size_t old_length = strlen("(SELECT *");
+      size_t new_length = sizeof(replacement) - 1;
+      memmove(inner + new_length, inner + old_length, strlen(inner + old_length) + 1);
+      memcpy(inner, replacement, new_length);
+      length = strlen(text);
+    }
+    char *alias = strstr(text, ") b ON true");
+    if (alias) {
+      const char old_alias[] = ") b ON true";
+      const char new_alias[] = ") AS b ON ?";
+      size_t old_length = sizeof(old_alias) - 1;
+      size_t new_length = sizeof(new_alias) - 1;
+      memmove(alias + new_length, alias + old_length, strlen(alias + old_length) + 1);
+      memcpy(alias, new_alias, new_length);
+      length = strlen(text);
+    }
   }
   if (!text) {
     text = malloc(1);
