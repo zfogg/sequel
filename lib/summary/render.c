@@ -1493,6 +1493,9 @@ summary_postprocess:
                          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
         goto no_memory;
     }
+    if (text && !strstr(text, "ON CONFLICT") &&
+        (!append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING")))
+      goto no_memory;
   }
   if (text && strstr(source.data, " LIMIT $") && strstr(source.data, " OFFSET $")) {
     for (char *cursor = text; *cursor; ++cursor) {
