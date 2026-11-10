@@ -239,11 +239,6 @@ static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, f
   return count;
 }
 
-static size_t format_scan_ex(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
-                             sequel_diagnostic_t *diag) {
-  size_t scanned;
-  return format_scan_recover(s, n, d, tokens, tolerant, diag, &scanned);
-}
 static void format_line(output *b, size_t indent) {
   if (b->n && b->p[b->n - 1] != '\n')
     text(b, "\n");
@@ -640,7 +635,8 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   }
   sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_diagnostic_t scan_diagnostic;
-  size_t count = format_scan_ex(sql, n, dialect, &ts, false, &scan_diagnostic);
+  size_t scanned = 0;
+  size_t count = format_scan_recover(sql, n, dialect, &ts, false, &scan_diagnostic, &scanned);
   if (count == SIZE_MAX) {
     if (scan_diagnostic.code == SEQUEL_DIAG_OUT_OF_MEMORY)
       status = SEQUEL_ERR_NOMEM;

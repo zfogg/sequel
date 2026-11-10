@@ -1,6 +1,6 @@
 #pragma once
 
-/* Internal rendering view used by the compatibility-facing text consumers.
+/* Internal rendering view used by the formatter and analysis consumers.
  * New document APIs consume sequel_token_t directly. */
 typedef struct {
   token t;
