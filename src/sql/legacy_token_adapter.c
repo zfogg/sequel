@@ -94,6 +94,11 @@ static bool legacy_requires_compat_scan(const char *sql, size_t length) {
       return true;
     if (sql[i] == '$' && i + 1 < length && sql[i + 1] == '$')
       return true;
+    if (sql[i] == '[') {
+      for (size_t j = i + 1; j < length && sql[j] != ']'; ++j)
+        if (sql[j] == ':')
+          return true;
+    }
   }
   return false;
 }
