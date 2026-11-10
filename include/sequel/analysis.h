@@ -59,7 +59,7 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
 /** Release a document analysis object. NULL is permitted. */
 void sequel_query_analysis_free(sequel_query_analysis_t *analysis);
 
-/** Return the normalized query document owned by the analysis object. */
+/** Return the normalized query document supplied to the analysis object. The pointer is borrowed. */
 const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis);
 
 /** Return the diagnostics owned by the analysis object. */
