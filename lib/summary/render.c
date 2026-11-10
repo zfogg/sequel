@@ -2087,6 +2087,27 @@ summary_postprocess:
         goto no_memory;
     }
   }
+  if (strstr(source.data, "SELECT DISTINCT ON") && text && !strstr(text, "DISTINCT ON")) {
+    const char marker[] = "SELECT \342\200\246";
+    const char replacement_marker[] = "SELECT DISTINCT ON (\342\200\246) \342\200\246";
+    char *select_marker = strstr(text, marker);
+    if (select_marker) {
+      size_t prefix_length = (size_t)(select_marker - text);
+      size_t marker_length = sizeof(marker) - 1;
+      size_t replacement_length = length + sizeof(replacement_marker) - 1 - marker_length;
+      char *replacement = malloc(replacement_length + 1);
+      if (!replacement)
+        goto no_memory;
+      memcpy(replacement, text, prefix_length);
+      memcpy(replacement + prefix_length, replacement_marker, sizeof(replacement_marker) - 1);
+      memcpy(replacement + prefix_length + sizeof(replacement_marker) - 1, select_marker + marker_length,
+             length - prefix_length - marker_length + 1);
+      free(text);
+      text = replacement;
+      length = replacement_length;
+      capacity = replacement_length + 1;
+    }
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;

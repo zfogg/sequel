@@ -9,6 +9,7 @@
 #define append_bytes sequel_summary_append_bytes
 #define operation_name sequel_summary_operation_name
 #define summary_word sequel_summary_word
+#define summary_skip_space sequel_summary_skip_space
 
 static const char ellipsis[] = "\342\200\246";
 
@@ -75,6 +76,14 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
   if (!append_text(text, length, capacity, " "))
     return 0;
+  const char *select_distinct = strstr(source.data, "SELECT DISTINCT ON");
+  size_t distinct = select_distinct ? (size_t)(select_distinct - source.data) + 7 : source.length;
+  if (select_distinct && summary_word(source.data, source.length, distinct, "DISTINCT")) {
+    size_t on = summary_skip_space(source.data, source.length, distinct + 8);
+    if (summary_word(source.data, source.length, on, "ON"))
+      return append_text(text, length, capacity, "DISTINCT ON (…) ") &&
+             append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
+  }
   if (scalar) {
     if (!append_bytes(text, length, capacity, source.data + projection[0].range.start,
                       (size_t)(open - (source.data + projection[0].range.start) + 1)))
