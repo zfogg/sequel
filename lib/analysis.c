@@ -75,8 +75,8 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
                                         .kind = kind,
                                         .matching = 0,
                                         .multiline = newline || (pending_newline && (!opening || previous_open)),
-                                        .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) +
-                                                      token->range.end - token->range.start + 1,
+                                        .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) + token->range.end -
+                                                      token->range.start + 1,
                                         .source_offset = token->range.start,
                                         .rendered_offset = 0};
     previous_end = token->range.end;
@@ -124,6 +124,7 @@ static bool requires_template_scan(const char *sql, size_t length) {
   }
   return false;
 }
+
 static size_t close_group(token *t, size_t n, size_t i) {
   size_t depth = 0;
   for (size_t j = i; (sequel_work_tick(1), j < n); ++j) {
@@ -786,8 +787,6 @@ static void summarize(output *b, token *t, size_t n, unsigned depth) {
     ++i;
   }
 }
-
-
 
 typedef struct {
   char *p;

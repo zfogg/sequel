@@ -176,8 +176,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           --unique;
         while (unique && (isalnum((unsigned char)source.data[unique - 1]) || source.data[unique - 1] == '_'))
           --unique;
-        const char *index_label = summary_word(source.data, source.length, unique, "UNIQUE") ? " UNIQUE INDEX "
-                                                                                              : " INDEX ";
+        const char *index_label =
+            summary_word(source.data, source.length, unique, "UNIQUE") ? " UNIQUE INDEX " : " INDEX ";
         if (end > name && !append_text(&text, &length, &capacity, index_label))
           goto no_memory;
         if (end > name && !append_bytes(&text, &length, &capacity, source.data + name, end - name))
@@ -248,8 +248,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
         if (condition_end > condition_start)
-          okay = append_bytes(&text, &length, &capacity, source.data + condition_start,
-                              condition_end - condition_start);
+          okay =
+              append_bytes(&text, &length, &capacity, source.data + condition_start, condition_end - condition_start);
       }
       if (okay)
         ++rendered_relations;
