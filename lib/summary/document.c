@@ -20,6 +20,8 @@ static const char summary_ellipsis[] = "\342\200\246";
 #define summary_word sequel_summary_word
 #define summary_skip_space sequel_summary_skip_space
 
+#define append_statement_shape sequel_summary_append_statement_shape
+
 #define normalize_projection sequel_summary_normalize_projection
 
 
@@ -204,27 +206,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     return SEQUEL_OK;
   }
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) && !nested_cte_scope &&
-      !cte_insert_scope) {
-    if (statements[0].operation != SEQUEL_OPERATION_UNKNOWN) {
-      if (!append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
-        goto no_memory;
-    } else {
-      size_t start = 0;
-      if (sequel_query_cte_count(query))
-        start = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
-      while (start < source.length && isspace((unsigned char)source.data[start]))
-        ++start;
-      size_t end = start;
-      while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != '(')
-        ++end;
-      if (sequel_query_cte_count(query) && summary_word(source.data, source.length, start, "SELECT")) {
-        if (!append_text(&text, &length, &capacity, "SELECT ") ||
-            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-          goto no_memory;
-      } else if (end == start || !append_bytes(&text, &length, &capacity, source.data + start, end - start))
-        goto no_memory;
-    }
-  }
+      !cte_insert_scope && !append_statement_shape(&text, &length, &capacity, source, query, settings, &statements[0]))
+    goto no_memory;
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
       statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query) &&
       !append_text(&text, &length, &capacity, " "))

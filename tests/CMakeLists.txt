@@ -68,6 +68,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/body.c
   ../lib/summary/relation.c
   ../lib/summary/postprocess.c
+  ../lib/summary/statement.c
   ../lib/sanitizer.c
   )
 

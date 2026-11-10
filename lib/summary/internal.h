@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <sequel/summary.h>
 #include <sequel/query.h>
 
 int sequel_summary_append_text(char **text, size_t *length, size_t *capacity, const char *value);
@@ -16,3 +17,9 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
                                         sequel_source_view_t source, const sequel_relation_info_t *relation);
 
 void sequel_summary_normalize_projection(char *text, size_t *length);
+
+int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *capacity,
+                                          sequel_source_view_t source,
+                                          const sequel_query_document_t *query,
+                                          const sequel_summary_options_t *settings,
+                                          const sequel_statement_info_t *statement);
