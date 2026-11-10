@@ -246,6 +246,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   sequel_summary_options_init(&summary_options);
   summary_options.max_length = 0;
   summary_options.include_bind_count = false;
+  summary_options.redact_relations = true;
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
@@ -278,22 +279,32 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   out->statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   if (out->statement_count) {
-    sequel_source_view_t query_source = sequel_query_source(query);
-    const sequel_statement_info_t *first = &statements[0];
-    size_t start = first->range.start, end = first->range.end;
-    if (end <= query_source.length && end >= start) {
-      size_t amount = end - start < sizeof(out->operation) - 1 ? end - start : sizeof(out->operation) - 1;
-      size_t cursor = start;
-      while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
-        ++cursor;
-      amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
-      size_t written = 0;
-      while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&
-             query_source.data[cursor + written] != '(') {
-        out->operation[written] = (char)toupper((unsigned char)query_source.data[cursor + written]);
-        ++written;
+    bool same_operation = true;
+    for (size_t statement_index = 1; statement_index < out->statement_count; ++statement_index)
+      if (statements[statement_index].operation != statements[0].operation) {
+        same_operation = false;
+        break;
       }
-      out->operation[written] = 0;
+    if (!same_operation)
+      out->operation[0] = 0;
+    else {
+      sequel_source_view_t query_source = sequel_query_source(query);
+      const sequel_statement_info_t *first = &statements[0];
+      size_t start = first->range.start, end = first->range.end;
+      if (end <= query_source.length && end >= start) {
+        size_t amount = end - start < sizeof(out->operation) - 1 ? end - start : sizeof(out->operation) - 1;
+        size_t cursor = start;
+        while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
+          ++cursor;
+        amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
+        size_t written = 0;
+        while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&
+               query_source.data[cursor + written] != '(') {
+          out->operation[written] = (char)toupper((unsigned char)query_source.data[cursor + written]);
+          ++written;
+        }
+        out->operation[written] = 0;
+      }
     }
   }
   out->truncated =
