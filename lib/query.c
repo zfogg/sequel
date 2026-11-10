@@ -313,13 +313,24 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
     }
+    sequel_source_range_t type_range = {tokens[i].range.end, tokens[i].range.end};
+    if (style == SEQUEL_BIND_TYPED) {
+      size_t type_start = tokens[i].range.start;
+      while (type_start + 1 < tokens[i].range.end && source.data[type_start] != ':' &&
+             source.data[type_start + 1] != ':')
+        ++type_start;
+      if (type_start + 1 < tokens[i].range.end) {
+        type_start += 2;
+        type_range = (sequel_source_range_t){type_start, tokens[i].range.end};
+      }
+    }
     sequel_parameter_info_t parameter = {.range = tokens[i].range,
                                          .style = style,
                                          .statement_index = statement_for_range(document, tokens[i].range),
                                          .ordinal = ordinal,
                                          .explicit_number = explicit_number,
                                          .name_range = name_range,
-                                         .type_range = {tokens[i].range.end, tokens[i].range.end},
+                                         .type_range = type_range,
                                          .identity = identity};
     if (!append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter)) {
       sequel_query_document_free(document);
