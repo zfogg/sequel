@@ -41,8 +41,9 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       break;
     if (token->range.end > source.length || token->range.start > token->range.end)
       goto invalid;
-    if (token->flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED))
+    if (token->flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED)) {
       goto invalid;
+    }
     if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
         (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)) {
       bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count &&
@@ -57,9 +58,11 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
       if (token->kind == SEQUEL_TOKEN_PARAMETER) {
-        const char *cast = strstr(source.data + token->range.start, "::");
+        const char *cast = source.data + token->range.start;
+        while (cast < source.data + token->range.end && !(cast[0] == ':' && cast[1] == ':'))
+          ++cast;
         const char *token_end = source.data + token->range.end;
-        if (cast && cast < token_end &&
+        if (cast < token_end &&
             !sanitizer_append_bytes(&data, &length, &capacity, cast, (size_t)(token_end - cast)))
           goto no_memory;
       }
@@ -86,3 +89,4 @@ no_memory:
   free(data);
   return SEQUEL_ERR_NOMEM;
 }
+

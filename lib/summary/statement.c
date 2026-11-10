@@ -5,11 +5,6 @@
 
 #include "internal.h"
 
-#define append_text sequel_summary_append_text
-#define append_bytes sequel_summary_append_bytes
-#define operation_name sequel_summary_operation_name
-#define summary_word sequel_summary_word
-#define summary_skip_space sequel_summary_skip_space
 
 static const char ellipsis[] = "\342\200\246";
 
@@ -26,12 +21,12 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
     size_t end = start;
     while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != ';')
       ++end;
-    return end > start && append_bytes(text, length, capacity, source.data + start, end - start);
+    return end > start && sequel_summary_append_bytes(text, length, capacity, source.data + start, end - start);
   }
-  if (summary_word(source.data, source.length, 0, "REINDEX"))
-    return append_text(text, length, capacity, "SQL");
+  if (sequel_summary_word(source.data, source.length, 0, "REINDEX"))
+    return sequel_summary_append_text(text, length, capacity, "SQL");
   if (statement->operation != SEQUEL_OPERATION_UNKNOWN) {
-    return append_text(text, length, capacity, operation_name(statement->operation));
+    return sequel_summary_append_text(text, length, capacity, sequel_summary_operation_name(statement->operation));
   }
   size_t start = 0;
   size_t cte_count = sequel_query_cte_count(query);
@@ -42,12 +37,12 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
   size_t end = start;
   while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != '(')
     ++end;
-  if (cte_count && summary_word(source.data, source.length, start, "SELECT"))
-    return append_text(text, length, capacity, "SELECT ") &&
-           append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
-  if (end <= start || !append_bytes(text, length, capacity, source.data + start, end - start))
+  if (cte_count && sequel_summary_word(source.data, source.length, start, "SELECT"))
+    return sequel_summary_append_text(text, length, capacity, "SELECT ") &&
+           sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
+  if (end <= start || !sequel_summary_append_bytes(text, length, capacity, source.data + start, end - start))
     return 0;
-  if (summary_word(source.data, source.length, start, "ANALYZE")) {
+  if (sequel_summary_word(source.data, source.length, start, "ANALYZE")) {
     size_t table = end;
     while (table < source.length && isspace((unsigned char)source.data[table]))
       ++table;
@@ -55,8 +50,8 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
     while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) &&
            source.data[table_end] != ';')
       ++table_end;
-    if (table_end > table && (!append_text(text, length, capacity, " ") ||
-                              !append_bytes(text, length, capacity, source.data + table, table_end - table)))
+    if (table_end > table && (!sequel_summary_append_text(text, length, capacity, " ") ||
+                              !sequel_summary_append_bytes(text, length, capacity, source.data + table, table_end - table)))
       return 0;
   }
   return 1;
@@ -82,28 +77,28 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   bool scalar =
       !sequel_summary_find_text(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
-  if (!append_text(text, length, capacity, " "))
+  if (!sequel_summary_append_text(text, length, capacity, " "))
     return 0;
   const char *select_distinct = sequel_summary_find_text(source.data, "SELECT DISTINCT ON");
   size_t distinct = select_distinct ? (size_t)(select_distinct - source.data) + 7 : source.length;
-  if (select_distinct && summary_word(source.data, source.length, distinct, "DISTINCT")) {
-    size_t on = summary_skip_space(source.data, source.length, distinct + 8);
-    if (summary_word(source.data, source.length, on, "ON"))
-      return append_text(text, length, capacity, "DISTINCT ON (…) ") &&
-             append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
+  if (select_distinct && sequel_summary_word(source.data, source.length, distinct, "DISTINCT")) {
+    size_t on = sequel_summary_skip_space(source.data, source.length, distinct + 8);
+    if (sequel_summary_word(source.data, source.length, on, "ON"))
+      return sequel_summary_append_text(text, length, capacity, "DISTINCT ON (…) ") &&
+             sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
   }
   if (scalar) {
-    if (!append_bytes(text, length, capacity, source.data + projection[0].range.start,
+    if (!sequel_summary_append_bytes(text, length, capacity, source.data + projection[0].range.start,
                       (size_t)(open - (source.data + projection[0].range.start) + 1)))
       return 0;
     if (open[1] == ')') {
-      if (!append_text(text, length, capacity, ")"))
+      if (!sequel_summary_append_text(text, length, capacity, ")"))
         return 0;
-    } else if (!append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
-               !append_text(text, length, capacity, ")"))
+    } else if (!sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
+               !sequel_summary_append_text(text, length, capacity, ")"))
       return 0;
-  } else if (literal && !multiple ? !append_text(text, length, capacity, "?")
-                                  : !append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
+  } else if (literal && !multiple ? !sequel_summary_append_text(text, length, capacity, "?")
+                                  : !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
     return 0;
   const char *alias = sequel_summary_find_text(source.data + projection[0].range.start, " AS ");
   const char *from = alias ? sequel_summary_find_text(alias + 4, " FROM ") : NULL;
@@ -112,9 +107,10 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     const char *end = name;
     while (end < source.data + source.length && !isspace((unsigned char)*end))
       ++end;
-    if (!append_text(text, length, capacity, " AS ") ||
-        !append_bytes(text, length, capacity, name, (size_t)(end - name)))
+    if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+        !sequel_summary_append_bytes(text, length, capacity, name, (size_t)(end - name)))
       return 0;
   }
   return 1;
 }
+
