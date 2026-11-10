@@ -179,6 +179,14 @@ int main(void) {
   sequel_diagnostic_list_t query_diagnostics = {0};
   if (!check(sequel_collect_query_diagnostics(query, &query_diagnostics) == SEQUEL_OK, "query diagnostic collection"))
     return 1;
+  int found_multiple_statements = 0;
+  int found_no_relation = 0;
+  for (size_t i = 0; i < query_diagnostics.count; ++i) {
+    found_multiple_statements |= query_diagnostics.records[i].code == SEQUEL_DIAG_MULTIPLE_STATEMENTS;
+    found_no_relation |= query_diagnostics.records[i].code == SEQUEL_DIAG_NO_REFERENCED_TABLE;
+  }
+  if (!check(found_multiple_statements && found_no_relation, "query structural diagnostics"))
+    return 1;
   sequel_diagnostic_list_free(&query_diagnostics);
   if (!check(sequel_query_statement_count(query) == 2, "two query statements"))
     return 1;

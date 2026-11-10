@@ -92,7 +92,31 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
   }
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
+  if (statement_count > 1) {
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
+                                         .code = SEQUEL_DIAG_MULTIPLE_STATEMENTS,
+                                         .severity = SEQUEL_WARNING,
+                                         .range = statements[1].range,
+                                         .statement_index = 1,
+                                         .syntax_node = statements[1].syntax_node};
+    if (!append_record(diagnostics, record)) {
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
   for (size_t i = 0; i < statement_count; ++i) {
+    if (statements[i].operation == SEQUEL_OPERATION_UNKNOWN) {
+      sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_SEMANTIC,
+                                           .code = SEQUEL_DIAG_UNKNOWN_OPERATION,
+                                           .severity = SEQUEL_WARNING,
+                                           .range = statements[i].range,
+                                           .statement_index = i,
+                                           .syntax_node = statements[i].syntax_node};
+      if (!append_record(diagnostics, record)) {
+        sequel_diagnostic_list_free(diagnostics);
+        return SEQUEL_ERR_NOMEM;
+      }
+    }
     if ((statements[i].operation != SEQUEL_OPERATION_UPDATE && statements[i].operation != SEQUEL_OPERATION_DELETE) ||
         query_has_predicate(query, i))
       continue;
@@ -102,6 +126,41 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = statements[i].range,
                                          .statement_index = i,
                                          .syntax_node = statements[i].syntax_node};
+    if (!append_record(diagnostics, record)) {
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  size_t relation_count = sequel_query_relation_count(query);
+  const sequel_relation_info_t *relations = sequel_query_relations(query);
+  for (size_t i = 0; i < statement_count; ++i) {
+    if (statements[i].operation == SEQUEL_OPERATION_TRANSACTION || statements[i].operation == SEQUEL_OPERATION_UNKNOWN)
+      continue;
+    int has_relation = 0;
+    for (size_t j = 0; j < relation_count; ++j)
+      has_relation |= relations[j].statement_index == i;
+    if (!has_relation) {
+      sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_SEMANTIC,
+                                           .code = SEQUEL_DIAG_NO_REFERENCED_TABLE,
+                                           .severity = SEQUEL_NOTE,
+                                           .range = statements[i].range,
+                                           .statement_index = i,
+                                           .syntax_node = statements[i].syntax_node};
+      if (!append_record(diagnostics, record)) {
+        sequel_diagnostic_list_free(diagnostics);
+        return SEQUEL_ERR_NOMEM;
+      }
+    }
+  }
+  size_t join_count = sequel_query_join_count(query);
+  if (join_count > 8) {
+    const sequel_join_info_t *joins = sequel_query_joins(query);
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
+                                         .code = SEQUEL_DIAG_EXCESSIVE_JOINS,
+                                         .severity = SEQUEL_WARNING,
+                                         .range = joins[8].range,
+                                         .statement_index = SIZE_MAX,
+                                         .syntax_node = joins[8].condition_node};
     if (!append_record(diagnostics, record)) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
