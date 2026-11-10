@@ -221,6 +221,18 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
           return 0;
       }
     }
+    size_t limit = table_end;
+    while (limit < range.end && !summary_word(source, range.end, limit, "LIMIT"))
+      ++limit;
+    if (limit < range.end) {
+      size_t value = summary_skip_space(source, range.end, limit + 5);
+      size_t value_end = value;
+      while (value_end < range.end && !isspace((unsigned char)source[value_end]) && source[value_end] != ')')
+        ++value_end;
+      if (!append_text(text, length, capacity, " LIMIT ") ||
+          !append_bytes(text, length, capacity, source + value, value_end - value))
+        return 0;
+    }
     return 1;
   }
   if (summary_word(source, range.end, start, "DELETE")) {
@@ -264,6 +276,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
   size_t cte_prefix_end = 0;
+  size_t outer_start = 0;
   bool nested_cte_scope = false;
   bool insert_values_scope = false;
   bool cte_insert_scope = false;
@@ -352,6 +365,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           memmove(returning, close, strlen(close) + 1);
       }
     }
+    outer_start = ctes[sequel_query_cte_count(query) - 1].range.end;
   }
   if (statement_count > 1 && settings->redact_literals) {
     sequel_text_result_t sanitized = {0};
@@ -442,7 +456,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = multi, .length = multi_length, .capacity = multi_capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  if (settings->include_operation && statement_count && !nested_cte_scope && !cte_insert_scope) {
+  if (settings->include_operation && statement_count && !sequel_query_cte_count(query) && !nested_cte_scope &&
+      !cte_insert_scope) {
     if (statements[0].operation != SEQUEL_OPERATION_UNKNOWN) {
       if (!append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
         goto no_memory;
@@ -463,10 +478,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
-  if (settings->include_operation && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+  if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT &&
       sequel_query_projection_count(query) && !append_text(&text, &length, &capacity, " "))
     goto no_memory;
-  if (settings->include_operation && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+  if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT &&
       sequel_query_projection_count(query)) {
     const sequel_projection_info_t *projection = sequel_query_projections(query);
     char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
@@ -576,7 +593,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_tables && !nested_cte_scope && !insert_values_scope && !cte_insert_scope) {
+  if (settings->include_tables && !sequel_query_cte_count(query) && !nested_cte_scope && !insert_values_scope &&
+      !cte_insert_scope) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
@@ -836,6 +854,31 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
+  if (settings->include_tables && sequel_query_cte_count(query) && statement_count &&
+      (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
+    size_t outer = outer_start;
+    const char *select = strstr(source.data + outer, "SELECT ");
+    const char *from = select ? strstr(select, " FROM ") : NULL;
+    if (from) {
+      const char *table = from + 6;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while (*end && !isspace((unsigned char)*end) && *end != ';' && *end != ')')
+        ++end;
+      if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+        goto no_memory;
+    }
+  }
+  if (settings->include_operation && sequel_query_cte_count(query) && statement_count && !cte_insert_scope &&
+      (statements[0].operation == SEQUEL_OPERATION_DELETE || statements[0].operation == SEQUEL_OPERATION_UPDATE)) {
+    const char *operation = statements[0].operation == SEQUEL_OPERATION_DELETE ? "DELETE" : "UPDATE";
+    if (!append_text(&text, &length, &capacity, operation))
+      goto no_memory;
+  }
   if (insert_values_scope && strstr(source.data, " ON CONFLICT") && !strstr(text ? text : "", " ON CONFLICT")) {
     if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
@@ -846,8 +889,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       (!append_text(&text, &length, &capacity, " RETURNING ") ||
        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     goto no_memory;
-  size_t outer_start =
-      sequel_query_cte_count(query) ? sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end : 0;
   if (statement_count && (strstr(source.data, " DELETE FROM") || strstr(source.data, "UPDATE ")) &&
       strstr(source.data, " USING ") && !strstr(text ? text : "", " USING ")) {
     const char *using = strstr(source.data, " USING ") + 7;
@@ -894,7 +935,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_predicates && sequel_query_predicate_count(query)) {
-    const sequel_predicate_info_t *predicate = sequel_query_predicates(query);
+    const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
+    size_t predicate_index = 0;
+    while (predicate_index < sequel_query_predicate_count(query) && predicates[predicate_index].range.start < outer_start)
+      ++predicate_index;
+    if (predicate_index == sequel_query_predicate_count(query))
+      goto skip_outer_predicates;
+    const sequel_predicate_info_t *predicate = &predicates[predicate_index];
     const char *label = " WHERE ";
     bool has_prewhere = false;
     bool has_final = false;
@@ -945,7 +992,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE) {
-    for (size_t i = 0; i < source.length; ++i)
+skip_outer_predicates:
+    for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
         if (!append_text(&text, &length, &capacity, " WHERE ") ||
             !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
@@ -953,7 +1001,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         break;
       }
   }
-  if (settings->include_tables && statement_count) {
+  if (settings->include_tables && statement_count && !sequel_query_cte_count(query)) {
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;
@@ -971,7 +1019,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
   }
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
-    for (size_t i = 0; i < source.length; ++i) {
+    for (size_t i = outer_start; i < source.length; ++i) {
       if (summary_word(source.data, source.length, i, "GROUP") &&
           summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
         if (!append_text(&text, &length, &capacity, " GROUP BY"))
@@ -991,7 +1039,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
-    for (size_t i = 0; i < source.length; ++i) {
+    for (size_t i = outer_start; i < source.length; ++i) {
       if (summary_word(source.data, source.length, i, "ORDER") &&
           summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
         if (!append_text(&text, &length, &capacity, " ORDER BY"))
@@ -1003,7 +1051,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_tables && statement_count) {
     const char *keywords[] = {"SETTINGS", "FORMAT"};
     for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
-      for (size_t i = 0; i < source.length; ++i) {
+      for (size_t i = outer_start; i < source.length; ++i) {
         if (summary_word(source.data, source.length, i, keywords[k])) {
           if (!append_text(&text, &length, &capacity, " ") || !append_text(&text, &length, &capacity, keywords[k]))
             goto no_memory;
