@@ -288,42 +288,18 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
     if (!same_operation)
       out->operation[0] = 0;
     else {
-      sequel_source_view_t query_source = sequel_query_source(query);
-      const sequel_statement_info_t *first = &statements[0];
-      size_t start = first->range.start, end = first->range.end;
-      if (end <= query_source.length && end >= start) {
-        size_t amount = end - start < sizeof(out->operation) - 1 ? end - start : sizeof(out->operation) - 1;
-        size_t cursor = start;
-        while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
-          ++cursor;
-        while (cursor < end && query_source.data[cursor] == '(') {
-          ++cursor;
-          while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
-            ++cursor;
-        }
-        if (cursor + 4 <= end && toupper((unsigned char)query_source.data[cursor]) == 'W' &&
-            toupper((unsigned char)query_source.data[cursor + 1]) == 'I' &&
-            toupper((unsigned char)query_source.data[cursor + 2]) == 'T' &&
-            toupper((unsigned char)query_source.data[cursor + 3]) == 'H') {
-          size_t cte_count = sequel_query_cte_count(query);
-          if (cte_count)
-            cursor = sequel_query_ctes(query)[cte_count - 1].range.end;
-          while (cursor < end && (isspace((unsigned char)query_source.data[cursor]) || query_source.data[cursor] == ')'))
-            ++cursor;
-        }
-        amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
-        size_t written = 0;
-        while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&
-               query_source.data[cursor + written] != '(' &&
-               !(cursor + written + 2 < end && (unsigned char)query_source.data[cursor + written] == 0xe2 &&
-                 (unsigned char)query_source.data[cursor + written + 1] == 0x80 &&
-                 (unsigned char)query_source.data[cursor + written + 2] >= 0x98 &&
-                 (unsigned char)query_source.data[cursor + written + 2] <= 0x9d)) {
-          out->operation[written] = (char)toupper((unsigned char)query_source.data[cursor + written]);
-          ++written;
-        }
-        out->operation[written] = 0;
-      }
+      const char *name = statements[0].operation == SEQUEL_OPERATION_SELECT        ? "SELECT"
+                         : statements[0].operation == SEQUEL_OPERATION_INSERT      ? "INSERT"
+                         : statements[0].operation == SEQUEL_OPERATION_UPDATE      ? "UPDATE"
+                         : statements[0].operation == SEQUEL_OPERATION_DELETE      ? "DELETE"
+                         : statements[0].operation == SEQUEL_OPERATION_MERGE       ? "MERGE"
+                         : statements[0].operation == SEQUEL_OPERATION_CREATE      ? "CREATE"
+                         : statements[0].operation == SEQUEL_OPERATION_ALTER       ? "ALTER"
+                         : statements[0].operation == SEQUEL_OPERATION_DROP        ? "DROP"
+                         : statements[0].operation == SEQUEL_OPERATION_EXPLAIN     ? "EXPLAIN"
+                         : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
+                                                                                   : "";
+      snprintf(out->operation, sizeof(out->operation), "%s", name);
     }
   }
   out->truncated =

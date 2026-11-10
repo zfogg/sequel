@@ -127,7 +127,8 @@ static int is_clause_keyword(const sequel_token_t *token) {
          token->keyword_id == SEQUEL_KEYWORD_RETURNING || token->keyword_id == SEQUEL_KEYWORD_VALUES ||
          token->keyword_id == SEQUEL_KEYWORD_SET || token->keyword_id == SEQUEL_KEYWORD_INTO ||
          token->keyword_id == SEQUEL_KEYWORD_USING || token->keyword_id == SEQUEL_KEYWORD_WINDOW ||
-         token->keyword_id == SEQUEL_KEYWORD_QUALIFY || token->keyword_id == SEQUEL_KEYWORD_PREWHERE;
+         token->keyword_id == SEQUEL_KEYWORD_QUALIFY || token->keyword_id == SEQUEL_KEYWORD_PREWHERE ||
+         token->keyword_id == SEQUEL_KEYWORD_UNION;
 }
 
 static int is_reserved_relation_alias(const sequel_source_view_t *source, const sequel_token_t *token) {
@@ -145,8 +146,8 @@ static int is_join_modifier(const sequel_source_view_t *source, const sequel_tok
   if (!is_identifier_token(token) || token->range.end > source->length)
     return 0;
   size_t length = token->range.end - token->range.start;
-  const char *modifiers[] = {"NATURAL", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "INNER", "LATERAL", "ASOF",
-                             "SEMI", "ANTI", "POSITIONAL"};
+  const char *modifiers[] = {"NATURAL", "LEFT",    "RIGHT", "FULL", "OUTER", "CROSS",
+                             "INNER",   "LATERAL", "ASOF",  "SEMI", "ANTI",  "POSITIONAL"};
   for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); ++i)
     if (length == strlen(modifiers[i]) && !_strnicmp(source->data + token->range.start, modifiers[i], length))
       return 1;
@@ -326,11 +327,43 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t outer_operation =
-          operation_from_word(source.data + tokens[token].range.start,
-                              tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t outer_operation = operation_from_word(source.data + tokens[token].range.start,
+                                                               tokens[token].range.end - tokens[token].range.start);
       if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = outer_operation;
+        break;
+      }
+    }
+  }
+  /* ClickHouse also permits scalar WITH bindings without a parenthesized CTE:
+   * WITH expr AS name SELECT ... . The syntax node is intentionally retained
+   * as WITH, but the normalized statement operation is the executable body. */
+  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
+    size_t depth = 0;
+    bool after_with = false;
+    for (size_t token = 0; token < token_count; ++token) {
+      const sequel_token_t *current = &tokens[token];
+      if (is_trivia(current))
+        continue;
+      if (!after_with) {
+        if (current->kind == SEQUEL_TOKEN_KEYWORD && current->keyword_id == SEQUEL_KEYWORD_WITH)
+          after_with = true;
+        continue;
+      }
+      if (current->kind == SEQUEL_TOKEN_PUNCTUATION) {
+        char punctuation = source.data[current->range.start];
+        if (punctuation == '(')
+          ++depth;
+        else if (punctuation == ')' && depth)
+          --depth;
+        continue;
+      }
+      if (depth || current->kind != SEQUEL_TOKEN_KEYWORD)
+        continue;
+      sequel_operation_t body_operation =
+          operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
+      if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = body_operation;
         break;
       }
     }
@@ -504,8 +537,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       ++alias;
     sequel_source_range_t alias_range = {end, end};
     if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
-        !is_join_modifier(&source, &tokens[alias]) &&
-        !is_reserved_relation_alias(&source, &tokens[alias]))
+        !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
                                        .range = {tokens[i].range.start, alias_range.end > end ? alias_range.end : end},

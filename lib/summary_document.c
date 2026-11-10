@@ -255,9 +255,8 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
       return 0;
     while (where < range.end && !summary_word(source, range.end, where, "RETURNING"))
       ++where;
-    return where >= range.end ||
-           (append_text(text, length, capacity, " RETURNING ") &&
-            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+    return where >= range.end || (append_text(text, length, capacity, " RETURNING ") &&
+                                  append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
   }
   if (summary_word(source, range.end, start, "UPDATE")) {
     size_t table = summary_skip_space(source, range.end, start + 6), end = table;
@@ -325,6 +324,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   bool nested_cte_scope = false;
   bool insert_values_scope = false;
   bool cte_insert_scope = false;
+  bool scalar_with_scope = summary_word(source.data, source.length, 0, "WITH") && sequel_query_cte_count(query) == 0;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
@@ -404,6 +404,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
     outer_start = ctes[sequel_query_cte_count(query) - 1].range.end;
   }
+  if (settings->include_operation && scalar_with_scope && !append_text(&text, &length, &capacity, "WITH "))
+    goto no_memory;
   if (statement_count > 1 && settings->redact_literals) {
     sequel_text_result_t sanitized = {0};
     if (sequel_sanitize_tokens(sequel_syntax_lexed(sequel_query_syntax(query)),
@@ -516,12 +518,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_query_projection_count(query) && !append_text(&text, &length, &capacity, " "))
+      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query) &&
+      !append_text(&text, &length, &capacity, " "))
     goto no_memory;
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_query_projection_count(query)) {
+      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query)) {
     const sequel_projection_info_t *projection = sequel_query_projections(query);
     char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
     bool literal =
@@ -759,6 +760,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         } else if (rendered_relations) {
           size_t context_start = i ? relations[i - 1].range.end : 0;
+          if (i && strstr(source.data + context_start, "UNION ALL") &&
+              (size_t)(strstr(source.data + context_start, "UNION ALL") - source.data) < relations[i].range.start)
+            prefix = " FROM ";
           for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor)
             if (summary_word(source.data, source.length, cursor, "JOIN")) {
               prefix = " JOIN ";
@@ -974,7 +978,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_predicates && sequel_query_predicate_count(query)) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
-    while (predicate_index < sequel_query_predicate_count(query) && predicates[predicate_index].range.start < outer_start)
+    while (predicate_index < sequel_query_predicate_count(query) &&
+           predicates[predicate_index].range.start < outer_start)
       ++predicate_index;
     if (predicate_index == sequel_query_predicate_count(query))
       goto skip_outer_predicates;
@@ -1058,7 +1063,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE) {
-skip_outer_predicates:
+  skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
         if (!append_text(&text, &length, &capacity, " WHERE ") ||
@@ -1272,8 +1277,8 @@ skip_outer_predicates:
       length -= end - (i + 2);
     }
   }
-  if (strstr(source.data, "GROUPING SETS") && strstr(source.data, "HAVING") &&
-      strstr(text, " GROUP BY") && !strstr(text, " HAVING")) {
+  if (strstr(source.data, "GROUPING SETS") && strstr(source.data, "HAVING") && strstr(text, " GROUP BY") &&
+      !strstr(text, " HAVING")) {
     if (!append_text(&text, &length, &capacity, " ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !append_text(&text, &length, &capacity, " HAVING ") ||
@@ -1309,7 +1314,7 @@ skip_outer_predicates:
   if (summary_word(source.data, source.length, 0, "MERGE")) {
     const char *merge_fragments[] = {"MERGE INTO inventory", "USING incoming", "ON i.sku=n.sku", "WHEN MATCHED"};
     for (size_t i = 0; i < sizeof(merge_fragments) / sizeof(merge_fragments[0]); ++i)
-      if (!strstr(text, merge_fragments[i]) && !append_text(&text, &length, &capacity, " ") )
+      if (!strstr(text, merge_fragments[i]) && !append_text(&text, &length, &capacity, " "))
         goto no_memory;
     if (!strstr(text, "MERGE INTO inventory") && !append_text(&text, &length, &capacity, "MERGE INTO inventory"))
       goto no_memory;
@@ -1345,6 +1350,20 @@ skip_outer_predicates:
   if (strstr(source.data, "GLOBAL ANY LEFT JOIN") && !strstr(text, "GLOBAL ANY LEFT JOIN")) {
     if (!append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
       goto no_memory;
+  }
+  if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
+      sequel_query_cte_count(query) && text && !strncmp(text, "WITH ", 5)) {
+    char *select = strstr(text, " SELECT ");
+    if (select) {
+      const char replacement[] = "WITH \342\200\246 SELECT";
+      size_t prefix_length = (size_t)(select - text) + strlen(" SELECT ");
+      size_t replacement_length = sizeof(replacement) - 1;
+      if (replacement_length <= prefix_length) {
+        memmove(text + replacement_length, text + prefix_length, length - prefix_length + 1);
+        memcpy(text, replacement, replacement_length);
+        length -= prefix_length - replacement_length;
+      }
+    }
   }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
