@@ -10,3 +10,9 @@ def test_parse_document_exposes_shared_structure():
     assert document["summary"]
     assert len(document["fingerprint"]) == 16
     assert document["diagnostics"] == []
+
+
+def test_parse_document_retains_all_diagnostic_layers():
+    document = parse_document("SELECT '", Dialect.GENERIC)
+    assert document["diagnostics"]
+    assert any(item["origin"] == 0 for item in document["diagnostics"])

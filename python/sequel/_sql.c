@@ -209,6 +209,7 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   PyObject *result = PyDict_New();
   PyObject *tokens = PyList_New(0), *statements = PyList_New(0), *relations = PyList_New(0), *issues = PyList_New(0);
   PyObject *diagnostics = PyList_New(0);
+  sequel_diagnostic_list_t lexical_diagnostics = {0}, syntax_diagnostics = {0}, query_diagnostics = {0};
   if (!result || !tokens || !statements || !relations || !issues || !diagnostics)
     goto error;
   size_t token_count = 0;
@@ -262,25 +263,28 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
     }
     Py_DECREF(value);
   }
-  sequel_diagnostic_list_t diagnostic_values = {0};
-  if (sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &diagnostic_values) != SEQUEL_OK ||
-      sequel_collect_syntax_diagnostics(syntax, &diagnostic_values) != SEQUEL_OK ||
-      sequel_collect_query_diagnostics(query, &diagnostic_values) != SEQUEL_OK)
+  if (sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical_diagnostics) != SEQUEL_OK ||
+      sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics) != SEQUEL_OK ||
+      sequel_collect_query_diagnostics(query, &query_diagnostics) != SEQUEL_OK)
     goto error;
-  for (size_t i = 0; i < diagnostic_values.count; ++i) {
-    PyObject *value = Py_BuildValue("{s:i,s:i,s:i,s:n,s:n}", "origin", diagnostic_values.records[i].origin,
-                                    "code", diagnostic_values.records[i].code, "severity",
-                                    diagnostic_values.records[i].severity, "start",
-                                    (Py_ssize_t)diagnostic_values.records[i].range.start, "end",
-                                    (Py_ssize_t)diagnostic_values.records[i].range.end);
-    if (!value || PyList_Append(diagnostics, value) < 0) {
-      Py_XDECREF(value);
-      sequel_diagnostic_list_free(&diagnostic_values);
-      goto error;
+  sequel_diagnostic_list_t *diagnostic_lists[] = {&lexical_diagnostics, &syntax_diagnostics, &query_diagnostics};
+  for (size_t list_index = 0; list_index < sizeof(diagnostic_lists) / sizeof(diagnostic_lists[0]); ++list_index) {
+    sequel_diagnostic_list_t *list = diagnostic_lists[list_index];
+    for (size_t i = 0; i < list->count; ++i) {
+      PyObject *value = Py_BuildValue("{s:i,s:i,s:i,s:n,s:n}", "origin", list->records[i].origin, "code",
+                                      list->records[i].code, "severity", list->records[i].severity, "start",
+                                      (Py_ssize_t)list->records[i].range.start, "end",
+                                      (Py_ssize_t)list->records[i].range.end);
+      if (!value || PyList_Append(diagnostics, value) < 0) {
+        Py_XDECREF(value);
+        goto error;
+      }
+      Py_DECREF(value);
     }
-    Py_DECREF(value);
   }
-  sequel_diagnostic_list_free(&diagnostic_values);
+  sequel_diagnostic_list_free(&lexical_diagnostics);
+  sequel_diagnostic_list_free(&syntax_diagnostics);
+  sequel_diagnostic_list_free(&query_diagnostics);
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
   sequel_text_result_t summary = {0};
@@ -313,6 +317,9 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   sequel_syntax_document_free(syntax);
   return result;
 error:
+  sequel_diagnostic_list_free(&lexical_diagnostics);
+  sequel_diagnostic_list_free(&syntax_diagnostics);
+  sequel_diagnostic_list_free(&query_diagnostics);
   Py_XDECREF(result);
   Py_XDECREF(tokens);
   Py_XDECREF(statements);
