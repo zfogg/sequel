@@ -151,6 +151,10 @@ int main(void) {
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
+  serialized_view.length -= 1;
+  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
+             "truncated document rejection"))
+    return 1;
   sequel_buffer_free(&serialized);
   int found_from = 0;
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};

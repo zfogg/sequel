@@ -189,6 +189,10 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[4] != source->length)
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  uint64_t words = header[5] * 6 + header[6] * 11 + header[7] + header[9] * 5 + header[10] * 11 + header[11] * 10 +
+                   header[12] * 6 + header[13] * 6 + header[14] * 6;
+  if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = (sequel_dialect_t)header[3];
