@@ -585,6 +585,9 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
                                sequel_syntax_document_t **out) {
   if (!previous || !edit || !out)
     return SEQUEL_ERR_NULL;
+  *out = NULL;
+  if (!previous->lexed)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_source_view_t old_source = sequel_lexed_source(previous->lexed);
   if (edit->start > edit->old_end || edit->old_end > old_source.length ||
       (edit->replacement_length && !edit->replacement))
@@ -601,6 +604,12 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
   memcpy(data + edit->start + edit->replacement_length, old_source.data + edit->old_end,
          old_source.length - edit->old_end);
   sequel_source_view_t source = {data, length};
+  sequel_parse_options_t inherited;
+  if (!options) {
+    sequel_parse_options_init(&inherited);
+    inherited.dialect = sequel_lexed_dialect(previous->lexed);
+    options = &inherited;
+  }
   sequel_status_t status = sequel_parse_sql(&source, options, cancellation, out);
   free(data);
   return status;

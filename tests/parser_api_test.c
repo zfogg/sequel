@@ -469,6 +469,35 @@ int main(void) {
   if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2, "edited source length"))
     return 1;
   sequel_syntax_document_free(updated);
+
+  const char postgres_sql[] = "SELECT $1";
+  sequel_source_view_t postgres_source = {postgres_sql, strlen(postgres_sql)};
+  sequel_parse_options_t postgres_options = options;
+  postgres_options.dialect = SEQUEL_POSTGRESQL;
+  sequel_syntax_document_t *postgres_syntax = NULL;
+  if (!check(sequel_parse_sql(&postgres_source, &postgres_options, NULL, &postgres_syntax) == SEQUEL_OK,
+             "postgres incremental source parse"))
+    return 1;
+  sequel_text_edit_t postgres_edit = {.start = 7, .old_end = 9, .replacement = "$2", .replacement_length = 2};
+  sequel_syntax_document_t *postgres_updated = NULL;
+  if (!check(sequel_reparse(postgres_syntax, &postgres_edit, NULL, NULL, &postgres_updated) == SEQUEL_OK,
+             "incremental reparse inherits dialect"))
+    return 1;
+  size_t postgres_tokens = 0;
+  const sequel_token_t *postgres_token_list =
+      sequel_lexed_tokens(sequel_syntax_lexed(postgres_updated), &postgres_tokens);
+  if (!check(postgres_tokens >= 2 && postgres_token_list[1].kind == SEQUEL_TOKEN_PARAMETER,
+             "inherited dialect tokenization"))
+    return 1;
+  sequel_syntax_document_free(postgres_updated);
+  sequel_syntax_document_free(postgres_syntax);
+
+  sequel_syntax_document_t *invalid_output = (sequel_syntax_document_t *)(uintptr_t)1;
+  sequel_text_edit_t invalid_edit = {.start = 9, .old_end = 8};
+  if (!check(sequel_reparse(syntax, &invalid_edit, NULL, NULL, &invalid_output) == SEQUEL_ERR_INVALID_ARGUMENT &&
+                 invalid_output == NULL,
+             "invalid incremental edit clears output"))
+    return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return 0;
