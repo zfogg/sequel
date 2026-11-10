@@ -380,6 +380,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_text(&text, &length, &capacity, value[0] == '$' || value[0] == '?' ? "?" : "1"))
             goto no_memory;
         }
+        const char *inner_set = strstr(table_end, " EXCEPT ");
+        const char *inner_union = strstr(table_end, " UNION ");
+        if (!inner_set || (inner_union && inner_union < inner_set))
+          inner_set = inner_union;
+        if (inner_set && inner_set < close) {
+          const char *inner_select = strstr(inner_set, " SELECT ");
+          const char *inner_from = inner_select ? strstr(inner_select, " FROM ") : NULL;
+          if (inner_select && inner_from && inner_from < close) {
+            const char *inner_table = inner_from + 6;
+            const char *inner_table_end = inner_table;
+            while (inner_table_end < close && !isspace((unsigned char)*inner_table_end) && *inner_table_end != ')')
+              ++inner_table_end;
+            if (!append_bytes(&text, &length, &capacity, inner_set,
+                              (size_t)(inner_select - inner_set)) ||
+                !append_text(&text, &length, &capacity, " SELECT ") ||
+                !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+                !append_text(&text, &length, &capacity, " FROM ") ||
+                !append_bytes(&text, &length, &capacity, inner_table,
+                              (size_t)(inner_table_end - inner_table)))
+              goto no_memory;
+          }
+        }
         if (!append_text(&text, &length, &capacity, ")"))
           goto no_memory;
         cursor = close + 1;
