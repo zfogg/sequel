@@ -1531,6 +1531,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (text && strstr(source.data, "ON CONFLICT") && strstr(source.data, "DO UPDATE") &&
+      !strstr(text, "ON CONFLICT")) {
+    if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
   if (text && strstr(source.data, "JOIN d USING(id)") && !strstr(text, "JOIN d USING")) {
     char *table = strstr(text, " FROM c");
     if (table) {
