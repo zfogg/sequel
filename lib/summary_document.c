@@ -1603,6 +1603,27 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
+  if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
+    const char *select = strstr(source.data, " SELECT ") + 1;
+    const char *from = strstr(select, " FROM ");
+    if (from) {
+      const char *table = from + 6;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while (end < source.data + source.length && !isspace((unsigned char)*end))
+        ++end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "EXPLAIN") ||
+          (strstr(source.data, "ANALYZE") && !append_text(&text, &length, &capacity, " ANALYZE")) ||
+          !append_text(&text, &length, &capacity, " SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+        goto no_memory;
+    }
+  }
   if (!text) {
     text = malloc(1);
     if (!text)
