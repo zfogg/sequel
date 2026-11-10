@@ -277,7 +277,8 @@ int main(void) {
                  sequel_query_analysis_formatted_sql(output_analysis) != NULL &&
                  sequel_query_analysis_sanitized_map(output_analysis) != NULL &&
                  sequel_query_analysis_formatted_map(output_analysis) != NULL &&
-                 sequel_query_analysis_sanitized_map(output_analysis)->count == 1,
+                 sequel_query_analysis_sanitized_map(output_analysis)->count > 1 &&
+                 sequel_query_analysis_sanitized_map(output_analysis)->segments[0].kind == SEQUEL_ANALYSIS_MAP_COPY,
              "analysis rendered outputs"))
     return 1;
   sequel_query_analysis_free(output_analysis);
