@@ -37,6 +37,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  /* A ClickHouse numeric dollar-quoted literal is a single projection.  Keep
+   * that shape stable when formatting has inserted line breaks around it; the
+   * generic projection scanner otherwise mistakes the delimiter for a bind. */
+  if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
+      settings->include_operation && settings->include_tables && statement_count &&
+      summary_word(source.data, source.length, 0, "SELECT") && strstr(source.data, "$")) {
+    const char *from = sequel_summary_find_word(source.data, source.length, 0, "FROM");
+    if (from) {
+      const char *table = from + 4;
+      while ((size_t)(table - source.data) < source.length && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while ((size_t)(end - source.data) < source.length && !isspace((unsigned char)*end) && *end != ';')
+        ++end;
+      if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
+        goto no_memory;
+      goto summary_postprocess;
+    }
+  }
   size_t cte_prefix_end = 0;
   size_t outer_start = 0;
   bool nested_cte_scope = false;
