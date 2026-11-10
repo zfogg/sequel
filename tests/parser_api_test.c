@@ -180,6 +180,13 @@ int main(void) {
                  recovered_diagnostic.code == SEQUEL_DIAG_UNCLOSED_GROUP && recovered_diagnostic.incomplete,
              "recovery diagnostic bridge"))
     return 1;
+  sequel_diagnostic_list_t collected = {0};
+  if (!check(sequel_collect_syntax_diagnostics(malformed_syntax, &collected) == SEQUEL_OK && collected.count == 1 &&
+                 collected.records[0].origin == SEQUEL_DIAGNOSTIC_SYNTAX &&
+                 collected.records[0].code == SEQUEL_DIAG_UNCLOSED_GROUP && collected.records[0].incomplete,
+             "layered syntax diagnostic collection"))
+    return 1;
+  sequel_diagnostic_list_free(&collected);
   sequel_syntax_document_free(malformed_syntax);
   sequel_text_edit_t edit = {.start = 7, .old_end = 9, .replacement = "name", .replacement_length = 4};
   sequel_syntax_document_t *updated = NULL;
