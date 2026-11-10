@@ -303,6 +303,25 @@ const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_q
 const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis,
                                                                 size_t *count) {
   if (count)
-    *count = analysis ? sequel_query_parameter_count(analysis->query) : 0;
-  return analysis ? sequel_query_parameters(analysis->query) : NULL;
+    *count = analysis && analysis->options.include_bindings ? sequel_query_parameter_count(analysis->query) : 0;
+  return analysis && analysis->options.include_bindings ? sequel_query_parameters(analysis->query) : NULL;
+}
+
+const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query_analysis_t *analysis, size_t *count) {
+  if (count)
+    *count = analysis && analysis->options.include_relations ? sequel_query_relation_count(analysis->query) : 0;
+  return analysis && analysis->options.include_relations ? sequel_query_relations(analysis->query) : NULL;
+}
+
+const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
+                                                                  size_t *count) {
+  if (count)
+    *count = analysis && analysis->options.include_projections ? sequel_query_projection_count(analysis->query) : 0;
+  return analysis && analysis->options.include_projections ? sequel_query_projections(analysis->query) : NULL;
+}
+
+const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis, size_t *count) {
+  if (count)
+    *count = analysis && analysis->options.include_predicates ? sequel_query_predicate_count(analysis->query) : 0;
+  return analysis && analysis->options.include_predicates ? sequel_query_predicates(analysis->query) : NULL;
 }

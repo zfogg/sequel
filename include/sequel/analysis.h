@@ -68,6 +68,16 @@ const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_q
 /** Return canonical bind metadata borrowed from the retained query document. */
 const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis, size_t *count);
 
+/** Return relations when relation collection was requested. */
+const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query_analysis_t *analysis, size_t *count);
+
+/** Return projections when projection collection was requested. */
+const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
+                                                                  size_t *count);
+
+/** Return predicates when predicate collection was requested. */
+const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis, size_t *count);
+
 /** Return the optional normalized summary owned by the analysis object. */
 const sequel_text_result_t *sequel_query_analysis_summary(const sequel_query_analysis_t *analysis);
 

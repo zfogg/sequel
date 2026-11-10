@@ -274,6 +274,23 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
+  size_t relation_count = 0, projection_count = 0, predicate_count = 0, parameter_count = 0;
+  if (!check(sequel_query_analysis_relations(document_analysis, &relation_count) != NULL && relation_count == 1 &&
+                 sequel_query_analysis_projections(document_analysis, &projection_count) != NULL && projection_count >= 2 &&
+                 sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL && predicate_count == 1 &&
+                 sequel_query_analysis_parameters(document_analysis, &parameter_count) != NULL && parameter_count == 1,
+             "analysis semantic collections"))
+    return 1;
+  sequel_query_analysis_options_t selective_analysis_options = analysis_options;
+  selective_analysis_options.include_bindings = false;
+  selective_analysis_options.include_relations = false;
+  sequel_query_analysis_t *selective_analysis = NULL;
+  if (!check(sequel_analyze_document(syntax, query, &selective_analysis_options, NULL, &selective_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_parameters(selective_analysis, &parameter_count) == NULL && parameter_count == 0 &&
+                 sequel_query_analysis_relations(selective_analysis, &relation_count) == NULL && relation_count == 0,
+             "analysis collection options"))
+    return 1;
+  sequel_query_analysis_free(selective_analysis);
   const sequel_text_result_t *analysis_summary = sequel_query_analysis_summary(document_analysis);
   if (!check(analysis_summary && analysis_summary->length > 0, "analysis summary output"))
     return 1;
