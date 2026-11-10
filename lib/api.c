@@ -156,11 +156,6 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (dialect == SEQUEL_MYSQL) {
-    const char *dollar_quote = strstr(sql, "$$");
-    if (dollar_quote && !strstr(dollar_quote + 2, "$$"))
-      return SEQUEL_ERR_INVALID_ARGUMENT;
-  }
   if (dialect != SEQUEL_MYSQL && strstr(sql, "_utf8mb4'"))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   {
