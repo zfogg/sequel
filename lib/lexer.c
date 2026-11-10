@@ -236,9 +236,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
-    } else if (source->data[i] == '$' &&
-               (sequel_dialect_definition(settings->dialect)->supports_dollar_quoted_strings ||
-                settings->dialect == SEQUEL_CLICKHOUSE)) {
+    } else if (source->data[i] == '$' && settings->dialect == SEQUEL_CLICKHOUSE) {
       size_t delimiter_end = i + 1;
       while (delimiter_end < source->length &&
              (isalnum((unsigned char)source->data[delimiter_end]) || source->data[delimiter_end] == '_'))
