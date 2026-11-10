@@ -207,6 +207,14 @@ int main(void) {
                  strlen(token_fingerprint) == 16 && strlen(syntax_fingerprint) == 16 && strlen(query_fingerprint) == 16,
              "document fingerprints"))
     return 1;
+  sequel_summary_options_t summary_options;
+  sequel_summary_options_init(&summary_options);
+  sequel_text_result_t summary = {0};
+  if (!check(sequel_summarize_query(query, &summary_options, &summary) == SEQUEL_OK && summary.length > 0 &&
+                 strstr(summary.data, "SELECT") != NULL,
+             "query summary"))
+    return 1;
+  sequel_text_result_free(&summary);
   sequel_query_analysis_free(document_analysis);
   sequel_buffer_t serialized = {0};
   if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,

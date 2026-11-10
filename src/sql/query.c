@@ -377,6 +377,9 @@ size_t sequel_query_predicate_count(const sequel_query_document_t *document) {
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document) {
   return document ? document->predicates : NULL;
 }
+sequel_source_view_t sequel_query_source(const sequel_query_document_t *document) {
+  return document ? sequel_lexed_source(sequel_syntax_lexed(document->syntax)) : (sequel_source_view_t){0};
+}
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor) {
   if (!document || !visitor)
