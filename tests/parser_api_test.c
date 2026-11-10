@@ -104,6 +104,13 @@ int main(void) {
   if (!check(sequel_query_relations(query)[0].name_range.end > sequel_query_relations(query)[0].name_range.start,
              "relation name range"))
     return 1;
+  if (!check(sequel_query_projection_count(query) >= 2, "projection count"))
+    return 1;
+  if (!check(!sequel_query_projections(query)[0].wildcard, "projection metadata"))
+    return 1;
+  if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0,
+             "predicate metadata"))
+    return 1;
   int found_from = 0;
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))

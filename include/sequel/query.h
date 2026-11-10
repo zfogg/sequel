@@ -65,10 +65,49 @@ typedef struct {
   uint64_t identity;
 } sequel_parameter_info_t;
 
+typedef enum {
+  SEQUEL_JOIN_INNER = 0,
+  SEQUEL_JOIN_LEFT,
+  SEQUEL_JOIN_RIGHT,
+  SEQUEL_JOIN_FULL,
+  SEQUEL_JOIN_CROSS,
+  SEQUEL_JOIN_NATURAL,
+  SEQUEL_JOIN_LATERAL,
+  SEQUEL_JOIN_UNKNOWN
+} sequel_join_kind_t;
+
+typedef struct {
+  sequel_join_kind_t kind;
+  sequel_source_range_t range;
+  size_t left_relation;
+  size_t right_relation;
+  size_t condition_node;
+  bool has_condition;
+} sequel_join_info_t;
+
+typedef struct {
+  sequel_source_range_t range;
+  size_t statement_index;
+  size_t expression_node;
+  bool wildcard;
+  sequel_source_range_t alias_range;
+} sequel_projection_info_t;
+
+typedef struct {
+  sequel_source_range_t range;
+  size_t statement_index;
+  size_t expression_node;
+  uint64_t normalized_hash;
+  uint32_t depth;
+} sequel_predicate_info_t;
+
 typedef struct {
   bool (*statement)(const sequel_query_document_t *document, size_t statement_index, void *userdata);
   bool (*relation)(const sequel_query_document_t *document, size_t relation_index, void *userdata);
   bool (*parameter)(const sequel_query_document_t *document, size_t parameter_index, void *userdata);
+  bool (*join)(const sequel_query_document_t *document, size_t join_index, void *userdata);
+  bool (*projection)(const sequel_query_document_t *document, size_t projection_index, void *userdata);
+  bool (*predicate)(const sequel_query_document_t *document, size_t predicate_index, void *userdata);
   void *userdata;
 } sequel_query_visitor_t;
 
@@ -81,5 +120,11 @@ size_t sequel_query_relation_count(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document);
+size_t sequel_query_join_count(const sequel_query_document_t *document);
+const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document);
+size_t sequel_query_projection_count(const sequel_query_document_t *document);
+const sequel_projection_info_t *sequel_query_projections(const sequel_query_document_t *document);
+size_t sequel_query_predicate_count(const sequel_query_document_t *document);
+const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document);
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor);

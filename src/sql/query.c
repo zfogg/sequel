@@ -12,6 +12,12 @@ struct sequel_query_document {
   size_t relation_count;
   sequel_parameter_info_t *parameters;
   size_t parameter_count;
+  sequel_join_info_t *joins;
+  size_t join_count;
+  sequel_projection_info_t *projections;
+  size_t projection_count;
+  sequel_predicate_info_t *predicates;
+  size_t predicate_count;
 };
 
 static int append(void **array, size_t *count, size_t size, const void *value) {
@@ -88,6 +94,18 @@ static int is_clause_keyword(const sequel_token_t *token) {
          token->keyword_id == 11 || token->keyword_id == 12 || token->keyword_id == 13 || token->keyword_id == 14;
 }
 
+static int is_trivia(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
+         token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
+}
+
+static uint64_t range_hash(const sequel_source_view_t *source, sequel_source_range_t range) {
+  uint64_t hash = 1469598103934665603ull;
+  for (size_t i = range.start; i < range.end; ++i)
+    hash = (hash ^ (unsigned char)source->data[i]) * 1099511628211ull;
+  return hash;
+}
+
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
                                             const sequel_parse_options_t *options, sequel_query_document_t **out) {
   if (!syntax || !out)
@@ -140,6 +158,84 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
+  for (size_t s = 0; s < document->statement_count; ++s) {
+    const sequel_statement_info_t *statement = &document->statements[s];
+    size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
+    size_t end = first + (statement->syntax_node < node_count ? nodes[statement->syntax_node].token_count : 0);
+    size_t select = first;
+    while (select < end && !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == 1))
+      ++select;
+    if (select == end)
+      continue;
+    size_t item_start = select + 1;
+    int depth = 0;
+    for (size_t i = item_start; i <= end; ++i) {
+      bool boundary = i == end;
+      if (!boundary && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION) {
+        char c = source.data[tokens[i].range.start];
+        if (c == '(')
+          ++depth;
+        else if (c == ')' && depth)
+          --depth;
+        boundary = depth == 0 && c == ',';
+      }
+      if (!boundary && i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == 6 && depth == 0)
+        boundary = true;
+      if (!boundary)
+        continue;
+      size_t first_token = item_start;
+      while (first_token < i && is_trivia(&tokens[first_token]))
+        ++first_token;
+      size_t last_token = i;
+      while (last_token > first_token && is_trivia(&tokens[last_token - 1]))
+        --last_token;
+      if (first_token < last_token) {
+        sequel_projection_info_t projection = {
+            .range = {tokens[first_token].range.start, tokens[last_token - 1].range.end},
+            .statement_index = s,
+            .expression_node = SIZE_MAX,
+            .wildcard = last_token == first_token + 1 && tokens[first_token].kind == SEQUEL_TOKEN_OPERATOR &&
+                        source.data[tokens[first_token].range.start] == '*',
+            .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
+        if (!append((void **)&document->projections, &document->projection_count, sizeof(projection), &projection)) {
+          sequel_query_document_free(document);
+          return SEQUEL_ERR_NOMEM;
+        }
+      }
+      item_start = i + (i < end ? 1 : 0);
+      if (i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == 6)
+        break;
+    }
+    for (size_t i = first; i < end; ++i) {
+      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != 7)
+        continue;
+      size_t predicate_start = i + 1;
+      while (predicate_start < end && is_trivia(&tokens[predicate_start]))
+        ++predicate_start;
+      size_t predicate_end = end;
+      for (size_t j = predicate_start; j < end; ++j)
+        if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[j])) {
+          predicate_end = j;
+          break;
+        }
+      while (predicate_end > predicate_start && is_trivia(&tokens[predicate_end - 1]))
+        --predicate_end;
+      if (predicate_start < predicate_end) {
+        sequel_predicate_info_t predicate = {
+            .range = {tokens[predicate_start].range.start, tokens[predicate_end - 1].range.end},
+            .statement_index = s,
+            .expression_node = SIZE_MAX,
+            .normalized_hash = range_hash(&source, (sequel_source_range_t){tokens[predicate_start].range.start,
+                                                                           tokens[predicate_end - 1].range.end}),
+            .depth = 0};
+        if (!append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
+          sequel_query_document_free(document);
+          return SEQUEL_ERR_NOMEM;
+        }
+      }
+      break;
+    }
+  }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != 6 && tokens[i].keyword_id != 13))
       continue;
@@ -190,6 +286,9 @@ void sequel_query_document_free(sequel_query_document_t *document) {
   free(document->statements);
   free(document->relations);
   free(document->parameters);
+  free(document->joins);
+  free(document->projections);
+  free(document->predicates);
   free(document);
 }
 
@@ -211,6 +310,22 @@ size_t sequel_query_parameter_count(const sequel_query_document_t *document) {
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document) {
   return document ? document->parameters : NULL;
 }
+size_t sequel_query_join_count(const sequel_query_document_t *document) { return document ? document->join_count : 0; }
+const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document) {
+  return document ? document->joins : NULL;
+}
+size_t sequel_query_projection_count(const sequel_query_document_t *document) {
+  return document ? document->projection_count : 0;
+}
+const sequel_projection_info_t *sequel_query_projections(const sequel_query_document_t *document) {
+  return document ? document->projections : NULL;
+}
+size_t sequel_query_predicate_count(const sequel_query_document_t *document) {
+  return document ? document->predicate_count : 0;
+}
+const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document) {
+  return document ? document->predicates : NULL;
+}
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor) {
   if (!document || !visitor)
@@ -223,6 +338,15 @@ sequel_status_t sequel_query_visit(const sequel_query_document_t *document, cons
       return SEQUEL_ERR_CANCELLED;
   for (size_t i = 0; i < document->parameter_count; ++i)
     if (visitor->parameter && !visitor->parameter(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->join_count; ++i)
+    if (visitor->join && !visitor->join(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->projection_count; ++i)
+    if (visitor->projection && !visitor->projection(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->predicate_count; ++i)
+    if (visitor->predicate && !visitor->predicate(document, i, visitor->userdata))
       return SEQUEL_ERR_CANCELLED;
   return SEQUEL_OK;
 }
