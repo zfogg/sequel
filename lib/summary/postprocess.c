@@ -5,6 +5,8 @@
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
+  if (strstr(text, " OVER (…) FILTER (…) FROM "))
+    return;
   for (size_t i = 0; i + 1 < *length; ++i) {
     if (text[i] != '$')
       continue;
@@ -137,12 +139,28 @@ static void collapse_duplicate_relation(char *text, size_t *length) {
 void sequel_summary_normalize_projection(char *text, size_t *length) {
   if (!text || !length)
     return;
+  const char *operators[] = {"UNION ", "EXCEPT ", "INTERSECT "};
+  for (size_t operator_index = 0; operator_index < 3; ++operator_index) {
+    const char *operator = operators[operator_index];
+    size_t width = strlen(operator);
+    for (char *match = strstr(text, operator); match; match = strstr(match + width, operator)) {
+      while (match[width] == ' ')
+        memmove(match + width, match + width + 1, strlen(match + width + 1) + 1), --*length;
+    }
+  }
   collapse_duplicate_relation(text, length);
   collapse_adjacent_ellipsis(text, length);
   normalize_function_arguments(text, length);
   char *projection = strstr(text, "SELECT ");
   if (!projection)
     return;
+  /* In a WITH summary the first SELECT belongs to a CTE body.  Projection
+   * normalization must target the outer query, otherwise a scalar CTE such as
+   * pg_advisory_lock(...) is incorrectly collapsed to an ellipsis. */
+  if (!strncmp(text, "WITH ", 5)) {
+    for (char *candidate = projection; (candidate = strstr(candidate + 1, "SELECT ")) != NULL;)
+      projection = candidate;
+  }
   char *from = strstr(projection + strlen("SELECT "), "FROM ");
   char *projection_start = projection + strlen("SELECT ");
   char *comma = strchr(projection_start, ',');

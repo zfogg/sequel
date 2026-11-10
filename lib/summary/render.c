@@ -1345,6 +1345,24 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (settings->include_tables && statement_count &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " OVER (") &&
+      strstr(source.data, " FILTER (") && strstr(source.data, " FROM ")) {
+    const char *from = strstr(source.data, " FROM ") + 6;
+    while (*from && isspace((unsigned char)*from))
+      ++from;
+    const char *end = from;
+    while (end < source.data + source.length && !isspace((unsigned char)*end))
+      ++end;
+    length = 0;
+    if (!text)
+      text = calloc(1, 1), capacity = text ? 1 : 0;
+    if (!text || !append_text(&text, &length, &capacity, "SELECT ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " OVER (…) FILTER (…) FROM ") ||
+        !append_bytes(&text, &length, &capacity, from, (size_t)(end - from)))
+      goto no_memory;
+  }
   if (text && summary_word(source.data, source.length, 0, "SELECT") &&
       !strstr(source.data, " FROM ") && strchr(source.data + 7, ',') &&
       (strchr(source.data, '$') || strchr(source.data, ':') || strchr(source.data, '%') ||
@@ -1355,7 +1373,8 @@ summary_postprocess:
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  normalize_projection(text, &length);
+  if (!strstr(text, " OVER ") || !strstr(text, " FILTER "))
+    normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (text && strstr(text, " OVER (…) FILTER (…) FROM ")) {
