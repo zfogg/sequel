@@ -734,7 +734,7 @@ done:
 #include "highlight.c"
 #include "contracts.c"
 #include "sha256.c"
-#include "analysis_pipeline.c"
+#include "analysis.c"
 // clang-format on
 
 #undef malloc
