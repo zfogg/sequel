@@ -210,6 +210,28 @@ int main(void) {
                  strlen(analysis_fingerprint) == 16,
              "analysis fingerprint output"))
     return 1;
+  const char portability_sql[] = "SELECT $tag$value$tag$";
+  sequel_source_view_t portability_source = {portability_sql, strlen(portability_sql)};
+  sequel_parse_options_t portability_options = options;
+  portability_options.dialect = SEQUEL_POSTGRESQL;
+  sequel_syntax_document_t *portability_syntax = NULL;
+  sequel_query_document_t *portability_query = NULL;
+  if (!check(sequel_parse_sql(&portability_source, &portability_options, NULL, &portability_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(portability_syntax, &portability_options, &portability_query) == SEQUEL_OK,
+             "portability document"))
+    return 1;
+  sequel_query_analysis_options_t portability_analysis_options = analysis_options;
+  portability_analysis_options.include_portability = true;
+  portability_analysis_options.target_dialect = SEQUEL_GENERIC;
+  sequel_query_analysis_t *portability_analysis = NULL;
+  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL,
+                                     &portability_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_diagnostics(portability_analysis)->count > 0,
+             "portability diagnostics"))
+    return 1;
+  sequel_query_analysis_free(portability_analysis);
+  sequel_query_document_free(portability_query);
+  sequel_syntax_document_free(portability_syntax);
   sequel_query_analysis_options_t output_options = analysis_options;
   output_options.include_sanitized_sql = true;
   output_options.include_formatted_sql = true;
