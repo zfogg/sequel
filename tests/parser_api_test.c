@@ -319,6 +319,19 @@ int main(void) {
   if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0,
              "predicate metadata"))
     return 1;
+  sequel_diagnostic_list_t semantic_diagnostics = {0}, policy_diagnostics = {0};
+  if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK &&
+                 sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,
+             "diagnostic pass collection"))
+    return 1;
+  for (size_t i = 0; i < semantic_diagnostics.count; ++i)
+    if (!check(semantic_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_SEMANTIC, "semantic diagnostic origin"))
+      return 1;
+  for (size_t i = 0; i < policy_diagnostics.count; ++i)
+    if (!check(policy_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_POLICY, "policy diagnostic origin"))
+      return 1;
+  sequel_diagnostic_list_free(&semantic_diagnostics);
+  sequel_diagnostic_list_free(&policy_diagnostics);
   sequel_query_analysis_options_t analysis_options;
   sequel_query_analysis_options_init(&analysis_options);
   sequel_query_analysis_t *document_analysis = NULL;

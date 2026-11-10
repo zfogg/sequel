@@ -86,6 +86,14 @@ sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t
 sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *query,
                                                  sequel_diagnostic_list_t *diagnostics);
 
+/** Collect only semantic diagnostics from the normalized query model. */
+sequel_status_t sequel_collect_semantic_diagnostics(const sequel_query_document_t *query,
+                                                    sequel_diagnostic_list_t *diagnostics);
+
+/** Collect only policy diagnostics from the normalized query model. */
+sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t *query,
+                                                  sequel_diagnostic_list_t *diagnostics);
+
 /** Collect every recoverable syntax issue from a parsed document. */
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics);

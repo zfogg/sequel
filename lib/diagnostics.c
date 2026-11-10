@@ -247,6 +247,39 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
+static sequel_status_t collect_query_diagnostics_by_origin(const sequel_query_document_t *query,
+                                                           sequel_diagnostic_origin_t origin,
+                                                           sequel_diagnostic_list_t *diagnostics) {
+  if (!query || !diagnostics)
+    return SEQUEL_ERR_NULL;
+  sequel_diagnostic_list_t all = {0};
+  sequel_status_t status = sequel_collect_query_diagnostics(query, &all);
+  if (status != SEQUEL_OK)
+    return status;
+  sequel_diagnostic_list_free(diagnostics);
+  for (size_t i = 0; i < all.count; ++i) {
+    if (all.records[i].origin != origin)
+      continue;
+    if (!append_record(diagnostics, all.records[i])) {
+      sequel_diagnostic_list_free(&all);
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  sequel_diagnostic_list_free(&all);
+  return SEQUEL_OK;
+}
+
+sequel_status_t sequel_collect_semantic_diagnostics(const sequel_query_document_t *query,
+                                                    sequel_diagnostic_list_t *diagnostics) {
+  return collect_query_diagnostics_by_origin(query, SEQUEL_DIAGNOSTIC_SEMANTIC, diagnostics);
+}
+
+sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t *query,
+                                                  sequel_diagnostic_list_t *diagnostics) {
+  return collect_query_diagnostics_by_origin(query, SEQUEL_DIAGNOSTIC_POLICY, diagnostics);
+}
+
 /* The scalar diagnostic API shares this canonical collection implementation.
  * It is compiled only in the engine because it uses the engine's resource
  * limits and work accounting. */
@@ -539,7 +572,6 @@ sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char
   }
   return status;
 }
-
 
 #endif
 
