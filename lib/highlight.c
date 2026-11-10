@@ -233,6 +233,10 @@ static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *token
                           "BIGINT INTEGER INT DATE DATETIME DECIMAL DOUBLE FLOAT JSON NUMERIC REAL TEXT TIME "
                           "TIMESTAMP UUID VARCHAR"))
     return SEQUEL_COLOR_TYPE;
+  if (token->kind == SEQUEL_TOKEN_IDENTIFIER &&
+      highlight_text_word(text, length, "BY ALL DISTINCT ASC DESC LATERAL CROSS LEFT RIGHT FULL NATURAL INNER OUTER "
+                                      "PARTITION ROWS RANGE FETCH FIRST NEXT ONLY"))
+    return SEQUEL_COLOR_KEYWORD;
   if (token->kind == SEQUEL_TOKEN_KEYWORD) {
     if (highlight_text_word(text, length, "TRUE FALSE"))
       return SEQUEL_COLOR_BOOLEAN;
