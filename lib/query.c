@@ -224,7 +224,15 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
     if (statement.operation == SEQUEL_OPERATION_UNKNOWN) {
-      const sequel_token_t *first_token = &tokens[nodes[i].first_token];
+      size_t first = nodes[i].first_token;
+      while (first < token_count &&
+             (is_trivia(&tokens[first]) ||
+              (tokens[first].kind == SEQUEL_TOKEN_PUNCTUATION &&
+               source.data[tokens[first].range.start] == '(')))
+        ++first;
+      if (first >= token_count)
+        continue;
+      const sequel_token_t *first_token = &tokens[first];
       document->statements[document->statement_count - 1].operation = operation_from_word(
           source.data + first_token->range.start, first_token->range.end - first_token->range.start);
     }
