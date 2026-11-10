@@ -77,6 +77,10 @@ typedef struct {
 
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 
+/** Collect recoverable lexical-token diagnostics from a lossless token document. */
+sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed,
+                                                   sequel_diagnostic_list_t *diagnostics);
+
 /** Collect every recoverable syntax issue from a parsed document. */
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics);

@@ -75,6 +75,20 @@ int main(void) {
   sequel_lexed_document_free(operator_lexed);
   sequel_lexed_document_free(lexed);
 
+  const char lexical_sql[] = "SELECT 'unfinished";
+  sequel_source_view_t lexical_source = {lexical_sql, strlen(lexical_sql)};
+  sequel_lexed_document_t *lexical_document = NULL;
+  if (!check(sequel_lex(&lexical_source, &options, NULL, &lexical_document) == SEQUEL_OK, "lexical recovery parse"))
+    return 1;
+  sequel_diagnostic_list_t lexical_diagnostics = {0};
+  if (!check(sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK &&
+                 lexical_diagnostics.count == 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL &&
+                 lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING,
+             "lexical diagnostic collection"))
+    return 1;
+  sequel_diagnostic_list_free(&lexical_diagnostics);
+  sequel_lexed_document_free(lexical_document);
+
   sequel_syntax_document_t *syntax = NULL;
   if (!check(sequel_parse_sql(&source, &options, NULL, &syntax) == SEQUEL_OK, "parse succeeds"))
     return 1;
