@@ -249,6 +249,11 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
         recovery > SEQUEL_RECOVERY_OPAQUE_REGION)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
+  for (uint64_t i = 0; i < header[7]; ++i) {
+    uint64_t child_index;
+    if (!read_u64(&validation_cursor, &validation_remaining, &child_index) || child_index >= header[6])
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = (sequel_dialect_t)header[3];
