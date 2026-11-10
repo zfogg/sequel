@@ -305,6 +305,17 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
                          : statements[0].operation == SEQUEL_OPERATION_TRUNCATE    ? "TRUNCATE"
                          : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
                                                                                    : "";
+      if (statements[0].operation == SEQUEL_OPERATION_TRANSACTION) {
+        size_t start = 0;
+        while (start < source.length && isspace((unsigned char)source.data[start]))
+          ++start;
+        if (start + 5 <= source.length && !_strnicmp(source.data + start, "BEGIN", 5))
+          name = "BEGIN";
+        else if (start + 6 <= source.length && !_strnicmp(source.data + start, "COMMIT", 6))
+          name = "COMMIT";
+        else if (start + 8 <= source.length && !_strnicmp(source.data + start, "ROLLBACK", 8))
+          name = "ROLLBACK";
+      }
       snprintf(out->operation, sizeof(out->operation), "%s", name);
     }
   }
