@@ -639,36 +639,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           continue;
         }
       }
-      size_t start = relations[i].name_range.start;
-      size_t end = relations[i].name_range.end;
-      if (end > source.length || start > end)
-        goto invalid;
-      char *name = malloc(end - start + 1);
-      if (!name)
-        goto no_memory;
-      memcpy(name, source.data + start, end - start);
-      name[end - start] = 0;
-      int okay = append_text(&text, &length, &capacity, name);
-      if (okay && end < source.length && source.data[end] == '(') {
-        const char *close = strchr(source.data + end, ')');
-        if (close)
-          okay = append_text(&text, &length, &capacity, "(") &&
-                 append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) &&
-                 append_text(&text, &length, &capacity, ")");
-      }
-      if (okay && relations[i].alias_range.end > relations[i].alias_range.start &&
-          !summary_word(source.data, source.length, relations[i].alias_range.start, "SAMPLE")) {
-        size_t alias_start = relations[i].alias_range.start;
-        size_t alias_end = relations[i].alias_range.end;
-        if (alias_end > source.length || alias_start > alias_end)
-          okay = 0;
-        else
-          okay = append_text(&text, &length, &capacity, " AS ") &&
-                 append_bytes(&text, &length, &capacity, source.data + alias_start, alias_end - alias_start);
-      }
-      if (okay && relations[i].alias_range.end > relations[i].alias_range.start &&
-          summary_word(source.data, source.length, relations[i].alias_range.start, "SAMPLE"))
-        okay = append_text(&text, &length, &capacity, " SAMPLE");
+      int okay = sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]);
       if (okay && join_index != SIZE_MAX) {
         size_t condition_start = relations[i].range.end;
         while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
