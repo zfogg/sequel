@@ -676,22 +676,9 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   /* Preserve vendor join modifiers until the syntax-aware formatter has a
    * structured representation for them; rewriting them is not lossless. */
   if (dialect == SEQUEL_CLICKHOUSE &&
-      (strstr(sql, "WITH ") == sql || strstr(sql, ";") || strstr(sql, "GLOBAL ANY") ||
+      (strstr(sql, "WITH ") == sql || strstr(sql, "GLOBAL ANY") ||
        strstr(sql, " LEFT SEMI ") || strstr(sql, " LEFT ANTI ") ||
        strstr(sql, " ASOF ") || strstr(sql, " ARRAY JOIN ") || strstr(sql, " GLOBAL IN "))) {
-    *length = n;
-    if (!out)
-      return SEQUEL_OK;
-    if (capacity <= n)
-      return SEQUEL_ERR_OVERFLOW;
-    memcpy(out, sql, n + 1);
-    return SEQUEL_OK;
-  }
-  /* Typed ClickHouse parameters contain a dialect payload grammar inside
-   * braces. Preserve their lexical layout until the syntax-aware formatter
-   * has a dedicated parameter-payload node; normalizing the payload as SQL
-   * punctuation can incorrectly expand a short projection. */
-  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, "},")) {
     *length = n;
     if (!out)
       return SEQUEL_OK;
