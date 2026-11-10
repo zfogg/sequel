@@ -61,6 +61,18 @@ static void normalize_sanitized_text(char *text) {
   text[write] = 0;
 }
 
+static void trim_sanitized_prefix(sequel_text_result_t *result) {
+  if (!result || !result->data)
+    return;
+  size_t prefix = 0;
+  while (prefix < result->length && isspace((unsigned char)result->data[prefix]))
+    ++prefix;
+  if (!prefix)
+    return;
+  memmove(result->data, result->data + prefix, result->length - prefix + 1);
+  result->length -= prefix;
+}
+
 static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
   for (size_t i = 0; (sequel_work_tick(1), i + 2 < n); ++i) {
@@ -244,6 +256,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
                                   SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized);
   if (status != SEQUEL_OK)
     goto done;
+  trim_sanitized_prefix(&sanitized);
   if (options && !options->keep_in_lists)
     collapse_in(sanitized.data, parse_options.dialect);
   sequel_summary_options_t summary_options;

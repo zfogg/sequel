@@ -315,6 +315,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
         if (end > name && !append_bytes(&text, &length, &capacity, source.data + name, end - name))
           goto no_memory;
+        if (end > name) {
+          size_t on = end;
+          while (on < source.length && isspace((unsigned char)source.data[on]))
+            ++on;
+          if (summary_word(source.data, source.length, on, "ON") &&
+              !append_text(&text, &length, &capacity, " ON ..."))
+            goto no_memory;
+        }
       }
     }
   }
@@ -601,7 +609,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         if (!text || !strstr(text, " INDEX "))
           break;
         if (text && strstr(text, " INDEX ")) {
-          if (!append_text(&text, &length, &capacity, " ON "))
+          if (strstr(text, " ON ..."))
+            break;
+          if (!strstr(text, " ON ...") && !append_text(&text, &length, &capacity, " ON "))
             goto no_memory;
           if (settings->redact_relations) {
             if (!append_text(&text, &length, &capacity, "..."))

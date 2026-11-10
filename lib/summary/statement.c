@@ -19,6 +19,15 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
                                           const sequel_statement_info_t *statement) {
   if (!settings->include_operation || !statement)
     return 1;
+  if (statement->operation == SEQUEL_OPERATION_TRANSACTION) {
+    size_t start = 0;
+    while (start < source.length && isspace((unsigned char)source.data[start]))
+      ++start;
+    size_t end = start;
+    while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != ';')
+      ++end;
+    return end > start && append_bytes(text, length, capacity, source.data + start, end - start);
+  }
   if (statement->operation != SEQUEL_OPERATION_UNKNOWN) {
     return append_text(text, length, capacity, operation_name(statement->operation));
   }
@@ -34,7 +43,20 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
   if (cte_count && summary_word(source.data, source.length, start, "SELECT"))
     return append_text(text, length, capacity, "SELECT ") &&
            append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1);
-  return end > start && append_bytes(text, length, capacity, source.data + start, end - start);
+  if (end <= start || !append_bytes(text, length, capacity, source.data + start, end - start))
+    return 0;
+  if (summary_word(source.data, source.length, start, "ANALYZE")) {
+    size_t table = end;
+    while (table < source.length && isspace((unsigned char)source.data[table]))
+      ++table;
+    size_t table_end = table;
+    while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) && source.data[table_end] != ';')
+      ++table_end;
+    if (table_end > table && (!append_text(text, length, capacity, " ") ||
+                              !append_bytes(text, length, capacity, source.data + table, table_end - table)))
+      return 0;
+  }
+  return 1;
 }
 
 int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *capacity,
