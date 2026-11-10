@@ -14,6 +14,7 @@
 static const char summary_ellipsis[] = "\342\200\246";
 
 #define operation_name sequel_summary_operation_name
+#define append_redacted_clause sequel_summary_append_redacted_clause
 
 #define summary_word sequel_summary_word
 #define summary_skip_space sequel_summary_skip_space
@@ -1441,7 +1442,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       text[0] = '\0';
       if (!append_text(&text, &length, &capacity, "UPDATE ") ||
           !append_bytes(&text, &length, &capacity, target, (size_t)(set - target)) ||
-          !append_text(&text, &length, &capacity, " SET …") ||
+          !append_text(&text, &length, &capacity, " SET ") ||
+          !append_redacted_clause(&text, &length, &capacity) ||
           (where && (!append_text(&text, &length, &capacity, " WHERE …"))) ||
           (order && (!append_text(&text, &length, &capacity, " ORDER BY …"))) ||
           (limit && (!append_text(&text, &length, &capacity, " LIMIT ") ||
