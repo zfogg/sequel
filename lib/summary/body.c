@@ -12,10 +12,17 @@ static const char summary_ellipsis[] = "\342\200\246";
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
                                        sequel_source_range_t range, bool preserve_limit) {
   size_t start = summary_skip_space(source, range.end, range.start);
-  if (!summary_word(source, range.end, start, "SELECT")) {
-    const char *select = sequel_summary_find_word(source, range.end, start + 4, "SELECT");
-    if (select)
-      start = (size_t)(select - source);
+  if (!summary_word(source, range.end, start, "SELECT") && !summary_word(source, range.end, start, "INSERT") &&
+      !summary_word(source, range.end, start, "UPDATE") && !summary_word(source, range.end, start, "DELETE")) {
+    const char *keywords[] = {"SELECT", "INSERT", "UPDATE", "DELETE"};
+    const char *first = NULL;
+    for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i) {
+      const char *candidate = sequel_summary_find_word(source, range.end, start, keywords[i]);
+      if (candidate && (!first || candidate < first))
+        first = candidate;
+    }
+    if (first)
+      start = (size_t)(first - source);
   }
   if (summary_word(source, range.end, start, "SELECT")) {
     size_t from = start;
