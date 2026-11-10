@@ -139,8 +139,8 @@ static void collapse_duplicate_relation(char *text, size_t *length) {
 void sequel_summary_normalize_projection(char *text, size_t *length) {
   if (!text || !length)
     return;
-  const char *operators[] = {"UNION ", "EXCEPT ", "INTERSECT "};
-  for (size_t operator_index = 0; operator_index < 3; ++operator_index) {
+  const char *operators[] = {"UNION ", "EXCEPT ", "INTERSECT ", "ALL "};
+  for (size_t operator_index = 0; operator_index < 4; ++operator_index) {
     const char *operator = operators[operator_index];
     size_t width = strlen(operator);
     for (char *match = strstr(text, operator); match; match = strstr(match + width, operator)) {
