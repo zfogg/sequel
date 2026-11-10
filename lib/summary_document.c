@@ -1735,6 +1735,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = strlen(text);
     }
   }
+  if (text && strstr(source.data, " OFFSET ") && strstr(source.data, " FETCH NEXT ")) {
+    const char *offset = strstr(source.data, " OFFSET ");
+    const char *fetch = strstr(offset, " FETCH NEXT ");
+    const char *value = offset + strlen(" OFFSET ");
+    const char *value_end = value;
+    while (*value_end && isdigit((unsigned char)*value_end))
+      ++value_end;
+    if (fetch) {
+      length = (size_t)(strstr(text, " OFFSET ") ? strstr(text, " OFFSET ") - text : length);
+      if (text)
+        text[length] = '\0';
+      if (!append_text(&text, &length, &capacity, " OFFSET ") ||
+          !append_bytes(&text, &length, &capacity, value, (size_t)(value_end - value)) ||
+          !append_text(&text, &length, &capacity, " FETCH NEXT ? ROWS ONLY"))
+        goto no_memory;
+    }
+  }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
     const char *select = strstr(source.data, " SELECT ") + 1;
     const char *from = strstr(select, " FROM ");
