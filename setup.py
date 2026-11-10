@@ -14,6 +14,7 @@ setup(
                 "lib/lexer.c",
                 "lib/parser.c",
                 "lib/query.c",
+                "lib/diagnostics.c",
                 "lib/analysis_document.c",
                 "lib/serialization.c",
                 "lib/formatter.c",
