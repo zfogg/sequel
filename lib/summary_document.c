@@ -265,6 +265,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   sequel_source_view_t source = sequel_query_source(query);
   size_t cte_prefix_end = 0;
   bool nested_cte_scope = false;
+  bool insert_values_scope = false;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
@@ -450,7 +451,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       while (name < source.length && isspace((unsigned char)source.data[name]))
         ++name;
       size_t end = name;
-      while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != ';')
+      while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != ';' &&
+             source.data[end] != '(')
         ++end;
       if (end > name && (!append_text(&text, &length, &capacity, " INTO ") ||
                          !append_bytes(&text, &length, &capacity, source.data + name, end - name)))
@@ -458,7 +460,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "VALUES")) {
-        if (!append_text(&text, &length, &capacity, " VALUES"))
+        insert_values_scope = true;
+        if (!append_text(&text, &length, &capacity, " VALUES ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+          goto no_memory;
+        break;
+      }
+    for (size_t i = 0; i < source.length; ++i)
+      if (summary_word(source.data, source.length, i, "SELECT")) {
+        if (!append_text(&text, &length, &capacity, " SELECT ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
           goto no_memory;
         break;
       }
@@ -527,7 +538,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_tables && !nested_cte_scope) {
+  if (settings->include_tables && !nested_cte_scope && !insert_values_scope) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
@@ -759,6 +770,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!okay)
         goto no_memory;
     }
+    if (operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " ON CONFLICT")) {
+      if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        goto no_memory;
+    }
+    if (operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " RETURNING ") &&
+        (!append_text(&text, &length, &capacity, " RETURNING ") ||
+         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+      goto no_memory;
     if (sequel_query_cte_count(query) && statement_count &&
         (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
       size_t outer = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
@@ -777,6 +797,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
+  if (insert_values_scope && strstr(source.data, " ON CONFLICT") && !strstr(text ? text : "", " ON CONFLICT")) {
+    if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
+  if (insert_values_scope && strstr(source.data, " RETURNING ") && !strstr(text ? text : "", " RETURNING ") &&
+      (!append_text(&text, &length, &capacity, " RETURNING ") ||
+       !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+    goto no_memory;
   size_t outer_start =
       sequel_query_cte_count(query) ? sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end : 0;
   if (statement_count && (strstr(source.data, " DELETE FROM") || strstr(source.data, "UPDATE ")) &&
