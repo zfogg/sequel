@@ -37,7 +37,7 @@ else()
   set_target_properties(sequel_utf8proc PROPERTIES POSITION_INDEPENDENT_CODE ON)
   set(SEQUEL_UTF8PROC_TARGET sequel_utf8proc)
 endif()
-add_library(sequel lib/engine.c lib/source.c lib/dialect.c lib/lexer.c lib/parser.c lib/query.c lib/analysis_document.c lib/serialization.c lib/formatter.c lib/fingerprint.c lib/summary/document.c lib/summary/buffer.c lib/summary/options.c lib/summary/lexical.c lib/summary/operation.c lib/summary/clause.c lib/sanitizer.c lib/util/utf8.c)
+add_library(sequel lib/engine.c lib/source.c lib/dialect.c lib/lexer.c lib/parser.c lib/query.c lib/analysis_document.c lib/serialization.c lib/formatter.c lib/fingerprint.c lib/summary/document.c lib/summary/buffer.c lib/summary/options.c lib/summary/lexical.c lib/summary/operation.c lib/summary/clause.c lib/summary/body.c lib/sanitizer.c lib/util/utf8.c)
 add_library(sequel::sequel ALIAS sequel)
 target_compile_features(sequel PUBLIC c_std_23)
 target_include_directories(sequel PUBLIC

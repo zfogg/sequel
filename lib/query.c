@@ -235,6 +235,19 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       const sequel_token_t *first_token = &tokens[first];
       document->statements[document->statement_count - 1].operation = operation_from_word(
           source.data + first_token->range.start, first_token->range.end - first_token->range.start);
+      if (document->statements[document->statement_count - 1].operation == SEQUEL_OPERATION_UNKNOWN) {
+        for (size_t candidate = first + 1; candidate < nodes[i].first_token + nodes[i].token_count; ++candidate) {
+          if (is_trivia(&tokens[candidate]))
+            continue;
+          sequel_operation_t recovered = operation_from_word(
+              source.data + tokens[candidate].range.start,
+              tokens[candidate].range.end - tokens[candidate].range.start);
+          if (recovered != SEQUEL_OPERATION_UNKNOWN) {
+            document->statements[document->statement_count - 1].operation = recovered;
+            break;
+          }
+        }
+      }
     }
   }
   for (size_t i = 0; i < token_count; ++i) {

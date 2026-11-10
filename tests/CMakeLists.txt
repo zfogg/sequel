@@ -65,6 +65,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/lexical.c
   ../lib/summary/operation.c
   ../lib/summary/clause.c
+  ../lib/summary/body.c
   ../lib/sanitizer.c
   )
 
