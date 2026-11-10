@@ -155,7 +155,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                (source->data[i] == '[' && sequel_dialect_definition(settings->dialect)->supports_bracket_identifiers)) {
       char quote = source->data[i++];
       i = scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
-      kind = quote == '\'' ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
+      kind = quote == '\'' || (quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_STRING
+                                                                                  : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
       flags = i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote)
                   ? SEQUEL_TOKEN_FLAG_UNTERMINATED
