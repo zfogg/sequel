@@ -10,16 +10,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** Status returned by operations; SEQUEL_OK indicates success. */
-typedef enum {
-  SEQUEL_OK = 0,
-  SEQUEL_ERR_NULL,
-  SEQUEL_ERR_INVALID_ARGUMENT,
-  SEQUEL_ERR_OVERFLOW,
-  SEQUEL_ERR_NOMEM,
-  SEQUEL_ERR_LIMIT,
-  SEQUEL_ERR_CANCELLED
-} sequel_status_t;
+#include <sequel/dialect.h>
+#include <sequel/lexer.h>
+#include <sequel/parser.h>
+#include <sequel/source.h>
+#include <sequel/status.h>
+#include <sequel/syntax.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,16 +35,6 @@ extern "C" {
 #ifndef SEQUEL_SUMMARY_MAX
 #define SEQUEL_SUMMARY_MAX ((size_t)1024 * 1024 * 1024)
 #endif
-
-/** Dialect selects quote, identifier, comment and bind-marker rules. */
-typedef enum {
-  SEQUEL_GENERIC,
-  SEQUEL_SQLITE,
-  SEQUEL_POSTGRESQL,
-  SEQUEL_DUCKDB,
-  SEQUEL_MYSQL,
-  SEQUEL_CLICKHOUSE
-} sequel_dialect_t;
 
 /** Stable diagnostic categories; use sequel_diagnostic_code_name for text. */
 typedef enum {
