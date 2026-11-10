@@ -39,7 +39,6 @@ static const sequel_dialect_definition_t definitions[] = {
                            .keyword_count = sizeof(keywords) / sizeof(*keywords)},
     [SEQUEL_DUCKDB] = {.id = SEQUEL_DUCKDB,
                        .name = "duckdb",
-                       .supports_bracket_identifiers = true,
                        .supports_numbered_parameters = true,
                        .keywords = keywords,
                        .keyword_count = sizeof(keywords) / sizeof(*keywords)},

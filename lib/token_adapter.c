@@ -32,16 +32,18 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if (token->range.end > source.length || token->range.start > token->range.end)
+    if (token->range.end > source.length || token->range.start > token->range.end) {
       goto invalid;
+    }
     if (token->kind == SEQUEL_TOKEN_WHITESPACE) {
       previous_end = token->range.end;
       continue;
     }
     if (*count == capacity) {
       size_t next = capacity ? capacity * 2 : 64;
-      if (next < *count || next > SIZE_MAX / sizeof(**out))
+      if (next < *count || next > SIZE_MAX / sizeof(**out)) {
         goto overflow;
+      }
       format_token *grown = realloc(*out, next * sizeof(*grown));
       if (!grown)
         goto no_memory;

@@ -530,22 +530,35 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
         sha_init(&type_hash);
         const char *colon = memchr(t.t.p, ':', t.t.n);
         size_t type_length = (size_t)((t.t.p + t.t.n - 1) - (colon + 1));
-        format_token *types = NULL;
-        sequel_diagnostic_t ignored;
-        size_t type_count = format_scan_ex(colon + 1, type_length, a->options.dialect, &types, false, &ignored);
-        if (type_count == SIZE_MAX)
+        sequel_parse_options_t type_options;
+        sequel_parse_options_init(&type_options);
+        type_options.dialect = a->options.dialect;
+        type_options.retain_comments = false;
+        type_options.retain_whitespace = false;
+        sequel_source_view_t type_source = {colon + 1, type_length};
+        sequel_lexed_document_t *type_document = NULL;
+        if (sequel_lex(&type_source, &type_options, NULL, &type_document) != SEQUEL_OK)
           sequel_abort(SEQUEL_ERR_INVALID_ARGUMENT);
+        size_t type_count = 0;
+        const sequel_token_t *type_tokens = sequel_lexed_tokens(type_document, &type_count);
+        sequel_source_view_t type_view = sequel_lexed_source(type_document);
         for (size_t k = 0; k < type_count; k++) {
           sequel_work_tick(1);
-          if (types[k].kind >= 3)
+          if (type_tokens[k].kind == SEQUEL_TOKEN_EOF)
             continue;
-          bool value = analysis_literal(types[k], a->options.dialect);
-          sha_frame(&type_hash, value ? 'L' : types[k].kind == 1 ? 'W' : 'T', types[k].t.p, types[k].t.n, false);
+          const sequel_token_t *type_token = &type_tokens[k];
+          bool value = (type_token->flags & SEQUEL_TOKEN_FLAG_LITERAL) != 0;
+          char frame = value ? 'L' : type_token->kind == SEQUEL_TOKEN_KEYWORD ||
+                                              type_token->kind == SEQUEL_TOKEN_IDENTIFIER
+                                          ? 'W'
+                                          : 'T';
+          sha_frame(&type_hash, frame, type_view.data + type_token->range.start,
+                    type_token->range.end - type_token->range.start, false);
         }
         char type_digest[65];
         sha_final(&type_hash, type_digest);
         sha_frame(hash, 'Y', type_digest, 64, false);
-        free(types);
+        sequel_lexed_document_free(type_document);
       } else
         sha_frame(hash, 'Y', "", 0, false);
       if (!a->options.omit_bind_descriptors) {
@@ -948,7 +961,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
       else if (first.offset < n)
         analysis_add_statement(out, first.offset, n);
-      analysis_add_diagnostic(out, first.code, first.offset, first.end_offset);
+      if (!parse_issue_count)
+        analysis_add_diagnostic(out, first.code, first.offset, first.end_offset);
       valid = SEQUEL_ERR_INVALID_ARGUMENT;
     } else if (syntax && parse_issue_count) {
       for (size_t issue_index = 0; issue_index < parse_issue_count; ++issue_index) {

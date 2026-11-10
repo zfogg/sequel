@@ -270,7 +270,10 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       }
       kind = SEQUEL_TOKEN_PARAMETER;
       flags |= SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
-    } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' ||
+    } else if (source->data[i] == '?' || source->data[i] == '$' ||
+               (source->data[i] == ':' && i + 1 < source->length &&
+                (is_word_start((unsigned char)source->data[i + 1]) ||
+                 (settings->dialect == SEQUEL_SQLITE && isdigit((unsigned char)source->data[i + 1])))) ||
                (source->data[i] == '@' &&
                 (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1])))) {
       ++i;
