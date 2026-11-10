@@ -571,6 +571,15 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN &&
          tokens[i].keyword_id != SEQUEL_KEYWORD_ON))
       continue;
+    bool expression_from = false;
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_FROM) {
+      size_t lookback = tokens[i].range.start > 32 ? tokens[i].range.start - 32 : 0;
+      for (size_t prior = lookback; prior + 8 < tokens[i].range.start; ++prior)
+        if (!memcmp(source.data + prior, "DISTINCT", 8))
+          expression_from = true;
+    }
+    if (expression_from)
+      continue;
     size_t statement = statement_for_range(document, tokens[i].range);
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_ON &&
         (statement == SIZE_MAX || document->statements[statement].operation != SEQUEL_OPERATION_CREATE))
