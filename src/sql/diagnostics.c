@@ -207,7 +207,8 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   for (size_t i = token_count; i > 0; --i) {
-    if (tokens[i - 1].kind == SEQUEL_TOKEN_EOF)
+    if (tokens[i - 1].kind == SEQUEL_TOKEN_EOF || tokens[i - 1].kind == SEQUEL_TOKEN_WHITESPACE ||
+        tokens[i - 1].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[i - 1].kind == SEQUEL_TOKEN_BLOCK_COMMENT)
       continue;
     out->statement_complete =
         tokens[i - 1].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i - 1].range.start] == ';';
