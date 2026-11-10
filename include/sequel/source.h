@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include <sequel/status.h>
+#include <sequel/dialect.h>
 
 /** A half-open byte range in UTF-8 source text. */
 typedef struct {
@@ -36,12 +37,14 @@ typedef enum { SEQUEL_SOURCE_BORROWED = 0, SEQUEL_SOURCE_COPIED } sequel_source_
 typedef struct {
   sequel_source_view_t view;
   sequel_source_storage_t storage;
+  sequel_dialect_t dialect;
 } sequel_source_options_t;
 
 sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options,
                                      sequel_source_t **out);
 void sequel_source_free(sequel_source_t *source);
 sequel_source_view_t sequel_source_view(const sequel_source_t *source);
+sequel_dialect_t sequel_source_dialect(const sequel_source_t *source);
 
 /** Return whether a range is ordered and contained in a source of length. */
 int sequel_source_range_valid(sequel_source_range_t range, size_t source_length);

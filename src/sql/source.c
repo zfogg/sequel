@@ -7,6 +7,7 @@ struct sequel_source {
   char *owned_data;
   sequel_source_view_t view;
   sequel_source_storage_t storage;
+  sequel_dialect_t dialect;
 };
 
 sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options,
@@ -19,6 +20,7 @@ sequel_status_t sequel_source_create(const sequel_source_view_t *view, const seq
   if (!source)
     return SEQUEL_ERR_NOMEM;
   source->storage = storage;
+  source->dialect = options ? options->dialect : SEQUEL_GENERIC;
   if (storage == SEQUEL_SOURCE_COPIED) {
     source->owned_data = malloc(view->length + 1);
     if (!source->owned_data) {
@@ -44,6 +46,10 @@ void sequel_source_free(sequel_source_t *source) {
 
 sequel_source_view_t sequel_source_view(const sequel_source_t *source) {
   return source ? source->view : (sequel_source_view_t){0};
+}
+
+sequel_dialect_t sequel_source_dialect(const sequel_source_t *source) {
+  return source ? source->dialect : SEQUEL_GENERIC;
 }
 
 int sequel_source_range_valid(sequel_source_range_t range, size_t source_length) {
