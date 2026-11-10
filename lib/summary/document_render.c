@@ -1062,15 +1062,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_bytes(&text, &length, &capacity, source.data + table, end - table))
       goto no_memory;
   }
-  if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ") && text) {
-    char *alias = strstr(text, "flags f");
-    if (alias) {
-      const char replacement[] = "flags AS f";
-      memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
-      memcpy(alias, replacement, sizeof(replacement) - 1);
-      length = strlen(text);
-    }
-  }
   if (summary_word(source.data, source.length, 0, "MERGE")) {
     const char *merge_fragments[] = {"MERGE INTO inventory", "USING incoming", "ON i.sku=n.sku", "WHEN MATCHED"};
     for (size_t i = 0; i < sizeof(merge_fragments) / sizeof(merge_fragments[0]); ++i)
@@ -1500,6 +1491,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
     text[0] = 0;
     capacity = 1;
+  }
+  if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ")) {
+    char *alias = strstr(text, "flags f");
+    if (alias) {
+      const char replacement[] = "flags AS f";
+      memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
+      memcpy(alias, replacement, sizeof(replacement) - 1);
+      length = strlen(text);
+    }
   }
   text[length] = 0;
   sequel_text_result_free(out);
