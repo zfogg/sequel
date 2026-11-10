@@ -351,7 +351,8 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   /* Match groups once, then propagate multiline constructs out through their
    * containing function calls. This avoids repeatedly scanning nested SQL. */
   size_t opens[65] = {0}, level = 0;
-  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
+  sequel_work_tick(count);
+  for (size_t i = 0; i < count; ++i) {
     token t = ts[i].t;
     if (!t.p || !t.n)
       continue;
@@ -398,7 +399,8 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   size_t depth = 0, case_count = 0, line_indent = 0;
   size_t previous = SIZE_MAX;
   bool after_comparison = false, join_head = false;
-  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
+  sequel_work_tick(count);
+  for (size_t i = 0; i < count; ++i) {
     format_token f = ts[i];
     token t = f.t;
     bool open = f.kind == 0 && t.p && t.n == 1 && strchr("([{", *t.p);
