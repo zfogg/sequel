@@ -101,6 +101,19 @@ int main(void) {
     return 1;
   sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_lexed_document_free(lexical_document);
+  const char limited_sql[] = ") ) ] ]";
+  sequel_source_view_t limited_source = {limited_sql, strlen(limited_sql)};
+  sequel_parse_options_t limited_options = options;
+  limited_options.max_diagnostics = 1;
+  sequel_syntax_document_t *limited_syntax = NULL;
+  if (!check(sequel_parse_sql(&limited_source, &limited_options, NULL, &limited_syntax) == SEQUEL_OK,
+             "diagnostic budget parse"))
+    return 1;
+  size_t limited_issue_count = 0;
+  (void)sequel_syntax_issues(limited_syntax, &limited_issue_count);
+  if (!check(limited_issue_count == 1, "diagnostic budget"))
+    return 1;
+  sequel_syntax_document_free(limited_syntax);
 
   sequel_syntax_document_t *syntax = NULL;
   if (!check(sequel_parse_sql(&source, &options, NULL, &syntax) == SEQUEL_OK, "parse succeeds"))

@@ -13,6 +13,7 @@ struct sequel_syntax_document {
   size_t child_count;
   sequel_parse_issue_t *issues;
   size_t issue_count;
+  size_t max_diagnostics;
 };
 
 static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed, size_t token_index) {
@@ -114,6 +115,8 @@ static int append_child(sequel_syntax_document_t *document, size_t parent, size_
 }
 
 static int append_issue(sequel_syntax_document_t *document, sequel_parse_issue_t issue) {
+  if (document->max_diagnostics && document->issue_count >= document->max_diagnostics)
+    return 1;
   size_t count = document->issue_count + 1;
   sequel_parse_issue_t *issues = realloc(document->issues, count * sizeof(*issues));
   if (!issues)
@@ -327,6 +330,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
   if (!document)
     return SEQUEL_ERR_NOMEM;
   document->lexed = lexed;
+  document->max_diagnostics = options && options->max_diagnostics ? options->max_diagnostics : 64;
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   size_t start_token = 0;
