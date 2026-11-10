@@ -104,6 +104,10 @@ sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, seque
 sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect,
                                   sequel_diagnostic_t *diagnostic);
 
+/** Convert one recovered syntax issue into the canonical diagnostic ABI. */
+sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
+                                         sequel_diagnostic_t *diagnostic);
+
 /** Analysis/diagnostic wire schema version. Unknown versions must be rejected. */
 #define SEQUEL_ANALYSIS_VERSION 1u
 

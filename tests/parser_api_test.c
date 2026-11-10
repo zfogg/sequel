@@ -119,6 +119,11 @@ int main(void) {
                  issues[0].recovery == SEQUEL_RECOVERY_INSERTED_TOKEN,
              "unclosed group recovery"))
     return 1;
+  sequel_diagnostic_t recovered_diagnostic;
+  if (!check(sequel_syntax_diagnostic(malformed_syntax, 0, &recovered_diagnostic) == SEQUEL_OK &&
+                 recovered_diagnostic.code == SEQUEL_DIAG_UNCLOSED_GROUP && recovered_diagnostic.incomplete,
+             "recovery diagnostic bridge"))
+    return 1;
   sequel_syntax_document_free(malformed_syntax);
   sequel_text_edit_t edit = {.start = 7, .old_end = 9, .replacement = "name", .replacement_length = 4};
   sequel_syntax_document_t *updated = NULL;
