@@ -167,6 +167,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       if (!settings->retain_comments)
         continue;
+    } else if (source->data[i] == '/' && i + 1 < source->length && source->data[i + 1] == '/' &&
+               settings->dialect == SEQUEL_CLICKHOUSE) {
+      i += 2;
+      while (i < source->length && source->data[i] != '\n' && source->data[i] != '\r')
+        ++i;
+      kind = SEQUEL_TOKEN_LINE_COMMENT;
+      flags = SEQUEL_TOKEN_FLAG_COMMENT;
+      if (!settings->retain_comments)
+        continue;
     } else if (source->data[i] == '#' &&
                (settings->dialect == SEQUEL_MYSQL || settings->dialect == SEQUEL_CLICKHOUSE)) {
       ++i;

@@ -314,7 +314,11 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
         amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
         size_t written = 0;
         while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&
-               query_source.data[cursor + written] != '(') {
+               query_source.data[cursor + written] != '(' &&
+               !(cursor + written + 2 < end && (unsigned char)query_source.data[cursor + written] == 0xe2 &&
+                 (unsigned char)query_source.data[cursor + written + 1] == 0x80 &&
+                 (unsigned char)query_source.data[cursor + written + 2] >= 0x98 &&
+                 (unsigned char)query_source.data[cursor + written + 2] <= 0x9d)) {
           out->operation[written] = (char)toupper((unsigned char)query_source.data[cursor + written]);
           ++written;
         }
