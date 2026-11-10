@@ -338,8 +338,20 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       opens[++level] = i;
       if (i && kw(ts[i - 1].t, "OVER"))
         ts[i].multiline = true;
-      if (i && ts[i].newline && ts[i - 1].kind == 0 && ts[i - 1].t.n == 1 && strchr("([{", *ts[i - 1].t.p))
-        ts[i].multiline = true;
+      if (i && ts[i - 1].kind == 0 && ts[i - 1].t.n == 1 && strchr("([{", *ts[i - 1].t.p)) {
+        for (const char *cursor = ts[i - 1].t.p + ts[i - 1].t.n; cursor < ts[i].t.p; ++cursor)
+          if (*cursor == '\n' || *cursor == '\r') {
+            ts[i].multiline = true;
+            break;
+          }
+      }
+      if (i + 1 < count && ts[i + 1].kind == 0 && ts[i + 1].t.n == 1 &&
+          strchr("([{", *ts[i + 1].t.p))
+        for (const char *cursor = ts[i].t.p + ts[i].t.n; cursor < ts[i + 1].t.p; ++cursor)
+          if (*cursor == '\n' || *cursor == '\r') {
+            ts[i].multiline = true;
+            break;
+          }
     } else if (ts[i].kind == 0 && t.n == 1 && strchr(")]}", *t.p)) {
       if (!level)
         return false;
