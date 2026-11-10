@@ -24,6 +24,36 @@ static const char summary_ellipsis[] = "\342\200\246";
 
 #define normalize_projection sequel_summary_normalize_projection
 
+static int append_redacted_range(char **text, size_t *length, size_t *capacity,
+                                 const sequel_query_document_t *query, size_t start, size_t end) {
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
+  size_t cursor = start;
+  for (size_t i = 0; i < token_count; ++i) {
+    const sequel_token_t *token = &tokens[i];
+    if (token->kind == SEQUEL_TOKEN_EOF || token->range.end <= start)
+      continue;
+    if (token->range.start >= end)
+      break;
+    size_t token_start = token->range.start < start ? start : token->range.start;
+    size_t token_end = token->range.end > end ? end : token->range.end;
+    if (token_start > cursor && !append_bytes(text, length, capacity, source.data + cursor, token_start - cursor))
+      return 0;
+    bool redact = (token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER;
+    if (redact) {
+      if (!append_text(text, length, capacity, "?"))
+        return 0;
+    } else if (token_end > token_start &&
+               !append_bytes(text, length, capacity, source.data + token_start, token_end - token_start)) {
+      return 0;
+    }
+    cursor = token_end;
+  }
+  return cursor < end ? append_bytes(text, length, capacity, source.data + cursor, end - cursor) : 1;
+}
+
 
 sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, const sequel_summary_options_t *options,
                                        sequel_text_result_t *out) {
@@ -778,12 +808,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           okay = append_text(&text, &length, &capacity, " ") &&
                  (literal_true ? (append_text(&text, &length, &capacity, "ON ") &&
                                   append_text(&text, &length, &capacity, "?"))
-                               : append_bytes(&text, &length, &capacity, source.data + condition_start,
-                                              condition_end - condition_start));
+                               : append_redacted_range(&text, &length, &capacity, query, condition_start,
+                                                       condition_end));
         }
       }
       if (okay && rendered_relations) {
         const char *using = strstr(source.data + relations[i].range.end, "USING");
+        if (using && i + 1 < relation_count && using >= source.data + relations[i + 1].range.start)
+          using = NULL;
         if (using && (!strstr(source.data + relations[i].range.end, "WHERE") ||
                       using < strstr(source.data + relations[i].range.end, "WHERE"))) {
           const char *open = strchr(using, '(');
