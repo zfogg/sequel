@@ -39,7 +39,19 @@ fn main() {
     }
     let mut build = cc::Build::new();
     build
-        .files(["src/sql/main.c", "src/utf8.c", "third_party/utf8proc.c"])
+        .files([
+            "src/sql/main.c",
+            "src/sql/source.c",
+            "src/sql/dialect.c",
+            "src/sql/lexer.c",
+            "src/sql/parser.c",
+            "src/sql/query.c",
+            "src/sql/analysis_document.c",
+            "src/sql/serialization.c",
+            "src/sql/diagnostics_bridge.c",
+            "src/utf8.c",
+            "third_party/utf8proc.c",
+        ])
         .includes(["include", "third_party"])
         .define("UTF8PROC_STATIC", "1")
         .std("c11")
