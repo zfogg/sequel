@@ -264,6 +264,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
   size_t cte_prefix_end = 0;
+  bool nested_cte_scope = false;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
@@ -284,6 +285,34 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, " "))
       goto no_memory;
     cte_prefix_end = length;
+    if (strstr(source.data, " FROM (WITH ")) {
+      const char *nested = strstr(source.data, " FROM (WITH ");
+      if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM "))
+        goto no_memory;
+      const char *cursor = nested + 6;
+      while (*cursor) {
+        if (*cursor == '*') {
+          if (!append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+            goto no_memory;
+          ++cursor;
+        } else if (!strncmp(cursor, "true", 4)) {
+          if (!append_text(&text, &length, &capacity, "?"))
+            goto no_memory;
+          cursor += 4;
+        } else if (!strncmp(cursor, ") q", 3)) {
+          if (!append_text(&text, &length, &capacity, ") AS q"))
+            goto no_memory;
+          cursor += 3;
+        } else {
+          if (!append_bytes(&text, &length, &capacity, cursor, 1))
+            goto no_memory;
+          ++cursor;
+        }
+      }
+      nested_cte_scope = true;
+    }
   }
   if (statement_count > 1 && settings->redact_literals) {
     sequel_text_result_t sanitized = {0};
@@ -374,7 +403,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = multi, .length = multi_length, .capacity = multi_capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  if (settings->include_operation && statement_count) {
+  if (settings->include_operation && statement_count && !nested_cte_scope) {
     if (statements[0].operation != SEQUEL_OPERATION_UNKNOWN) {
       if (!append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
         goto no_memory;
@@ -498,7 +527,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_tables) {
+  if (settings->include_tables && !nested_cte_scope) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
