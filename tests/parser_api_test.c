@@ -51,8 +51,10 @@ int main(void) {
     return 1;
   const char operator_sql[] = "SELECT [users] WHERE active >= TRUE";
   sequel_source_view_t operator_source = {operator_sql, strlen(operator_sql)};
+  sequel_parse_options_t generic_options = options;
+  generic_options.dialect = SEQUEL_GENERIC;
   sequel_lexed_document_t *operator_lexed = NULL;
-  if (!check(sequel_lex(&operator_source, &options, NULL, &operator_lexed) == SEQUEL_OK, "operator lexing"))
+  if (!check(sequel_lex(&operator_source, &generic_options, NULL, &operator_lexed) == SEQUEL_OK, "operator lexing"))
     return 1;
   size_t operator_count = 0;
   const sequel_token_t *operator_tokens = sequel_lexed_tokens(operator_lexed, &operator_count);
