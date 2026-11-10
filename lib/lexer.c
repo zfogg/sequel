@@ -295,13 +295,20 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       while (i < source->length) {
         unsigned char character = (unsigned char)source->data[i];
         bool exponent_sign = (character == '+' || character == '-') && i > start &&
-                             (source->data[i - 1] == 'e' || source->data[i - 1] == 'E') && i + 1 < source->length &&
+                             (source->data[i - 1] == 'e' || source->data[i - 1] == 'E' ||
+                              (source->data[start] == '0' && i > start + 2 &&
+                               (source->data[start + 1] == 'x' || source->data[start + 1] == 'X') &&
+                               (source->data[i - 1] == 'p' || source->data[i - 1] == 'P'))) &&
+                             i + 1 < source->length &&
                              isdigit((unsigned char)source->data[i + 1]);
         if (!(isalnum(character) || character == '.' || character == '_' || exponent_sign))
           break;
         ++i;
       }
-      if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E')) {
+      if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E' ||
+                                 ((source->data[start] == '0' && i > start + 2 &&
+                                   (source->data[start + 1] == 'x' || source->data[start + 1] == 'X')) &&
+                                  (source->data[i] == 'p' || source->data[i] == 'P')))) {
         size_t exponent = i++;
         if (i < source->length && (source->data[i] == '+' || source->data[i] == '-'))
           ++i;

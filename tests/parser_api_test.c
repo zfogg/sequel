@@ -62,6 +62,25 @@ int main(void) {
       return 1;
     sequel_lexed_document_free(arithmetic_lexed);
   }
+  {
+    const char clickhouse_number[] = "SELECT 0x1.fp+2";
+    sequel_source_view_t clickhouse_source = {clickhouse_number, strlen(clickhouse_number)};
+    sequel_parse_options_t clickhouse_options;
+    sequel_parse_options_init(&clickhouse_options);
+    clickhouse_options.dialect = SEQUEL_CLICKHOUSE;
+    sequel_lexed_document_t *clickhouse_lexed = NULL;
+    if (!check(sequel_lex(&clickhouse_source, &clickhouse_options, NULL, &clickhouse_lexed) == SEQUEL_OK,
+               "ClickHouse hexadecimal float lexing"))
+      return 1;
+    size_t clickhouse_count = 0;
+    const sequel_token_t *clickhouse_tokens = sequel_lexed_tokens(clickhouse_lexed, &clickhouse_count);
+    if (!check(clickhouse_count >= 3, "ClickHouse hexadecimal float token count") ||
+        !check(clickhouse_tokens[1].kind == SEQUEL_TOKEN_NUMBER, "ClickHouse hexadecimal float token kind") ||
+        !check(clickhouse_tokens[1].range.end - clickhouse_tokens[1].range.start == strlen("0x1.fp+2"),
+               "ClickHouse hexadecimal float token range"))
+      return 1;
+    sequel_lexed_document_free(clickhouse_lexed);
+  }
   const char sql[] =
       "SELECT coalesce(id, 1), 'value' /* removed */ FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
