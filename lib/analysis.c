@@ -947,7 +947,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     if (adapter_status == SEQUEL_OK)
       count = scanned;
     else {
-      count = SIZE_MAX;
+      count = 0;
       scanned = 0;
     }
     if (call->ambiguous_literal) {
