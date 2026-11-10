@@ -58,6 +58,16 @@ static int read_serialized_range(const uint8_t **cursor, size_t *remaining, size
          serialized_range_valid(start, end, source_length);
 }
 
+static int add_words(uint64_t *total, uint64_t count, uint64_t words_per_record) {
+  if (count && words_per_record > UINT64_MAX / count)
+    return 0;
+  uint64_t words = count * words_per_record;
+  if (words > UINT64_MAX - *total)
+    return 0;
+  *total += words;
+  return 1;
+}
+
 void sequel_serialization_options_init(sequel_serialization_options_t *options) {
   if (options)
     *options = (sequel_serialization_options_t){{SEQUEL_DOCUMENT_SCHEMA_MAJOR, SEQUEL_DOCUMENT_SCHEMA_MINOR}};
@@ -210,12 +220,18 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   for (size_t i = 0; i < 16; ++i)
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (header[0] != 0x31544451534c4553ull || header[1] != SEQUEL_DOCUMENT_SCHEMA_MAJOR)
+  if (header[0] != 0x31544451534c4553ull || header[1] != SEQUEL_DOCUMENT_SCHEMA_MAJOR ||
+      header[2] > SEQUEL_DOCUMENT_SCHEMA_MINOR || header[3] > SEQUEL_CLICKHOUSE)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[4] != source->length)
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  uint64_t words = header[5] * 10 + header[6] * 11 + header[7] + header[8] * 5 + header[9] * 5 + header[10] * 11 +
-                   header[11] * 10 + header[12] * 6 + header[13] * 6 + header[14] * 6;
+  uint64_t words = 0;
+  if (!add_words(&words, header[5], 10) || !add_words(&words, header[6], 11) ||
+      !add_words(&words, header[7], 1) || !add_words(&words, header[8], 5) || !add_words(&words, header[9], 6) ||
+      !add_words(&words, header[10], 11) || !add_words(&words, header[11], 10) ||
+      !add_words(&words, header[12], 6) || !add_words(&words, header[13], 6) ||
+      !add_words(&words, header[14], 6))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t) || remaining % sizeof(uint64_t) != 0)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   const uint8_t *validation_cursor = cursor;
