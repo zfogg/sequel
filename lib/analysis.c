@@ -51,9 +51,13 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
       if (next < *count || next > SIZE_MAX / sizeof(**out)) {
         goto overflow;
       }
-      format_token *grown = realloc(*out, next * sizeof(*grown));
+      format_token *grown = calloc(next, sizeof(*grown));
       if (!grown)
         goto no_memory;
+      if (*out) {
+        memcpy(grown, *out, *count * sizeof(*grown));
+        free(*out);
+      }
       *out = grown;
       capacity = next;
     }
