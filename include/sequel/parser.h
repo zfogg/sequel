@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #include <sequel/dialect.h>
 #include <sequel/lexer.h>
