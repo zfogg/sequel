@@ -533,7 +533,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     bool literal =
         strchr("'?0123456789", first) != NULL || (first == '$' && projection[0].range.start + 1 < source.length &&
                                                   isdigit((unsigned char)source.data[projection[0].range.start + 1]));
-    if (literal ? !append_text(&text, &length, &capacity, "?")
+    bool scalar_function = !strstr(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
+    const char *function_open = scalar_function ? strchr(source.data + projection[0].range.start, '(') : NULL;
+    bool empty_arguments = function_open && function_open[1] == ')';
+    if (scalar_function
+            ? (!append_bytes(&text, &length, &capacity, source.data + projection[0].range.start,
+                             (size_t)(function_open - (source.data + projection[0].range.start) + 1)) ||
+               (empty_arguments ? !append_text(&text, &length, &capacity, ")")
+                                : (!append_bytes(&text, &length, &capacity, summary_ellipsis,
+                                                  sizeof(summary_ellipsis) - 1) ||
+                                   !append_text(&text, &length, &capacity, ")"))))
+            : literal ? !append_text(&text, &length, &capacity, "?")
                 : !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
@@ -637,6 +647,26 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " OVER (") &&
+      strstr(source.data, " FILTER (") && strstr(source.data, " FROM ")) {
+    const char *from = strstr(source.data, " FROM ") + 6;
+    while (*from && isspace((unsigned char)*from))
+      ++from;
+    const char *end = from;
+    while (end < source.data + source.length && !isspace((unsigned char)*end))
+      ++end;
+    length = 0;
+    if (text)
+      text[0] = '\0';
+    if (!append_text(&text, &length, &capacity, "SELECT ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " OVER (…)") ||
+        !append_text(&text, &length, &capacity, " FILTER (…)") ||
+        !append_text(&text, &length, &capacity, " FROM ") ||
+        !append_bytes(&text, &length, &capacity, from, (size_t)(end - from)))
+      goto no_memory;
+  }
+  if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
       statements[0].operation == SEQUEL_OPERATION_SELECT &&
       (strstr(source.data, " UNION ") || strstr(source.data, " EXCEPT ") || strstr(source.data, " INTERSECT "))) {
     length = 0;
@@ -682,7 +712,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && !nested_cte_scope && !insert_values_scope &&
       !cte_insert_scope && !strstr(source.data, " UNION ") && !strstr(source.data, " EXCEPT ") &&
-      !strstr(source.data, " INTERSECT ")) {
+      !strstr(source.data, " INTERSECT ") && !(strstr(source.data, " OVER (") && strstr(source.data, " FILTER ("))) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
@@ -1436,6 +1466,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
+  if (text && strstr(text, " OVER (…) FILTER (…) FROM ")) {
+    char *from = strstr(text, " OVER (…) FILTER (…) FROM ");
+    char *table = from + strlen(" OVER (…) FILTER (…) FROM ");
+    char *end = table;
+    while (*end && !isspace((unsigned char)*end))
+      ++end;
+    *end = '\0';
+    length = (size_t)(end - text);
+  }
   if (!text) {
     text = malloc(1);
     if (!text)
