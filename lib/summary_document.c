@@ -1752,6 +1752,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
+  if (text && strstr(source.data, " FETCH FIRST ")) {
+    const char *from = strstr(source.data, " FROM ");
+    const char *fetch = strstr(source.data, " FETCH FIRST ");
+    if (from && fetch) {
+      const char *table = from + 6;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *table_end = table;
+      while (table_end < fetch && !isspace((unsigned char)*table_end))
+        ++table_end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+          (strstr(fetch, " FETCH FIRST ROW ONLY")
+               ? !append_text(&text, &length, &capacity, " FETCH FIRST 1 ROWS ONLY")
+               : !append_bytes(&text, &length, &capacity, fetch, source.data + source.length - fetch)))
+        goto no_memory;
+    }
+  }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
     const char *select = strstr(source.data, " SELECT ") + 1;
     const char *from = strstr(select, " FROM ");
