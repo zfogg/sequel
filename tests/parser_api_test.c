@@ -49,6 +49,20 @@ int main(void) {
     return 1;
   if (!check(tokens[3].kind == SEQUEL_TOKEN_STRING, "string token"))
     return 1;
+  const char operator_sql[] = "SELECT [users] WHERE active >= TRUE";
+  sequel_source_view_t operator_source = {operator_sql, strlen(operator_sql)};
+  sequel_lexed_document_t *operator_lexed = NULL;
+  if (!check(sequel_lex(&operator_source, &options, NULL, &operator_lexed) == SEQUEL_OK, "operator lexing"))
+    return 1;
+  size_t operator_count = 0;
+  const sequel_token_t *operator_tokens = sequel_lexed_tokens(operator_lexed, &operator_count);
+  if (!check(operator_tokens[1].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER, "bracket identifier"))
+    return 1;
+  if (!check(operator_tokens[4].kind == SEQUEL_TOKEN_OPERATOR, "multi-character operator"))
+    return 1;
+  if (!check(operator_tokens[5].kind == SEQUEL_TOKEN_BOOLEAN, "boolean literal"))
+    return 1;
+  sequel_lexed_document_free(operator_lexed);
   sequel_lexed_document_free(lexed);
 
   sequel_syntax_document_t *syntax = NULL;

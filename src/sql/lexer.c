@@ -19,6 +19,10 @@ struct sequel_lexed_document {
 
 static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
 static int is_word_part(unsigned char c) { return isalnum(c) || c == '_' || c >= 128; }
+static int is_operator_char(unsigned char c) {
+  return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '!' || c == '<' || c == '>' ||
+         c == '~' || c == '|' || c == '&' || c == '^';
+}
 
 static int append_token(sequel_lexed_document_t *document, sequel_token_t token, size_t limit) {
   if (document->token_count >= limit)
@@ -124,13 +128,21 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
         ++i;
       unsigned id = sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start);
-      kind = id ? SEQUEL_TOKEN_KEYWORD : SEQUEL_TOKEN_IDENTIFIER;
+      kind = id == 19 || id == 20 ? SEQUEL_TOKEN_BOOLEAN
+             : id == 21           ? SEQUEL_TOKEN_NULL
+             : id                 ? SEQUEL_TOKEN_KEYWORD
+                                  : SEQUEL_TOKEN_IDENTIFIER;
       flags = id ? SEQUEL_TOKEN_FLAG_CASE_FOLDED : 0;
-    } else if (source->data[i] == '\'' || source->data[i] == '"' || source->data[i] == '`') {
+      if (kind == SEQUEL_TOKEN_BOOLEAN || kind == SEQUEL_TOKEN_NULL)
+        flags |= SEQUEL_TOKEN_FLAG_LITERAL;
+    } else if (source->data[i] == '\'' || source->data[i] == '"' || source->data[i] == '`' ||
+               (source->data[i] == '[' && sequel_dialect_definition(settings->dialect)->supports_bracket_identifiers)) {
       char quote = source->data[i++];
-      i = scan_quoted(source->data, source->length, start, quote);
+      i = scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
       kind = quote == '\'' ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
-      flags = i == source->length && source->data[i - 1] != quote ? SEQUEL_TOKEN_FLAG_UNTERMINATED : 0;
+      flags = i == source->length && source->data[i - 1] != (quote == '[' ? ']' : quote)
+                  ? SEQUEL_TOKEN_FLAG_UNTERMINATED
+                  : 0;
     } else if (isdigit((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && (isdigit((unsigned char)source->data[i]) || source->data[i] == '.'))
@@ -143,6 +155,11 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
       flags = SEQUEL_TOKEN_FLAG_BIND;
+    } else if (is_operator_char((unsigned char)source->data[i])) {
+      ++i;
+      while (i < source->length && is_operator_char((unsigned char)source->data[i]))
+        ++i;
+      kind = SEQUEL_TOKEN_OPERATOR;
     } else {
       ++i;
       kind = ispunct((unsigned char)source->data[start]) ? SEQUEL_TOKEN_PUNCTUATION : SEQUEL_TOKEN_ERROR;
