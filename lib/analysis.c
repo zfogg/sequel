@@ -660,7 +660,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
                               : 'T',
                 t.t.p, t.t.n,
                 t.kind == 1 && ((a->options.dialect != SEQUEL_MYSQL && a->options.dialect != SEQUEL_CLICKHOUSE) ||
-                                highlight_kind(ts, count, i, a->options.dialect) == SEQUEL_COLOR_KEYWORD));
+                                isupper((unsigned char)t.t.p[0])));
     if (t.kind == 0 && sym(t.t, ';')) {
       fingerprint_next = 0;
       analysis_dictionary_clear(&dictionary);

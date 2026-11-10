@@ -189,13 +189,13 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
   return SEQUEL_ERR_INVALID_ARGUMENT;
 }
 
-static bool highlight_word_in(token t, const char *words) {
+static bool highlight_text_word(const char *text, size_t length, const char *words) {
   while (*words) {
     const char *end = strchr(words, ' ');
     size_t n = end ? (size_t)(end - words) : strlen(words);
-    if (t.n == n) {
+    if (length == n) {
       size_t i = 0;
-      while (i < n && toupper((unsigned char)t.p[i]) == (unsigned char)words[i])
+      while (i < n && toupper((unsigned char)text[i]) == (unsigned char)words[i])
         ++i;
       if (i == n)
         return true;
@@ -205,75 +205,6 @@ static bool highlight_word_in(token t, const char *words) {
     words = end + 1;
   }
   return false;
-}
-
-static bool highlight_text_word(const char *text, size_t length, const char *words) {
-  token value = {text, length};
-  return highlight_word_in(value, words);
-}
-
-static sequel_highlight_color_t highlight_kind(format_token *ts, size_t count, size_t i, sequel_dialect_t dialect) {
-  token t = ts[i].t;
-  unsigned char c = (unsigned char)*t.p;
-  if (ts[i].kind == 3 || ts[i].kind == 4)
-    return SEQUEL_COLOR_COMMENT;
-  if (ts[i].kind == 2) {
-    if (c == '"' || c == '`' || c == '[')
-      return dialect == SEQUEL_MYSQL && c == '"' ? SEQUEL_COLOR_STRING : SEQUEL_COLOR_IDENTIFIER;
-    if (dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(t.p, t.n, 0))
-      return clickhouse_quote(t.p, t.n, 0) == 0x98 ? SEQUEL_COLOR_STRING : SEQUEL_COLOR_IDENTIFIER;
-    if (c == '{' || c == '%' || c == '@' || (c == '$' && dialect == SEQUEL_SQLITE))
-      return SEQUEL_COLOR_VARIABLE;
-    return SEQUEL_COLOR_STRING;
-  }
-  if (isdigit(c) || (c == '.' && t.n > 1 && isdigit((unsigned char)t.p[1])))
-    return SEQUEL_COLOR_NUMBER;
-  if (c == '$' || c == '@' || c == ':' || c == '?') {
-    if ((c == ':' && t.n > 1 && (t.p[1] == ':' || t.p[1] == '=')) ||
-        (c == '@' && (t.n == 1 || !letter((unsigned char)t.p[1]))))
-      return SEQUEL_COLOR_OPERATOR;
-    /* PostgreSQL's existence operator occurs between an expression and a key.
-     * In other positions ? remains a driver parameter. */
-    size_t next = format_next(ts, count, i + 1);
-    if (c == '?' && dialect == SEQUEL_POSTGRESQL && i && next < count &&
-        (ts[i - 1].kind == 1 || ts[i - 1].kind == 2 || sym(ts[i - 1].t, ')')) && ts[next].kind == 2 &&
-        *ts[next].t.p == '\'')
-      return SEQUEL_COLOR_OPERATOR;
-    return SEQUEL_COLOR_VARIABLE;
-  }
-  if (ts[i].kind == 1) {
-    if (kw(t, "TRUE") || kw(t, "FALSE"))
-      return SEQUEL_COLOR_BOOLEAN;
-    if (kw(t, "NULL"))
-      return SEQUEL_COLOR_NULL;
-    if (highlight_word_in(t, "BIGINT BIGSERIAL BINARY BIT BLOB BOOL BOOLEAN BYTEA CHAR CHARACTER DATE DATETIME "
-                             "DECIMAL DOUBLE ENUM FIXEDSTRING FLOAT FLOAT32 FLOAT64 INT INT8 INT16 INT32 INT64 INT128 "
-                             "INT256 INTEGER INTERVAL JSON JSONB LOWCARDINALITY MAP MONEY NCHAR NULLABLE NUMERIC "
-                             "NVARCHAR REAL SERIAL SMALLINT STRING TEXT TIME TIMESTAMP TIMESTAMPTZ TINYINT TUPLE "
-                             "UINT8 UINT16 UINT32 UINT64 UINT128 UINT256 UUID VARBINARY VARCHAR VECTOR VOID"))
-      return SEQUEL_COLOR_TYPE;
-    if (highlight_word_in(t, "ABORT ACTION ADD AFTER ALL ALTER ANALYZE AND ANY ARRAY AS ASC ASOF ATTACH AUTO_INCREMENT "
-                             "BEGIN BETWEEN BOTH BY CALL CASCADE CASE CAST CHECK CLUSTER COLLATE COLUMN COMMENT COMMIT "
-                             "CONFLICT CONSTRAINT COPY CREATE CROSS CUBE CURRENT CURRENT_DATE CURRENT_TIME "
-                             "CURRENT_TIMESTAMP DATABASE DEFAULT DEFERRABLE DELETE DESC DESCRIBE DETACH DISTINCT "
-                             "DISTRIBUTED DO DROP EACH ELSE END ENGINE ESCAPE EXCEPT EXCLUDE EXCLUSIVE EXEC EXECUTE "
-                             "EXISTS EXPLAIN EXTENSION FETCH FILTER FINAL FIRST FOLLOWING FOR FOREIGN FORMAT FROM "
-                             "FULL FUNCTION GLOBAL GRANT GROUP GROUPING HAVING IF ILIKE IN INDEX INHERITS INITIALLY "
-                             "INNER INSERT INTERSECT INTO IS JOIN KEY LATERAL LEADING LEFT LIKE LIMIT LOCAL LOCK "
-                             "MATERIALIZED MERGE NATURAL NEXT NO NOT NOTHING NULLS OF OFFSET ON ONLY OPTIMIZE OPTION "
-                             "OR ORDER OUTER OVER OVERLAPS PARTITION PRECEDING PREPARE PREWHERE PRIMARY PROCEDURE "
-                             "QUALIFY RANGE RECURSIVE REFERENCES REGEXP RELEASE RENAME REPLACE RESTRICT RETURN "
-                             "RETURNING REVOKE RIGHT RLIKE ROLLBACK ROLLUP ROW ROWS SAVEPOINT SCHEMA SELECT SEMI "
-                             "SEQUENCE SET SETTINGS SHOW SOME START TABLE TABLESAMPLE TEMP TEMPORARY THEN TIES TO "
-                             "TOP TRAILING TRANSACTION TRIGGER TRUNCATE UNBOUNDED UNION UNIQUE UNNEST UPDATE USE "
-                             "USING VACUUM VALUES VIEW WHEN WHERE WINDOW WITH WITHIN WITHOUT XOR"))
-      return SEQUEL_COLOR_KEYWORD;
-    size_t next = format_next(ts, count, i + 1);
-    if (next < count && sym(ts[next].t, '('))
-      return SEQUEL_COLOR_FUNCTION;
-    return SEQUEL_COLOR_IDENTIFIER;
-  }
-  return strchr("~!#%^&|+-*/<>=", c) ? SEQUEL_COLOR_OPERATOR : SEQUEL_COLOR_PUNCTUATION;
 }
 
 static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *tokens, size_t count, size_t index,
