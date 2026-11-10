@@ -114,6 +114,17 @@ static int is_clause_keyword(const sequel_token_t *token) {
          token->keyword_id == SEQUEL_KEYWORD_QUALIFY || token->keyword_id == SEQUEL_KEYWORD_PREWHERE;
 }
 
+static int is_reserved_relation_alias(const sequel_source_view_t *source, const sequel_token_t *token) {
+  size_t length = token->range.end - token->range.start;
+  if (length != 5 || token->range.end > source->length)
+    return 0;
+  return toupper((unsigned char)source->data[token->range.start]) == 'F' &&
+         toupper((unsigned char)source->data[token->range.start + 1]) == 'I' &&
+         toupper((unsigned char)source->data[token->range.start + 2]) == 'N' &&
+         toupper((unsigned char)source->data[token->range.start + 3]) == 'A' &&
+         toupper((unsigned char)source->data[token->range.start + 4]) == 'L';
+}
+
 static int is_trivia(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
          token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
@@ -310,7 +321,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++alias;
     sequel_source_range_t alias_range = {end, end};
-    if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]))
+    if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
+        !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
                                        .range = {tokens[i].range.start, alias_range.end > end ? alias_range.end : end},

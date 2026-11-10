@@ -45,7 +45,9 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       goto invalid;
     if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
         (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)) {
-      if (length && data[length - 1] != ' ' && data[length - 1] != '\n')
+      bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count &&
+                            tokens[i + 1].range.start == token->range.end;
+      if (adjacent_block && length && data[length - 1] != ' ' && data[length - 1] != '\n')
         if (!sanitizer_append_bytes(&data, &length, &capacity, " ", 1))
           goto no_memory;
       continue;
