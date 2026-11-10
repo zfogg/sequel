@@ -20,6 +20,11 @@ struct sequel_syntax_document {
 static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed, size_t token_index) {
   size_t count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
+  while (token_index < count && tokens[token_index].kind == SEQUEL_TOKEN_PUNCTUATION &&
+         tokens[token_index].range.end == tokens[token_index].range.start + 1 &&
+         source.data[tokens[token_index].range.start] == '(')
+    ++token_index;
   if (token_index >= count)
     return SEQUEL_SYNTAX_UNKNOWN_STATEMENT;
   const sequel_token_t *token = &tokens[token_index];

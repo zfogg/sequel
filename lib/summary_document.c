@@ -1114,6 +1114,16 @@ skip_outer_predicates:
       }
     }
   }
+  if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
+    const char *set_keywords[] = {"EXCEPT", "INTERSECT ALL", "UNION ALL"};
+    for (size_t keyword = 0; keyword < sizeof(set_keywords) / sizeof(set_keywords[0]); ++keyword) {
+      if (strstr(source.data, set_keywords[keyword]) && !strstr(text ? text : "", set_keywords[keyword])) {
+        if (!append_text(&text, &length, &capacity, " ") ||
+            !append_text(&text, &length, &capacity, set_keywords[keyword]))
+          goto no_memory;
+      }
+    }
+  }
   if (settings->include_tables && statement_count) {
     const char *keywords[] = {"SETTINGS", "FORMAT"};
     for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
@@ -1149,6 +1159,28 @@ skip_outer_predicates:
         length = strlen(text);
       }
     }
+  }
+  for (size_t i = 0; i < length; ++i) {
+    if (text[i] != '\'')
+      continue;
+    char quote = '\'';
+    size_t end = i + 1;
+    while (end < length) {
+      if (text[end] == quote) {
+        if (end + 1 < length && text[end + 1] == quote) {
+          end += 2;
+          continue;
+        }
+        break;
+      }
+      ++end;
+    }
+    text[i] = '?';
+    if (end < length)
+      memmove(text + i + 1, text + end + 1, length - end - 1);
+    else
+      memmove(text + i + 1, text + end, length - end);
+    length -= end < length ? end - i : end - i - 1;
   }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;

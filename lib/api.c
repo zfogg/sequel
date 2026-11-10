@@ -296,6 +296,11 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
         size_t cursor = start;
         while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
           ++cursor;
+        while (cursor < end && query_source.data[cursor] == '(') {
+          ++cursor;
+          while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
+            ++cursor;
+        }
         if (cursor + 4 <= end && toupper((unsigned char)query_source.data[cursor]) == 'W' &&
             toupper((unsigned char)query_source.data[cursor + 1]) == 'I' &&
             toupper((unsigned char)query_source.data[cursor + 2]) == 'T' &&
