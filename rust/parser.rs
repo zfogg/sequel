@@ -262,4 +262,10 @@ mod tests {
         let document = Document::parse("select (", Dialect::Generic).unwrap();
         assert!(!document.issues().is_empty());
     }
+
+    #[test]
+    fn exposes_layered_query_diagnostics() {
+        let document = Document::parse("select * from users; select 1", Dialect::Generic).unwrap();
+        assert!(!document.diagnostics().is_empty());
+    }
 }
