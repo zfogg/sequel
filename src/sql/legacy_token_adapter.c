@@ -102,6 +102,13 @@ static bool legacy_requires_compat_scan(const char *sql, size_t length) {
         if (sql[j] == ':')
           return true;
     }
+    if (i + 2 < length && (sql[i] == 'I' || sql[i] == 'i') && (sql[i + 1] == 'N' || sql[i + 1] == 'n')) {
+      size_t next = i + 2;
+      while (next < length && (sql[next] == ' ' || sql[next] == '\t' || sql[next] == '\r' || sql[next] == '\n'))
+        ++next;
+      if (next < length && sql[next] == '(')
+        return true;
+    }
   }
   return false;
 }
