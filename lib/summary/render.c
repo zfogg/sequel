@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include <sequel/summary.h>
 #include <sequel/sanitizer.h>
@@ -748,36 +748,35 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
-          strstr(source.data + (i ? relations[i - 1].range.end : 0), "LATERAL")) {
+          relations[i].name_range.end - relations[i].name_range.start == 7 &&
+          !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7)) {
         const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
         const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
         const char *where = from ? strstr(from, " WHERE ") : NULL;
-        const char *order = where ? strstr(where, " ORDER BY ") : NULL;
-        const char *limit = order ? strstr(order, " LIMIT ") : NULL;
-        if (subquery && from && where && order && limit) {
+        const char *limit = where ? strstr(where, " LIMIT ") : NULL;
+        const char *close = limit ? strchr(limit, ')') : NULL;
+        if (subquery && from && where && limit && close) {
           const char *table = from + 6;
           while (*table && isspace((unsigned char)*table))
             ++table;
           const char *table_end = table;
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
-          const char *alias = table_end;
+          const char *alias = close + 1;
           while (*alias && isspace((unsigned char)*alias))
             ++alias;
           const char *alias_end = alias;
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
-          if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          if (!append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-              !append_text(&text, &length, &capacity, " AS ") ||
-              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
               !append_text(&text, &length, &capacity, " WHERE ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-              !append_text(&text, &length, &capacity, " ORDER BY ") ||
-              !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-              !append_bytes(&text, &length, &capacity, limit, strlen(limit)))
+              !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
+              !append_text(&text, &length, &capacity, " AS ") ||
+              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)))
             goto no_memory;
           ++rendered_relations;
           continue;
