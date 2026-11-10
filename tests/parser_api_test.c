@@ -87,6 +87,20 @@ int main(void) {
     found_binary |= nodes[i].kind == SEQUEL_SYNTAX_BINARY_EXPRESSION;
   if (!check(found_binary, "precedence expression node"))
     return 1;
+  const char family_sql[] = "EXPLAIN SELECT id FROM users WHERE id = 1 RETURNING id;";
+  sequel_source_view_t family_source = {family_sql, strlen(family_sql)};
+  sequel_syntax_document_t *family_syntax = NULL;
+  if (!check(sequel_parse_sql(&family_source, &options, NULL, &family_syntax) == SEQUEL_OK, "statement family parse"))
+    return 1;
+  size_t family_nodes = 0;
+  const sequel_syntax_node_t *family = sequel_syntax_nodes(family_syntax, &family_nodes);
+  int found_returning = 0;
+  if (family_nodes)
+    for (size_t i = 0; i < family_nodes; ++i)
+      found_returning |= family[i].kind == SEQUEL_SYNTAX_RETURNING_CLAUSE;
+  if (!check(found_returning && family[0].kind == SEQUEL_SYNTAX_EXPLAIN_STATEMENT, "statement family nodes"))
+    return 1;
+  sequel_syntax_document_free(family_syntax);
   if (!check(nodes[0].kind == SEQUEL_SYNTAX_SELECT_STATEMENT, "select production"))
     return 1;
   sequel_query_document_t *query = NULL;

@@ -40,6 +40,18 @@ static sequel_operation_t operation(sequel_syntax_kind_t kind) {
     return SEQUEL_OPERATION_UPDATE;
   case SEQUEL_SYNTAX_DELETE_STATEMENT:
     return SEQUEL_OPERATION_DELETE;
+  case SEQUEL_SYNTAX_MERGE_STATEMENT:
+    return SEQUEL_OPERATION_MERGE;
+  case SEQUEL_SYNTAX_CREATE_STATEMENT:
+    return SEQUEL_OPERATION_CREATE;
+  case SEQUEL_SYNTAX_ALTER_STATEMENT:
+    return SEQUEL_OPERATION_ALTER;
+  case SEQUEL_SYNTAX_DROP_STATEMENT:
+    return SEQUEL_OPERATION_DROP;
+  case SEQUEL_SYNTAX_TRANSACTION_STATEMENT:
+    return SEQUEL_OPERATION_TRANSACTION;
+  case SEQUEL_SYNTAX_EXPLAIN_STATEMENT:
+    return SEQUEL_OPERATION_EXPLAIN;
   default:
     return SEQUEL_OPERATION_UNKNOWN;
   }
@@ -91,7 +103,9 @@ static int is_clause_keyword(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return 0;
   return token->keyword_id == 7 || token->keyword_id == 8 || token->keyword_id == 9 || token->keyword_id == 10 ||
-         token->keyword_id == 11 || token->keyword_id == 12 || token->keyword_id == 13 || token->keyword_id == 14;
+         token->keyword_id == 11 || token->keyword_id == 12 || token->keyword_id == 13 || token->keyword_id == 14 ||
+         token->keyword_id == 16 || token->keyword_id == 17 || token->keyword_id == 18 || token->keyword_id == 29 ||
+         token->keyword_id == 30 || token->keyword_id == 31 || token->keyword_id == 32 || token->keyword_id == 33;
 }
 
 static int is_trivia(const sequel_token_t *token) {

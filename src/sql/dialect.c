@@ -4,9 +4,12 @@
 #include <sequel/dialect.h>
 
 static const sequel_keyword_definition_t keywords[] = {
-    {"SELECT", 1},  {"INSERT", 2},     {"UPDATE", 3},  {"DELETE", 4},  {"WITH", 5},   {"FROM", 6},  {"WHERE", 7},
-    {"GROUP", 8},   {"ORDER", 9},      {"LIMIT", 11},  {"OFFSET", 12}, {"JOIN", 13},  {"ON", 14},   {"UNION", 15},
-    {"HAVING", 16}, {"RETURNING", 17}, {"VALUES", 18}, {"TRUE", 19},   {"FALSE", 20}, {"NULL", 21},
+    {"SELECT", 1},  {"INSERT", 2},   {"UPDATE", 3},    {"DELETE", 4},     {"WITH", 5},    {"FROM", 6},
+    {"WHERE", 7},   {"GROUP", 8},    {"ORDER", 9},     {"LIMIT", 11},     {"OFFSET", 12}, {"JOIN", 13},
+    {"ON", 14},     {"UNION", 15},   {"HAVING", 16},   {"RETURNING", 17}, {"VALUES", 18}, {"TRUE", 19},
+    {"FALSE", 20},  {"NULL", 21},    {"EXPLAIN", 22},  {"CREATE", 23},    {"ALTER", 24},  {"DROP", 25},
+    {"BEGIN", 26},  {"COMMIT", 27},  {"ROLLBACK", 28}, {"SET", 29},       {"INTO", 30},   {"USING", 31},
+    {"WINDOW", 32}, {"QUALIFY", 33}, {"MERGE", 34},
 };
 
 static const sequel_dialect_definition_t definitions[] = {

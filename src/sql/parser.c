@@ -32,6 +32,20 @@ static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed,
     return SEQUEL_SYNTAX_UPDATE_STATEMENT;
   case 4:
     return SEQUEL_SYNTAX_DELETE_STATEMENT;
+  case 22:
+    return SEQUEL_SYNTAX_EXPLAIN_STATEMENT;
+  case 23:
+    return SEQUEL_SYNTAX_CREATE_STATEMENT;
+  case 24:
+    return SEQUEL_SYNTAX_ALTER_STATEMENT;
+  case 25:
+    return SEQUEL_SYNTAX_DROP_STATEMENT;
+  case 26:
+  case 27:
+  case 28:
+    return SEQUEL_SYNTAX_TRANSACTION_STATEMENT;
+  case 34:
+    return SEQUEL_SYNTAX_MERGE_STATEMENT;
   default:
     return SEQUEL_SYNTAX_UNKNOWN_STATEMENT;
   }
@@ -63,6 +77,22 @@ static sequel_syntax_kind_t clause_kind(const sequel_token_t *token) {
     return SEQUEL_SYNTAX_LIMIT_CLAUSE;
   case 12:
     return SEQUEL_SYNTAX_OFFSET_CLAUSE;
+  case 16:
+    return SEQUEL_SYNTAX_HAVING_CLAUSE;
+  case 17:
+    return SEQUEL_SYNTAX_RETURNING_CLAUSE;
+  case 18:
+    return SEQUEL_SYNTAX_VALUES_CLAUSE;
+  case 29:
+    return SEQUEL_SYNTAX_SET_CLAUSE;
+  case 30:
+    return SEQUEL_SYNTAX_INTO_CLAUSE;
+  case 31:
+    return SEQUEL_SYNTAX_USING_CLAUSE;
+  case 32:
+    return SEQUEL_SYNTAX_WINDOW_CLAUSE;
+  case 33:
+    return SEQUEL_SYNTAX_QUALIFY_CLAUSE;
   default:
     return SEQUEL_SYNTAX_ERROR;
   }
