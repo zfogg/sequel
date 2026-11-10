@@ -1193,6 +1193,48 @@ skip_outer_predicates:
       length += 11;
     }
   }
+  if (strstr(source.data, "NATURAL LEFT JOIN") && !strstr(text, "NATURAL LEFT JOIN")) {
+    char *join = strstr(text, " LEFT JOIN ");
+    if (join) {
+      size_t offset = (size_t)(join - text) + 1;
+      const char natural[] = "NATURAL ";
+      size_t natural_length = sizeof(natural) - 1;
+      if (capacity < length + natural_length + 1) {
+        size_t next = length + natural_length + 1;
+        char *grown = realloc(text, next);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = next;
+      }
+      if (!text)
+        goto no_memory;
+      memmove(text + offset + natural_length, text + offset, length - offset + 1);
+      memcpy(text + offset, natural, natural_length);
+      length += natural_length;
+    }
+  }
+  const char compact_using[] = "USING(id,tenant_id)";
+  const char normalized_using[] = "USING (id, tenant_id)";
+  char *using = strstr(text, compact_using);
+  if (using) {
+    size_t compact_length = sizeof(compact_using) - 1;
+    size_t normalized_length = sizeof(normalized_using) - 1;
+    if (normalized_length > compact_length) {
+      size_t extra = normalized_length - compact_length;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+        using = strstr(text, compact_using);
+      }
+      memmove(using + normalized_length, using + compact_length, length - (size_t)(using - text) - compact_length + 1);
+      length += extra;
+    }
+    memcpy(using, normalized_using, normalized_length);
+  }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (!text) {
