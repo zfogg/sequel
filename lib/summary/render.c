@@ -205,6 +205,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       bool compact_literals = after_first && statement_index < statement_count &&
                               statements[statement_index].operation != SEQUEL_OPERATION_SELECT;
+      if (compact_literals && !compact_tail &&
+          (summary_word(sanitized.data, sanitized.length, i, "WHERE") ||
+           summary_word(sanitized.data, sanitized.length, i, "SET"))) {
+        const char *keyword = summary_word(sanitized.data, sanitized.length, i, "WHERE") ? " WHERE " : " SET ";
+        if (!append_text(&multi, &multi_length, &multi_capacity, keyword) ||
+            !append_bytes(&multi, &multi_length, &multi_capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)) {
+          free(multi);
+          sequel_text_result_free(&sanitized);
+          goto no_memory;
+        }
+        while (i < sanitized.length && sanitized.data[i] != ';')
+          ++i;
+        --i;
+        compact_tail = true;
+        continue;
+      }
       size_t tail_prefix = 0;
       if (compact_literals && !compact_tail && i + 5 <= sanitized.length && !memcmp(sanitized.data + i, " SET ", 5))
         tail_prefix = 5;
