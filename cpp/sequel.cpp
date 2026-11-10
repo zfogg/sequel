@@ -32,6 +32,35 @@ std::string diagnostic::code_name() const { return sequel_diagnostic_code_name(n
 std::string diagnostic::message() const { return native.message; }
 std::string error::message() const { return detail ? detail->message() : "Sequel operation failed"; }
 
+document::~document() {
+  sequel_query_document_free(query_);
+  sequel_syntax_document_free(syntax_);
+}
+document::document(document &&other) noexcept : syntax_(other.syntax_), query_(other.query_) {
+  other.syntax_ = nullptr;
+  other.query_ = nullptr;
+}
+document &document::operator=(document &&other) noexcept {
+  if (this != &other) {
+    sequel_query_document_free(query_);
+    sequel_syntax_document_free(syntax_);
+    syntax_ = other.syntax_;
+    query_ = other.query_;
+    other.syntax_ = nullptr;
+    other.query_ = nullptr;
+  }
+  return *this;
+}
+
+std::size_t document::token_count() const noexcept {
+  return syntax_ ? sequel_lexed_token_count(sequel_syntax_lexed(syntax_)) : 0;
+}
+std::size_t document::syntax_issue_count() const noexcept {
+  return syntax_ ? sequel_syntax_issue_count(syntax_) : 0;
+}
+std::size_t document::statement_count() const noexcept { return query_ ? sequel_query_statement_count(query_) : 0; }
+std::size_t document::relation_count() const noexcept { return query_ ? sequel_query_relation_count(query_) : 0; }
+
 metadata::~metadata() { sequel_metadata_free(&native_); }
 metadata::metadata(metadata &&other) noexcept
     : native_(other.native_), text_(other.text_), summary_(other.summary_), operation_(other.operation_),
@@ -88,6 +117,21 @@ std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t op
   result.operation_ = result.native_.operation;
   result.truncated_ = result.native_.truncated;
   result.statement_count_ = result.native_.statement_count;
+  return result;
+}
+
+std::expected<document, error> parse(std::string_view sql, dialect dialect_value) {
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = native_dialect(dialect_value);
+  sequel_source_view_t source{sql.data(), sql.size()};
+  document result;
+  auto code = sequel_parse_sql(&source, &options, nullptr, &result.syntax_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
+  code = sequel_build_query_document(result.syntax_, &options, &result.query_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
   return result;
 }
 

@@ -1,6 +1,13 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <sequel.h>
+#include <sequel/query.h>
+#ifdef __cplusplus
+}
+#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -42,6 +49,28 @@ struct error {
   std::optional<diagnostic> detail;
 
   [[nodiscard]] std::string message() const;
+};
+
+class document {
+public:
+  document() = default;
+  ~document();
+  document(const document &) = delete;
+  document &operator=(const document &) = delete;
+  document(document &&other) noexcept;
+  document &operator=(document &&other) noexcept;
+
+  [[nodiscard]] std::size_t token_count() const noexcept;
+  [[nodiscard]] std::size_t syntax_issue_count() const noexcept;
+  [[nodiscard]] std::size_t statement_count() const noexcept;
+  [[nodiscard]] std::size_t relation_count() const noexcept;
+  [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+  [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+
+private:
+  friend std::expected<document, error> parse(std::string_view, dialect);
+  sequel_syntax_document_t *syntax_ = nullptr;
+  sequel_query_document_t *query_ = nullptr;
 };
 
 class metadata {
@@ -110,6 +139,9 @@ private:
 };
 
 [[nodiscard]] std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t options = {});
+
+[[nodiscard]] std::expected<document, error> parse(std::string_view sql,
+                                                   dialect dialect_value = dialect::generic);
 
 [[nodiscard]] std::expected<analysis, error> analyze(std::string_view sql, analysis_options options = {});
 

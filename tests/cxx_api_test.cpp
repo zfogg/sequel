@@ -14,6 +14,13 @@ static bool has_code(const sequel::analysis &value, const char *code) {
 }
 
 int main() {
+  auto document = sequel::parse("SELECT id FROM users WHERE id = $1", sequel::dialect::postgresql);
+  assert(document);
+  assert(document->token_count() > 0);
+  assert(document->syntax_issue_count() == 0);
+  assert(document->statement_count() == 1);
+  assert(document->relation_count() == 1);
+
   auto analyzed = sequel::analyze("SELECT * FROM users WHERE id = $1", {.dialect_value = sequel::dialect::postgresql});
   assert(analyzed);
   assert(!analyzed->operation().empty());
