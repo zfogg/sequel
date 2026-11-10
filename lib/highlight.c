@@ -406,13 +406,22 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_syntax_issues(document, &issue_count);
   if (issue_count)
     (void)sequel_syntax_diagnostic(document, 0, diagnostic);
-  if (issue_count && (!options->tolerant || diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER)) {
+  if (issue_count && (!options->tolerant || diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER ||
+                      diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT)) {
     sequel_syntax_document_free(document);
     return diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW : SEQUEL_ERR_INVALID_ARGUMENT;
   }
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(document);
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT && (tokens[i].flags & SEQUEL_TOKEN_FLAG_RECOVERED)) {
+      sequel_syntax_document_free(document);
+      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start,
+                        tokens[i].range.end);
+      return SEQUEL_ERR_OVERFLOW;
+    }
+  }
   highlight_output b = {out, 0, capacity};
   if (options->mode == SEQUEL_HTML) {
     char wrapper[128];

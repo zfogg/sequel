@@ -279,12 +279,27 @@ static int process_input(int format, int d, int embedded, const char *language_n
   }
   if (highlight)
     failed = sequel_highlight_ex(sql, highlight, out, capacity, &length, &diagnostic) != SEQUEL_OK;
-  else if (path && format)
+  else if (path && format) {
+    sequel_status_t diagnostic_status = sequel_diagnose_n(sql, n, (sequel_dialect_t)d, &diagnostic);
+    if (diagnostic_status != SEQUEL_OK) {
+      print_diagnostic(stderr, &diagnostic, 0);
+      free(sql);
+      free(out);
+      return 1;
+    }
     failed = sequel_compact(sql, (sequel_dialect_t)d, out, capacity) != SEQUEL_OK;
+  }
   else if (format)
     failed = sequel_format_ex(sql, (sequel_dialect_t)d, out, capacity, &length, &diagnostic) != SEQUEL_OK;
   else {
     bool truncated = false;
+    sequel_status_t diagnostic_status = sequel_diagnose_n(sql, n, (sequel_dialect_t)d, &diagnostic);
+    if (diagnostic_status != SEQUEL_OK) {
+      print_diagnostic(stderr, &diagnostic, 0);
+      free(sql);
+      free(out);
+      return 1;
+    }
     failed = sequel_sanitize_with_flags(sql, (sequel_dialect_t)d, sanitize_flags, true, capacity - 1, out, capacity,
                                         &truncated) != SEQUEL_OK;
     failed |= truncated;
