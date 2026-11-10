@@ -75,6 +75,13 @@ int main(void) {
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
     return 1;
+  sequel_text_edit_t edit = {.start = 7, .old_end = 9, .replacement = "name", .replacement_length = 4};
+  sequel_syntax_document_t *updated = NULL;
+  if (!check(sequel_reparse(syntax, &edit, &options, NULL, &updated) == SEQUEL_OK, "incremental reparse"))
+    return 1;
+  if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2, "edited source length"))
+    return 1;
+  sequel_syntax_document_free(updated);
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return 0;

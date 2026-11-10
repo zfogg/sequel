@@ -17,6 +17,13 @@ typedef struct {
   void *userdata;
 } sequel_syntax_visitor_t;
 
+typedef struct {
+  size_t start;
+  size_t old_end;
+  const char *replacement;
+  size_t replacement_length;
+} sequel_text_edit_t;
+
 typedef bool (*sequel_cancel_callback_t)(void *userdata);
 
 typedef struct {
@@ -82,3 +89,7 @@ sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, si
 /** Parse and lex explicit UTF-8 source bytes in one operation. */
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
                                  const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
+
+sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
+                               const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
+                               sequel_syntax_document_t **out);
