@@ -1,5 +1,31 @@
 #include <string.h>
 
+void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
+  if (!text || !length)
+    return;
+  for (size_t i = 0; i < *length; ++i) {
+    if (text[i] != '\'')
+      continue;
+    size_t end = i + 1;
+    while (end < *length) {
+      if (text[end] == '\'') {
+        if (end + 1 < *length && text[end + 1] == '\'') {
+          end += 2;
+          continue;
+        }
+        break;
+      }
+      ++end;
+    }
+    text[i] = '?';
+    if (end < *length)
+      memmove(text + i + 1, text + end + 1, *length - end - 1);
+    else
+      memmove(text + i + 1, text + end, *length - end);
+    *length -= end < *length ? end - i : end - i - 1;
+  }
+}
+
 #include "internal.h"
 
 static void normalize_function_arguments(char *text, size_t *length) {

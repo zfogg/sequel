@@ -1049,7 +1049,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = strlen(text);
     }
   }
-  for (size_t i = 0; i < length; ++i) {
+  sequel_summary_redact_rendered_literals(text, &length);
+  for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
       continue;
     char quote = '\'';

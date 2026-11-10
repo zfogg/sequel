@@ -19,6 +19,8 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
 
 void sequel_summary_normalize_projection(char *text, size_t *length);
 
+void sequel_summary_redact_rendered_literals(char *text, size_t *length);
+
 int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *capacity,
                                           sequel_source_view_t source,
                                           const sequel_query_document_t *query,
