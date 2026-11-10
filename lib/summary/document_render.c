@@ -322,7 +322,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           size_t on = end;
           while (on < source.length && isspace((unsigned char)source.data[on]))
             ++on;
-          if (summary_word(source.data, source.length, on, "ON") &&
+          if (settings->redact_relations && summary_word(source.data, source.length, on, "ON") &&
               !append_text(&text, &length, &capacity, " ON ..."))
             goto no_memory;
         }
