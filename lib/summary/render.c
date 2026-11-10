@@ -964,6 +964,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               condition_end = join_offset;
           }
         }
+        const char *next_join = sequel_summary_find_word(source.data, source.length, condition_start, "JOIN");
+        if (next_join && (size_t)(next_join - source.data) < condition_end)
+          condition_end = (size_t)(next_join - source.data);
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
         if (condition_end > condition_start && summary_word(source.data, source.length, condition_start, "ON")) {
