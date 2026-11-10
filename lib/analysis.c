@@ -1819,7 +1819,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     sequel_status_t parse_status = sequel_parse_sql(&parse_source, &parse_options, NULL, &syntax);
     if (parse_status == SEQUEL_OK) {
       sequel_syntax_issues(syntax, &parse_issue_count);
-      if (!parse_issue_count && sequel_build_query_document(syntax, &parse_options, &query) != SEQUEL_OK) {
+      if (sequel_build_query_document(syntax, &parse_options, &query) != SEQUEL_OK) {
         valid = SEQUEL_ERR_NOMEM;
         analysis_add_diagnostic(out, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
       }
@@ -1833,7 +1833,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     size_t scanned = 0;
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;
-    if (syntax && !parse_issue_count)
+    if (syntax)
       adapter_status = adapt_lexed_tokens(sequel_syntax_lexed(syntax), &tokens, &scanned);
     if (adapter_status == SEQUEL_OK)
       count = scanned;
