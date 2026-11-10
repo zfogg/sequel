@@ -3,7 +3,7 @@
 
 #include <sequel.h>
 
-static void position_at(const char *sql, size_t length, size_t offset, size_t *line, size_t *column) {
+static void diagnostic_position_at(const char *sql, size_t length, size_t offset, size_t *line, size_t *column) {
   *line = 1;
   *column = 1;
   if (offset > length)
@@ -72,8 +72,9 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   diagnostic->end_offset = issue->range.end;
   diagnostic->incomplete =
       issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP || issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN;
-  position_at(source.data, source.length, diagnostic->offset, &diagnostic->line, &diagnostic->column);
-  position_at(source.data, source.length, diagnostic->end_offset, &diagnostic->end_line, &diagnostic->end_column);
+  diagnostic_position_at(source.data, source.length, diagnostic->offset, &diagnostic->line, &diagnostic->column);
+  diagnostic_position_at(source.data, source.length, diagnostic->end_offset, &diagnostic->end_line,
+                         &diagnostic->end_column);
   const char *name = sequel_diagnostic_code_name(code);
   snprintf(diagnostic->message, sizeof(diagnostic->message), "%s", name ? name : "SQL parse issue");
   snprintf(diagnostic->explanation, sizeof(diagnostic->explanation),
