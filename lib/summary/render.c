@@ -1773,7 +1773,8 @@ summary_postprocess:
         goto no_memory;
     }
   }
-  if (text && strstr(source.data, "SELECT unnest(") && strstr(text, "SELECT ")) {
+  if (text && strstr(source.data, "SELECT unnest(") &&
+      strstr(source.data, "SELECT unnest(") == strstr(source.data, "SELECT ") && strstr(text, "SELECT ")) {
     char *select = strstr(text, "SELECT ");
     const char replacement[] = "SELECT unnest(…)";
     char *end = strstr(select + 7, " ON CONFLICT");
@@ -1951,7 +1952,9 @@ summary_postprocess:
     text[0] = 0;
     capacity = 1;
   }
-  if (strstr(source.data, "SELECT unnest(") && strstr(text, "SELECT \342\200\246")) {
+  if (strstr(source.data, "SELECT unnest(") &&
+      strstr(source.data, "SELECT unnest(") == strstr(source.data, "SELECT ") &&
+      strstr(text, "SELECT \342\200\246")) {
     char *select = strstr(text, "SELECT \342\200\246");
     const char replacement[] = "SELECT unnest(\342\200\246)";
     size_t old_length = sizeof("SELECT \342\200\246") - 1;

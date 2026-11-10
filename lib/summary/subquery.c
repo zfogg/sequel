@@ -17,6 +17,8 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
   const char *close = from ? strchr(from, ')') : NULL;
   if (!select || !from || !close)
     return 1;
+  if (strstr(close + 1, "CROSS JOIN LATERAL") || strstr(close + 1, "JOIN LATERAL"))
+    return 1;
   const char *table = from + 6;
   while (table < close && isspace((unsigned char)*table))
     ++table;
