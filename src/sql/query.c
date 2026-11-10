@@ -109,7 +109,7 @@ static int is_clause_keyword(const sequel_token_t *token) {
          token->keyword_id == SEQUEL_KEYWORD_RETURNING || token->keyword_id == SEQUEL_KEYWORD_VALUES ||
          token->keyword_id == SEQUEL_KEYWORD_SET || token->keyword_id == SEQUEL_KEYWORD_INTO ||
          token->keyword_id == SEQUEL_KEYWORD_USING || token->keyword_id == SEQUEL_KEYWORD_WINDOW ||
-         token->keyword_id == SEQUEL_KEYWORD_QUALIFY;
+         token->keyword_id == SEQUEL_KEYWORD_QUALIFY || token->keyword_id == SEQUEL_KEYWORD_PREWHERE;
 }
 
 static int is_trivia(const sequel_token_t *token) {
@@ -177,15 +177,14 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
     }
-    sequel_parameter_info_t parameter = {
-        .range = tokens[i].range,
-        .style = style,
-        .statement_index = statement_for_range(document, tokens[i].range),
-        .ordinal = ordinal,
-        .explicit_number = explicit_number,
-        .name_range = name_range,
-        .type_range = {tokens[i].range.end, tokens[i].range.end},
-        .identity = identity};
+    sequel_parameter_info_t parameter = {.range = tokens[i].range,
+                                         .style = style,
+                                         .statement_index = statement_for_range(document, tokens[i].range),
+                                         .ordinal = ordinal,
+                                         .explicit_number = explicit_number,
+                                         .name_range = name_range,
+                                         .type_range = {tokens[i].range.end, tokens[i].range.end},
+                                         .identity = identity};
     if (!append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
@@ -242,7 +241,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         break;
     }
     for (size_t i = first; i < end; ++i) {
-      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE)
+      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
+          (tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE && tokens[i].keyword_id != SEQUEL_KEYWORD_PREWHERE))
         continue;
       size_t predicate_start = i + 1;
       while (predicate_start < end && is_trivia(&tokens[predicate_start]))

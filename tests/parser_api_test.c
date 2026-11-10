@@ -477,6 +477,20 @@ int main(void) {
   sequel_syntax_document_free(exists_syntax);
   if (!check(saw_case && saw_cast && saw_exists && saw_in, "expression family nodes"))
     return 1;
+  const char prewhere_sql[] = "SELECT * FROM builds PREWHERE id = 1";
+  sequel_source_view_t prewhere_source = {prewhere_sql, strlen(prewhere_sql)};
+  sequel_syntax_document_t *prewhere_syntax = NULL;
+  sequel_query_document_t *prewhere_query = NULL;
+  sequel_text_result_t prewhere_summary = {0};
+  if (!check(sequel_parse_sql(&prewhere_source, &options, NULL, &prewhere_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(prewhere_syntax, &options, &prewhere_query) == SEQUEL_OK &&
+                 sequel_summarize_query(prewhere_query, NULL, &prewhere_summary) == SEQUEL_OK &&
+                 strstr(prewhere_summary.data, "PREWHERE") != NULL,
+             "vendor predicate summary"))
+    return 1;
+  sequel_text_result_free(&prewhere_summary);
+  sequel_query_document_free(prewhere_query);
+  sequel_syntax_document_free(prewhere_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};

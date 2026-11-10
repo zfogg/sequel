@@ -104,9 +104,18 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->include_joins && sequel_query_join_count(query) && !append_text(&text, &length, &capacity, " JOIN"))
     goto no_memory;
-  if (settings->include_predicates && sequel_query_predicate_count(query) &&
-      !append_text(&text, &length, &capacity, " WHERE …"))
-    goto no_memory;
+  if (settings->include_predicates && sequel_query_predicate_count(query)) {
+    const sequel_predicate_info_t *predicate = sequel_query_predicates(query);
+    const char *label = " WHERE …";
+    sequel_source_view_t source = sequel_query_source(query);
+    size_t start = predicate[0].range.start;
+    size_t lower = start > 32 ? start - 32 : 0;
+    for (size_t i = lower; i + 8 <= start; ++i)
+      if (!memcmp(source.data + i, "PREWHERE", 8))
+        label = " PREWHERE …";
+    if (!append_text(&text, &length, &capacity, label))
+      goto no_memory;
+  }
   if (settings->include_bind_count) {
     char binds[32];
     snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));

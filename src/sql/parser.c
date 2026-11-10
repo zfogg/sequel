@@ -73,6 +73,8 @@ static sequel_syntax_kind_t clause_kind(const sequel_token_t *token) {
     return SEQUEL_SYNTAX_FROM_CLAUSE;
   case 7:
     return SEQUEL_SYNTAX_WHERE_CLAUSE;
+  case SEQUEL_KEYWORD_PREWHERE:
+    return SEQUEL_SYNTAX_WHERE_CLAUSE;
   case 8:
     return SEQUEL_SYNTAX_GROUP_BY_CLAUSE;
   case 9:
