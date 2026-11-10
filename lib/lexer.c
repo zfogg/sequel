@@ -292,6 +292,24 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
           ++i;
         if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
+          if (i + 2 < source->length && source->data[i] == ':' && source->data[i + 1] == ':' &&
+              is_word_start((unsigned char)source->data[i + 2])) {
+            i += 2;
+            while (i < source->length && is_word_part((unsigned char)source->data[i]))
+              ++i;
+            if (i < source->length && source->data[i] == '(') {
+              size_t depth = 0;
+              do {
+                if (source->data[i] == '(')
+                  ++depth;
+                else if (source->data[i] == ')' && depth)
+                  --depth;
+                ++i;
+              } while (i < source->length && depth);
+              if (depth)
+                flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+            }
+          }
           if (i < source->length && source->data[i] == '(') {
             while (i < source->length && source->data[i] != ')' && source->data[i] != ';')
               ++i;
