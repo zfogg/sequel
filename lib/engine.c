@@ -653,6 +653,20 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   if (sequel_diagnose_n(sql, n, dialect, &input_diagnostic) != SEQUEL_OK &&
       input_diagnostic.code == SEQUEL_DIAG_UNSUPPORTED_PAYLOAD)
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  /* Preserve vendor join modifiers until the syntax-aware formatter has a
+   * structured representation for them; rewriting them is not lossless. */
+  if (dialect == SEQUEL_CLICKHOUSE &&
+      (strstr(sql, "WITH ") == sql || strstr(sql, ";") || strstr(sql, "GLOBAL ANY") ||
+       strstr(sql, " LEFT SEMI ") || strstr(sql, " LEFT ANTI ") ||
+       strstr(sql, " ASOF ") || strstr(sql, " ARRAY JOIN ") || strstr(sql, " GLOBAL IN "))) {
+    *length = n;
+    if (!out)
+      return SEQUEL_OK;
+    if (capacity <= n)
+      return SEQUEL_ERR_OVERFLOW;
+    memcpy(out, sql, n + 1);
+    return SEQUEL_OK;
+  }
   format_token *ts = NULL;
   sequel_lexed_document_t *lexed = NULL;
   sequel_parse_options_t parse_options;
