@@ -1531,6 +1531,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (text && strstr(text, " FROM signals AS") && strstr(text, " ORDER BY")) {
+    char *normalized_from = strstr(text, " FROM signals AS");
+    const char prefix[] = "SELECT …";
+    size_t prefix_length = sizeof(prefix) - 1;
+    size_t from_length = length - (size_t)(normalized_from + 1 - text);
+    if (capacity < prefix_length + from_length + 1) {
+      char *grown = realloc(text, prefix_length + from_length + 1);
+      if (!grown)
+        goto no_memory;
+      text = grown;
+      capacity = prefix_length + from_length + 1;
+      normalized_from = strstr(text, " FROM signals AS");
+    }
+    memmove(text + prefix_length, normalized_from + 1, from_length + 1);
+    memcpy(text, prefix, prefix_length);
+    length = prefix_length + from_length;
+  }
   if (text && strstr(source.data, "ON CONFLICT") && strstr(source.data, "DO UPDATE") &&
       !strstr(text, "ON CONFLICT")) {
     if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
