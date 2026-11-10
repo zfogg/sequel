@@ -48,6 +48,25 @@ pub struct Relation {
     pub statement_index: usize,
 }
 
+/// A copied lexical, syntax, semantic, policy, or portability finding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LayeredDiagnostic {
+    /// Producing layer.
+    pub origin: i32,
+    /// Stable diagnostic code.
+    pub code: i32,
+    /// Severity.
+    pub severity: i32,
+    /// Source byte range.
+    pub range: std::ops::Range<usize>,
+    /// Statement index, or `usize::MAX` when not statement-specific.
+    pub statement_index: usize,
+    /// Whether the issue represents incomplete input.
+    pub incomplete: bool,
+    /// Whether parsing recovered around the issue.
+    pub recovered: bool,
+}
+
 /// Owned lossless syntax and semantic query documents.
 pub struct Document {
     source: Vec<u8>,
@@ -57,6 +76,7 @@ pub struct Document {
     issues: Vec<ParseIssue>,
     statements: Vec<Statement>,
     relations: Vec<Relation>,
+    diagnostics: Vec<LayeredDiagnostic>,
 }
 
 impl Document {
@@ -128,6 +148,49 @@ impl Document {
             statement_index: relation.statement_index,
         })
         .collect();
+        let mut diagnostics = Vec::new();
+        let mut lists = [
+            std::mem::MaybeUninit::<ffi::sequel_diagnostic_list_t>::zeroed(),
+            std::mem::MaybeUninit::<ffi::sequel_diagnostic_list_t>::zeroed(),
+            std::mem::MaybeUninit::<ffi::sequel_diagnostic_list_t>::zeroed(),
+        ];
+        let statuses = unsafe {
+            [
+                ffi::sequel_collect_lexical_diagnostics(lexed, lists[0].as_mut_ptr()),
+                ffi::sequel_collect_syntax_diagnostics(syntax, lists[1].as_mut_ptr()),
+                ffi::sequel_collect_query_diagnostics(query, lists[2].as_mut_ptr()),
+            ]
+        };
+        if statuses.iter().any(|status| *status != 0) {
+            unsafe {
+                for list in &mut lists {
+                    ffi::sequel_diagnostic_list_free(list.as_mut_ptr());
+                }
+                ffi::sequel_query_document_free(query);
+                ffi::sequel_syntax_document_free(syntax);
+            }
+            return Err(Error {
+                status: crate::Status::NoMemory,
+                diagnostic: None,
+            });
+        }
+        for list in &mut lists {
+            let list = unsafe { list.assume_init_mut() };
+            diagnostics.extend(
+                unsafe { crate::native_slice(list.records, list.count) }
+                    .iter()
+                    .map(|record| LayeredDiagnostic {
+                        origin: record.origin,
+                        code: record.code,
+                        severity: record.severity,
+                        range: record.range.start..record.range.end,
+                        statement_index: record.statement_index,
+                        incomplete: record.incomplete != 0,
+                        recovered: record.recovered != 0,
+                    }),
+            );
+            unsafe { ffi::sequel_diagnostic_list_free(list) };
+        }
         Ok(Self {
             source,
             syntax,
@@ -136,6 +199,7 @@ impl Document {
             issues,
             statements,
             relations,
+            diagnostics,
         })
     }
 
@@ -158,6 +222,10 @@ impl Document {
     /// Relation summaries.
     pub fn relations(&self) -> &[Relation] {
         &self.relations
+    }
+    /// Layered lexical, syntax, semantic, and policy diagnostics.
+    pub fn diagnostics(&self) -> &[LayeredDiagnostic] {
+        &self.diagnostics
     }
 }
 
