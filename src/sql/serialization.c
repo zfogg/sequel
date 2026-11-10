@@ -68,6 +68,16 @@ static int add_words(uint64_t *total, uint64_t count, uint64_t words_per_record)
   return 1;
 }
 
+static int serialized_index_valid(uint64_t index, uint64_t count) { return index == UINT64_MAX || index < count; }
+
+static int read_serialized_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) {
+  return read_u64(cursor, remaining, value);
+}
+
+static int read_serialized_query_range(const uint8_t **cursor, size_t *remaining, size_t source_length) {
+  return read_serialized_range(cursor, remaining, source_length);
+}
+
 void sequel_serialization_options_init(sequel_serialization_options_t *options) {
   if (options)
     *options = (sequel_serialization_options_t){{SEQUEL_DOCUMENT_SCHEMA_MAJOR, SEQUEL_DOCUMENT_SCHEMA_MINOR}};
@@ -270,6 +280,69 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     if (!read_u64(&validation_cursor, &validation_remaining, &child_index) || child_index >= header[6])
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
+  for (uint64_t i = 0; i < header[9]; ++i) {
+    uint64_t range_start, range_end, operation, syntax_node, query_body, flags;
+    if (!read_serialized_u64(&validation_cursor, &validation_remaining, &range_start) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &range_end) ||
+        !serialized_range_valid(range_start, range_end, source->length) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &operation) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &syntax_node) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &query_body) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &flags) || operation > SEQUEL_OPERATION_EXPLAIN ||
+        !serialized_index_valid(syntax_node, header[6]) || !serialized_index_valid(query_body, header[6]))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[10]; ++i) {
+    uint64_t values[12];
+    for (size_t j = 0; j < 12; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (values[0] > SEQUEL_RELATION_CTE || !serialized_range_valid(values[1], values[2], source->length) ||
+        !serialized_range_valid(values[3], values[4], source->length) ||
+        !serialized_range_valid(values[5], values[6], source->length) ||
+        !serialized_index_valid(values[7], header[9]) || !serialized_index_valid(values[8], header[6]) ||
+        !serialized_index_valid(values[9], header[10]) || !serialized_index_valid(values[10], header[9]))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[11]; ++i) {
+    uint64_t values[11];
+    for (size_t j = 0; j < 11; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (!serialized_range_valid(values[0], values[1], source->length) || values[2] > SEQUEL_BIND_TYPED ||
+        !serialized_index_valid(values[3], header[9]) || !serialized_range_valid(values[6], values[7], source->length) ||
+        !serialized_range_valid(values[8], values[9], source->length))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[12]; ++i) {
+    uint64_t values[6];
+    for (size_t j = 0; j < 6; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (values[0] > SEQUEL_JOIN_CROSS || !serialized_range_valid(values[1], values[2], source->length) ||
+        !serialized_index_valid(values[3], header[10]) || !serialized_index_valid(values[4], header[10]))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[13]; ++i) {
+    uint64_t values[7];
+    for (size_t j = 0; j < 7; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_index_valid(values[2], header[9]) ||
+        !serialized_index_valid(values[3], header[6]) || !serialized_range_valid(values[5], values[6], source->length))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[14]; ++i) {
+    uint64_t values[6];
+    for (size_t j = 0; j < 6; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_index_valid(values[2], header[9]) ||
+        !serialized_index_valid(values[3], header[6]))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  if (validation_remaining != 0)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = (sequel_dialect_t)header[3];
