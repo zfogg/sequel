@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include <sequel/parser.h>
+#include <sequel/query.h>
 #include <sequel/status.h>
 
 /** Stable diagnostic categories. */
@@ -80,6 +81,10 @@ void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 /** Collect recoverable lexical-token diagnostics from a lossless token document. */
 sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed,
                                                    sequel_diagnostic_list_t *diagnostics);
+
+/** Collect semantic and policy diagnostics from the normalized query model. */
+sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *query,
+                                                 sequel_diagnostic_list_t *diagnostics);
 
 /** Collect every recoverable syntax issue from a parsed document. */
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,

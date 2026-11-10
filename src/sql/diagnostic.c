@@ -60,6 +60,56 @@ sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t
   return SEQUEL_OK;
 }
 
+static int query_has_predicate(const sequel_query_document_t *query, size_t statement_index) {
+  size_t count = sequel_query_predicate_count(query);
+  const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
+  for (size_t i = 0; i < count; ++i)
+    if (predicates[i].statement_index == statement_index)
+      return 1;
+  return 0;
+}
+
+sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *query,
+                                                 sequel_diagnostic_list_t *diagnostics) {
+  if (!query || !diagnostics)
+    return SEQUEL_ERR_NULL;
+  sequel_diagnostic_list_free(diagnostics);
+  size_t projection_count = sequel_query_projection_count(query);
+  const sequel_projection_info_t *projections = sequel_query_projections(query);
+  for (size_t i = 0; i < projection_count; ++i) {
+    if (!projections[i].wildcard)
+      continue;
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
+                                         .code = SEQUEL_DIAG_SELECT_STAR,
+                                         .severity = SEQUEL_WARNING,
+                                         .range = projections[i].range,
+                                         .statement_index = projections[i].statement_index,
+                                         .syntax_node = projections[i].expression_node};
+    if (!append_record(diagnostics, record)) {
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  size_t statement_count = sequel_query_statement_count(query);
+  const sequel_statement_info_t *statements = sequel_query_statements(query);
+  for (size_t i = 0; i < statement_count; ++i) {
+    if ((statements[i].operation != SEQUEL_OPERATION_UPDATE && statements[i].operation != SEQUEL_OPERATION_DELETE) ||
+        query_has_predicate(query, i))
+      continue;
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
+                                         .code = SEQUEL_DIAG_UNBOUNDED_WRITE,
+                                         .severity = SEQUEL_ERROR,
+                                         .range = statements[i].range,
+                                         .statement_index = i,
+                                         .syntax_node = statements[i].syntax_node};
+    if (!append_record(diagnostics, record)) {
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  return SEQUEL_OK;
+}
+
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics) {
   if (!syntax || !diagnostics)
