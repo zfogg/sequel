@@ -1743,7 +1743,9 @@ summary_postprocess:
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (!sequel_summary_find_text(text, " OVER ") || !sequel_summary_find_text(text, " FILTER "))
+  if ((!sequel_summary_find_text(text, " OVER ") || !sequel_summary_find_text(text, " FILTER ")) &&
+      (!sequel_query_cte_count(query) || statements[0].operation == SEQUEL_OPERATION_SELECT ||
+       statements[0].operation == SEQUEL_OPERATION_UNKNOWN))
     normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
