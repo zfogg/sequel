@@ -269,8 +269,31 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
            append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
   }
   if (summary_word(source, range.end, start, "INSERT")) {
-    if (!append_text(text, length, capacity, "INSERT ") ||
-        !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    size_t into = start;
+    while (into < range.end && !summary_word(source, range.end, into, "INTO"))
+      ++into;
+    size_t select = start;
+    while (select < range.end && !summary_word(source, range.end, select, "SELECT"))
+      ++select;
+    size_t from = select;
+    while (from < range.end && !summary_word(source, range.end, from, "FROM"))
+      ++from;
+    if (into < range.end && select < range.end && from < range.end) {
+      size_t table = summary_skip_space(source, range.end, into + 4), table_end = table;
+      while (table_end < range.end && !isspace((unsigned char)source[table_end]) && source[table_end] != '(')
+        ++table_end;
+      size_t relation = summary_skip_space(source, range.end, from + 4), relation_end = relation;
+      while (relation_end < range.end && !isspace((unsigned char)source[relation_end]) && source[relation_end] != ')')
+        ++relation_end;
+      if (!append_text(text, length, capacity, "INSERT INTO ") ||
+          !append_bytes(text, length, capacity, source + table, table_end - table) ||
+          !append_text(text, length, capacity, " SELECT ") ||
+          !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(text, length, capacity, " FROM ") ||
+          !append_bytes(text, length, capacity, source + relation, relation_end - relation))
+        return 0;
+    } else if (!append_text(text, length, capacity, "INSERT ") ||
+               !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       return 0;
     size_t returning = start;
     while (returning < range.end && !summary_word(source, range.end, returning, "RETURNING"))
@@ -318,12 +341,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!append_body_summary(&text, &length, &capacity, source.data, ctes[i].body_range) ||
           !append_text(&text, &length, &capacity, ")"))
         goto no_memory;
-    }
-    char *returning = strstr(text, "RETURNING");
-    if (returning) {
-      char *close = strchr(returning, ')');
-      if (close)
-        memmove(returning, close, strlen(close) + 1);
     }
     if (!append_text(&text, &length, &capacity, " "))
       goto no_memory;
