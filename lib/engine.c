@@ -23,7 +23,18 @@ typedef struct {
   bool overflow, charge_output;
 } output;
 
-#include "tokens.h"
+/* Internal rendering view retained only by the legacy analysis formatter. */
+typedef struct {
+  token t;
+  bool gap;
+  bool newline;
+  int kind;
+  size_t matching;
+  bool multiline;
+  size_t flat_width;
+  size_t source_offset;
+  size_t rendered_offset;
+} format_token;
 
 /* Token arrays grow with parsed tokens, rather than the maximum input size. */
 static void *grow_tokens(void *tokens, size_t *capacity, size_t element_size) {
