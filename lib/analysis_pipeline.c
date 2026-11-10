@@ -1709,6 +1709,42 @@ static void analysis_summary_from_query(const sequel_query_document_t *query, se
   sequel_text_result_free(&summary);
 }
 
+static void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
+  if (!query || !sequel_query_statement_count(query))
+    return;
+  const sequel_statement_info_t *statement = sequel_query_statements(query);
+  const char *name = NULL;
+  switch (statement[0].operation) {
+  case SEQUEL_OPERATION_SELECT:
+    name = "SELECT";
+    break;
+  case SEQUEL_OPERATION_INSERT:
+    name = "INSERT";
+    break;
+  case SEQUEL_OPERATION_UPDATE:
+    name = "UPDATE";
+    break;
+  case SEQUEL_OPERATION_DELETE:
+    name = "DELETE";
+    break;
+  case SEQUEL_OPERATION_CREATE:
+    name = "CREATE";
+    break;
+  case SEQUEL_OPERATION_ALTER:
+    name = "ALTER";
+    break;
+  case SEQUEL_OPERATION_DROP:
+    name = "DROP";
+    break;
+  case SEQUEL_OPERATION_EXPLAIN:
+    name = "EXPLAIN";
+    break;
+  default:
+    return;
+  }
+  snprintf(out->operation, sizeof(out->operation), "%s", name);
+}
+
 static void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};
   out->schema_version = SEQUEL_ANALYSIS_VERSION;
@@ -1890,6 +1926,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
                  digest);
         analysis_charge(&a, strlen(out->fingerprint) + 1);
       }
+      if (query)
+        analysis_operation_from_query(query, out);
       if (query)
         analysis_summary_from_query(query, out);
       else
