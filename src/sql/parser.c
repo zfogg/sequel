@@ -91,6 +91,8 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
         return SEQUEL_ERR_NOMEM;
       }
     }
+    if (i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF)
+      break;
     start_token = i + (i < token_count && tokens[i].kind != SEQUEL_TOKEN_EOF ? 1 : 0);
   }
   (void)options;
