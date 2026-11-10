@@ -418,6 +418,10 @@ unsafe extern "C" {
     ) -> *const sequel_token_t;
 }
 unsafe extern "C" {
+    #[doc = " Return the immutable token count in a lexical document."]
+    pub fn sequel_lexed_token_count(document: *const sequel_lexed_document_t) -> usize;
+}
+unsafe extern "C" {
     pub fn sequel_lexed_dialect(document: *const sequel_lexed_document_t) -> sequel_dialect_t;
 }
 unsafe extern "C" {
@@ -486,6 +490,10 @@ unsafe extern "C" {
         document: *const sequel_syntax_document_t,
         count: *mut usize,
     ) -> *const sequel_parse_issue_t;
+}
+unsafe extern "C" {
+    #[doc = " Return the number of recovered syntax issues in a syntax document."]
+    pub fn sequel_syntax_issue_count(document: *const sequel_syntax_document_t) -> usize;
 }
 unsafe extern "C" {
     pub fn sequel_syntax_visit(
@@ -939,6 +947,28 @@ pub struct sequel_query_analysis_options_t {
     pub portability_targets: *const sequel_dialect_t,
     pub portability_target_count: usize,
 }
+pub const sequel_analysis_map_kind_t_SEQUEL_ANALYSIS_MAP_COPY: sequel_analysis_map_kind_t = 0;
+pub const sequel_analysis_map_kind_t_SEQUEL_ANALYSIS_MAP_REPLACE: sequel_analysis_map_kind_t = 1;
+pub const sequel_analysis_map_kind_t_SEQUEL_ANALYSIS_MAP_DELETE: sequel_analysis_map_kind_t = 2;
+pub const sequel_analysis_map_kind_t_SEQUEL_ANALYSIS_MAP_INSERT: sequel_analysis_map_kind_t = 3;
+pub type sequel_analysis_map_kind_t = ::std::os::raw::c_int;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct sequel_analysis_map_segment_t {
+    pub from_start: usize,
+    pub from_end: usize,
+    pub to_start: usize,
+    pub to_end: usize,
+    pub kind: sequel_analysis_map_kind_t,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct sequel_analysis_source_map_t {
+    pub from_length: usize,
+    pub to_length: usize,
+    pub segments: *const sequel_analysis_map_segment_t,
+    pub count: usize,
+}
 unsafe extern "C" {
     #[doc = " Initialize document-analysis options with all semantic collections enabled."]
     pub fn sequel_query_analysis_options_init(options: *mut sequel_query_analysis_options_t);
@@ -1000,6 +1030,18 @@ unsafe extern "C" {
         analysis: *const sequel_query_analysis_t,
         out: *mut ::std::os::raw::c_char,
     ) -> sequel_status_t;
+}
+unsafe extern "C" {
+    #[doc = " Return the original-to-sanitized provenance map when requested."]
+    pub fn sequel_query_analysis_sanitized_map(
+        analysis: *const sequel_query_analysis_t,
+    ) -> *const sequel_analysis_source_map_t;
+}
+unsafe extern "C" {
+    #[doc = " Return the sanitized-to-formatted provenance map when requested."]
+    pub fn sequel_query_analysis_formatted_map(
+        analysis: *const sequel_query_analysis_t,
+    ) -> *const sequel_analysis_source_map_t;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
