@@ -316,7 +316,22 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
         else if (start + 8 <= source.length && !_strnicmp(source.data + start, "ROLLBACK", 8))
           name = "ROLLBACK";
       }
-      snprintf(out->operation, sizeof(out->operation), "%s", name);
+      if (*name) {
+        snprintf(out->operation, sizeof(out->operation), "%s", name);
+      } else {
+        size_t start = 0, end;
+        while (start < source.length && isspace((unsigned char)source.data[start]))
+          ++start;
+        end = start;
+        while (end < source.length && isalpha((unsigned char)source.data[end]))
+          ++end;
+        size_t amount = end - start;
+        if (amount >= sizeof(out->operation))
+          amount = sizeof(out->operation) - 1;
+        for (size_t i = 0; i < amount; ++i)
+          out->operation[i] = (char)toupper((unsigned char)source.data[start + i]);
+        out->operation[amount] = 0;
+      }
     }
   }
   out->truncated =
