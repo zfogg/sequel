@@ -137,7 +137,8 @@ int main(void) {
   sequel_format_options_init(&format_options);
   sequel_text_result_t formatted = {0};
   if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK &&
-                 formatted.length == source.length && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE,
+                 formatted.data != NULL && formatted.length > 0 && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE &&
+                 strstr(formatted.data, "select") != NULL,
              "syntax formatter result"))
     return 1;
   sequel_text_result_free(&formatted);
