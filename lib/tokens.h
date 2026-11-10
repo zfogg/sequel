@@ -1,7 +1,7 @@
 #pragma once
 
-/* Transitional token view used only by the remaining legacy analysis passes.
- * New code must consume sequel_token_t directly. */
+/* Internal rendering view used by the compatibility-facing text consumers.
+ * New document APIs consume sequel_token_t directly. */
 typedef struct {
   token t;
   bool gap;
