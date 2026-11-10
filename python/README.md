@@ -9,6 +9,27 @@ structural analysis, diagnostics, and syntax highlighting backed by the shared
 Sequel C engine. It supports generic SQL, PostgreSQL, SQLite, MySQL, DuckDB, and
 ClickHouse. The package requires Python 3.11 or newer.
 
+## Features
+
+- `format_sql` and `format_sql_or_original` format SQL while preserving literals,
+  comments, quoted identifiers, and bind markers; formatting never executes SQL.
+- `sanitize` removes comments and replaces literals and bind markers with bounded
+  placeholders, with selective flags and UTF-8-aware input/output limits.
+- `inspect` returns immutable query text, structural summaries, operations,
+  statement counts, truncation metadata, and dialect-aware safety checks without
+  accepting or retaining bind values.
+- `analyze` provides sanitized text, fingerprints, statement ranges, bind
+  descriptors, source maps, optional formatting, cancellation, and native work,
+  memory, input, and output budgets.
+- `diagnose`, `diagnose_all`, `diagnostic_catalog`, and diagnostic validation
+  provide canonical lexical/delimiter diagnostics with safe ranges and hints.
+- `highlight_sql` supports terminal and HTML highlighting, appearance modes, and
+  bundled color schemes for editor and command-line integrations.
+- `utf8_to_utf16` and `utf16_to_utf8` convert document offsets for browser/editor
+  APIs; `check_binds` validates statement bind arity without reading values.
+- The shared native engine is bundled in wheels, is typed (`py.typed`), and
+  exposes the same contracts used by the C, Go, Rust, and CLI implementations.
+
 ## Installation
 
 ```sh
