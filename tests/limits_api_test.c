@@ -9,6 +9,7 @@
       return 1;                                                                                                        \
     }                                                                                                                  \
   } while (0)
+
 int main(void) {
   CHECK(SEQUEL_INPUT_MAX == (size_t)1024 * 1024 * 1024);
   CHECK(SEQUEL_TEXT_MAX == SEQUEL_INPUT_MAX && SEQUEL_SUMMARY_MAX == SEQUEL_INPUT_MAX);

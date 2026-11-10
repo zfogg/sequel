@@ -7,11 +7,13 @@
 #include <string.h>
 
 enum { GO = 1, C, PY, JS, TS, RUST, HS, CLOJURE };
+
 typedef struct {
   char *p;
   size_t n, cap;
   int bad;
 } buffer;
+
 static void append(buffer *b, const char *p, size_t n) {
   if (b->bad)
     return;
@@ -34,7 +36,9 @@ static void append(buffer *b, const char *p, size_t n) {
   b->n += n;
   b->p[b->n] = 0;
 }
+
 static void str(buffer *b, const char *s) { append(b, s, strlen(s)); }
+
 static int word(const char *s, const char *w) {
   while (*w) {
     if (toupper((unsigned char)*s++) != *w++)
@@ -42,12 +46,14 @@ static int word(const char *s, const char *w) {
   }
   return !isalnum((unsigned char)*s) && *s != '_';
 }
+
 static int hasword(const char *s, const char *w) {
   for (size_t i = 0; s[i]; ++i)
     if ((!i || !isalnum((unsigned char)s[i - 1])) && word(s + i, w))
       return 1;
   return 0;
 }
+
 static int sql_candidate(const char *s) {
   for (;;) {
     while (isspace((unsigned char)*s))
@@ -80,10 +86,12 @@ static int sql_candidate(const char *s) {
          (word(s, "EXPLAIN") && hasword(s, "SELECT")) || (word(s, "TRUNCATE") && hasword(s, "TABLE")) ||
          word(s, "PRAGMA") || (word(s, "REPLACE") && hasword(s, "INTO"));
 }
+
 typedef struct {
   int dialect, sanitize, failed;
   unsigned flags;
 } sql_transform;
+
 static char *format_sql(const char *s, sql_transform *policy) {
   int dialect = policy->dialect;
   if (!sql_candidate(s) || strstr(s, "{{") || strstr(s, "{}") || strstr(s, "{:"))
@@ -147,6 +155,7 @@ static char *format_sql(const char *s, sql_transform *policy) {
   }
   return out;
 }
+
 int embedded_language(const char *name, const char *path) {
   if (!name && path) {
     const char *dot = strrchr(path, '.');
@@ -180,11 +189,13 @@ int embedded_language(const char *name, const char *path) {
     return CLOJURE;
   return 0;
 }
+
 typedef struct {
   size_t start, body, end, tail;
   char quote;
   int triple, raw, skip, cppraw;
 } literal;
+
 /* Interpolation is opaque, but its nested strings/comments/braces must be
  * scanned so a nested template cannot masquerade as a separate SQL string. */
 static size_t template_end(const char *s, size_t n, size_t start, unsigned depth, int *dynamic) {
@@ -288,6 +299,7 @@ static size_t template_end(const char *s, size_t n, size_t start, unsigned depth
   }
   return SIZE_MAX;
 }
+
 static int scan_literal(const char *s, size_t n, size_t start, int lang, literal *l) {
   memset(l, 0, sizeof(*l));
   l->start = start;
@@ -398,6 +410,7 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang, literal
   }
   return 0;
 }
+
 static int decode(const char *s, literal l, buffer *b) {
   for (size_t i = l.body; i < l.end; ++i) {
     char c = s[i];
@@ -428,6 +441,7 @@ static int decode(const char *s, literal l, buffer *b) {
     str(b, "");
   return !b->bad;
 }
+
 static void encode(buffer *out, const char *sql, literal l, int lang) {
   (void)lang;
   size_t n = strlen(sql);
@@ -452,11 +466,13 @@ static void encode(buffer *out, const char *sql, literal l, int lang) {
     }
   }
 }
+
 static int quoted_character(const char *s, size_t n, size_t i) {
   unsigned char c = (unsigned char)s[i + 1];
   size_t width = c < 128 ? 1 : c < 224 ? 2 : c < 240 ? 3 : 4;
   return i + 1 + width < n && s[i + 1 + width] == '\'';
 }
+
 static int continuation(const char *s) {
   if (*s == ' ' || *s == '\t' || *s == ')' || *s == ',')
     return 1;
@@ -467,6 +483,7 @@ static int continuation(const char *s) {
       return 1;
   return 0;
 }
+
 static void comment_lines(buffer *out, const char *sql, const char *indent, size_t indent_n, const char *prefix,
                           const char *newline) {
   const char *p = sql;
@@ -483,6 +500,7 @@ static void comment_lines(buffer *out, const char *sql, const char *indent, size
     p = end + 1;
   }
 }
+
 char *transform_embedded(const char *s, int lang, int dialect, int sanitize, unsigned flags) {
   sql_transform context = {dialect, sanitize, 0, flags};
   sql_transform *policy = &context;

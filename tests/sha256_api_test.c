@@ -17,6 +17,7 @@ static int known_vectors(void) {
                  {"abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
                  {"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
                   "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"}};
+
   for (size_t i = 0; i < sizeof(vectors) / sizeof(vectors[0]); ++i) {
     sequel_sha256 hash;
     char actual[65];

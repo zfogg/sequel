@@ -1,5 +1,6 @@
 #include <sequel.h>
 #include <string.h>
+
 int main(void) {
   sequel_metadata_t metadata;
   sequel_options_t options = {.dialect = SEQUEL_POSTGRESQL};

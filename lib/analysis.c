@@ -4,36 +4,44 @@ typedef struct {
   char *p;
   size_t n, capacity;
 } analysis_text;
+
 typedef struct {
   sequel_map_segment_t *p;
   size_t n, capacity;
 } analysis_map;
+
 typedef struct {
   const char *key;
   size_t length, slot, identity;
   uint64_t hash;
   bool occupied, owned, numbered;
 } analysis_binding;
+
 typedef struct {
   analysis_binding *p;
   size_t count, capacity, maximum, identities;
 } analysis_bindings;
+
 typedef struct {
   format_token *p;
   size_t n, capacity;
 } analysis_layout;
+
 typedef struct {
   sequel_analysis_t *out;
   sequel_analysis_options_t options;
 } analysis_state;
+
 static const char *analysis_dialect_name(sequel_dialect_t d) {
   static const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};
   return d >= SEQUEL_GENERIC && d <= SEQUEL_CLICKHOUSE ? names[d] : "invalid";
 }
+
 static void analysis_charge(analysis_state *a, size_t bytes) {
   (void)a;
   sequel_output_tick(bytes);
 }
+
 static void *analysis_array(void *pointer, size_t count, size_t element) {
   if (count > SIZE_MAX / element)
     sequel_abort(SEQUEL_ERR_LIMIT);
@@ -51,6 +59,7 @@ static void *analysis_array(void *pointer, size_t count, size_t element) {
   }
   return realloc(pointer, next);
 }
+
 static void analysis_layout_add(analysis_layout *layout, size_t start, size_t length, int kind, bool gap,
                                 sequel_dialect_t dialect) {
   layout->p = analysis_array(layout->p, layout->n + 1, sizeof(*layout->p));
@@ -64,6 +73,7 @@ static void analysis_layout_add(analysis_layout *layout, size_t start, size_t le
   t.flat_width = (layout->n ? layout->p[layout->n - 1].flat_width : 0) + length + 1;
   layout->p[layout->n++] = t;
 }
+
 static void analysis_append(analysis_text *b, const char *p, size_t n) {
   sequel_work_tick(n);
   if (n > SIZE_MAX - b->n - 1)
@@ -85,6 +95,7 @@ static void analysis_append(analysis_text *b, const char *p, size_t n) {
   b->n += n;
   b->p[b->n] = 0;
 }
+
 static void analysis_segment(analysis_map *b, size_t fs, size_t fe, size_t ts, size_t te, sequel_map_kind_t kind) {
   if (fs == fe && ts == te)
     return;
@@ -106,6 +117,7 @@ static void analysis_segment(analysis_map *b, size_t fs, size_t fe, size_t ts, s
   sequel_output_tick(sizeof(*b->p));
   b->p[b->n++] = (sequel_map_segment_t){fs, fe, ts, te, kind};
 }
+
 static bool analysis_literal(format_token t, sequel_dialect_t d) {
   unsigned char c = (unsigned char)*t.t.p;
   if (isdigit(c) || (c == '.' && t.t.n > 1 && isdigit((unsigned char)t.t.p[1])))
@@ -122,6 +134,7 @@ static bool analysis_literal(format_token t, sequel_dialect_t d) {
   return c != '"' && c != '`' && c != '[' && c != '{' && c != '$' && c != '%' && c != '?' && c != ':' && c != '@' &&
          !(d == SEQUEL_CLICKHOUSE && clickhouse_quote(t.t.p, t.t.n, 0) == 0x9c);
 }
+
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish
  * SQLite binding namespaces; fingerprint frames exclude those spellings. */
 static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char **key, size_t *length, size_t *number,
@@ -196,6 +209,7 @@ static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char *
   }
   return true;
 }
+
 static uint64_t analysis_key_hash(const char *p, size_t n) {
   sequel_sha256 s;
   sha_init(&s);
@@ -209,6 +223,7 @@ static uint64_t analysis_key_hash(const char *p, size_t n) {
   }
   return v;
 }
+
 static analysis_binding *analysis_binding_slot(analysis_bindings *b, const char *key, size_t length, size_t number) {
   if (!b->capacity || b->count >= b->capacity / 2) {
     size_t next = b->capacity ? b->capacity * 2 : 16;
@@ -248,6 +263,7 @@ static analysis_binding *analysis_binding_slot(analysis_bindings *b, const char 
   ++b->count;
   return &b->p[at];
 }
+
 static analysis_binding *analysis_numeric_identity(analysis_bindings *b, size_t slot) {
   char encoded[32];
   snprintf(encoded, sizeof(encoded), "%zu", slot);
@@ -261,6 +277,7 @@ static analysis_binding *analysis_numeric_identity(analysis_bindings *b, size_t 
   }
   return v;
 }
+
 static void analysis_dictionary_clear(analysis_bindings *b) {
   /* Numeric keys are tiny owned copies; named keys point into caller input. */
   for (size_t i = 0; i < b->capacity; i++) {
@@ -271,6 +288,7 @@ static void analysis_dictionary_clear(analysis_bindings *b) {
   free(b->p);
   *b = (analysis_bindings){0};
 }
+
 static void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
   size_t count = out->diagnostic_count;
   sequel_output_tick(sizeof(sequel_diagnostic_t));
@@ -303,6 +321,7 @@ static void analysis_sort_diagnostics(sequel_analysis_t *out) {
     diagnostics[j] = value;
   }
 }
+
 static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
   size_t count = out->statement_count;
   sequel_output_tick(sizeof(sequel_range_t));
@@ -311,15 +330,18 @@ static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t 
   out->statements = rs;
   out->statement_count++;
 }
+
 typedef struct {
   size_t offset, index;
   bool ending;
 } analysis_position_event;
+
 static int analysis_event_compare(const void *a, const void *b) {
   sequel_work_tick(1);
   const analysis_position_event *x = a, *y = b;
   return x->offset < y->offset ? -1 : x->offset > y->offset ? 1 : 0;
 }
+
 static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   size_t n = out->diagnostic_count;
   if (!n)
@@ -363,6 +385,7 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   }
   free(events);
 }
+
 static void analysis_structure(const char *sql, size_t n, format_token *ts, size_t count, sequel_analysis_t *out) {
   size_t stack[64], depth = 0, start = SIZE_MAX, last = 0;
   for (size_t i = 0; i < count; i++) {
@@ -446,6 +469,7 @@ static void analysis_compact_list_text(analysis_text *text) {
   text->n = write;
   text->p[write] = 0;
 }
+
 static bool analysis_word(format_token t, const char *word) {
   size_t n = strlen(word);
   if (t.kind != 1 || t.t.n != n)
@@ -455,6 +479,7 @@ static bool analysis_word(format_token t, const char *word) {
       return false;
   return true;
 }
+
 static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t count, sequel_dialect_t dialect,
                            sequel_analysis_t *out) {
   (void)sql;
@@ -520,6 +545,7 @@ static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t c
   if (joins > 8)
     analysis_add_diagnostic(out, SEQUEL_DIAG_EXCESSIVE_JOINS, 0, n);
 }
+
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
 static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_t count, analysis_state *a,
@@ -603,10 +629,9 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
             continue;
           const sequel_token_t *type_token = &type_tokens[k];
           bool value = (type_token->flags & SEQUEL_TOKEN_FLAG_LITERAL) != 0;
-          char frame = value ? 'L' : type_token->kind == SEQUEL_TOKEN_KEYWORD ||
-                                              type_token->kind == SEQUEL_TOKEN_IDENTIFIER
-                                          ? 'W'
-                                          : 'T';
+          char frame = value                                                                                     ? 'L'
+                       : type_token->kind == SEQUEL_TOKEN_KEYWORD || type_token->kind == SEQUEL_TOKEN_IDENTIFIER ? 'W'
+                                                                                                                 : 'T';
           sha_frame(&type_hash, frame, type_view.data + type_token->range.start,
                     type_token->range.end - type_token->range.start, false);
         }
@@ -725,6 +750,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
   if (!safe->p)
     analysis_append(safe, "", 0);
 }
+
 static void analysis_clip_map(analysis_map *map, size_t limit) {
   sequel_current_call->output_bytes -= map->n * sizeof(*map->p);
   analysis_map clipped = {0};
@@ -742,6 +768,7 @@ static void analysis_clip_map(analysis_map *map, size_t limit) {
   free(map->p);
   *map = clipped;
 }
+
 static void analysis_format_map(analysis_layout *layout, size_t fn, size_t tn, analysis_map *map) {
   size_t fp = 0, tp = 0;
   for (size_t i = 0; i < layout->n; i++) {
@@ -763,6 +790,7 @@ static void analysis_format_map(analysis_layout *layout, size_t fn, size_t tn, a
                      : tp == tn ? SEQUEL_MAP_DELETE
                                 : SEQUEL_MAP_REPLACE);
 }
+
 static void analysis_summary(analysis_layout *layout, analysis_text *safe, format_token *scanned, size_t scanned_count,
                              sequel_dialect_t dialect, sequel_analysis_t *out) {
   /* Keep the display view and structural view separate, both derived from the
@@ -878,6 +906,7 @@ retry:;
   out->summary = buffer;
   free(tokens);
 }
+
 static void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};
   out->schema_version = SEQUEL_ANALYSIS_VERSION;
@@ -889,12 +918,14 @@ static void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t di
   out->summary = "SQL";
   out->formatted = "";
 }
+
 void sequel_analysis_free(sequel_analysis_t *out) {
   if (!out)
     return;
   sequel_release_allocations(out->_storage);
   analysis_empty(out, 0, SEQUEL_GENERIC);
 }
+
 static sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t d, sequel_status_t status,
                                      sequel_diagnostic_code_t code) {
   analysis_empty(out, n, d);
@@ -911,6 +942,7 @@ static sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_di
   out->diagnostic_count = 1;
   return status;
 }
+
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
                                  sequel_analysis_t *out) {
   if (!out)
@@ -989,9 +1021,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
     } else {
       valid = parse_status;
-      analysis_add_diagnostic(out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT
-                                                                     : SEQUEL_DIAG_INVALID_ARGUMENT,
-                              0, n ? 1 : 0);
+      analysis_add_diagnostic(
+          out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT : SEQUEL_DIAG_INVALID_ARGUMENT, 0,
+          n ? 1 : 0);
     }
     format_token *tokens = NULL;
     size_t scanned = 0;
@@ -1027,8 +1059,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         if (sequel_syntax_diagnostic(syntax, issue_index, &parser_diagnostic) == SEQUEL_OK &&
             !analysis_has_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
                                      parser_diagnostic.end_offset))
-          analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
-                                  parser_diagnostic.end_offset);
+          analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset, parser_diagnostic.end_offset);
       }
     }
     if (out->diagnostic_count) {
@@ -1127,6 +1158,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
   sequel_call_delete(call);
   return valid;
 }
+
 sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t *options, sequel_analysis_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
@@ -1152,6 +1184,7 @@ sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t 
     out->work_units += n;
   return status;
 }
+
 sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, char out[96]) {
   if (!out)
     return SEQUEL_ERR_NULL;
@@ -1168,6 +1201,7 @@ sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, ch
   sequel_analysis_free(&a);
   return status;
 }
+
 sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement,
                                    size_t supplied) {
   if (!binds && count)

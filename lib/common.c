@@ -11,7 +11,9 @@ static void *grow_tokens(void *tokens, size_t *capacity, size_t element_size) {
 }
 
 static bool letter(unsigned char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+
 static bool part(unsigned char c) { return letter(c) || isdigit(c) || c == '$' || c >= 128; }
+
 static bool equal(const char *s, size_t n, const char *word) {
   if (strlen(word) != n)
     return false;
@@ -20,8 +22,11 @@ static bool equal(const char *s, size_t n, const char *word) {
       return false;
   return true;
 }
+
 static bool kw(token t, const char *word) { return t.word && equal(t.p, t.n, word); }
+
 static bool sym(token t, char c) { return t.n == 1 && *t.p == c; }
+
 static void put(output *b, const char *s, size_t n) {
   if (b->charge_output)
     sequel_output_tick(n);
@@ -34,19 +39,24 @@ static void put(output *b, const char *s, size_t n) {
   b->n += n;
   b->p[b->n] = 0;
 }
+
 static void text(output *b, const char *s) { put(b, s, strlen(s)); }
+
 static void item(output *b, const char *s) {
   if (b->n && b->p[b->n - 1] != ' ')
     text(b, " ");
   text(b, s);
 }
+
 static void emit_token(output *b, token t) { put(b, t.p, t.n); }
+
 static void upper(output *b, token t) {
   for (size_t i = 0; (sequel_work_tick(1), i < t.n); ++i) {
     char c = (char)toupper((unsigned char)t.p[i]);
     put(b, &c, 1);
   }
 }
+
 static size_t quoted(const char *s, size_t n, size_t i, char close, bool backslash) {
   for (++i; (sequel_work_tick(1), i < n); ++i) {
     if (!backslash && close == '\'' && sequel_current_call && s[i] == '\\' && i + 1 < n) {
@@ -75,6 +85,7 @@ static size_t quoted(const char *s, size_t n, size_t i, char close, bool backsla
   }
   return 0;
 }
+
 static size_t number_end(const char *s, size_t n, size_t i) {
   if (i + 1 < n && s[i] == '0' && strchr("xXbB", s[i + 1])) {
     i += 2;
@@ -101,6 +112,7 @@ static unsigned char clickhouse_quote(const char *s, size_t n, size_t i) {
     return (unsigned char)s[i + 2];
   return 0;
 }
+
 static size_t clickhouse_quoted_end(const char *s, size_t n, size_t i) {
   unsigned char close = clickhouse_quote(s, n, i) + 1;
   for (size_t j = i + 3; (sequel_work_tick(1), j + 2 < n); ++j)
@@ -108,6 +120,7 @@ static size_t clickhouse_quoted_end(const char *s, size_t n, size_t i) {
       return j + 3;
   return 0;
 }
+
 static size_t dollar_tag_end(const char *s, size_t n, size_t i, sequel_dialect_t dialect) {
   size_t j = i + 1;
   if (j < n && (letter((unsigned char)s[j]) || (dialect == SEQUEL_CLICKHOUSE && isdigit((unsigned char)s[j]))))
@@ -115,6 +128,7 @@ static size_t dollar_tag_end(const char *s, size_t n, size_t i, sequel_dialect_t
       ++j;
   return j < n && s[j] == '$' ? j : 0;
 }
+
 static size_t dialect_number_end(const char *s, size_t n, size_t i, sequel_dialect_t dialect) {
   if (dialect != SEQUEL_CLICKHOUSE || i + 2 >= n || s[i] != '0' || !strchr("xX", s[i + 1]))
     return number_end(s, n, i);

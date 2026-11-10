@@ -15,15 +15,18 @@
 #endif
 
 typedef union sequel_allocation sequel_allocation;
+
 union sequel_allocation {
   long double alignment;
   void *pointer_alignment;
+
   struct {
     sequel_allocation *previous, *next;
     size_t bytes;
     void *owner;
   } h;
 };
+
 typedef struct {
   jmp_buf escape;
   const char *source;
@@ -44,6 +47,7 @@ static void sequel_abort(sequel_status_t failure) {
   sequel_current_call->failure = failure;
   longjmp(sequel_current_call->escape, 1);
 }
+
 static void sequel_work_tick(size_t units) {
   sequel_call *c = sequel_current_call;
   if (!c)
@@ -58,6 +62,7 @@ static void sequel_work_tick(size_t units) {
   } else if (c->cancelled)
     c->poll -= units;
 }
+
 static void sequel_output_tick(size_t bytes) {
   sequel_call *c = sequel_current_call;
   if (c && bytes > c->output_limit - c->output_bytes)
@@ -65,6 +70,7 @@ static void sequel_output_tick(size_t bytes) {
   if (c)
     c->output_bytes += bytes;
 }
+
 static void *sequel_alloc(size_t bytes) {
   sequel_call *c = sequel_current_call;
   if (bytes > SIZE_MAX - sizeof(sequel_allocation)) {
@@ -95,6 +101,7 @@ static void *sequel_alloc(size_t bytes) {
   }
   return a + 1;
 }
+
 static void sequel_dealloc(void *pointer) {
   if (!pointer)
     return;
@@ -111,6 +118,7 @@ static void sequel_dealloc(void *pointer) {
   }
   free(a);
 }
+
 static void *sequel_calloc(size_t count, size_t size) {
   if (count && size > SIZE_MAX / count) {
     if (sequel_current_call)
@@ -125,6 +133,7 @@ static void *sequel_calloc(size_t count, size_t size) {
   }
   return p;
 }
+
 static void *sequel_realloc(void *pointer, size_t bytes) {
   if (!pointer)
     return sequel_alloc(bytes);
@@ -140,8 +149,11 @@ static void *sequel_realloc(void *pointer, size_t bytes) {
   sequel_dealloc(pointer);
   return next;
 }
+
 static sequel_call *sequel_call_new(void) { return calloc(1, sizeof(sequel_call)); }
+
 static void sequel_call_delete(sequel_call *c) { free(c); }
+
 static void sequel_release_allocations(void *storage) {
   sequel_allocation *a = storage;
   while (a) {
@@ -150,6 +162,7 @@ static void sequel_release_allocations(void *storage) {
     a = next;
   }
 }
+
 #define malloc sequel_alloc
 #define calloc sequel_calloc
 #define realloc sequel_realloc

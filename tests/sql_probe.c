@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 static void hex(const char *s) {
   for (; *s; ++s)
     printf("%02x", (unsigned char)*s);
 }
+
 static int nibble(char c) {
   if (c >= '0' && c <= '9')
     return c - '0';
@@ -15,6 +17,7 @@ static int nibble(char c) {
     return c - 'A' + 10;
   return -1;
 }
+
 int main(int argc, char **argv) {
   bool sanitize_only = argc == 2 && strcmp(argv[1], "--sanitize") == 0;
   bool format_only = argc == 2 && strcmp(argv[1], "--format") == 0;

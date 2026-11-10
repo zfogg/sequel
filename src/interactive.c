@@ -53,6 +53,7 @@ static int preview(const char *sql, const sequel_highlight_options_t *options, i
   free(out);
   return failed;
 }
+
 int interactive(const sequel_highlight_options_t *options, int json) {
   int terminal = isatty(fileno(stdin));
 #ifdef _WIN32

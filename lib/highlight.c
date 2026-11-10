@@ -7,9 +7,11 @@ static const char *const highlight_color_names[] = {"foreground", "background", 
                                                     "comment",    "operator",   "punctuation", "identifier"};
 
 size_t sequel_colorscheme_count(void) { return sizeof(highlight_schemes) / sizeof(highlight_schemes[0]); }
+
 const char *sequel_colorscheme_name(size_t index) {
   return index < sequel_colorscheme_count() ? highlight_schemes[index].name : NULL;
 }
+
 sequel_status_t sequel_colorscheme(const char *name, sequel_colorscheme_t *out) {
   if (!name || !out)
     return SEQUEL_ERR_NULL;
@@ -30,6 +32,7 @@ static int highlight_hex_digit(unsigned char c) {
     return c - 'A' + 10;
   return -1;
 }
+
 static bool highlight_hex(const char *s, size_t n, uint32_t *color) {
   if (n == 7 && *s == '#') {
     ++s;
@@ -117,9 +120,11 @@ sequel_status_t sequel_highlight_set_colorscheme(sequel_highlight_options_t *opt
     options->colors[i] = scheme->base[slots[i]];
   return SEQUEL_OK;
 }
+
 static unsigned highlight_luminance(uint32_t color) {
   return 2126u * (color >> 16) + 7152u * ((color >> 8) & 255) + 722u * (color & 255);
 }
+
 const char *sequel_colorscheme_variant_name(const char *name, sequel_appearance_t appearance) {
   if (!name || appearance < SEQUEL_APPEARANCE_AUTO || appearance > SEQUEL_APPEARANCE_LIGHT)
     return NULL;
@@ -131,6 +136,7 @@ const char *sequel_colorscheme_variant_name(const char *name, sequel_appearance_
     }
   return NULL;
 }
+
 sequel_status_t sequel_colorscheme_for_appearance(const char *name, sequel_appearance_t appearance,
                                                   sequel_colorscheme_t *out) {
   if (!name || !out)
@@ -138,6 +144,7 @@ sequel_status_t sequel_colorscheme_for_appearance(const char *name, sequel_appea
   const char *variant = sequel_colorscheme_variant_name(name, appearance);
   return variant ? sequel_colorscheme(variant, out) : SEQUEL_ERR_INVALID_ARGUMENT;
 }
+
 sequel_status_t sequel_colorscheme_set_appearance(sequel_colorscheme_t *scheme, sequel_appearance_t appearance) {
   if (!scheme)
     return SEQUEL_ERR_NULL;
@@ -154,6 +161,7 @@ sequel_status_t sequel_colorscheme_set_appearance(sequel_colorscheme_t *scheme, 
   bool light = highlight_luminance(scheme->base[0]) > highlight_luminance(scheme->base[5]);
   return light == (appearance == SEQUEL_APPEARANCE_LIGHT) ? SEQUEL_OK : SEQUEL_ERR_INVALID_ARGUMENT;
 }
+
 void sequel_highlight_options_init(sequel_highlight_options_t *options) {
   if (!options)
     return;
@@ -162,9 +170,11 @@ void sequel_highlight_options_init(sequel_highlight_options_t *options) {
   if (sequel_colorscheme("default-dark", &palette) == SEQUEL_OK)
     (void)sequel_highlight_set_colorscheme(options, &palette);
 }
+
 const char *sequel_highlight_color_name(sequel_highlight_color_t type) {
   return type >= 0 && type < SEQUEL_COLOR_COUNT ? highlight_color_names[type] : NULL;
 }
+
 sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, const char *type, const char *hex) {
   if (!options || !type || !hex)
     return SEQUEL_ERR_NULL;
@@ -315,12 +325,15 @@ typedef struct {
   char *out;
   size_t n, capacity;
 } highlight_output;
+
 static void highlight_put(highlight_output *b, const char *s, size_t n) {
   if (b->out && b->n < b->capacity && n < b->capacity - b->n)
     memcpy(b->out + b->n, s, n);
   b->n += n;
 }
+
 static void highlight_text(highlight_output *b, const char *s) { highlight_put(b, s, strlen(s)); }
+
 static void highlight_source(highlight_output *b, const char *s, size_t n, sequel_highlight_mode_t mode) {
   if (mode == SEQUEL_ANSI) {
     highlight_put(b, s, n);
@@ -354,6 +367,7 @@ static void highlight_source(highlight_output *b, const char *s, size_t n, seque
       highlight_put(b, s + i, 1);
   }
 }
+
 static void highlight_ansi(highlight_output *b, uint32_t color, bool background) {
   char code[40];
   snprintf(code, sizeof(code), "\033[%u;2;%u;%u;%um", background ? 48u : 38u, (unsigned)(color >> 16),
@@ -411,10 +425,9 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_syntax_issues(document, &issue_count);
   if (issue_count)
     (void)sequel_syntax_diagnostic(document, 0, diagnostic);
-  bool lexical_failure = diagnostic->code == SEQUEL_DIAG_UNTERMINATED_STRING ||
-                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER ||
-                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_COMMENT ||
-                         diagnostic->code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
+  bool lexical_failure =
+      diagnostic->code == SEQUEL_DIAG_UNTERMINATED_STRING || diagnostic->code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER ||
+      diagnostic->code == SEQUEL_DIAG_UNTERMINATED_COMMENT || diagnostic->code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
   if (issue_count && (diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER ||
                       diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT || (!options->tolerant && lexical_failure))) {
     sequel_syntax_document_free(document);
@@ -427,17 +440,16 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     if (!options->tolerant && (tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED)) {
       sequel_syntax_document_free(document);
       diagnostic_report(sql, n, diagnostic,
-                       tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT ? SEQUEL_DIAG_UNTERMINATED_COMMENT
-                       : tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
-                       : tokens[i].kind == SEQUEL_TOKEN_PARAMETER ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
-                                                                    : SEQUEL_DIAG_UNTERMINATED_STRING,
-                       tokens[i].range.start, tokens[i].range.end);
+                        tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT       ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                        : tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                        : tokens[i].kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
+                                                                           : SEQUEL_DIAG_UNTERMINATED_STRING,
+                        tokens[i].range.start, tokens[i].range.end);
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
     if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT && (tokens[i].flags & SEQUEL_TOKEN_FLAG_RECOVERED)) {
       sequel_syntax_document_free(document);
-      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start,
-                        tokens[i].range.end);
+      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start, tokens[i].range.end);
       return SEQUEL_ERR_OVERFLOW;
     }
   }
@@ -492,6 +504,7 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   }
   return SEQUEL_OK;
 }
+
 sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
                                  size_t *length) {
   return sequel_highlight_ex(sql, options, out, capacity, length, NULL);

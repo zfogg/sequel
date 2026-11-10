@@ -10,6 +10,7 @@
       return 1;                                                                                                        \
     }                                                                                                                  \
   } while (0)
+
 int main(void) {
   const char *sql = "SELECT a,b FROM t WHERE id=$1; -- trailing  ";
   char out[256] = "old";

@@ -10,11 +10,13 @@
 #include "resources.h"
 
 #define INPUT_MAX SEQUEL_INPUT_MAX
+
 typedef struct {
   const char *p;
   size_t n;
   bool word, space, clickhouse;
 } token;
+
 typedef struct {
   char *p;
   size_t n, cap;

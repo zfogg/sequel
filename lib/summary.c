@@ -8,9 +8,11 @@ static size_t close_group(token *t, size_t n, size_t i) {
   }
   return n;
 }
+
 static bool identifier(token t) {
   return (t.clickhouse && clickhouse_quote(t.p, t.n, 0) == 0x9c) || t.word || *t.p == '"' || *t.p == '`' || *t.p == '[';
 }
+
 static size_t name(output *b, token *t, size_t n, size_t i) {
   if (i >= n || !identifier(t[i]))
     return i;
@@ -22,6 +24,7 @@ static size_t name(output *b, token *t, size_t n, size_t i) {
   }
   return i;
 }
+
 static bool boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH", "FOR",
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW"};
@@ -32,6 +35,7 @@ static bool boundary(token t) {
       return true;
   return sym(t, ';') || sym(t, ')');
 }
+
 static size_t clause_end(token *t, size_t n, size_t i) {
   unsigned cases = 0;
   for (; (sequel_work_tick(1), i < n); ++i) {
@@ -62,11 +66,14 @@ static size_t clause_end(token *t, size_t n, size_t i) {
   }
   return i < n ? i : n;
 }
+
 static bool query_start(token t) {
   return kw(t, "SELECT") || kw(t, "WITH") || kw(t, "INSERT") || kw(t, "UPDATE") || kw(t, "DELETE") || kw(t, "MERGE") ||
          kw(t, "VALUES") || kw(t, "EXPLAIN");
 }
+
 static void summarize(output *, token *, size_t, unsigned);
+
 static void nested(output *b, token *t, size_t n, unsigned depth) {
   if (depth > 64) {
     item(b, "…");
@@ -89,6 +96,7 @@ static void nested(output *b, token *t, size_t n, unsigned depth) {
       i = end;
     }
 }
+
 static bool join_modifier(token t) {
   const char *words[] = {"NATURAL", "LEFT", "RIGHT", "FULL", "OUTER",     "INNER",
                          "CROSS",   "SEMI", "ANTI",  "ASOF", "POSITIONAL"};
@@ -99,6 +107,7 @@ static bool join_modifier(token t) {
       return true;
   return false;
 }
+
 static size_t join_at(token *t, size_t n, size_t i) {
   size_t j = i;
   while (j < n && join_modifier(t[j]))
@@ -111,6 +120,7 @@ static size_t join_at(token *t, size_t n, size_t i) {
   }
   return i;
 }
+
 static void expression(output *b, token *t, size_t n, unsigned depth) {
   size_t started = b->n;
   for (size_t i = 0; (sequel_work_tick(1), i < n); ++i) {
@@ -134,7 +144,9 @@ static void expression(output *b, token *t, size_t n, unsigned depth) {
       emit_token(b, t[i]);
   }
 }
+
 static void relations(output *, token *, size_t, unsigned);
+
 static size_t relation(output *b, token *t, size_t n, size_t i, unsigned depth) {
   while (i < n && (kw(t[i], "ONLY") || kw(t[i], "LATERAL"))) {
     upper(b, t[i++]);
@@ -188,6 +200,7 @@ static size_t relation(output *b, token *t, size_t n, size_t i, unsigned depth) 
   }
   return i;
 }
+
 static void relations(output *b, token *t, size_t n, unsigned depth) {
   if (depth > 64) {
     text(b, "…");
@@ -244,6 +257,7 @@ static void relations(output *b, token *t, size_t n, unsigned depth) {
       ++i;
   }
 }
+
 static void bound(output *b, token *t, size_t n) {
   if (n == 1 && kw(t[0], "ALL")) {
     text(b, "ALL");
@@ -262,6 +276,7 @@ static void bound(output *b, token *t, size_t n) {
   } else
     text(b, "?");
 }
+
 static void summarize(output *b, token *t, size_t n, unsigned depth) {
   if (depth > 64) {
     text(b, "…");

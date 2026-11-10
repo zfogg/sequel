@@ -19,7 +19,9 @@ struct sequel_lexed_document {
 };
 
 static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
+
 static int is_word_part(unsigned char c) { return isalnum(c) || c == '_' || c >= 128; }
+
 static int is_operator_char(unsigned char c) {
   return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '!' || c == '<' || c == '>' ||
          c == '~' || c == '|' || c == '&' || c == '^' || c == '@';
@@ -235,9 +237,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       if (source->data[start] == '0' && i < source->length && (source->data[i] == 'x' || source->data[i] == 'X'))
         ++i;
-      while (i < source->length &&
-             (isalnum((unsigned char)source->data[i]) || source->data[i] == '.' || source->data[i] == '_' ||
-              source->data[i] == '+' || source->data[i] == '-'))
+      while (i < source->length && (isalnum((unsigned char)source->data[i]) || source->data[i] == '.' ||
+                                    source->data[i] == '_' || source->data[i] == '+' || source->data[i] == '-'))
         ++i;
       if (i < source->length && (source->data[i] == 'e' || source->data[i] == 'E')) {
         size_t exponent = i++;
@@ -253,8 +254,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
     } else if (source->data[i] == '$' &&
                (settings->dialect == SEQUEL_GENERIC || settings->dialect == SEQUEL_POSTGRESQL ||
-                settings->dialect == SEQUEL_DUCKDB ||
-                settings->dialect == SEQUEL_SQLITE)) {
+                settings->dialect == SEQUEL_DUCKDB || settings->dialect == SEQUEL_SQLITE)) {
       size_t tag_end = i + 1;
       while (tag_end < source->length &&
              (isalnum((unsigned char)source->data[tag_end]) || source->data[tag_end] == '_'))
@@ -324,11 +324,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     } else if (source->data[i] == ':' && i + 1 < source->length && source->data[i + 1] == ':') {
       i += 2;
       kind = SEQUEL_TOKEN_OPERATOR;
-    } else if ((source->data[i] == '?' &&
-                (settings->dialect == SEQUEL_SQLITE || settings->dialect == SEQUEL_MYSQL)) ||
+    } else if ((source->data[i] == '?' && (settings->dialect == SEQUEL_SQLITE || settings->dialect == SEQUEL_MYSQL)) ||
                source->data[i] == '$' ||
-               (source->data[i] == ':' && i > 0 && source->data[i - 1] != ':' &&
-                i + 1 < source->length &&
+               (source->data[i] == ':' && i > 0 && source->data[i - 1] != ':' && i + 1 < source->length &&
                 (is_word_start((unsigned char)source->data[i + 1]) ||
                  (settings->dialect == SEQUEL_SQLITE && isdigit((unsigned char)source->data[i + 1])))) ||
                (source->data[i] == '@' &&

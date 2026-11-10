@@ -18,8 +18,7 @@ static const struct {
     {"control_character", "Unsupported control character",
      "NUL and terminal control characters cannot be rendered safely. Tabs, CR and LF are supported.",
      "Remove the control character or represent it with a SQL escape sequence."},
-    {"token_limit", "Token limit diagnostic",
-     "The token stream exceeded the configured storage limit.",
+    {"token_limit", "Token limit diagnostic", "The token stream exceeded the configured storage limit.",
      "Use the current library to process large token streams."},
     {"nesting_limit", "Nesting exceeds 64 levels",
      "Delimiter, parameter-type or nested-comment depth is bounded to prevent excessive parser work.",
@@ -100,6 +99,7 @@ const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
              ? diagnostic_messages[code].name
              : NULL;
 }
+
 static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column) {
   *line = *column = 1;
   if (!sql)
@@ -120,6 +120,7 @@ static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t
       ++*column;
   }
 }
+
 static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code,
                               size_t start, size_t end) {
   if (!out)
@@ -142,6 +143,7 @@ static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *ou
     snprintf(out->hint, sizeof(out->hint), "%s", diagnostic_messages[code].hint);
   }
 }
+
 static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   diagnostic_report(sql, 0, out, SEQUEL_DIAG_NONE, 0, 0);
   if (!sql) {
@@ -176,6 +178,7 @@ static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialec
   }
   return SEQUEL_OK;
 }
+
 sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
@@ -251,6 +254,7 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_syntax_document_free(document);
   return SEQUEL_OK;
 }
+
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   size_t n = 0;
   if (sql)

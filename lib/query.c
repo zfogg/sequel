@@ -168,9 +168,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t name_end = tokens[i].range.end;
     if (style == SEQUEL_BIND_FORMAT && text[1] == '(') {
       name_start = tokens[i].range.start + 2;
-      name_end = tokens[i].range.end >= 2 && source.data[tokens[i].range.end - 2] == ')'
-                     ? tokens[i].range.end - 2
-                     : tokens[i].range.end;
+      name_end = tokens[i].range.end >= 2 && source.data[tokens[i].range.end - 2] == ')' ? tokens[i].range.end - 2
+                                                                                         : tokens[i].range.end;
     }
     sequel_source_range_t name_range = {name_start, name_end};
     uint64_t identity = explicit_number ? explicit_number : ordinal;
@@ -375,37 +374,49 @@ void sequel_query_document_free(sequel_query_document_t *document) {
 size_t sequel_query_statement_count(const sequel_query_document_t *document) {
   return document ? document->statement_count : 0;
 }
+
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document) {
   return document ? document->statements : NULL;
 }
+
 size_t sequel_query_relation_count(const sequel_query_document_t *document) {
   return document ? document->relation_count : 0;
 }
+
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document) {
   return document ? document->relations : NULL;
 }
+
 size_t sequel_query_parameter_count(const sequel_query_document_t *document) {
   return document ? document->parameter_count : 0;
 }
+
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document) {
   return document ? document->parameters : NULL;
 }
+
 size_t sequel_query_join_count(const sequel_query_document_t *document) { return document ? document->join_count : 0; }
+
 const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document) {
   return document ? document->joins : NULL;
 }
+
 size_t sequel_query_projection_count(const sequel_query_document_t *document) {
   return document ? document->projection_count : 0;
 }
+
 const sequel_projection_info_t *sequel_query_projections(const sequel_query_document_t *document) {
   return document ? document->projections : NULL;
 }
+
 size_t sequel_query_predicate_count(const sequel_query_document_t *document) {
   return document ? document->predicate_count : 0;
 }
+
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document) {
   return document ? document->predicates : NULL;
 }
+
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document) {
   return document ? sequel_lexed_source(sequel_syntax_lexed(document->syntax)) : (sequel_source_view_t){0};
 }

@@ -6,6 +6,7 @@ static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *di
   diagnostic_report(s, n, diag, code, start, end);
   return SIZE_MAX;
 }
+
 static size_t format_scan_recover(const char *s, size_t n, sequel_dialect_t d, format_token **tokens, bool tolerant,
                                   sequel_diagnostic_t *diag, size_t *scanned) {
   *scanned = 0;
@@ -250,11 +251,13 @@ static void format_line(output *b, size_t indent) {
 /* Clause state belongs to a parenthesis level; function arguments must not
  * accidentally inherit SELECT-list or WHERE-list comma/bool rules. */
 enum { F_NONE, F_SELECT, F_FROM, F_CONDITION, F_ORDER, F_SET, F_VALUES, F_WITH, F_OTHER, F_ON };
+
 typedef struct {
   size_t base, closing, header_end;
   int clause;
   bool active, pending, multiline, between, deleting, inserting, values_seen, window;
 } format_frame;
+
 typedef struct {
   size_t depth, base;
   bool condition, multiline;
@@ -265,7 +268,9 @@ static size_t format_next(format_token *ts, size_t n, size_t i) {
     ++i;
   return i;
 }
+
 static bool format_list(int c) { return c == F_SELECT || c == F_ORDER || c == F_SET || c == F_VALUES; }
+
 static bool format_short_scalar_select(format_token *ts, size_t count, size_t select) {
   size_t end = select;
   for (size_t j = select + 1; (sequel_work_tick(1), j < count); ++j) {
@@ -283,13 +288,16 @@ static bool format_short_scalar_select(format_token *ts, size_t count, size_t se
   }
   return end > select && ts[end].flat_width - ts[select].flat_width <= 60;
 }
+
 static size_t format_body(format_frame f) {
   return f.base + (format_list(f.clause) || f.clause == F_CONDITION || f.clause == F_ON ? 1 : 0);
 }
+
 static void format_space(output *b) {
   if (b->n && b->p[b->n - 1] != ' ' && b->p[b->n - 1] != '\n')
     text(b, " ");
 }
+
 static bool format_join(format_token *ts, size_t n, size_t i) {
   token t = ts[i].t;
   if (kw(t, "JOIN"))
@@ -305,10 +313,12 @@ static bool format_join(format_token *ts, size_t n, size_t i) {
   }
   return false;
 }
+
 static bool format_comparison(token t) {
   return equal(t.p, t.n, "=") || equal(t.p, t.n, "!=") || equal(t.p, t.n, "<>") || equal(t.p, t.n, "<") ||
          equal(t.p, t.n, ">") || equal(t.p, t.n, "<=") || equal(t.p, t.n, ">=");
 }
+
 static bool format_spaced_operator(format_token *ts, size_t i, size_t previous) {
   token t = ts[i].t;
   if (format_comparison(t))
@@ -325,6 +335,7 @@ static bool format_spaced_operator(format_token *ts, size_t i, size_t previous) 
                      kw(p, "BY") || kw(p, "AND") || kw(p, "OR") || kw(p, "NOT") || kw(p, "WHERE") || kw(p, "SET") ||
                      kw(p, "VALUES") || kw(p, "RETURNING") || kw(p, "AS"));
 }
+
 static bool format_layout(format_token *ts, size_t count, output *b) {
   /* Match groups once, then propagate multiline constructs out through their
    * containing function calls. This avoids repeatedly scanning nested SQL. */

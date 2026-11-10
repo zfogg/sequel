@@ -102,13 +102,12 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       text = "?";
       text_length = 1;
     }
-    bool no_space_before = punctuation && text_length == 1 &&
-                           (text[0] == ',' || text[0] == ')' || text[0] == ';');
-    bool no_space_after_previous = previous == SEQUEL_TOKEN_PUNCTUATION && length &&
-                                   (data[length - 1] == '(' || data[length - 1] == '.');
-    if (!no_space_before && !no_space_after_previous && (is_word_token(previous) || is_word_token(token->kind) ||
-                                                         (previous == SEQUEL_TOKEN_PUNCTUATION &&
-                                                          data[length - 1] == ',')))
+    bool no_space_before = punctuation && text_length == 1 && (text[0] == ',' || text[0] == ')' || text[0] == ';');
+    bool no_space_after_previous =
+        previous == SEQUEL_TOKEN_PUNCTUATION && length && (data[length - 1] == '(' || data[length - 1] == '.');
+    if (!no_space_before && !no_space_after_previous &&
+        (is_word_token(previous) || is_word_token(token->kind) ||
+         (previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ',')))
       if (!append_space(&data, &length, &capacity))
         goto no_memory;
     if (!append_text(&data, &length, &capacity, text, text_length))

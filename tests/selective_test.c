@@ -8,6 +8,7 @@
       return 1;                                                                                                        \
     }                                                                                                                  \
   } while (0)
+
 int main(void) {
   const char *sql = "/* private */ SELECT 'secret', 42, $1 -- private\nFROM t";
   const char *want[] = {"/* private */ SELECT 'secret', 42, $1 -- private\nFROM t", "SELECT 'secret', 42, $1 FROM t",

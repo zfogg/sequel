@@ -94,6 +94,7 @@ static int typed_arguments(void) {
   CHECK(!strstr(a, "'a'") && !strstr(b, "'b'"));
   return 0;
 }
+
 static int maps_and_metadata(void) {
   {
     const char *ambiguous[] = {"SELECT $$sensitive$$", "SELECT 'a\\'sensitive\\'b'"};
@@ -315,6 +316,7 @@ static int bind_tests(void) {
 typedef struct {
   size_t calls, stop;
 } cancellation;
+
 static bool cancel_after(void *userdata) {
   cancellation *c = userdata;
   return ++c->calls >= c->stop;

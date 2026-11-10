@@ -61,6 +61,7 @@ int main(void) {
       {"SELECT {id:UInt64", SEQUEL_CLICKHOUSE, SEQUEL_DIAG_UNTERMINATED_PARAMETER},
       {"SELECT $name::suffix(open", SEQUEL_SQLITE, SEQUEL_DIAG_UNTERMINATED_PARAMETER},
   };
+
   sequel_highlight_options_t options;
   sequel_highlight_options_init(&options);
   CHECK(!options.tolerant);

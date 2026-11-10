@@ -14,6 +14,7 @@ static PyObject *diagnostic_dict(const sequel_diagnostic_t *d) {
       d->incomplete ? Py_True : Py_False, "statement_complete", d->statement_complete ? Py_True : Py_False, "message",
       d->message, "explanation", d->explanation, "hint", d->hint);
 }
+
 static PyObject *render_result(const char *text, size_t length, const sequel_diagnostic_t *d) {
   PyObject *value = text ? PyUnicode_DecodeUTF8(text, (Py_ssize_t)length, "strict") : Py_NewRef(Py_None);
   if (!value)
@@ -25,6 +26,7 @@ static PyObject *render_result(const char *text, size_t length, const sequel_dia
   }
   return Py_BuildValue("(NN)", value, diagnostic);
 }
+
 static PyObject *diagnose_sql(PyObject *self, PyObject *args) {
   const char *sql;
   Py_ssize_t n;
@@ -168,6 +170,7 @@ static PyObject *highlight_sql(PyObject *self, PyObject *args) {
   PyMem_Free(out);
   return result;
 }
+
 static PyObject *colorschemes(PyObject *self, PyObject *unused) {
   PyObject *result = PyTuple_New((Py_ssize_t)sequel_colorscheme_count());
   if (!result)
@@ -215,9 +218,9 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   size_t token_count = 0;
   const sequel_token_t *token_values = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &token_count);
   for (size_t i = 0; i < token_count; ++i) {
-    PyObject *value = Py_BuildValue("{s:i,s:I,s:n,s:n}", "kind", token_values[i].kind, "flags", token_values[i].flags,
-                                    "start", (Py_ssize_t)token_values[i].range.start,
-                                    "end", (Py_ssize_t)token_values[i].range.end);
+    PyObject *value =
+        Py_BuildValue("{s:i,s:I,s:n,s:n}", "kind", token_values[i].kind, "flags", token_values[i].flags, "start",
+                      (Py_ssize_t)token_values[i].range.start, "end", (Py_ssize_t)token_values[i].range.end);
     if (!value || PyList_Append(tokens, value) < 0) {
       Py_XDECREF(value);
       goto error;
@@ -227,9 +230,9 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statement_values = sequel_query_statements(query);
   for (size_t i = 0; i < statement_count; ++i) {
-    PyObject *value = Py_BuildValue("{s:i,s:n,s:n}", "operation", statement_values[i].operation,
-                                    "start", (Py_ssize_t)statement_values[i].range.start,
-                                    "end", (Py_ssize_t)statement_values[i].range.end);
+    PyObject *value =
+        Py_BuildValue("{s:i,s:n,s:n}", "operation", statement_values[i].operation, "start",
+                      (Py_ssize_t)statement_values[i].range.start, "end", (Py_ssize_t)statement_values[i].range.end);
     if (!value || PyList_Append(statements, value) < 0) {
       Py_XDECREF(value);
       goto error;
@@ -239,11 +242,10 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   size_t relation_count = sequel_query_relation_count(query);
   const sequel_relation_info_t *relation_values = sequel_query_relations(query);
   for (size_t i = 0; i < relation_count; ++i) {
-    PyObject *value = Py_BuildValue("{s:i,s:n,s:n,s:n,s:n}", "kind", relation_values[i].kind,
-                                    "start", (Py_ssize_t)relation_values[i].range.start,
-                                    "end", (Py_ssize_t)relation_values[i].range.end,
-                                    "name_start", (Py_ssize_t)relation_values[i].name_range.start,
-                                    "name_end", (Py_ssize_t)relation_values[i].name_range.end);
+    PyObject *value = Py_BuildValue(
+        "{s:i,s:n,s:n,s:n,s:n}", "kind", relation_values[i].kind, "start", (Py_ssize_t)relation_values[i].range.start,
+        "end", (Py_ssize_t)relation_values[i].range.end, "name_start", (Py_ssize_t)relation_values[i].name_range.start,
+        "name_end", (Py_ssize_t)relation_values[i].name_range.end);
     if (!value || PyList_Append(relations, value) < 0) {
       Py_XDECREF(value);
       goto error;
@@ -253,10 +255,9 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   size_t issue_count = 0;
   const sequel_parse_issue_t *issue_values = sequel_syntax_issues(syntax, &issue_count);
   for (size_t i = 0; i < issue_count; ++i) {
-    PyObject *value = Py_BuildValue("{s:i,s:i,s:n,s:n}", "code", issue_values[i].code,
-                                    "recovery", issue_values[i].recovery,
-                                    "start", (Py_ssize_t)issue_values[i].range.start,
-                                    "end", (Py_ssize_t)issue_values[i].range.end);
+    PyObject *value =
+        Py_BuildValue("{s:i,s:i,s:n,s:n}", "code", issue_values[i].code, "recovery", issue_values[i].recovery, "start",
+                      (Py_ssize_t)issue_values[i].range.start, "end", (Py_ssize_t)issue_values[i].range.end);
     if (!value || PyList_Append(issues, value) < 0) {
       Py_XDECREF(value);
       goto error;
@@ -271,10 +272,10 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   for (size_t list_index = 0; list_index < sizeof(diagnostic_lists) / sizeof(diagnostic_lists[0]); ++list_index) {
     sequel_diagnostic_list_t *list = diagnostic_lists[list_index];
     for (size_t i = 0; i < list->count; ++i) {
-      PyObject *value = Py_BuildValue("{s:i,s:i,s:i,s:n,s:n}", "origin", list->records[i].origin, "code",
-                                      list->records[i].code, "severity", list->records[i].severity, "start",
-                                      (Py_ssize_t)list->records[i].range.start, "end",
-                                      (Py_ssize_t)list->records[i].range.end);
+      PyObject *value =
+          Py_BuildValue("{s:i,s:i,s:i,s:n,s:n}", "origin", list->records[i].origin, "code", list->records[i].code,
+                        "severity", list->records[i].severity, "start", (Py_ssize_t)list->records[i].range.start, "end",
+                        (Py_ssize_t)list->records[i].range.end);
       if (!value || PyList_Append(diagnostics, value) < 0) {
         Py_XDECREF(value);
         goto error;
@@ -295,8 +296,7 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   PyObject *summary_value = PyUnicode_DecodeUTF8(summary.data, (Py_ssize_t)summary.length, "strict");
   PyObject *fingerprint_value = PyUnicode_FromString(fingerprint);
   sequel_text_result_free(&summary);
-  if (!summary_value || !fingerprint_value ||
-      PyDict_SetItemString(result, "summary", summary_value) < 0 ||
+  if (!summary_value || !fingerprint_value || PyDict_SetItemString(result, "summary", summary_value) < 0 ||
       PyDict_SetItemString(result, "fingerprint", fingerprint_value) < 0 ||
       PyDict_SetItemString(result, "diagnostics", diagnostics) < 0) {
     Py_XDECREF(summary_value);
@@ -305,7 +305,8 @@ static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
   }
   Py_DECREF(summary_value);
   Py_DECREF(fingerprint_value);
-  if (PyDict_SetItemString(result, "tokens", tokens) < 0 || PyDict_SetItemString(result, "statements", statements) < 0 ||
+  if (PyDict_SetItemString(result, "tokens", tokens) < 0 ||
+      PyDict_SetItemString(result, "statements", statements) < 0 ||
       PyDict_SetItemString(result, "relations", relations) < 0 || PyDict_SetItemString(result, "issues", issues) < 0)
     goto error;
   Py_DECREF(tokens);
@@ -332,6 +333,7 @@ error:
     PyErr_NoMemory();
   return NULL;
 }
+
 #include "_analysis.c"
 static PyMethodDef methods[] = {
     {"analyze", analyze_sql, METH_VARARGS, "Analyze SQL with bounded work and privacy-safe metadata."},
@@ -347,9 +349,11 @@ static PyMethodDef methods[] = {
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},
     {"inspect", inspect_sql, METH_VARARGS, "Inspect using the shared C engine."},
     {"format", format_sql, METH_VARARGS, "Format without sanitizing."},
-    {"parse_document", parse_document_sql, METH_VARARGS, "Parse into shared token, statement, relation and issue records."},
+    {"parse_document", parse_document_sql, METH_VARARGS,
+     "Parse into shared token, statement, relation and issue records."},
     {NULL, NULL, 0, NULL}};
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "_sql", NULL, -1, methods};
+
 PyMODINIT_FUNC PyInit__sql(void) {
   PyObject *result = PyModule_Create(&module);
   if (!result)

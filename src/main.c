@@ -75,18 +75,21 @@ static wchar_t *wide_path(const char *path) {
   }
   return wide;
 }
+
 static FILE *open_input(const char *path) {
   wchar_t *wide = wide_path(path);
   FILE *file = wide ? _wfopen(wide, L"rb") : NULL;
   free(wide);
   return file;
 }
+
 static int create_temp(const char *path) {
   wchar_t *wide = wide_path(path);
   int fd = wide ? _wopen(wide, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE) : -1;
   free(wide);
   return fd;
 }
+
 static int finish_temp(const char *temp, const char *path, file_info *info, int failed) {
   wchar_t *from = wide_path(temp), *to = wide_path(path);
   if (!from || !to)
@@ -288,8 +291,7 @@ static int process_input(int format, int d, int embedded, const char *language_n
       return 1;
     }
     failed = sequel_compact(sql, (sequel_dialect_t)d, out, capacity) != SEQUEL_OK;
-  }
-  else if (format)
+  } else if (format)
     failed = sequel_format_ex(sql, (sequel_dialect_t)d, out, capacity, &length, &diagnostic) != SEQUEL_OK;
   else {
     bool truncated = false;
@@ -554,6 +556,7 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
   }
   return result;
 }
+
 static int run(int argc, char **argv) {
   const char **inputs = calloc((size_t)argc + 1, sizeof(*inputs));
   if (!inputs)

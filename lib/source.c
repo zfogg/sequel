@@ -65,7 +65,6 @@ int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_rang
   return outer.start <= inner.start && inner.start <= inner.end && inner.end <= outer.end;
 }
 
-
 static void position_at(const char *data, size_t length, size_t offset, sequel_position_t *position) {
   position->line = 1;
   position->column = 1;

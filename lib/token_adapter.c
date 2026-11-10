@@ -54,20 +54,19 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
     for (size_t offset = previous_end; offset < token->range.start; ++offset)
       newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
     int kind = shared_token_kind(token->kind);
-    (*out)[(*count)++] = (format_token){
-        .t = {.p = source.data + token->range.start,
-              .n = token->range.end - token->range.start,
-              .word = kind == 1,
-              .space = token->range.start > previous_end,
-              .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
-        .gap = token->range.start > previous_end,
-        .newline = newline,
-        .kind = kind,
-        .matching = SIZE_MAX,
-        .multiline = newline,
-        .flat_width = token->range.end - token->range.start,
-        .source_offset = token->range.start,
-        .rendered_offset = 0};
+    (*out)[(*count)++] = (format_token){.t = {.p = source.data + token->range.start,
+                                              .n = token->range.end - token->range.start,
+                                              .word = kind == 1,
+                                              .space = token->range.start > previous_end,
+                                              .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
+                                        .gap = token->range.start > previous_end,
+                                        .newline = newline,
+                                        .kind = kind,
+                                        .matching = SIZE_MAX,
+                                        .multiline = newline,
+                                        .flat_width = token->range.end - token->range.start,
+                                        .source_offset = token->range.start,
+                                        .rendered_offset = 0};
     previous_end = token->range.end;
   }
   return SEQUEL_OK;

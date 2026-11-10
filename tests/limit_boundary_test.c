@@ -9,6 +9,7 @@
       return 1;                                                                                                        \
     }                                                                                                                  \
   } while (0)
+
 int main(int argc, char **argv) {
   CHECK(argc == 2);
   char sql[SEQUEL_INPUT_MAX + 2];

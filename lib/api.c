@@ -60,6 +60,7 @@ static void normalize_sanitized_text(char *text) {
     --write;
   text[write] = 0;
 }
+
 static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
   for (size_t i = 0; (sequel_work_tick(1), i + 2 < n); ++i) {
@@ -135,6 +136,7 @@ static void collapse_in(char *s, sequel_dialect_t dialect) {
     }
   }
 }
+
 sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
                                            bool collapse_in_lists, size_t limit, char *out, size_t capacity,
                                            bool *truncated) {
@@ -184,6 +186,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   sequel_text_result_free(&result);
   return SEQUEL_OK;
 }
+
 sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
                                 char *out, size_t capacity, bool *truncated) {
   return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit, out, capacity,
@@ -219,9 +222,8 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   status = sequel_build_query_document(syntax, &parse_options, &query);
   if (status != SEQUEL_OK)
     goto done;
-  status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS |
-                                                                  SEQUEL_SANITIZE_REPLACE_LITERALS,
-                                  &sanitized);
+  status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax),
+                                  SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized);
   if (status != SEQUEL_OK)
     goto done;
   if (options && !options->keep_in_lists)
@@ -279,8 +281,8 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
       out->operation[written] = 0;
     }
   }
-  out->truncated = text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes
-                                                                            : SEQUEL_TEXT_MAX);
+  out->truncated =
+      text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX);
   if (out->truncated) {
     size_t limit = options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX;
     utf8_cut((char *)out->text, limit);

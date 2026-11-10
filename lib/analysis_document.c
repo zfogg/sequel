@@ -19,8 +19,7 @@ struct sequel_query_analysis {
   sequel_analysis_map_segment_t formatted_segment;
 };
 
-static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics,
-                                    sequel_diagnostic_record_t record) {
+static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
   if (diagnostics->count == diagnostics->capacity) {
     size_t capacity = diagnostics->capacity ? diagnostics->capacity * 2 : 8;
     if (capacity < diagnostics->count || capacity > SIZE_MAX / sizeof(*diagnostics->records))
@@ -35,8 +34,7 @@ static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics,
   return 1;
 }
 
-static sequel_status_t collect_portability_diagnostics(const sequel_syntax_document_t *syntax,
-                                                       sequel_dialect_t target,
+static sequel_status_t collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
                                                        sequel_diagnostic_list_t *diagnostics) {
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
   if (sequel_lexed_dialect(lexed) == target)
@@ -46,14 +44,13 @@ static sequel_status_t collect_portability_diagnostics(const sequel_syntax_docum
   for (size_t i = 0; i < count; ++i) {
     if (!(tokens[i].flags & SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC))
       continue;
-    if (!append_diagnostic_record(diagnostics,
-                                  (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
-                                                               .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
-                                                               .severity = SEQUEL_WARNING,
-                                                               .range = tokens[i].range,
-                                                               .statement_index = SIZE_MAX,
-                                                               .syntax_node = SIZE_MAX,
-                                                               .recovered = 0})) {
+    if (!append_diagnostic_record(diagnostics, (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
+                                                                            .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
+                                                                            .severity = SEQUEL_WARNING,
+                                                                            .range = tokens[i].range,
+                                                                            .statement_index = SIZE_MAX,
+                                                                            .syntax_node = SIZE_MAX,
+                                                                            .recovered = 0})) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
     }
@@ -84,8 +81,7 @@ static int append_diagnostics(sequel_diagnostic_list_t *destination, const seque
 }
 
 static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
-                                           sequel_text_result_t *sanitized,
-                                           sequel_analysis_source_map_t *map,
+                                           sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
                                            sequel_analysis_map_segment_t **owned_segments) {
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
@@ -104,7 +100,7 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
     output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
                       (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
                          ? 0
-                         : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)
+                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)
                          ? 1
                          : token->range.end - token->range.start;
   }
@@ -122,11 +118,11 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
                    (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT);
     bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL);
     size_t result_length = removed ? 0 : replaced ? 1 : source_length;
-    segments[segment++] = (sequel_analysis_map_segment_t){
-        token->range.start, token->range.end, output_offset, output_offset + result_length,
-        removed ? SEQUEL_ANALYSIS_MAP_DELETE
-                : replaced ? SEQUEL_ANALYSIS_MAP_REPLACE
-                           : SEQUEL_ANALYSIS_MAP_COPY};
+    segments[segment++] = (sequel_analysis_map_segment_t){token->range.start, token->range.end, output_offset,
+                                                          output_offset + result_length,
+                                                          removed    ? SEQUEL_ANALYSIS_MAP_DELETE
+                                                          : replaced ? SEQUEL_ANALYSIS_MAP_REPLACE
+                                                                     : SEQUEL_ANALYSIS_MAP_COPY};
     output_offset += result_length;
   }
   *owned_segments = segments;
@@ -193,8 +189,8 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           status = SEQUEL_ERR_CANCELLED;
           break;
         }
-        status = collect_portability_diagnostics(syntax, analysis->options.portability_targets[i],
-                                                 &portability_diagnostics);
+        status =
+            collect_portability_diagnostics(syntax, analysis->options.portability_targets[i], &portability_diagnostics);
       }
     } else {
       status = collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
@@ -208,25 +204,22 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   if (status == SEQUEL_OK && analysis->options.include_fingerprint)
     status = sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, analysis->fingerprint);
   if (status == SEQUEL_OK && analysis->options.include_sanitized_sql)
-    status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS |
-                                                               SEQUEL_SANITIZE_REPLACE_LITERALS,
-                                     &analysis->sanitized_sql);
+    status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax),
+                                    SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
+                                    &analysis->sanitized_sql);
   if (status == SEQUEL_OK && analysis->options.include_formatted_sql)
     status = sequel_format_syntax(syntax, NULL, &analysis->formatted_sql);
   if (status == SEQUEL_OK && analysis->options.include_source_maps) {
     if (analysis->sanitized_sql.data) {
-      status = build_sanitized_map(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS |
-                                                                    SEQUEL_SANITIZE_REPLACE_LITERALS,
-                                   &analysis->sanitized_sql, &analysis->sanitized_map,
-                                   &analysis->sanitized_segments);
+      status = build_sanitized_map(sequel_syntax_lexed(syntax),
+                                   SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
+                                   &analysis->sanitized_sql, &analysis->sanitized_map, &analysis->sanitized_segments);
     }
     if (status == SEQUEL_OK && analysis->formatted_sql.data) {
-      analysis->formatted_segment = (sequel_analysis_map_segment_t){0, sequel_query_source(query).length, 0,
-                                                                    analysis->formatted_sql.length,
-                                                                    SEQUEL_ANALYSIS_MAP_REPLACE};
-      analysis->formatted_map = (sequel_analysis_source_map_t){sequel_query_source(query).length,
-                                                               analysis->formatted_sql.length,
-                                                               &analysis->formatted_segment, 1};
+      analysis->formatted_segment = (sequel_analysis_map_segment_t){
+          0, sequel_query_source(query).length, 0, analysis->formatted_sql.length, SEQUEL_ANALYSIS_MAP_REPLACE};
+      analysis->formatted_map = (sequel_analysis_source_map_t){
+          sequel_query_source(query).length, analysis->formatted_sql.length, &analysis->formatted_segment, 1};
     }
   }
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
@@ -320,7 +313,8 @@ const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_q
   return analysis && analysis->options.include_projections ? sequel_query_projections(analysis->query) : NULL;
 }
 
-const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis, size_t *count) {
+const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis,
+                                                                size_t *count) {
   if (count)
     *count = analysis && analysis->options.include_predicates ? sequel_query_predicate_count(analysis->query) : 0;
   return analysis && analysis->options.include_predicates ? sequel_query_predicates(analysis->query) : NULL;

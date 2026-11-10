@@ -5,7 +5,9 @@ typedef struct {
   unsigned char block[64];
   size_t used;
 } sequel_sha256;
+
 static uint32_t sha_rotr(uint32_t v, unsigned n) { return (v >> n) | (v << (32 - n)); }
+
 static void sha_block(sequel_sha256 *s) {
   static const uint32_t k[64] = {
       0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -47,10 +49,12 @@ static void sha_block(sequel_sha256 *s) {
   s->h[6] += g;
   s->h[7] += h;
 }
+
 static void sha_init(sequel_sha256 *s) {
   *s = (sequel_sha256){
       {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19}, 0, {0}, 0};
 }
+
 static void sha_update(sequel_sha256 *s, const void *data, size_t n) {
   const unsigned char *p = data;
   s->bytes += n;
@@ -62,12 +66,14 @@ static void sha_update(sequel_sha256 *s, const void *data, size_t n) {
     }
   }
 }
+
 static void sha_u64(sequel_sha256 *s, uint64_t value) {
   unsigned char b[8];
   for (size_t i = 0; (sequel_work_tick(1), i < 8); i++)
     b[7 - i] = (unsigned char)(value >> (i * 8));
   sha_update(s, b, 8);
 }
+
 static void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_t n, bool fold) {
   sha_update(s, &kind, 1);
   sha_u64(s, n);
@@ -81,6 +87,7 @@ static void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_
       sha_update(s, &c, 1);
     }
 }
+
 static void sha_final(sequel_sha256 *s, char out[65]) {
   uint64_t bits = s->bytes * 8;
   unsigned char pad = 0x80, zero = 0;

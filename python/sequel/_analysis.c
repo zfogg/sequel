@@ -1,5 +1,6 @@
 /* Python wrappers for the versioned, privacy-safe native analysis contract. */
 #include <limits.h>
+
 static int analysis_set(PyObject *dict, const char *key, PyObject *value) {
   if (!value)
     return -1;
@@ -7,6 +8,7 @@ static int analysis_set(PyObject *dict, const char *key, PyObject *value) {
   Py_DECREF(value);
   return status;
 }
+
 static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   PyObject *result = PyDict_New(), *segments = PyList_New((Py_ssize_t)map->count);
   if (!result || !segments) {
@@ -39,6 +41,7 @@ static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   }
   return result;
 }
+
 static PyObject *analysis_dict(const sequel_analysis_t *a) {
   PyObject *result = PyDict_New();
   if (!result)
@@ -110,6 +113,7 @@ failed:
   Py_DECREF(result);
   return NULL;
 }
+
 static bool analysis_cancel(void *userdata) {
   PyObject *callback = (PyObject *)userdata;
   if (PyErr_Occurred())
@@ -121,6 +125,7 @@ static bool analysis_cancel(void *userdata) {
   Py_DECREF(value);
   return result != 0;
 }
+
 static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   const char *sql;
   Py_ssize_t length;
@@ -159,6 +164,7 @@ static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   sequel_analysis_free(&result);
   return value;
 }
+
 static PyObject *analysis_catalog(PyObject *self, PyObject *unused) {
   size_t count = sequel_diagnostic_catalog_count();
   PyObject *result = PyTuple_New((Py_ssize_t)count);
@@ -176,6 +182,7 @@ static PyObject *analysis_catalog(PyObject *self, PyObject *unused) {
   }
   return result;
 }
+
 static PyObject *analysis_canonicalize(PyObject *self, PyObject *args) {
   PyObject *version_object;
   Py_ssize_t source_length, offset, end_offset, line, column, end_line, end_column;
@@ -220,6 +227,7 @@ static PyObject *analysis_canonicalize(PyObject *self, PyObject *args) {
   }
   return diagnostic_dict(&output);
 }
+
 static PyObject *analysis_map_range(PyObject *self, PyObject *args) {
   Py_ssize_t from_length, to_length, start, end;
   PyObject *segments;
@@ -270,6 +278,7 @@ static PyObject *analysis_map_range(PyObject *self, PyObject *args) {
   }
   return Py_BuildValue("nnO", (Py_ssize_t)result.start, (Py_ssize_t)result.end, result.exact ? Py_True : Py_False);
 }
+
 static PyObject *analysis_utf8_to_utf16(PyObject *self, PyObject *args) {
   const char *text;
   Py_ssize_t length, offset;
@@ -282,6 +291,7 @@ static PyObject *analysis_utf8_to_utf16(PyObject *self, PyObject *args) {
   }
   return PyLong_FromSize_t(result);
 }
+
 static PyObject *analysis_utf16_to_utf8(PyObject *self, PyObject *args) {
   const char *text;
   Py_ssize_t length, offset;
@@ -294,6 +304,7 @@ static PyObject *analysis_utf16_to_utf8(PyObject *self, PyObject *args) {
   }
   return PyLong_FromSize_t(result);
 }
+
 static PyObject *analysis_check_binds(PyObject *self, PyObject *args) {
   PyObject *binds;
   Py_ssize_t statement, supplied;
