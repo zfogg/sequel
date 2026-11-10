@@ -62,6 +62,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/document.c
   ../lib/summary/buffer.c
   ../lib/summary/options.c
+  ../lib/summary/lexical.c
   ../lib/sanitizer.c
   )
 

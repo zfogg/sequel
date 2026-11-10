@@ -46,22 +46,8 @@ static const char *operation_name(sequel_operation_t operation) {
   }
 }
 
-static int summary_word(const char *source, size_t length, size_t offset, const char *word) {
-  size_t n = strlen(word);
-  if (offset + n > length)
-    return 0;
-  for (size_t i = 0; i < n; ++i)
-    if (toupper((unsigned char)source[offset + i]) != toupper((unsigned char)word[i]))
-      return 0;
-  return (!offset || !isalnum((unsigned char)source[offset - 1])) &&
-         (offset + n == length || !isalnum((unsigned char)source[offset + n]));
-}
-
-static size_t summary_skip_space(const char *source, size_t length, size_t offset) {
-  while (offset < length && isspace((unsigned char)source[offset]))
-    ++offset;
-  return offset;
-}
+#define summary_word sequel_summary_word
+#define summary_skip_space sequel_summary_skip_space
 
 static int append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
                                sequel_source_range_t range) {
