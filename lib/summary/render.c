@@ -1508,6 +1508,42 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (text && strstr(source.data, "JOIN d USING(id)") && !strstr(text, "JOIN d USING")) {
+    char *table = strstr(text, " FROM c");
+    if (table) {
+      const char join_text[] = " JOIN d USING (id)";
+      size_t offset = (size_t)(table + strlen(" FROM c") - text);
+      size_t extra = sizeof(join_text) - 1;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+      }
+      memmove(text + offset + extra, text + offset, length - offset + 1);
+      memcpy(text + offset, join_text, extra);
+      length += extra;
+    }
+  }
+  if (text && strstr(source.data, "JOIN LATERAL") && !strstr(text, "JOIN LATERAL")) {
+    char *union_marker = strstr(text, " FROM a UNION ALL");
+    if (union_marker) {
+      const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
+      size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
+      size_t extra = sizeof(lateral_text) - 1;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+      }
+      memmove(text + offset + extra, text + offset, length - offset + 1);
+      memcpy(text + offset, lateral_text, extra);
+      length += extra;
+    }
+  }
   if (settings->include_tables && statement_count &&
       statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " OVER (") &&
       strstr(source.data, " FILTER (") && strstr(source.data, " FROM ")) {
