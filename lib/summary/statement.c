@@ -69,7 +69,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     return 1;
   const sequel_projection_info_t *projection = sequel_query_projections(query);
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
-  bool literal = strchr("'?0123456789", first) != NULL || first == '$';
+  bool literal = strchr("'?0123456789", first) != NULL || (first == '$' && !strstr(source.data, " FROM "));
   bool multiple = strchr(source.data + projection[0].range.start, ',') != NULL;
   bool scalar = !strstr(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
