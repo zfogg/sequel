@@ -1651,6 +1651,7 @@ summary_postprocess:
       length = strlen(text);
     }
   }
+  sequel_summary_redact_rendered_literals(text, &length);
   text[length] = 0;
   sequel_text_result_free(out);
   *out =
