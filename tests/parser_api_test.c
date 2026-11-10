@@ -417,6 +417,13 @@ int main(void) {
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
+  sequel_serialization_options_t older_schema;
+  sequel_serialization_options_init(&older_schema);
+  older_schema.schema.minor = 0;
+  if (!check(sequel_document_deserialize(&source, &serialized_view, &older_schema, &bundle) ==
+                 SEQUEL_ERR_INVALID_ARGUMENT,
+             "deserialize rejects unsupported newer schema"))
+    return 1;
   uint64_t corrupt_range = UINT64_MAX;
   memcpy(serialized.data + 16 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
   if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,

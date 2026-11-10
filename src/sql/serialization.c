@@ -231,7 +231,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[0] != 0x31544451534c4553ull || header[1] != SEQUEL_DOCUMENT_SCHEMA_MAJOR ||
-      header[2] > SEQUEL_DOCUMENT_SCHEMA_MINOR || header[3] > SEQUEL_CLICKHOUSE)
+      header[2] > SEQUEL_DOCUMENT_SCHEMA_MINOR || header[3] > SEQUEL_CLICKHOUSE ||
+      (options && (options->schema.major != header[1] || options->schema.minor < header[2])))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[4] != source->length)
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -356,7 +357,14 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     sequel_document_bundle_free(bundle);
     return status;
   }
-  (void)options;
+  if (sequel_lexed_token_count(sequel_syntax_lexed(bundle->syntax)) != header[5] ||
+      sequel_syntax_node_count(bundle->syntax) != header[6] || sequel_syntax_issue_count(bundle->syntax) != header[8] ||
+      sequel_query_statement_count(bundle->query) != header[9] || sequel_query_relation_count(bundle->query) != header[10] ||
+      sequel_query_parameter_count(bundle->query) != header[11] || sequel_query_join_count(bundle->query) != header[12] ||
+      sequel_query_projection_count(bundle->query) != header[13] || sequel_query_predicate_count(bundle->query) != header[14]) {
+    sequel_document_bundle_free(bundle);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   *out = bundle;
   return SEQUEL_OK;
 }
