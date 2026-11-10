@@ -270,7 +270,8 @@ static bool format_short_scalar_select(format_token *ts, size_t count, size_t se
     token t = ts[j].t;
     if (sym(t, ';') || sym(t, ')'))
       break;
-    if (ts[j].kind >= 3 || sym(t, ',') || boundary(t) || kw(t, "CASE") || kw(t, "SELECT") || kw(t, "WITH"))
+    if (ts[j].kind >= 3 || sym(t, ',') || boundary(t) || kw(t, "EXCLUDE") || kw(t, "CASE") ||
+        kw(t, "SELECT") || kw(t, "WITH"))
       return false;
     if (sym(t, '(') || sym(t, '[') || sym(t, '{')) {
       if (ts[j].multiline || ts[j].matching <= j || ts[j].matching >= count)
@@ -347,20 +348,6 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       opens[++level] = i;
       if (i && kw(ts[i - 1].t, "OVER"))
         ts[i].multiline = true;
-      if (i && ts[i - 1].kind == 0 && ts[i - 1].t.n == 1 && strchr("([{", *ts[i - 1].t.p)) {
-        for (const char *cursor = ts[i - 1].t.p + ts[i - 1].t.n; cursor < ts[i].t.p; ++cursor)
-          if (*cursor == '\n' || *cursor == '\r') {
-            ts[i].multiline = true;
-            break;
-          }
-      }
-      if (i + 1 < count && ts[i + 1].kind == 0 && ts[i + 1].t.n == 1 &&
-          strchr("([{", *ts[i + 1].t.p))
-        for (const char *cursor = ts[i].t.p + ts[i].t.n; cursor < ts[i + 1].t.p; ++cursor)
-          if (*cursor == '\n' || *cursor == '\r') {
-            ts[i].multiline = true;
-            break;
-          }
     } else if (ts[i].kind == 0 && t.n == 1 && strchr(")]}", *t.p)) {
       if (!level)
         return false;
@@ -369,6 +356,21 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
         return false;
       ts[start].matching = i;
       ts[i].matching = start;
+      if (*ts[start].t.p == '(') {
+        bool direct_boolean = false;
+        for (size_t j = start + 1; j < i; ++j) {
+          if (ts[j].kind == 0 && ts[j].t.n == 1 && strchr("([{", *ts[j].t.p) && ts[j].matching > j) {
+            j = ts[j].matching;
+            continue;
+          }
+          if (kw(ts[j].t, "AND") || kw(ts[j].t, "OR")) {
+            direct_boolean = true;
+            break;
+          }
+        }
+        if (direct_boolean && ts[i].flat_width - ts[start].flat_width <= 70)
+          ts[start].multiline = false;
+      }
       ts[start].multiline |= ts[i].flat_width - ts[start].flat_width > 70;
       if (level && ts[start].multiline)
         ts[opens[level]].multiline = true;
@@ -525,6 +527,11 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       ctx->pending = !format_short_scalar_select(ts, count, i);
       ctx->header_end = i;
       size_t j = next;
+      if (j < count && sym(ts[j].t, '*')) {
+        size_t modifier = format_next(ts, count, j + 1);
+        if (modifier < count && kw(ts[modifier].t, "EXCLUDE"))
+          ctx->pending = true;
+      }
       if (j < count && (kw(ts[j].t, "DISTINCT") || kw(ts[j].t, "ALL"))) {
         ctx->header_end = j;
         size_t k = format_next(ts, count, j + 1);

@@ -79,8 +79,8 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
                                         .kind = kind,
                                         .matching = 0,
                                         .multiline = newline || (pending_newline && (!opening || previous_open)),
-                                        .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) + token->range.end -
-                                                      token->range.start + 1,
+                                        .flat_width = (*count > 1 ? (*out)[*count - 2].flat_width : 0) +
+                                                      token->range.end - token->range.start + 1,
                                         .source_offset = token->range.start,
                                         .rendered_offset = 0};
     previous_end = token->range.end;
@@ -158,7 +158,7 @@ static size_t name(output *b, token *t, size_t n, size_t i) {
 
 static bool boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH", "FOR",
-                         "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW"};
+                         "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
   if (t.clickhouse && (kw(t, "PREWHERE") || kw(t, "SETTINGS") || kw(t, "FORMAT") || kw(t, "SAMPLE") || kw(t, "VALUES")))
     return true;
   for (size_t i = 0; (sequel_work_tick(1), i < sizeof(words) / sizeof(*words)); ++i)
