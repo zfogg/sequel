@@ -1,5 +1,4 @@
 #include <ctype.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "internal.h"
@@ -18,9 +17,6 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     if (select)
       start = (size_t)(select - source);
   }
-  if (source && sequel_summary_find_text(source, "tradebot_parity_snapshots"))
-    fprintf(stderr, "body start=%zu char=%c from=%s\\n", start, source[start],
-            sequel_summary_find_text(source + start, "FROM") ? "yes" : "no");
   if (summary_word(source, range.end, start, "SELECT")) {
     size_t from = start;
     while (from < range.end && !summary_word(source, range.end, from, "FROM"))
