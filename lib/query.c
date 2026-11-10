@@ -70,6 +70,10 @@ static sequel_operation_t operation_from_word(const char *word, size_t length) {
     return SEQUEL_OPERATION_DELETE;
   if (length == 5 && !memcmp(word, "MERGE", 5))
     return SEQUEL_OPERATION_MERGE;
+  if (length == 8 && !memcmp(word, "OPTIMIZE", 8))
+    return SEQUEL_OPERATION_OPTIMIZE;
+  if (length == 8 && !memcmp(word, "TRUNCATE", 8))
+    return SEQUEL_OPERATION_TRUNCATE;
   return SEQUEL_OPERATION_UNKNOWN;
 }
 
@@ -218,6 +222,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
+    }
+    if (statement.operation == SEQUEL_OPERATION_UNKNOWN) {
+      const sequel_token_t *first_token = &tokens[nodes[i].first_token];
+      document->statements[document->statement_count - 1].operation = operation_from_word(
+          source.data + first_token->range.start, first_token->range.end - first_token->range.start);
     }
   }
   for (size_t i = 0; i < token_count; ++i) {

@@ -649,6 +649,10 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_diagnostic_t input_diagnostic = {0};
+  if (sequel_diagnose_n(sql, n, dialect, &input_diagnostic) != SEQUEL_OK &&
+      input_diagnostic.code == SEQUEL_DIAG_UNSUPPORTED_PAYLOAD)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   format_token *ts = NULL;
   sequel_lexed_document_t *lexed = NULL;
   sequel_parse_options_t parse_options;

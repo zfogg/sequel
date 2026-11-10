@@ -221,6 +221,10 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   parse_options.retain_whitespace = true;
   parse_options.tolerant = true;
   parse_options.recover_errors = true;
+  sequel_diagnostic_t input_diagnostic = {0};
+  sequel_status_t diagnostic_status = sequel_diagnose_n(sql, length, parse_options.dialect, &input_diagnostic);
+  if (diagnostic_status != SEQUEL_OK && input_diagnostic.code == SEQUEL_DIAG_UNSUPPORTED_PAYLOAD)
+    return diagnostic_status;
   sequel_source_view_t source = {sql, length};
   sequel_syntax_document_t *syntax = NULL;
   sequel_query_document_t *query = NULL;
@@ -297,6 +301,8 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
                          : statements[0].operation == SEQUEL_OPERATION_ALTER       ? "ALTER"
                          : statements[0].operation == SEQUEL_OPERATION_DROP        ? "DROP"
                          : statements[0].operation == SEQUEL_OPERATION_EXPLAIN     ? "EXPLAIN"
+                         : statements[0].operation == SEQUEL_OPERATION_OPTIMIZE    ? "OPTIMIZE"
+                         : statements[0].operation == SEQUEL_OPERATION_TRUNCATE    ? "TRUNCATE"
                          : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
                                                                                    : "";
       snprintf(out->operation, sizeof(out->operation), "%s", name);

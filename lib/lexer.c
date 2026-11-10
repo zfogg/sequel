@@ -233,12 +233,38 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+    } else if (source->data[i] == '$' &&
+               (sequel_dialect_definition(settings->dialect)->supports_dollar_quoted_strings ||
+                settings->dialect == SEQUEL_CLICKHOUSE)) {
+      size_t delimiter_end = i + 1;
+      while (delimiter_end < source->length &&
+             (isalnum((unsigned char)source->data[delimiter_end]) || source->data[delimiter_end] == '_'))
+        ++delimiter_end;
+      if (delimiter_end < source->length && source->data[delimiter_end] == '$') {
+        size_t body = delimiter_end + 1;
+        bool terminated = false;
+        i = body;
+        while (i + (delimiter_end - start + 1) <= source->length) {
+          if (source->data[i] == '$' && !memcmp(source->data + i, source->data + start, delimiter_end - start + 1)) {
+            i += delimiter_end - start + 1;
+            terminated = true;
+            break;
+          }
+          ++i;
+        }
+        kind = SEQUEL_TOKEN_STRING;
+        flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
+        if (!terminated)
+          flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+      } else {
+        ++i;
+        kind = SEQUEL_TOKEN_OPERATOR;
+      }
     } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]) &&
              !(i + 2 < source->length && (unsigned char)source->data[i] == 0xe2 &&
-               (unsigned char)source->data[i + 1] == 0x80 &&
-               (unsigned char)source->data[i + 2] >= 0x98 &&
+               (unsigned char)source->data[i + 1] == 0x80 && (unsigned char)source->data[i + 2] >= 0x98 &&
                (unsigned char)source->data[i + 2] <= 0x9d))
         ++i;
       unsigned id = sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start);

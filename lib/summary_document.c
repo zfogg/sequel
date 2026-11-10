@@ -87,6 +87,12 @@ static const char *operation_name(sequel_operation_t operation) {
     return "BEGIN";
   case SEQUEL_OPERATION_EXPLAIN:
     return "EXPLAIN";
+  case SEQUEL_OPERATION_OPTIMIZE:
+    /* OPTIMIZE has dialect-specific clauses; retain the generic summary
+     * sentinel until a normalized table-action record is available. */
+    return "SQL";
+  case SEQUEL_OPERATION_TRUNCATE:
+    return "TRUNCATE";
   default:
     return "SQL";
   }
@@ -1349,6 +1355,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (strstr(source.data, "GLOBAL ANY LEFT JOIN") && !strstr(text, "GLOBAL ANY LEFT JOIN")) {
     if (!append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
+      goto no_memory;
+  }
+  if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
+      summary_word(source.data, source.length, 0, "CREATE") && strstr(source.data, " ORDER BY") &&
+      !strstr(text ? text : "", "ORDER BY")) {
+    if (!append_text(&text, &length, &capacity, " ORDER BY"))
       goto no_memory;
   }
   if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&

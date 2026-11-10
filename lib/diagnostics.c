@@ -480,7 +480,7 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   }
   if (only_trivia)
     return SEQUEL_OK;
-  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
+  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, "INSERT") && strstr(sql, " FORMAT ")) {
     const char *format = strstr(sql, " FORMAT ") + 1;
     diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
     return SEQUEL_ERR_INVALID_ARGUMENT;
