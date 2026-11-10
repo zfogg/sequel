@@ -25,7 +25,6 @@ typedef struct {
 
 // clang-format off
 #include "common.c"
-#include "scanner.c"
 #include "summary.c"
 #include "layout.c"
 #include "token_adapter.c"
