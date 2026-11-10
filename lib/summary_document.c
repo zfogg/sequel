@@ -61,6 +61,8 @@ static int append_bytes(char **text, size_t *length, size_t *capacity, const cha
   return 1;
 }
 
+static const char summary_ellipsis[] = "\xE2\x80\xA6";
+
 static const char *operation_name(sequel_operation_t operation) {
   switch (operation) {
   case SEQUEL_OPERATION_SELECT:
@@ -112,6 +114,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   if (settings->include_operation && statement_count &&
       !append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
+    goto no_memory;
+  if (settings->include_operation && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      sequel_query_projection_count(query) &&
+      (!append_text(&text, &length, &capacity, " ") ||
+       !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     goto no_memory;
   sequel_source_view_t source = sequel_query_source(query);
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE) {
@@ -182,13 +189,32 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
+    const sequel_join_info_t *joins = sequel_query_joins(query);
+    size_t rendered_relations = 0;
     for (size_t i = 0; i < relation_count; ++i) {
       if (operation == SEQUEL_OPERATION_CREATE) {
         if (text && strstr(text, " INDEX ") && !append_text(&text, &length, &capacity, " ON ..."))
           goto no_memory;
         break;
       }
-      if (!append_text(&text, &length, &capacity, i ? "," : (operation == SEQUEL_OPERATION_CREATE ? " ON " : " FROM ")))
+      bool nested = false;
+      for (size_t p = 0; p < sequel_query_predicate_count(query); ++p) {
+        const sequel_predicate_info_t *predicate = &sequel_query_predicates(query)[p];
+        if (sequel_source_range_contains(predicate->range, relations[i].range)) {
+          nested = true;
+          break;
+        }
+      }
+      if (nested)
+        continue;
+      size_t join_index = SIZE_MAX;
+      for (size_t j = 0; j < sequel_query_join_count(query); ++j)
+        if (joins[j].right_relation == i) {
+          join_index = j;
+          break;
+        }
+      if (!append_text(&text, &length, &capacity,
+                       rendered_relations == 0 ? " FROM " : (join_index != SIZE_MAX ? " JOIN " : ",")))
         goto no_memory;
       size_t start = relations[i].name_range.start;
       size_t end = relations[i].name_range.end;
@@ -200,16 +226,41 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       memcpy(name, source.data + start, end - start);
       name[end - start] = 0;
       int okay = append_text(&text, &length, &capacity, name);
+      if (okay && relations[i].alias_range.end > relations[i].alias_range.start) {
+        size_t alias_start = relations[i].alias_range.start;
+        size_t alias_end = relations[i].alias_range.end;
+        if (alias_end > source.length || alias_start > alias_end)
+          okay = 0;
+        else
+          okay = append_text(&text, &length, &capacity, " AS ") &&
+                 append_bytes(&text, &length, &capacity, source.data + alias_start, alias_end - alias_start);
+      }
+      if (okay && join_index != SIZE_MAX && joins[join_index].has_condition) {
+        size_t condition_start = relations[i].range.end;
+        while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
+          ++condition_start;
+        size_t condition_end = source.length;
+        for (size_t cursor = condition_start; cursor + 5 <= source.length; ++cursor)
+          if (summary_word(source.data, source.length, cursor, "WHERE")) {
+            condition_end = cursor;
+            break;
+          }
+        while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
+          --condition_end;
+        if (condition_end > condition_start)
+          okay = append_bytes(&text, &length, &capacity, source.data + condition_start,
+                              condition_end - condition_start);
+      }
+      if (okay)
+        ++rendered_relations;
       free(name);
       if (!okay)
         goto no_memory;
     }
   }
-  if (settings->include_joins && sequel_query_join_count(query) && !append_text(&text, &length, &capacity, " JOIN"))
-    goto no_memory;
   if (settings->include_predicates && sequel_query_predicate_count(query)) {
     const sequel_predicate_info_t *predicate = sequel_query_predicates(query);
-    const char *label = " WHERE …";
+    const char *label = " WHERE ";
     bool has_prewhere = false;
     bool has_final = false;
     sequel_source_view_t source = sequel_query_source(query);
@@ -222,10 +273,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!memcmp(source.data + i, "FINAL", 5))
         has_final = true;
     if (has_final)
-      label = has_prewhere ? " FINAL PREWHERE …" : " FINAL WHERE …";
+      label = has_prewhere ? " FINAL PREWHERE " : " FINAL WHERE ";
     else if (has_prewhere)
-      label = " PREWHERE …";
-    if (!append_text(&text, &length, &capacity, label))
+      label = " PREWHERE ";
+    if (!append_text(&text, &length, &capacity, label) ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
   if (settings->include_bind_count) {
