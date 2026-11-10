@@ -686,8 +686,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         }
       }
-      if (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE)
-        continue;
       bool nested = false;
       for (size_t p = 0; p < sequel_query_predicate_count(query); ++p) {
         const sequel_predicate_info_t *predicate = &sequel_query_predicates(query)[p];
@@ -704,6 +702,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           join_index = j;
           break;
         }
+      if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX)
+        continue;
       if (operation != SEQUEL_OPERATION_CREATE) {
         const char *prefix = rendered_relations == 0 ? " FROM " : ",";
         if (rendered_relations && join_index != SIZE_MAX) {
@@ -715,11 +715,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               break;
             }
             if (summary_word(source.data, source.length, cursor, "CROSS")) {
-              prefix = " CROSS JOIN LATERAL ";
+              prefix = cursor + 18 <= source.length && !memcmp(source.data + cursor, "CROSS JOIN LATERAL", 18)
+                           ? " CROSS JOIN LATERAL "
+                           : " CROSS JOIN ";
               break;
             }
             if (summary_word(source.data, source.length, cursor, "LEFT")) {
-              prefix = " LEFT JOIN ";
+              prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "LEFT OUTER", 10)
+                           ? " LEFT OUTER JOIN "
+                           : " LEFT JOIN ";
               break;
             }
             if (summary_word(source.data, source.length, cursor, "RIGHT")) {
@@ -730,6 +734,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "FULL OUTER", 10)
                            ? " FULL OUTER JOIN "
                            : " FULL JOIN ";
+              break;
+            }
+            if (summary_word(source.data, source.length, cursor, "INNER")) {
+              prefix = " INNER JOIN ";
+              break;
+            }
+            if (summary_word(source.data, source.length, cursor, "NATURAL")) {
+              prefix = cursor + 12 <= source.length && !memcmp(source.data + cursor, "NATURAL LEFT", 12)
+                           ? " NATURAL LEFT JOIN "
+                           : " NATURAL JOIN ";
               break;
             }
           }
@@ -747,9 +761,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         if (!append_text(&text, &length, &capacity, prefix))
           goto no_memory;
       }
+      bool lateral_relation = relations[i].name_range.end - relations[i].name_range.start == 7 &&
+                              !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
+      bool parenthesized_relation = source.data[relations[i].name_range.start] == '(';
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
-          relations[i].name_range.end - relations[i].name_range.start == 7 &&
-          !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7)) {
+          (lateral_relation || parenthesized_relation)) {
         const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
         const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
         const char *where = from ? strstr(from, " WHERE ") : NULL;
@@ -770,7 +786,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *alias_end = alias;
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
-          if (!append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
+          if (!append_text(&text, &length, &capacity,
+                           lateral_relation && !strstr(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT "
+                                                                                          : "(SELECT ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
@@ -778,7 +796,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                                      (size_t)(close + 1 - source.data)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !append_text(&text, &length, &capacity, " ON ?"))
+              !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?") ||
+              (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
           continue;
@@ -796,7 +815,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *alias_end = alias;
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
-          if (!append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
+          if (!append_text(&text, &length, &capacity,
+                           lateral_relation && !strstr(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT "
+                                                                                          : "(SELECT ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
@@ -805,7 +826,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !append_text(&text, &length, &capacity, " ON ?"))
+              !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?") ||
+              (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
           continue;
@@ -975,7 +997,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_predicates && sequel_query_predicate_count(query) && !strstr(source.data, " JOIN LATERAL ")) {
+  if (settings->include_predicates && sequel_query_predicate_count(query) && !strstr(source.data, " JOIN LATERAL ") &&
+      !strstr(source.data, " JOIN (")) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
     while (predicate_index < sequel_query_predicate_count(query) &&
@@ -1063,7 +1086,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE &&
-             !strstr(source.data, " JOIN LATERAL ")) {
+             !strstr(source.data, " JOIN LATERAL ") && !strstr(source.data, " JOIN (")) {
   skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
@@ -1074,7 +1097,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
   }
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      !strstr(text ? text : "", "LATERAL (")) {
+      !strstr(text ? text : "", "LATERAL (") && !strstr(source.data, " JOIN (")) {
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;

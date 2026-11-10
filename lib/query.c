@@ -589,7 +589,52 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            (tokens[name].kind == SEQUEL_TOKEN_WHITESPACE || tokens[name].kind == SEQUEL_TOKEN_LINE_COMMENT ||
             tokens[name].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++name;
-    if (name >= token_count || !is_identifier_token(&tokens[name]))
+    if (name >= token_count)
+      continue;
+    if (tokens[name].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[name].range.start] == '(') {
+      size_t close = name;
+      unsigned depth = 0;
+      for (; close < token_count; ++close) {
+        if (tokens[close].kind != SEQUEL_TOKEN_PUNCTUATION)
+          continue;
+        char punctuation = source.data[tokens[close].range.start];
+        if (punctuation == '(')
+          ++depth;
+        else if (punctuation == ')' && depth && --depth == 0)
+          break;
+      }
+      if (close >= token_count)
+        continue;
+      size_t alias = close + 1;
+      while (alias < token_count && is_trivia(&tokens[alias]))
+        ++alias;
+      if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
+          tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
+        ++alias;
+        while (alias < token_count && is_trivia(&tokens[alias]))
+          ++alias;
+      }
+      sequel_source_range_t alias_range = {tokens[close].range.end, tokens[close].range.end};
+      if (alias < token_count && is_identifier_token(&tokens[alias]))
+        alias_range = tokens[alias].range;
+      sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_SUBQUERY,
+                                         .range = {tokens[i].range.start,
+                                                   alias_range.end > tokens[close].range.end ? alias_range.end
+                                                                                             : tokens[close].range.end},
+                                         .name_range = {tokens[name].range.start, tokens[close].range.end},
+                                         .alias_range = alias_range,
+                                         .statement_index = statement,
+                                         .syntax_node = SIZE_MAX,
+                                         .parent_relation = SIZE_MAX,
+                                         .subquery_statement = SIZE_MAX,
+                                         .flags = SEQUEL_RELATION_FLAG_NESTED_SCOPE};
+      if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
+        sequel_query_document_free(document);
+        return SEQUEL_ERR_NOMEM;
+      }
+      continue;
+    }
+    if (!is_identifier_token(&tokens[name]))
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
