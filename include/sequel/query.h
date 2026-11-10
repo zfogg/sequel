@@ -56,6 +56,15 @@ typedef struct {
   uint32_t flags;
 } sequel_relation_info_t;
 
+typedef struct {
+  sequel_source_range_t range;
+  sequel_source_range_t name_range;
+  sequel_source_range_t body_range;
+  size_t statement_index;
+  size_t syntax_node;
+  uint32_t flags;
+} sequel_cte_info_t;
+
 enum { SEQUEL_RELATION_FLAG_NESTED_SCOPE = 1u << 0 };
 
 typedef struct {
@@ -122,6 +131,8 @@ size_t sequel_query_statement_count(const sequel_query_document_t *document);
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document);
 size_t sequel_query_relation_count(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
+size_t sequel_query_cte_count(const sequel_query_document_t *document);
+const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document);
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document);
 size_t sequel_query_join_count(const sequel_query_document_t *document);

@@ -544,6 +544,18 @@ int main(void) {
   sequel_text_result_free(&ddl_summary);
   sequel_query_document_free(ddl_query);
   sequel_syntax_document_free(ddl_syntax);
+  const char cte_sql[] = "WITH recent AS (SELECT id FROM events) SELECT * FROM recent";
+  sequel_source_view_t cte_source = {cte_sql, strlen(cte_sql)};
+  sequel_syntax_document_t *cte_syntax = NULL;
+  sequel_query_document_t *cte_query = NULL;
+  if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
+                 sequel_query_cte_count(cte_query) == 1 &&
+                 sequel_query_ctes(cte_query)[0].range.end <= cte_source.length,
+             "cte query metadata"))
+    return 1;
+  sequel_query_document_free(cte_query);
+  sequel_syntax_document_free(cte_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};

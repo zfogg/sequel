@@ -10,6 +10,8 @@ struct sequel_query_document {
   size_t statement_count;
   sequel_relation_info_t *relations;
   size_t relation_count;
+  sequel_cte_info_t *ctes;
+  size_t cte_count;
   sequel_parameter_info_t *parameters;
   size_t parameter_count;
   sequel_join_info_t *joins;
@@ -191,6 +193,80 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
+      continue;
+    size_t cursor = i + 1;
+    while (cursor < token_count && (is_trivia(&tokens[cursor])))
+      ++cursor;
+    if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_KEYWORD &&
+        tokens[cursor].range.end - tokens[cursor].range.start == 9 &&
+        !memcmp(source.data + tokens[cursor].range.start, "RECURSIVE", 9))
+      ++cursor;
+    for (;;) {
+      while (cursor < token_count && is_trivia(&tokens[cursor]))
+        ++cursor;
+      if (cursor >= token_count || !is_identifier_token(&tokens[cursor]))
+        break;
+      size_t name = cursor++;
+      while (cursor < token_count && is_trivia(&tokens[cursor]))
+        ++cursor;
+      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
+          source.data[tokens[cursor].range.start] == '(') {
+        unsigned depth = 0;
+        do {
+          if (tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION) {
+            char punctuation = source.data[tokens[cursor].range.start];
+            if (punctuation == '(')
+              ++depth;
+            else if (punctuation == ')' && depth)
+              --depth;
+          }
+          ++cursor;
+        } while (cursor < token_count && depth);
+        while (cursor < token_count && is_trivia(&tokens[cursor]))
+          ++cursor;
+      }
+      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_KEYWORD ||
+          tokens[cursor].keyword_id != SEQUEL_KEYWORD_AS)
+        break;
+      ++cursor;
+      while (cursor < token_count && is_trivia(&tokens[cursor]))
+        ++cursor;
+      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
+          source.data[tokens[cursor].range.start] != '(')
+        break;
+      size_t body_open = cursor++;
+      unsigned depth = 1;
+      while (cursor < token_count && depth) {
+        if (tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION) {
+          char punctuation = source.data[tokens[cursor].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')')
+            --depth;
+        }
+        ++cursor;
+      }
+      size_t body_close = cursor ? cursor - 1 : body_open;
+      sequel_cte_info_t cte = {.range = {tokens[name].range.start, tokens[body_close].range.end},
+                               .name_range = tokens[name].range,
+                               .body_range = {tokens[body_open].range.end, tokens[body_close].range.start},
+                               .statement_index = statement_for_range(document, tokens[name].range),
+                               .syntax_node = SIZE_MAX};
+      if (!append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte)) {
+        sequel_query_document_free(document);
+        return SEQUEL_ERR_NOMEM;
+      }
+      while (cursor < token_count && is_trivia(&tokens[cursor]))
+        ++cursor;
+      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
+          source.data[tokens[cursor].range.start] != ',')
+        break;
+      ++cursor;
+    }
+    break;
+  }
   size_t ordinal = 0;
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_PARAMETER)
@@ -407,6 +483,7 @@ void sequel_query_document_free(sequel_query_document_t *document) {
     return;
   free(document->statements);
   free(document->relations);
+  free(document->ctes);
   free(document->parameters);
   free(document->joins);
   free(document->projections);
@@ -428,6 +505,12 @@ size_t sequel_query_relation_count(const sequel_query_document_t *document) {
 
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document) {
   return document ? document->relations : NULL;
+}
+
+size_t sequel_query_cte_count(const sequel_query_document_t *document) { return document ? document->cte_count : 0; }
+
+const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document) {
+  return document ? document->ctes : NULL;
 }
 
 size_t sequel_query_parameter_count(const sequel_query_document_t *document) {
