@@ -1057,6 +1057,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (first_outer_relation != SIZE_MAX) {
         for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
+          if (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE)
+            continue;
           size_t condition_start = relations[i].range.end;
           while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
             ++condition_start;
@@ -1067,10 +1069,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             size_t condition_end = source.length;
             const char *where = sequel_summary_find_word(source.data, source.length, condition_start, "WHERE");
             const char *order = sequel_summary_find_word(source.data, source.length, condition_start, "ORDER");
+            const char *next_join = sequel_summary_find_word(source.data, source.length, condition_start, "JOIN");
             if (where)
               condition_end = (size_t)(where - source.data);
             if (order && (size_t)(order - source.data) < condition_end)
               condition_end = (size_t)(order - source.data);
+            if (next_join && (size_t)(next_join - source.data) < condition_end)
+              condition_end = (size_t)(next_join - source.data);
             if (!append_text(&text, &length, &capacity, " ") ||
                 !append_redacted_range(&text, &length, &capacity, query, condition_start, condition_end))
               goto no_memory;
