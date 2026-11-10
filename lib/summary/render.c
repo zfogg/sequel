@@ -770,6 +770,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
         const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
         const char *where = from ? strstr(from, " WHERE ") : NULL;
+        const char *order = from ? strstr(from, " ORDER BY ") : NULL;
         const char *limit = where ? strstr(where, " LIMIT ") : NULL;
         if (!where)
           limit = from ? strstr(from, " LIMIT ") : NULL;
@@ -810,6 +811,19 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *table_end = table;
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
+          bool cross_lateral = strstr(source.data, "CROSS JOIN LATERAL") != NULL;
+          const char *inner_alias = table_end;
+          const char *inner_alias_end = table_end;
+          if (cross_lateral) {
+            inner_alias = table_end;
+            while (*inner_alias && isspace((unsigned char)*inner_alias))
+              ++inner_alias;
+            inner_alias_end = inner_alias;
+            while (*inner_alias_end && !isspace((unsigned char)*inner_alias_end) && *inner_alias_end != ')')
+              ++inner_alias_end;
+            if (inner_alias >= where || inner_alias_end > where)
+              inner_alias = inner_alias_end = table_end;
+          }
           const char *alias = close + 1;
           while (*alias && isspace((unsigned char)*alias))
             ++alias;
@@ -822,12 +836,19 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+              (cross_lateral && inner_alias_end > inner_alias &&
+               (!append_text(&text, &length, &capacity, " AS ") ||
+                !append_bytes(&text, &length, &capacity, inner_alias, (size_t)(inner_alias_end - inner_alias)))) ||
               !append_text(&text, &length, &capacity, " WHERE ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              (cross_lateral && order && order < close &&
+               (!append_text(&text, &length, &capacity, " ORDER BY ") ||
+                !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
               !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?") ||
+              (cross_lateral ? 0 :
+               !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?")) ||
               (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
