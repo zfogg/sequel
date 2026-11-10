@@ -270,9 +270,22 @@ static bool format_short_scalar_select(format_token *ts, size_t count, size_t se
     token t = ts[j].t;
     if (sym(t, ';') || sym(t, ')'))
       break;
-    if (ts[j].kind >= 3 || sym(t, ',') || boundary(t) || kw(t, "EXCLUDE") || kw(t, "CASE") ||
+    bool typed_parameter_comma = sym(t, ',') && t.clickhouse && j > select && ts[j - 1].kind == 2;
+    if (ts[j].kind >= 3 || (sym(t, ',') && !typed_parameter_comma) || boundary(t) || kw(t, "EXCLUDE") ||
+        kw(t, "CASE") ||
         kw(t, "SELECT") || kw(t, "WITH"))
       return false;
+    /* ClickHouse typed parameters use a brace-delimited payload whose type
+     * grammar may contain commas and nested parentheses.  The payload is one
+     * lexical parameter value for layout purposes, so its internal shape must
+     * not force the surrounding SELECT list multiline. */
+    if (sym(t, '{')) {
+      if (ts[j].matching <= j || ts[j].matching >= count)
+        return false;
+      j = ts[j].matching;
+      end = j;
+      continue;
+    }
     if (sym(t, '(') || sym(t, '[') || sym(t, '{')) {
       if (ts[j].multiline || ts[j].matching <= j || ts[j].matching >= count)
         return false;
@@ -666,6 +679,19 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
       (strstr(sql, "WITH ") == sql || strstr(sql, ";") || strstr(sql, "GLOBAL ANY") ||
        strstr(sql, " LEFT SEMI ") || strstr(sql, " LEFT ANTI ") ||
        strstr(sql, " ASOF ") || strstr(sql, " ARRAY JOIN ") || strstr(sql, " GLOBAL IN "))) {
+    *length = n;
+    if (!out)
+      return SEQUEL_OK;
+    if (capacity <= n)
+      return SEQUEL_ERR_OVERFLOW;
+    memcpy(out, sql, n + 1);
+    return SEQUEL_OK;
+  }
+  /* Typed ClickHouse parameters contain a dialect payload grammar inside
+   * braces. Preserve their lexical layout until the syntax-aware formatter
+   * has a dedicated parameter-payload node; normalizing the payload as SQL
+   * punctuation can incorrectly expand a short projection. */
+  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, "},")) {
     *length = n;
     if (!out)
       return SEQUEL_OK;
