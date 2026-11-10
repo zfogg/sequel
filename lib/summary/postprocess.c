@@ -30,8 +30,10 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
   if (!projection)
     return;
   char *from = strstr(projection + strlen("SELECT "), "FROM ");
-  if (!from || (!strchr(projection + strlen("SELECT "), ',') &&
-                !strchr(projection + strlen("SELECT "), '(')))
+  char *projection_start = projection + strlen("SELECT ");
+  char *comma = strchr(projection_start, ',');
+  char *open = strchr(projection_start, '(');
+  if (!from || ((!comma || comma > from) && (!open || open > from)))
     return;
   while (from > projection && (from[-1] == ' ' || from[-1] == '\t' || from[-1] == '\r' || from[-1] == '\n'))
     --from;
