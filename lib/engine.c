@@ -1,4 +1,4 @@
-#include "utf8.h"
+#include "util/utf8.h"
 #include <ctype.h>
 #include <sequel.h>
 #include "diagnostics.h"
@@ -28,7 +28,9 @@ typedef struct {
 #include "summary.c"
 #include "layout.c"
 #include "token_adapter.c"
+#define SEQUEL_DIAGNOSTICS_ENGINE 1
 #include "diagnostics.c"
+#undef SEQUEL_DIAGNOSTICS_ENGINE
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"

@@ -10,11 +10,11 @@
 #error SQL private configuration macros escaped the SQL implementation
 #endif
 
-#include "../lib/utf8.c"
-#include "../third_party/utf8proc.c"
+#include "../lib/util/utf8.c"
+#include "../third_party/utf8proc/utf8proc.c"
 #else
 #include <sequel.h>
-#include "../third_party/utf8proc.h"
+#include "../third_party/utf8proc/utf8proc.h"
 #endif
 
 #include <stdio.h>

@@ -17,8 +17,8 @@ for path in sources:
     digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes().replace(b"\r\n", b"\n"))
 data = (
     f"/* C engine SHA256: {digest.hexdigest()} */\n"
-    '#include "../lib/engine.c"\n#include "../lib/utf8.c"\n'
-    '#include "../third_party/utf8proc.c"\n'
+    '#include "../lib/engine.c"\n#include "../lib/util/utf8.c"\n'
+    '#include "../third_party/utf8proc/utf8proc.c"\n'
 )
 target = root / "go/native.c"
 if target.read_text(encoding="utf-8") != data:

@@ -1,5 +1,5 @@
 #include "embedded.h"
-#include "../lib/utf8.h"
+#include "../lib/util/utf8.h"
 #include <ctype.h>
 #include <sequel.h>
 #include <stdint.h>

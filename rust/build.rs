@@ -28,7 +28,7 @@ fn main() {
         }
         return;
     }
-    for directory in ["lib", "lib/utf8.c", "lib/utf8.h", "include", "third_party"] {
+    for directory in ["lib", "lib/util/utf8.c", "lib/util/utf8.h", "include", "third_party"] {
         println!("cargo:rerun-if-changed={directory}");
     }
     let mut build = cc::Build::new();
@@ -47,8 +47,8 @@ fn main() {
             "lib/summary_document.c",
             "lib/sanitizer.c",
             "lib/diagnostics.c",
-            "lib/utf8.c",
-            "third_party/utf8proc.c",
+            "lib/util/utf8.c",
+            "third_party/utf8proc/utf8proc.c",
         ])
         .includes(["include", "third_party"])
         .define("UTF8PROC_STATIC", "1")
