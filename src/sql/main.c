@@ -26,7 +26,7 @@ typedef struct {
 #include "scanner.c"
 #include "summary.c"
 #include "format.c"
-#include "diagnostics.c" /* canonical diagnostics delegates to the parser document */
+#include "diagnostics.c" /* canonical diagnostics delegates to the parser document and budgets */
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"
