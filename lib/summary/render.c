@@ -1323,6 +1323,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (text && summary_word(source.data, source.length, 0, "SELECT") &&
+      !strstr(source.data, " FROM ") && strchr(source.data + 7, ',') &&
+      (strchr(source.data, '$') || strchr(source.data, ':') || strchr(source.data, '%') ||
+       strchr(source.data, '?'))) {
+    length = 0;
+    text[0] = '\0';
+    if (!append_text(&text, &length, &capacity, "SELECT ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
   normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
