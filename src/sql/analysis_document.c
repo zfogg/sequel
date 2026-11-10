@@ -61,6 +61,10 @@ static sequel_status_t collect_portability_diagnostics(const sequel_syntax_docum
   return SEQUEL_OK;
 }
 
+static int analysis_cancelled(const sequel_cancellation_t *cancellation) {
+  return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata);
+}
+
 static int append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source) {
   if (!source->count)
     return 1;
@@ -160,7 +164,7 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   if (options)
     analysis->options = *options;
   analysis->query = query;
-  if (cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata)) {
+  if (analysis_cancelled(cancellation)) {
     free(analysis);
     return SEQUEL_ERR_CANCELLED;
   }
@@ -170,12 +174,32 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   sequel_diagnostic_list_t query_diagnostics = {0};
   sequel_diagnostic_list_t portability_diagnostics = {0};
   status = sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical_diagnostics);
+  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+    status = SEQUEL_ERR_CANCELLED;
   if (status == SEQUEL_OK)
     status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
+  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+    status = SEQUEL_ERR_CANCELLED;
   if (status == SEQUEL_OK && analysis->options.include_lints)
     status = sequel_collect_query_diagnostics(analysis->query, &query_diagnostics);
-  if (status == SEQUEL_OK && analysis->options.include_portability)
-    status = collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
+  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+    status = SEQUEL_ERR_CANCELLED;
+  if (status == SEQUEL_OK && analysis->options.include_portability) {
+    if (analysis->options.portability_target_count && !analysis->options.portability_targets)
+      status = SEQUEL_ERR_INVALID_ARGUMENT;
+    else if (analysis->options.portability_target_count) {
+      for (size_t i = 0; i < analysis->options.portability_target_count && status == SEQUEL_OK; ++i) {
+        if (analysis_cancelled(cancellation)) {
+          status = SEQUEL_ERR_CANCELLED;
+          break;
+        }
+        status = collect_portability_diagnostics(syntax, analysis->options.portability_targets[i],
+                                                 &portability_diagnostics);
+      }
+    } else {
+      status = collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
+    }
+  }
   if (status == SEQUEL_OK && analysis->options.include_summary) {
     sequel_summary_options_t summary_options;
     sequel_summary_options_init(&summary_options);

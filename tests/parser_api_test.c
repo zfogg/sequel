@@ -266,6 +266,16 @@ int main(void) {
              "portability diagnostics"))
     return 1;
   sequel_query_analysis_free(portability_analysis);
+  const sequel_dialect_t portability_targets[] = {SEQUEL_GENERIC, SEQUEL_SQLITE};
+  portability_analysis_options.portability_targets = portability_targets;
+  portability_analysis_options.portability_target_count = 2;
+  portability_analysis = NULL;
+  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL,
+                                     &portability_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_diagnostics(portability_analysis)->count >= 2,
+             "multiple portability targets"))
+    return 1;
+  sequel_query_analysis_free(portability_analysis);
   sequel_query_document_free(portability_query);
   sequel_syntax_document_free(portability_syntax);
   sequel_query_analysis_options_t output_options = analysis_options;
