@@ -762,6 +762,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             condition_end = cursor;
             break;
           }
+        for (const char *join = strstr(source.data + condition_start, " JOIN "); join;
+             join = strstr(join + 6, " JOIN ")) {
+          size_t join_offset = (size_t)(join - source.data);
+          if (join_offset < condition_end)
+            condition_end = join_offset;
+          break;
+        }
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
         if (condition_end > condition_start && !summary_word(source.data, source.length, condition_start, "USING")) {
