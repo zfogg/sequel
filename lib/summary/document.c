@@ -1,1 +1,1 @@
-#include "render.c"
+#include "document_render.c"
