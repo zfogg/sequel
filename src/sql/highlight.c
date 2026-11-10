@@ -197,6 +197,11 @@ static bool highlight_word_in(token t, const char *words) {
   return false;
 }
 
+static bool highlight_text_word(const char *text, size_t length, const char *words) {
+  token value = {text, length};
+  return highlight_word_in(value, words);
+}
+
 static sequel_highlight_color_t highlight_kind(format_token *ts, size_t count, size_t i, sequel_dialect_t dialect) {
   token t = ts[i].t;
   unsigned char c = (unsigned char)*t.p;
@@ -283,13 +288,14 @@ static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *token
   if (token->kind == SEQUEL_TOKEN_OPERATOR)
     return SEQUEL_COLOR_OPERATOR;
   if (token->kind == SEQUEL_TOKEN_KEYWORD) {
-    if (highlight_word_in(((token){text, length}), "TRUE FALSE"))
+    if (highlight_text_word(text, length, "TRUE FALSE"))
       return SEQUEL_COLOR_BOOLEAN;
-    if (highlight_word_in(((token){text, length}), "NULL"))
+    if (highlight_text_word(text, length, "NULL"))
       return SEQUEL_COLOR_NULL;
-    if (highlight_word_in(((token){text, length}),
-                          "BIGINT INTEGER INT DATE DATETIME DECIMAL DOUBLE FLOAT JSON NUMERIC REAL TEXT TIME TIMESTAMP "
-                          "UUID VARCHAR"))
+    if (highlight_text_word(
+            text, length,
+            "BIGINT INTEGER INT DATE DATETIME DECIMAL DOUBLE FLOAT JSON NUMERIC REAL TEXT TIME TIMESTAMP "
+            "UUID VARCHAR"))
       return SEQUEL_COLOR_TYPE;
     return SEQUEL_COLOR_KEYWORD;
   }
@@ -398,8 +404,9 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     return status;
   size_t issue_count = 0;
   sequel_syntax_issues(document, &issue_count);
-  if (issue_count && !options->tolerant) {
+  if (issue_count)
     (void)sequel_syntax_diagnostic(document, 0, diagnostic);
+  if (issue_count && (!options->tolerant || diagnostic->code == SEQUEL_DIAG_INVALID_PARAMETER)) {
     sequel_syntax_document_free(document);
     return diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW : SEQUEL_ERR_INVALID_ARGUMENT;
   }

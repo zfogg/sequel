@@ -21,7 +21,7 @@ static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
 static int is_word_part(unsigned char c) { return isalnum(c) || c == '_' || c >= 128; }
 static int is_operator_char(unsigned char c) {
   return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '!' || c == '<' || c == '>' ||
-         c == '~' || c == '|' || c == '&' || c == '^';
+         c == '~' || c == '|' || c == '&' || c == '^' || c == '@';
 }
 
 static int append_token(sequel_lexed_document_t *document, sequel_token_t token, size_t limit) {
@@ -189,9 +189,10 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         while (close + (tag_end - i + 1) <= source->length &&
                memcmp(source->data + close, source->data + i, tag_end - i + 1) != 0)
           ++close;
-        i = close + (tag_end - i + 1) <= source->length ? close + (tag_end - i + 1) : source->length;
+        int terminated = close + (tag_end - start + 1) <= source->length;
+        i = terminated ? close + (tag_end - start + 1) : source->length;
         kind = SEQUEL_TOKEN_STRING;
-        flags = i == source->length ? SEQUEL_TOKEN_FLAG_UNTERMINATED : 0;
+        flags = terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED;
       } else {
         ++i;
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
@@ -216,7 +217,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_BIND | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       if (terminated && !memchr(source->data + start, ':', i - start))
         flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
-    } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' || source->data[i] == '@') {
+    } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' ||
+               (source->data[i] == '@' &&
+                (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1])))) {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))
         ++i;
