@@ -47,4 +47,8 @@ typedef struct {
   uint32_t dialect_id;
 } sequel_token_t;
 
+/** Return the source slice covered by a token without copying it. */
+sequel_status_t sequel_token_text(const sequel_source_t *source, const sequel_token_t *token, const char **data,
+                                  size_t *length);
+
 SEQUEL_EXTERN_C_END

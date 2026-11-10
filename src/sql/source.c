@@ -1,4 +1,5 @@
 #include <sequel/source.h>
+#include <sequel/lexer.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +64,17 @@ int sequel_source_range_valid(sequel_source_range_t range, size_t source_length)
 
 int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_range_t inner) {
   return outer.start <= inner.start && inner.start <= inner.end && inner.end <= outer.end;
+}
+
+sequel_status_t sequel_token_text(const sequel_source_t *source, const sequel_token_t *token, const char **data,
+                                  size_t *length) {
+  if (!source || !token || !data || !length)
+    return SEQUEL_ERR_NULL;
+  if (!sequel_source_range_valid(token->range, source->view.length))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  *data = source->view.data + token->range.start;
+  *length = token->range.end - token->range.start;
+  return SEQUEL_OK;
 }
 
 static void position_at(const char *data, size_t length, size_t offset, sequel_position_t *position) {
