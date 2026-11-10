@@ -15,6 +15,48 @@ struct sequel_query_analysis {
   char fingerprint[SEQUEL_FINGERPRINT_LENGTH];
 };
 
+static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics,
+                                    sequel_diagnostic_record_t record) {
+  if (diagnostics->count == diagnostics->capacity) {
+    size_t capacity = diagnostics->capacity ? diagnostics->capacity * 2 : 8;
+    if (capacity < diagnostics->count || capacity > SIZE_MAX / sizeof(*diagnostics->records))
+      return 0;
+    sequel_diagnostic_record_t *records = realloc(diagnostics->records, capacity * sizeof(*records));
+    if (!records)
+      return 0;
+    diagnostics->records = records;
+    diagnostics->capacity = capacity;
+  }
+  diagnostics->records[diagnostics->count++] = record;
+  return 1;
+}
+
+static sequel_status_t collect_portability_diagnostics(const sequel_syntax_document_t *syntax,
+                                                       sequel_dialect_t target,
+                                                       sequel_diagnostic_list_t *diagnostics) {
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
+  if (sequel_lexed_dialect(lexed) == target)
+    return SEQUEL_OK;
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  for (size_t i = 0; i < count; ++i) {
+    if (!(tokens[i].flags & SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC))
+      continue;
+    if (!append_diagnostic_record(diagnostics,
+                                  (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
+                                                               .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
+                                                               .severity = SEQUEL_WARNING,
+                                                               .range = tokens[i].range,
+                                                               .statement_index = SIZE_MAX,
+                                                               .syntax_node = SIZE_MAX,
+                                                               .recovered = 0})) {
+      sequel_diagnostic_list_free(diagnostics);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
+  return SEQUEL_OK;
+}
+
 static int append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source) {
   if (!source->count)
     return 1;
@@ -71,11 +113,14 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   sequel_diagnostic_list_t lexical_diagnostics = {0};
   sequel_diagnostic_list_t syntax_diagnostics = {0};
   sequel_diagnostic_list_t query_diagnostics = {0};
+  sequel_diagnostic_list_t portability_diagnostics = {0};
   status = sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical_diagnostics);
   if (status == SEQUEL_OK)
     status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
   if (status == SEQUEL_OK && analysis->options.include_lints)
     status = sequel_collect_query_diagnostics(analysis->query, &query_diagnostics);
+  if (status == SEQUEL_OK && analysis->options.include_portability)
+    status = collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
   if (status == SEQUEL_OK && analysis->options.include_summary) {
     sequel_summary_options_t summary_options;
     sequel_summary_options_init(&summary_options);
@@ -95,9 +140,12 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
     status = SEQUEL_ERR_NOMEM;
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &query_diagnostics))
     status = SEQUEL_ERR_NOMEM;
+  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &portability_diagnostics))
+    status = SEQUEL_ERR_NOMEM;
   sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_diagnostic_list_free(&syntax_diagnostics);
   sequel_diagnostic_list_free(&query_diagnostics);
+  sequel_diagnostic_list_free(&portability_diagnostics);
   if (status != SEQUEL_OK) {
     sequel_query_analysis_free(analysis);
     return status;

@@ -179,7 +179,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       kind = quote == '\'' || (quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_STRING
                                                                                   : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
-      flags = SEQUEL_TOKEN_FLAG_LITERAL;
+      flags = SEQUEL_TOKEN_FLAG_LITERAL |
+              ((quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC : 0);
       if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (isdigit((unsigned char)source->data[i])) {
@@ -203,7 +204,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         int terminated = close + (tag_end - start + 1) <= source->length;
         i = terminated ? close + (tag_end - start + 1) : source->length;
         kind = SEQUEL_TOKEN_STRING;
-        flags = SEQUEL_TOKEN_FLAG_LITERAL | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
+        flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC |
+                (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       } else {
         ++i;
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
@@ -212,7 +214,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
           while (i < source->length && !isspace((unsigned char)source->data[i]) && source->data[i] != ';')
             ++i;
           if (memchr(source->data + start, '(', i - start) && !memchr(source->data + start, ')', i - start))
-            flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+            flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
         }
         kind = SEQUEL_TOKEN_PARAMETER;
         flags |= SEQUEL_TOKEN_FLAG_BIND;
@@ -225,7 +227,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       if (terminated)
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
-      flags = SEQUEL_TOKEN_FLAG_BIND | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
+      flags = SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC |
+              (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       if (terminated && !memchr(source->data + start, ':', i - start))
         flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
     } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' ||
