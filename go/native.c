@@ -7,6 +7,7 @@
 #include "../src/sql/query.c"
 #include "../src/sql/analysis_document.c"
 #include "../src/sql/serialization.c"
+#include "../src/sql/diagnostic.c"
 #include "../src/sql/diagnostics_bridge.c"
 #include "../src/utf8.c"
 #include "../third_party/utf8proc.c"
