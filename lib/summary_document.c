@@ -1657,6 +1657,46 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
+  if (text && strstr(source.data, "SELECT unnest(") && strstr(text, "SELECT ")) {
+    char *select = strstr(text, "SELECT ");
+    const char replacement[] = "SELECT unnest(…)";
+    char *end = strstr(select + 7, " ON CONFLICT");
+    if (end) {
+      memmove(select + sizeof(replacement) - 1, end, strlen(end) + 1);
+      memcpy(select, replacement, sizeof(replacement) - 1);
+      length = strlen(text);
+    }
+  }
+  if (text && strstr(source.data, "ON CONFLICT") && strstr(source.data, "DO NOTHING")) {
+    const char *insert = strstr(source.data, "INSERT INTO ");
+    const char *select = insert ? strstr(insert, " SELECT ") : NULL;
+    const char *from = select ? strstr(select, " FROM ") : NULL;
+    const char *where = from ? strstr(from, " WHERE ") : NULL;
+    const char *conflict = where ? strstr(where, " ON CONFLICT") : (from ? strstr(from, " ON CONFLICT") : NULL);
+    const char *returning = conflict ? strstr(conflict, " RETURNING ") : NULL;
+    if (insert && select && from && conflict) {
+      const char *target = insert + strlen("INSERT INTO ");
+      const char *target_end = select;
+      const char *relation = from + 6;
+      const char *relation_end = where && where < conflict ? where : conflict;
+      while (relation_end > relation && isspace((unsigned char)relation_end[-1]))
+        --relation_end;
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "INSERT INTO ") ||
+          !append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
+          !append_text(&text, &length, &capacity, " SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)) ||
+          (where && (!append_text(&text, &length, &capacity, " WHERE ") ||
+                     !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+          !append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING") ||
+          (returning && (!append_text(&text, &length, &capacity, " RETURNING ") ||
+                         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
+        goto no_memory;
+    }
+  }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
     const char *select = strstr(source.data, " SELECT ") + 1;
     const char *from = strstr(select, " FROM ");
