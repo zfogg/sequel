@@ -13,6 +13,10 @@ struct sequel_query_analysis {
   sequel_text_result_t sanitized_sql;
   sequel_text_result_t formatted_sql;
   char fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  sequel_analysis_source_map_t sanitized_map;
+  sequel_analysis_map_segment_t sanitized_segment;
+  sequel_analysis_source_map_t formatted_map;
+  sequel_analysis_map_segment_t formatted_segment;
 };
 
 static int append_diagnostic_record(sequel_diagnostic_list_t *diagnostics,
@@ -134,6 +138,24 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
                                      &analysis->sanitized_sql);
   if (status == SEQUEL_OK && analysis->options.include_formatted_sql)
     status = sequel_format_syntax(syntax, NULL, &analysis->formatted_sql);
+  if (status == SEQUEL_OK && analysis->options.include_source_maps) {
+    if (analysis->sanitized_sql.data) {
+      analysis->sanitized_segment = (sequel_analysis_map_segment_t){0, sequel_query_source(query).length, 0,
+                                                                    analysis->sanitized_sql.length,
+                                                                    SEQUEL_ANALYSIS_MAP_REPLACE};
+      analysis->sanitized_map = (sequel_analysis_source_map_t){sequel_query_source(query).length,
+                                                               analysis->sanitized_sql.length,
+                                                               &analysis->sanitized_segment, 1};
+    }
+    if (analysis->formatted_sql.data) {
+      analysis->formatted_segment = (sequel_analysis_map_segment_t){0, sequel_query_source(query).length, 0,
+                                                                    analysis->formatted_sql.length,
+                                                                    SEQUEL_ANALYSIS_MAP_REPLACE};
+      analysis->formatted_map = (sequel_analysis_source_map_t){sequel_query_source(query).length,
+                                                               analysis->formatted_sql.length,
+                                                               &analysis->formatted_segment, 1};
+    }
+  }
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
     status = SEQUEL_ERR_NOMEM;
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &syntax_diagnostics))
@@ -186,6 +208,14 @@ sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t 
   }
   memcpy(out, analysis->fingerprint, sizeof(analysis->fingerprint));
   return SEQUEL_OK;
+}
+
+const sequel_analysis_source_map_t *sequel_query_analysis_sanitized_map(const sequel_query_analysis_t *analysis) {
+  return analysis && analysis->sanitized_map.segments ? &analysis->sanitized_map : NULL;
+}
+
+const sequel_analysis_source_map_t *sequel_query_analysis_formatted_map(const sequel_query_analysis_t *analysis) {
+  return analysis && analysis->formatted_map.segments ? &analysis->formatted_map : NULL;
 }
 
 const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis) {

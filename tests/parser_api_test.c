@@ -270,10 +270,14 @@ int main(void) {
   sequel_query_analysis_options_t output_options = analysis_options;
   output_options.include_sanitized_sql = true;
   output_options.include_formatted_sql = true;
+  output_options.include_source_maps = true;
   sequel_query_analysis_t *output_analysis = NULL;
   if (!check(sequel_analyze_document(syntax, query, &output_options, NULL, &output_analysis) == SEQUEL_OK &&
                  sequel_query_analysis_sanitized_sql(output_analysis) != NULL &&
-                 sequel_query_analysis_formatted_sql(output_analysis) != NULL,
+                 sequel_query_analysis_formatted_sql(output_analysis) != NULL &&
+                 sequel_query_analysis_sanitized_map(output_analysis) != NULL &&
+                 sequel_query_analysis_formatted_map(output_analysis) != NULL &&
+                 sequel_query_analysis_sanitized_map(output_analysis)->count == 1,
              "analysis rendered outputs"))
     return 1;
   sequel_query_analysis_free(output_analysis);

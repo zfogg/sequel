@@ -26,6 +26,28 @@ typedef struct {
   size_t portability_target_count;
 } sequel_query_analysis_options_t;
 
+typedef enum {
+  SEQUEL_ANALYSIS_MAP_COPY,
+  SEQUEL_ANALYSIS_MAP_REPLACE,
+  SEQUEL_ANALYSIS_MAP_DELETE,
+  SEQUEL_ANALYSIS_MAP_INSERT
+} sequel_analysis_map_kind_t;
+
+typedef struct {
+  size_t from_start;
+  size_t from_end;
+  size_t to_start;
+  size_t to_end;
+  sequel_analysis_map_kind_t kind;
+} sequel_analysis_map_segment_t;
+
+typedef struct {
+  size_t from_length;
+  size_t to_length;
+  const sequel_analysis_map_segment_t *segments;
+  size_t count;
+} sequel_analysis_source_map_t;
+
 /** Initialize document-analysis options with all semantic collections enabled. */
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options);
 
@@ -58,3 +80,9 @@ const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_que
 /** Copy the optional requested fingerprint into a caller-provided buffer. */
 sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis,
                                                   char out[SEQUEL_FINGERPRINT_LENGTH]);
+
+/** Return the original-to-sanitized provenance map when requested. */
+const sequel_analysis_source_map_t *sequel_query_analysis_sanitized_map(const sequel_query_analysis_t *analysis);
+
+/** Return the sanitized-to-formatted provenance map when requested. */
+const sequel_analysis_source_map_t *sequel_query_analysis_formatted_map(const sequel_query_analysis_t *analysis);
