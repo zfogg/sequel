@@ -1,16 +1,6 @@
 /* Preserve lexical contents; only whitespace outside lexical tokens changes.
  * Keeping the formatter independent of a grammar also supports driver/sqlc
  * parameters and sanitized telemetry templates that aren't executable SQL. */
-typedef struct {
-  token t;
-  bool gap, newline;
-  int kind; /* 0 punctuation, 1 word, 2 quoted/parameter, 3 line comment, 4 block comment */
-  size_t matching;
-  bool multiline;
-  size_t flat_width;
-  size_t source_offset, rendered_offset;
-} format_token;
-
 static size_t format_scan_error(const char *s, size_t n, sequel_diagnostic_t *diag, sequel_diagnostic_code_t code,
                                 size_t start, size_t end) {
   diagnostic_report(s, n, diag, code, start, end);

@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "resources.h"
+#include "legacy_tokens.h"
 
 #define INPUT_MAX SEQUEL_INPUT_MAX
 typedef struct {
