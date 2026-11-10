@@ -10,7 +10,7 @@ static const char summary_ellipsis[] = "\342\200\246";
 #define summary_skip_space sequel_summary_skip_space
 
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
-                               sequel_source_range_t range) {
+                               sequel_source_range_t range, bool preserve_limit) {
   size_t start = summary_skip_space(source, range.end, range.start);
   if (summary_word(source, range.end, start, "SELECT")) {
     size_t from = start;
@@ -137,11 +137,16 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       size_t value_end = value;
       while (value_end < range.end && !isspace((unsigned char)source[value_end]) && source[value_end] != ')')
         ++value_end;
+      bool parameter = source[value] == '$' || source[value] == '?' ||
+                       (value_end - value >= 9 && !memcmp(source + value, "sqlc.arg(", 9));
+      char numeric[32];
+      size_t numeric_length = value_end - value;
+      if (numeric_length >= sizeof(numeric))
+        return 0;
+      memcpy(numeric, source + value, numeric_length);
+      numeric[numeric_length] = 0;
       if (!append_text(text, length, capacity, " LIMIT ") ||
-          !append_text(text, length, capacity, (source[value] == '$' || source[value] == '?' ||
-                                               (value_end - value >= 9 && !memcmp(source + value, "sqlc.arg(", 9)))
-                                                  ? "?"
-                                                  : "1"))
+          !append_text(text, length, capacity, preserve_limit && !parameter ? numeric : parameter ? "?" : "1"))
         return 0;
     }
     return 1;

@@ -127,7 +127,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_text(&text, &length, &capacity,
                        strstr(source.data + ctes[i].name_range.end, "MATERIALIZED") ? " AS MATERIALIZED (" : " AS ("))
         goto no_memory;
-      if (!append_body_summary(&text, &length, &capacity, source.data, ctes[i].body_range) ||
+      bool preserve_limit = false;
+      for (size_t cursor = ctes[i].name_range.end; cursor < ctes[i].body_range.start; ++cursor)
+        if (cursor + 12 <= source.length && !memcmp(source.data + cursor, "MATERIALIZED", 12)) {
+          preserve_limit = true;
+          break;
+        }
+      if (!append_body_summary(&text, &length, &capacity, source.data, ctes[i].body_range, preserve_limit) ||
           !append_text(&text, &length, &capacity, ")"))
         goto no_memory;
     }
@@ -1224,7 +1230,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     for (size_t i = outer_start; i < source.length; ++i) {
       if (summary_word(source.data, source.length, i, "ORDER") &&
           summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
-        if (!append_text(&text, &length, &capacity, " ORDER BY"))
+        if (!append_text(&text, &length, &capacity,
+                         strstr(source.data, "SELECT DISTINCT ON") ? " ORDER BY …" : " ORDER BY"))
           goto no_memory;
         break;
       }
