@@ -1932,6 +1932,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         analysis_summary_from_query(query, out);
       else
         analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
+      for (size_t i = 0; i < layout.n; ++i)
+        layout.p[i].t.p = safe.p + layout.p[i].source_offset;
       analysis_charge(&a, strlen(out->operation) + 1);
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
       if (!o.omit_query_text && safe.n > limit) {
