@@ -67,7 +67,11 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   }
   memset(diagnostic, 0, sizeof(*diagnostic));
   diagnostic->code = code;
-  diagnostic->severity = issue->recovery == SEQUEL_RECOVERY_NONE ? SEQUEL_ERROR : SEQUEL_WARNING;
+  diagnostic->severity = issue->code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
+                                 issue->code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN ||
+                                 issue->recovery == SEQUEL_RECOVERY_NONE
+                             ? SEQUEL_ERROR
+                             : SEQUEL_WARNING;
   diagnostic->offset = issue->range.start;
   diagnostic->end_offset = issue->range.end;
   diagnostic->incomplete =
