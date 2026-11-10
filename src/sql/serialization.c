@@ -48,6 +48,16 @@ static int read_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) 
   return 1;
 }
 
+static int serialized_range_valid(uint64_t start, uint64_t end, size_t source_length) {
+  return start <= end && end <= source_length;
+}
+
+static int read_serialized_range(const uint8_t **cursor, size_t *remaining, size_t source_length) {
+  uint64_t start = 0, end = 0;
+  return read_u64(cursor, remaining, &start) && read_u64(cursor, remaining, &end) &&
+         serialized_range_valid(start, end, source_length);
+}
+
 void sequel_serialization_options_init(sequel_serialization_options_t *options) {
   if (options)
     *options = (sequel_serialization_options_t){{SEQUEL_DOCUMENT_SCHEMA_MAJOR, SEQUEL_DOCUMENT_SCHEMA_MINOR}};
@@ -208,6 +218,37 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
                    header[11] * 10 + header[12] * 6 + header[13] * 6 + header[14] * 6;
   if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t) || remaining % sizeof(uint64_t) != 0)
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  const uint8_t *validation_cursor = cursor;
+  size_t validation_remaining = remaining;
+  for (uint64_t i = 0; i < header[5]; ++i) {
+    uint64_t record[10];
+    for (size_t j = 0; j < 10; ++j)
+      if (!read_u64(&validation_cursor, &validation_remaining, &record[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (record[0] > SEQUEL_TOKEN_ERROR || !serialized_range_valid(record[2], record[3], source->length) ||
+        !serialized_range_valid(record[4], record[5], source->length) ||
+        !serialized_range_valid(record[6], record[7], source->length))
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[6]; ++i) {
+    uint64_t record[11];
+    for (size_t j = 0; j < 11; ++j)
+      if (!read_u64(&validation_cursor, &validation_remaining, &record[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (record[0] > SEQUEL_SYNTAX_ERROR || !serialized_range_valid(record[2], record[3], source->length) ||
+        !serialized_range_valid(record[4], record[5], source->length) || record[6] > header[6] ||
+        record[6] + record[7] > header[7] || record[8] > header[5] || record[8] + record[9] > header[5])
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  for (uint64_t i = 0; i < header[8]; ++i) {
+    uint64_t code, recovery, statement;
+    if (!read_u64(&validation_cursor, &validation_remaining, &code) ||
+        !read_u64(&validation_cursor, &validation_remaining, &recovery) ||
+        !read_serialized_range(&validation_cursor, &validation_remaining, source->length) ||
+        !read_u64(&validation_cursor, &validation_remaining, &statement) || code > SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN ||
+        recovery > SEQUEL_RECOVERY_OPAQUE_REGION)
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = (sequel_dialect_t)header[3];
