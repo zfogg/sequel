@@ -214,6 +214,18 @@ int main(void) {
                  sequel_query_parameters(query)[0].explicit_number == 1,
              "numbered parameter"))
     return 1;
+  sequel_source_view_t repeated_bind_source = {"SELECT :account, :account", strlen("SELECT :account, :account")};
+  sequel_syntax_document_t *repeated_bind_syntax = NULL;
+  sequel_query_document_t *repeated_bind_query = NULL;
+  if (!check(sequel_parse_sql(&repeated_bind_source, &options, NULL, &repeated_bind_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(repeated_bind_syntax, &options, &repeated_bind_query) == SEQUEL_OK &&
+                 sequel_query_parameter_count(repeated_bind_query) == 2 &&
+                 sequel_query_parameters(repeated_bind_query)[0].identity ==
+                     sequel_query_parameters(repeated_bind_query)[1].identity,
+             "repeated named bind identity"))
+    return 1;
+  sequel_query_document_free(repeated_bind_query);
+  sequel_syntax_document_free(repeated_bind_syntax);
   size_t visited_relations = 0;
   sequel_query_visitor_t query_visitor = {.relation = count_relations, .userdata = &visited_relations};
   if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK && visited_relations == 1, "query visitor"))

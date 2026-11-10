@@ -162,15 +162,30 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (style == SEQUEL_BIND_UNKNOWN)
       continue;
     ++ordinal;
+    sequel_source_range_t name_range = {tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1),
+                                        tokens[i].range.end};
+    uint64_t identity = explicit_number ? explicit_number : ordinal;
+    if (!explicit_number && (style == SEQUEL_BIND_NAMED || style == SEQUEL_BIND_TYPED || style == SEQUEL_BIND_FORMAT)) {
+      for (size_t previous = 0; previous < document->parameter_count; ++previous) {
+        const sequel_parameter_info_t *candidate = &document->parameters[previous];
+        size_t candidate_length = candidate->name_range.end - candidate->name_range.start;
+        size_t name_length = name_range.end - name_range.start;
+        if (candidate->style == style && candidate_length == name_length &&
+            !memcmp(source.data + candidate->name_range.start, source.data + name_range.start, name_length)) {
+          identity = candidate->identity;
+          break;
+        }
+      }
+    }
     sequel_parameter_info_t parameter = {
         .range = tokens[i].range,
         .style = style,
         .statement_index = statement_for_range(document, tokens[i].range),
         .ordinal = ordinal,
         .explicit_number = explicit_number,
-        .name_range = {tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1), tokens[i].range.end},
+        .name_range = name_range,
         .type_range = {tokens[i].range.end, tokens[i].range.end},
-        .identity = explicit_number ? explicit_number : ordinal};
+        .identity = identity};
     if (!append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
