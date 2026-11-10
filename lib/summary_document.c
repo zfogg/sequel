@@ -639,6 +639,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
       statements[0].operation == SEQUEL_OPERATION_SELECT &&
       (strstr(source.data, " UNION ") || strstr(source.data, " EXCEPT ") || strstr(source.data, " INTERSECT "))) {
+    length = 0;
+    if (text)
+      text[0] = '\0';
     const char *cursor = source.data;
     bool first_set = true;
     while (cursor < source.data + source.length) {
