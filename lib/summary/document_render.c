@@ -336,6 +336,66 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     length = 0;
     if (text)
       text[0] = '\0';
+    if (source.length && source.data[0] == '(') {
+      const char *cursor = source.data;
+      bool first_set = true;
+      while (cursor < source.data + source.length) {
+        const char *select = strstr(cursor, "(SELECT ");
+        if (!select)
+          break;
+        const char *from = strstr(select, " FROM ");
+        const char *close = from ? strchr(from, ')') : NULL;
+        if (!from || !close)
+          break;
+        const char *table = from + 6;
+        while (table < close && isspace((unsigned char)*table))
+          ++table;
+        const char *table_end = table;
+        while (table_end < close && !isspace((unsigned char)*table_end) && *table_end != ')')
+          ++table_end;
+        const char *limit = strstr(table_end, " LIMIT ");
+        if (limit && limit > close)
+          limit = NULL;
+        if (!first_set) {
+          const char *operator_start = cursor;
+          while (operator_start > source.data && operator_start[-1] != ')')
+            --operator_start;
+          if (!append_bytes(&text, &length, &capacity, operator_start,
+                            (size_t)(select - operator_start)))
+            goto no_memory;
+        }
+        if (!append_text(&text, &length, &capacity, "(SELECT ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !append_text(&text, &length, &capacity, " FROM ") ||
+            !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)))
+          goto no_memory;
+        if (limit) {
+          const char *value = limit + 7;
+          while (*value && isspace((unsigned char)*value))
+            ++value;
+          const char *value_end = value;
+          while (value_end < close && !isspace((unsigned char)*value_end) && *value_end != ')')
+            ++value_end;
+          if (!append_text(&text, &length, &capacity, " LIMIT ") ||
+              !append_text(&text, &length, &capacity, value[0] == '$' || value[0] == '?' ? "?" : "1"))
+            goto no_memory;
+        }
+        if (!append_text(&text, &length, &capacity, ")"))
+          goto no_memory;
+        cursor = close + 1;
+        first_set = false;
+        if (!strstr(cursor, "SELECT "))
+          break;
+      }
+      const char *order = strstr(cursor, " ORDER BY ");
+      if (order && (!append_text(&text, &length, &capacity, " ORDER BY …") ||
+                    (strstr(order, " LIMIT ") &&
+                     (!append_text(&text, &length, &capacity, " LIMIT ") ||
+                      !append_bytes(&text, &length, &capacity, strstr(order, " LIMIT ") + 7,
+                                    source.data + source.length - (strstr(order, " LIMIT ") + 7))))))
+        goto no_memory;
+      goto summary_postprocess;
+    } else {
     const char *cursor = source.data;
     bool first_set = true;
     while (cursor < source.data + source.length) {
@@ -368,10 +428,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         next = intersect;
       if (!next)
         break;
-      if (!append_bytes(&text, &length, &capacity, next, (size_t)(strstr(next + 1, " SELECT ") - next)))
+      const char *following_select = strstr(next + 1, " SELECT ");
+      if (!following_select)
+        following_select = strstr(next + 1, "(SELECT ");
+      if (!following_select ||
+          !append_bytes(&text, &length, &capacity, next, (size_t)(following_select - next)))
         goto no_memory;
-      cursor = strstr(next + 1, " SELECT ");
+      cursor = following_select + (following_select[0] == '(' ? 1 : 0);
       first_set = false;
+    }
     }
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
@@ -1190,6 +1255,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
+summary_postprocess:
   normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
