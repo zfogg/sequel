@@ -1088,9 +1088,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (first_outer_relation != SIZE_MAX) {
         for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
-          if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && relations[i].kind != SEQUEL_RELATION_SUBQUERY)
+          bool lateral_subquery =
+              relations[i].kind == SEQUEL_RELATION_SUBQUERY && sequel_summary_find_text(source.data, " LATERAL ");
+          if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && !lateral_subquery)
             continue;
-          if (relations[i].kind == SEQUEL_RELATION_SUBQUERY) {
+          if (relations[i].kind == SEQUEL_RELATION_SUBQUERY && lateral_subquery) {
             const char *subquery = source.data + relations[i].range.start;
             const char *from =
                 sequel_summary_word(subquery, source.length - relations[i].range.start, 0, "FROM")
