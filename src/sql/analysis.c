@@ -889,6 +889,23 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     out->status = "malformed";
     out->omission_reason = "malformed";
   } else {
+    sequel_parse_options_t parse_options;
+    sequel_parse_options_init(&parse_options);
+    parse_options.dialect = o.dialect;
+    parse_options.retain_comments = true;
+    sequel_source_view_t parse_source = {sql, n};
+    sequel_syntax_document_t *syntax = NULL;
+    sequel_query_document_t *query = NULL;
+    sequel_status_t parse_status = sequel_parse_sql(&parse_source, &parse_options, NULL, &syntax);
+    if (parse_status == SEQUEL_OK) {
+      size_t parse_issue_count = 0;
+      sequel_syntax_issues(syntax, &parse_issue_count);
+      if (!parse_issue_count && sequel_build_query_document(syntax, &parse_options, &query) != SEQUEL_OK) {
+        valid = SEQUEL_ERR_NOMEM;
+      }
+    } else {
+      valid = parse_status;
+    }
     format_token *tokens = NULL;
     size_t scanned = 0;
     size_t count = format_scan_recover(sql, n, o.dialect, &tokens, false, &first, &scanned);
@@ -981,6 +998,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
               analysis_format_map(&layout, safe.n, b.n, &fm);
               out->sanitized_to_formatted = (sequel_source_map_t){safe.n, b.n, fm.p, fm.n};
             }
+            sequel_query_document_free(query);
+            sequel_syntax_document_free(syntax);
           }
         }
       }
