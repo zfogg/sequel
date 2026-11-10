@@ -491,6 +491,25 @@ int main(void) {
              "query summary"))
     return 1;
   sequel_text_result_free(&summary);
+  {
+    const char lowercase_sql[] = "select value from records where value = 1 order by value limit 1";
+    sequel_source_view_t lowercase_source = {lowercase_sql, strlen(lowercase_sql)};
+    sequel_syntax_document_t *lowercase_syntax = NULL;
+    sequel_query_document_t *lowercase_query = NULL;
+    sequel_text_result_t lowercase_summary = {0};
+    if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK,
+               "lowercase keyword parsing") ||
+        !check(sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK,
+               "lowercase query extraction") ||
+        !check(sequel_summarize_query(lowercase_query, &summary_options, &lowercase_summary) == SEQUEL_OK &&
+                   strstr(lowercase_summary.data, "FROM records") != NULL &&
+                   strstr(lowercase_summary.data, "WHERE") != NULL,
+               "lowercase keyword summary"))
+      return 1;
+    sequel_text_result_free(&lowercase_summary);
+    sequel_query_document_free(lowercase_query);
+    sequel_syntax_document_free(lowercase_syntax);
+  }
   sequel_query_analysis_free(document_analysis);
   sequel_buffer_t serialized = {0};
   if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,

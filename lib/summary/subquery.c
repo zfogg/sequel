@@ -12,12 +12,12 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
     ++start;
   if (start >= source.length || source.data[start] != '(')
     return 1;
-  const char *select = strstr(source.data + start, "SELECT ");
-  const char *from = select ? strstr(select, " FROM ") : NULL;
+  const char *select = sequel_summary_find_text(source.data + start, "SELECT ");
+  const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
   const char *close = from ? strchr(from, ')') : NULL;
   if (!select || !from || !close)
     return 1;
-  if (strstr(close + 1, "CROSS JOIN LATERAL") || strstr(close + 1, "JOIN LATERAL"))
+  if (sequel_summary_find_text(close + 1, "CROSS JOIN LATERAL") || sequel_summary_find_text(close + 1, "JOIN LATERAL"))
     return 1;
   const char *table = from + 6;
   while (table < close && isspace((unsigned char)*table))
@@ -25,8 +25,8 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
   const char *table_end = table;
   while (table_end < close && !isspace((unsigned char)*table_end) && *table_end != ')')
     ++table_end;
-  const char *where = strstr(table_end, " WHERE ");
-  const char *limit = strstr(table_end, " LIMIT ");
+  const char *where = sequel_summary_find_text(table_end, " WHERE ");
+  const char *limit = sequel_summary_find_text(table_end, " LIMIT ");
   if (where && where > close)
     where = NULL;
   if (limit && limit > close)
@@ -41,7 +41,7 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
                  !sequel_summary_append_text(text, length, capacity, limit[7] == '$' ? "?" : "1"))) ||
       !sequel_summary_append_text(text, length, capacity, ")"))
     return 0;
-  const char *outer_limit = strstr(close + 1, " LIMIT ");
+  const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
   if (outer_limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
                       !sequel_summary_append_text(text, length, capacity, outer_limit[7] == '$' ? "?" : "1")))
     return 0;

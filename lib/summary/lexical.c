@@ -3,6 +3,20 @@
 #include <ctype.h>
 #include <string.h>
 
+char *sequel_summary_find_text(const char *source, const char *needle) {
+  if (!source || !needle || !*needle)
+    return source;
+  size_t needle_length = strlen(needle);
+  for (const char *cursor = source; *cursor; ++cursor) {
+    size_t i = 0;
+    while (i < needle_length && cursor[i] && toupper((unsigned char)cursor[i]) == toupper((unsigned char)needle[i]))
+      ++i;
+    if (i == needle_length)
+      return (char *)cursor;
+  }
+  return NULL;
+}
+
 static int sequel_summary_identifier_character(unsigned char character) {
   return isalnum(character) || character == '_';
 }

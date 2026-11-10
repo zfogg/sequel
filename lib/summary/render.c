@@ -82,7 +82,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
    * generic projection scanner otherwise mistakes the delimiter for a bind. */
   if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
       settings->include_operation && settings->include_tables && statement_count &&
-      summary_word(source.data, source.length, 0, "SELECT") && strstr(source.data, "$")) {
+      summary_word(source.data, source.length, 0, "SELECT") && sequel_summary_find_text(source.data, "$")) {
     const char *from = sequel_summary_find_word(source.data, source.length, 0, "FROM");
     if (from) {
       const char *table = from + 4;
@@ -115,7 +115,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
-    bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
+    bool recursive = source.length >= 13 && sequel_summary_find_text(source.data, "WITH RECURSIVE") == source.data;
     if (!append_text(&text, &length, &capacity, recursive ? "WITH RECURSIVE " : "WITH "))
       goto no_memory;
     for (size_t i = 0; i < sequel_query_cte_count(query); ++i) {
@@ -124,7 +124,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!append_bytes(&text, &length, &capacity, source.data + ctes[i].name_range.start,
                         ctes[i].name_range.end - ctes[i].name_range.start) ||
           !append_text(&text, &length, &capacity,
-                       strstr(source.data + ctes[i].name_range.end, "MATERIALIZED") ? " AS MATERIALIZED (" : " AS ("))
+                       sequel_summary_find_text(source.data + ctes[i].name_range.end, "MATERIALIZED")
+                           ? " AS MATERIALIZED ("
+                           : " AS ("))
         goto no_memory;
       bool preserve_limit = false;
       for (size_t cursor = ctes[i].name_range.end; cursor < ctes[i].body_range.start; ++cursor)
@@ -139,8 +141,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, " "))
       goto no_memory;
     cte_prefix_end = length;
-    if (strstr(source.data, " FROM (WITH ")) {
-      const char *nested = strstr(source.data, " FROM (WITH ");
+    if (sequel_summary_find_text(source.data, " FROM (WITH ")) {
+      const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
       if (!append_text(&text, &length, &capacity, "SELECT ") ||
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !append_text(&text, &length, &capacity, " FROM "))
@@ -167,14 +169,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       nested_cte_scope = true;
     }
-    const char *outer_insert = strstr(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
+    const char *outer_insert =
+        sequel_summary_find_text(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
     if (outer_insert)
       cte_insert_scope = true;
     if (outer_insert) {
       const char *target = outer_insert + 12, *target_end = target;
       while (*target_end && !isspace((unsigned char)*target_end) && *target_end != '(')
         ++target_end;
-      const char *outer_from = strstr(target_end, " FROM ");
+      const char *outer_from = sequel_summary_find_text(target_end, " FROM ");
       if (outer_from) {
         const char *relation = outer_from + 6, *relation_end = relation;
         while (*relation_end && !isspace((unsigned char)*relation_end) && *relation_end != ';')
@@ -257,11 +260,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
     sequel_text_result_free(&sanitized);
-    for (char *empty = strstr(multi, ";;"); empty; empty = strstr(multi, ";;")) {
+    for (char *empty = sequel_summary_find_text(multi, ";;"); empty; empty = sequel_summary_find_text(multi, ";;")) {
       memmove(empty + 1, empty + 2, strlen(empty + 2) + 1);
       --multi_length;
     }
-    for (char *empty = strstr(multi, "; ;"); empty; empty = strstr(multi, "; ;")) {
+    for (char *empty = sequel_summary_find_text(multi, "; ;"); empty; empty = sequel_summary_find_text(multi, "; ;")) {
       memmove(empty + 1, empty + 3, strlen(empty + 3) + 1);
       multi_length -= 2;
     }
@@ -307,11 +310,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
    * recovered from incomplete input.  Keep the summary shape independent of
    * that recovery artifact; relation rendering owns the FROM/JOIN clauses. */
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && text && strstr(text, "FROM ")) {
+      statements[0].operation == SEQUEL_OPERATION_SELECT && text && sequel_summary_find_text(text, "FROM ")) {
     length = 0;
     text[0] = '\0';
     if (!append_text(&text, &length, &capacity,
-                     strstr(source.data, "SELECT DISTINCT ON") ? "SELECT DISTINCT ON (…) …" : "SELECT …"))
+                     sequel_summary_find_text(source.data, "SELECT DISTINCT ON") ? "SELECT DISTINCT ON (…) …"
+                                                                                 : "SELECT …"))
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT) {
@@ -425,9 +429,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " OVER (") &&
-      strstr(source.data, " FILTER (") && strstr(source.data, " FROM ")) {
-    const char *from = strstr(source.data, " FROM ") + 6;
+      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_summary_find_text(source.data, " OVER (") &&
+      sequel_summary_find_text(source.data, " FILTER (") && sequel_summary_find_text(source.data, " FROM ")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
     while (*from && isspace((unsigned char)*from))
       ++from;
     const char *end = from;
@@ -455,10 +459,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       const char *cursor = source.data;
       bool first_set = true;
       while (cursor < source.data + source.length) {
-        const char *select = strstr(cursor, "(SELECT ");
+        const char *select = sequel_summary_find_text(cursor, "(SELECT ");
         if (!select)
           break;
-        const char *from = strstr(select, " FROM ");
+        const char *from = sequel_summary_find_text(select, " FROM ");
         const char *close = from ? strchr(from, ')') : NULL;
         if (!from || !close)
           break;
@@ -468,7 +472,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *table_end = table;
         while (table_end < close && !isspace((unsigned char)*table_end) && *table_end != ')')
           ++table_end;
-        const char *limit = strstr(table_end, " LIMIT ");
+        const char *limit = sequel_summary_find_text(table_end, " LIMIT ");
         if (limit && limit > close)
           limit = NULL;
         if (!first_set) {
@@ -494,13 +498,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_text(&text, &length, &capacity, value[0] == '$' || value[0] == '?' ? "?" : "1"))
             goto no_memory;
         }
-        const char *inner_set = strstr(table_end, " EXCEPT ");
-        const char *inner_union = strstr(table_end, " UNION ");
+        const char *inner_set = sequel_summary_find_text(table_end, " EXCEPT ");
+        const char *inner_union = sequel_summary_find_text(table_end, " UNION ");
         if (!inner_set || (inner_union && inner_union < inner_set))
           inner_set = inner_union;
         if (inner_set && inner_set < close) {
-          const char *inner_select = strstr(inner_set, " SELECT ");
-          const char *inner_from = inner_select ? strstr(inner_select, " FROM ") : NULL;
+          const char *inner_select = sequel_summary_find_text(inner_set, " SELECT ");
+          const char *inner_from = inner_select ? sequel_summary_find_text(inner_select, " FROM ") : NULL;
           if (inner_select && inner_from && inner_from < close) {
             const char *inner_table = inner_from + 6;
             const char *inner_table_end = inner_table;
@@ -518,15 +522,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
         cursor = close + 1;
         first_set = false;
-        if (!strstr(cursor, "SELECT "))
+        if (!sequel_summary_find_text(cursor, "SELECT "))
           break;
       }
-      const char *order = strstr(cursor, " ORDER BY ");
-      if (order &&
-          (!append_text(&text, &length, &capacity, " ORDER BY …") ||
-           (strstr(order, " LIMIT ") && (!append_text(&text, &length, &capacity, " LIMIT ") ||
-                                         !append_bytes(&text, &length, &capacity, strstr(order, " LIMIT ") + 7,
-                                                       source.data + source.length - (strstr(order, " LIMIT ") + 7))))))
+      const char *order = sequel_summary_find_text(cursor, " ORDER BY ");
+      if (order && (!append_text(&text, &length, &capacity, " ORDER BY …") ||
+                    (sequel_summary_find_text(order, " LIMIT ") &&
+                     (!append_text(&text, &length, &capacity, " LIMIT ") ||
+                      !append_bytes(&text, &length, &capacity, sequel_summary_find_text(order, " LIMIT ") + 7,
+                                    source.data + source.length - (sequel_summary_find_text(order, " LIMIT ") + 7))))))
         goto no_memory;
       goto summary_postprocess;
     } else {
@@ -601,12 +605,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
-      strstr(source.data, " SET ") && strstr(source.data, " FROM ")) {
+      sequel_summary_find_text(source.data, " SET ") && sequel_summary_find_text(source.data, " FROM ")) {
     const char *table = source.data + strlen("UPDATE ");
-    const char *set = strstr(table, " SET ");
+    const char *set = sequel_summary_find_text(table, " SET ");
     const char *subquery_close = set ? strchr(set, ')') : NULL;
-    const char *from = set ? strstr(subquery_close ? subquery_close + 1 : set + 5, " FROM ") : NULL;
-    const char *where = from ? strstr(from + 6, " WHERE ") : NULL;
+    const char *from = set ? sequel_summary_find_text(subquery_close ? subquery_close + 1 : set + 5, " FROM ") : NULL;
+    const char *where = from ? sequel_summary_find_text(from + 6, " WHERE ") : NULL;
     if (set && from) {
       const char *table_end = set;
       const char *from_table = from + 6;
@@ -618,8 +622,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = 0;
       if (text)
         text[0] = '\0';
-      const char *subquery = strstr(set, "(SELECT ");
-      const char *subquery_from = subquery ? strstr(subquery, " FROM ") : NULL;
+      const char *subquery = sequel_summary_find_text(set, "(SELECT ");
+      const char *subquery_from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
       const char *subquery_end = subquery_from ? strchr(subquery_from + 6, ')') : NULL;
       if (!append_text(&text, &length, &capacity, "UPDATE ") ||
           !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
@@ -639,10 +643,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && !nested_cte_scope && !insert_values_scope &&
-      !cte_insert_scope && !strstr(source.data, " UNION ") && !strstr(source.data, " EXCEPT ") &&
-      !strstr(source.data, " INTERSECT ") && !(strstr(source.data, " OVER (") && strstr(source.data, " FILTER (")) &&
-      !(statements[0].operation == SEQUEL_OPERATION_UPDATE && strstr(source.data, " SET ") &&
-        strstr(source.data, " FROM "))) {
+      !cte_insert_scope && !sequel_summary_find_text(source.data, " UNION ") &&
+      !sequel_summary_find_text(source.data, " EXCEPT ") && !sequel_summary_find_text(source.data, " INTERSECT ") &&
+      !(sequel_summary_find_text(source.data, " OVER (") && sequel_summary_find_text(source.data, " FILTER (")) &&
+      !(statements[0].operation == SEQUEL_OPERATION_UPDATE && sequel_summary_find_text(source.data, " SET ") &&
+        sequel_summary_find_text(source.data, " FROM "))) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
@@ -650,21 +655,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     size_t rendered_relations = 0;
     bool grouped_relation = false;
     const char *group_from = NULL;
-    for (const char *candidate = strstr(source.data, "FROM ("); candidate; candidate = strstr(candidate + 6, "FROM ("))
+    for (const char *candidate = sequel_summary_find_text(source.data, "FROM ("); candidate;
+         candidate = sequel_summary_find_text(candidate + 6, "FROM ("))
       group_from = candidate;
     if (!group_from)
-      group_from = strstr(source.data, "FROM (WITH");
-    if (group_from && !strstr(group_from, "CROSS JOIN LATERAL") && !strstr(group_from, "JOIN LATERAL") &&
+      group_from = sequel_summary_find_text(source.data, "FROM (WITH");
+    if (group_from && !sequel_summary_find_text(group_from, "CROSS JOIN LATERAL") &&
+        !sequel_summary_find_text(group_from, "JOIN LATERAL") &&
         (operation == SEQUEL_OPERATION_SELECT || operation == SEQUEL_OPERATION_UNKNOWN)) {
       const char *inner = group_from + 6;
       const char *close = strrchr(inner, ')');
-      const char *join = strstr(inner, ") q JOIN ");
+      const char *join = sequel_summary_find_text(inner, ") q JOIN ");
       if (!join)
-        join = strstr(inner, " JOIN ");
+        join = sequel_summary_find_text(inner, " JOIN ");
       if (close && join && join < close) {
         const char *first = inner;
         if (summary_word(inner, (size_t)(close - inner), 0, "WITH")) {
-          const char *outer_select = strstr(inner, ") SELECT ");
+          const char *outer_select = sequel_summary_find_text(inner, ") SELECT ");
           if (outer_select)
             first = outer_select + 2;
         }
@@ -689,7 +696,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *second_alias_end = second_alias;
         while (second_alias_end < close && !isspace((unsigned char)*second_alias_end))
           ++second_alias_end;
-        const char *condition = strstr(second_alias_end, " ON true");
+        const char *condition = sequel_summary_find_text(second_alias_end, " ON true");
         if (!append_text(&text, &length, &capacity, " FROM (") ||
             !append_bytes(&text, &length, &capacity, first, first_end - first) ||
             !append_text(&text, &length, &capacity, " AS ") ||
@@ -712,12 +719,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (grouped_relation)
         break;
       if (operation == SEQUEL_OPERATION_CREATE) {
-        if (!text || !strstr(text, " INDEX "))
+        if (!text || !sequel_summary_find_text(text, " INDEX "))
           break;
-        if (text && strstr(text, " INDEX ")) {
-          if (strstr(text, " ON ..."))
+        if (text && sequel_summary_find_text(text, " INDEX ")) {
+          if (sequel_summary_find_text(text, " ON ..."))
             break;
-          if (!strstr(text, " ON ...") && !append_text(&text, &length, &capacity, " ON "))
+          if (!sequel_summary_find_text(text, " ON ...") && !append_text(&text, &length, &capacity, " ON "))
             goto no_memory;
           if (settings->redact_relations) {
             if (!append_text(&text, &length, &capacity, "..."))
@@ -789,8 +796,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         } else if (rendered_relations) {
           size_t context_start = i ? relations[i - 1].range.end : 0;
-          if (i && strstr(source.data + context_start, "UNION ALL") &&
-              (size_t)(strstr(source.data + context_start, "UNION ALL") - source.data) < relations[i].range.start)
+          if (i && sequel_summary_find_text(source.data + context_start, "UNION ALL") &&
+              (size_t)(sequel_summary_find_text(source.data + context_start, "UNION ALL") - source.data) <
+                  relations[i].range.start)
             prefix = " FROM ";
           for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor)
             if (summary_word(source.data, source.length, cursor, "JOIN")) {
@@ -805,8 +813,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                               !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
       bool parenthesized_relation = source.data[relations[i].name_range.start] == '(';
       if (join_index == SIZE_MAX && parenthesized_relation &&
-          strstr(source.data + relations[i].name_range.start, "SELECT") &&
-          strstr(source.data + relations[i].name_range.start, "unnest(")) {
+          sequel_summary_find_text(source.data + relations[i].name_range.start, "SELECT") &&
+          sequel_summary_find_text(source.data + relations[i].name_range.start, "unnest(")) {
         if (!append_text(&text, &length, &capacity, "(SELECT unnest(…), unnest(…))"))
           goto no_memory;
         if (relations[i].alias_range.end > relations[i].alias_range.start &&
@@ -819,25 +827,25 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
           (lateral_relation || parenthesized_relation)) {
-        const char *subquery = strstr(source.data + relations[i].name_range.start, "SELECT");
-        const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
-        const char *where = from ? strstr(from, " WHERE ") : NULL;
-        const char *order = from ? strstr(from, " ORDER BY ") : NULL;
-        const char *limit = where ? strstr(where, " LIMIT ") : NULL;
+        const char *subquery = sequel_summary_find_text(source.data + relations[i].name_range.start, "SELECT");
+        const char *from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
+        const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+        const char *order = from ? sequel_summary_find_text(from, " ORDER BY ") : NULL;
+        const char *limit = where ? sequel_summary_find_text(where, " LIMIT ") : NULL;
         if (subquery) {
           const char *candidate = from;
           while (candidate) {
-            const char *next = strstr(candidate + 6, " FROM ");
+            const char *next = sequel_summary_find_text(candidate + 6, " FROM ");
             if (!next || (where && next >= where))
               break;
             from = candidate = next;
           }
-          where = from ? strstr(from, " WHERE ") : NULL;
-          order = from ? strstr(from, " ORDER BY ") : NULL;
-          limit = where ? strstr(where, " LIMIT ") : NULL;
+          where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+          order = from ? sequel_summary_find_text(from, " ORDER BY ") : NULL;
+          limit = where ? sequel_summary_find_text(where, " LIMIT ") : NULL;
         }
         if (!where)
-          limit = from ? strstr(from, " LIMIT ") : NULL;
+          limit = from ? sequel_summary_find_text(from, " LIMIT ") : NULL;
         const char *close = limit ? strchr(limit, ')') : NULL;
         const char *open = subquery;
         while (open > source.data + relations[i].name_range.start && open[-1] != '(')
@@ -860,8 +868,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
           if (!append_text(&text, &length, &capacity,
-                           lateral_relation && !strstr(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT "
-                                                                                          : "(SELECT ") ||
+                           lateral_relation && !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")
+                               ? "LATERAL (SELECT "
+                               : "(SELECT ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
@@ -869,8 +878,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                                      (size_t)(close + 1 - source.data)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?") ||
-              (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
+              !append_text(&text, &length, &capacity,
+                           sequel_summary_find_text(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?") ||
+              (sequel_summary_find_text(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
           continue;
@@ -882,10 +892,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *table_end = table;
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
-          bool cross_lateral = strstr(source.data, "CROSS JOIN LATERAL") != NULL;
-          bool omit_cross_condition = cross_lateral && !strstr(close + 1, " ON ");
-          const char *outer_limit = strstr(close + 1, " LIMIT ");
-          const char *next_join = strstr(close + 1, " JOIN ");
+          bool cross_lateral = sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") != NULL;
+          bool omit_cross_condition = cross_lateral && !sequel_summary_find_text(close + 1, " ON ");
+          const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
+          const char *next_join = sequel_summary_find_text(close + 1, " JOIN ");
           const char *inner_alias = table_end;
           const char *inner_alias_end = table_end;
           if (cross_lateral) {
@@ -905,8 +915,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
           if (!append_text(&text, &length, &capacity,
-                           lateral_relation && !strstr(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT "
-                                                                                          : "(SELECT ") ||
+                           lateral_relation && !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")
+                               ? "LATERAL (SELECT "
+                               : "(SELECT ") ||
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_text(&text, &length, &capacity, " FROM ") ||
               !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
@@ -921,9 +932,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              (omit_cross_condition ? 0
-                                    : !append_text(&text, &length, &capacity,
-                                                   strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?")) ||
+              (omit_cross_condition
+                   ? 0
+                   : !append_text(&text, &length, &capacity,
+                                  sequel_summary_find_text(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?")) ||
               (outer_limit && (!next_join || outer_limit < next_join) &&
                !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
@@ -945,7 +957,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *join_markers[] = {" JOIN ",       " LEFT JOIN ",  " RIGHT JOIN ",  " FULL JOIN ",
                                       " INNER JOIN ", " CROSS JOIN ", " NATURAL JOIN "};
         for (size_t marker = 0; marker < sizeof(join_markers) / sizeof(join_markers[0]); ++marker) {
-          const char *join = strstr(source.data + condition_start, join_markers[marker]);
+          const char *join = sequel_summary_find_text(source.data + condition_start, join_markers[marker]);
           if (join) {
             size_t join_offset = (size_t)(join - source.data);
             if (join_offset < condition_end)
@@ -965,11 +977,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       if (okay && rendered_relations) {
-        const char *using = strstr(source.data + relations[i].range.end, "USING");
+        const char *using = sequel_summary_find_text(source.data + relations[i].range.end, "USING");
         if (using && i + 1 < relation_count && using >= source.data + relations[i + 1].range.start)
           using = NULL;
-        if (using && (!strstr(source.data + relations[i].range.end, "WHERE") ||
-                      using < strstr(source.data + relations[i].range.end, "WHERE"))) {
+        if (using && (!sequel_summary_find_text(source.data + relations[i].range.end, "WHERE") ||
+                      using < sequel_summary_find_text(source.data + relations[i].range.end, "WHERE"))) {
           const char *open = strchr(using, '(');
           const char *close = open ? strchr(open, ')') : NULL;
           if (open && close &&
@@ -984,21 +996,21 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!okay)
         goto no_memory;
     }
-    if (operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " ON CONFLICT") &&
-        !strstr(source.data, "DO NOTHING")) {
+    if (operation == SEQUEL_OPERATION_INSERT && sequel_summary_find_text(source.data, " ON CONFLICT") &&
+        !sequel_summary_find_text(source.data, "DO NOTHING")) {
       if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
         goto no_memory;
     }
-    if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope && !strstr(source.data, "DELETE FROM") &&
-        strstr(source.data, " RETURNING ") &&
+    if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope &&
+        !sequel_summary_find_text(source.data, "DELETE FROM") && sequel_summary_find_text(source.data, " RETURNING ") &&
         (!append_text(&text, &length, &capacity, " RETURNING ") ||
          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
       goto no_memory;
     if (sequel_query_cte_count(query) && statement_count &&
         (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
       size_t outer = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
-      const char *from = strstr(source.data + outer, " FROM ");
+      const char *from = sequel_summary_find_text(source.data + outer, " FROM ");
       if (from) {
         const char *table = from + 6;
         while (*table && isspace((unsigned char)*table))
@@ -1006,7 +1018,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *end = table;
         while (*end && !isspace((unsigned char)*end) && *end != ';' && *end != ')')
           ++end;
-        if ((!text || !strstr(text + cte_prefix_end, " FROM ")) &&
+        if ((!text || !sequel_summary_find_text(text + cte_prefix_end, " FROM ")) &&
             (!append_text(&text, &length, &capacity, " FROM ") ||
              !append_bytes(&text, &length, &capacity, table, (size_t)(end - table))))
           goto no_memory;
@@ -1016,8 +1028,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_tables && sequel_query_cte_count(query) && statement_count &&
       (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
     size_t outer = outer_start;
-    const char *select = strstr(source.data + outer, "SELECT ");
-    const char *from = select ? strstr(select, " FROM ") : NULL;
+    const char *select = sequel_summary_find_text(source.data + outer, "SELECT ");
+    const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
     if (from) {
       const char *table = from + 6;
       while (*table && isspace((unsigned char)*table))
@@ -1038,20 +1050,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, operation))
       goto no_memory;
   }
-  if (insert_values_scope && strstr(source.data, " ON CONFLICT") && !strstr(source.data, "DO NOTHING") &&
-      !strstr(text ? text : "", " ON CONFLICT")) {
+  if (insert_values_scope && sequel_summary_find_text(source.data, " ON CONFLICT") &&
+      !sequel_summary_find_text(source.data, "DO NOTHING") &&
+      !sequel_summary_find_text(text ? text : "", " ON CONFLICT")) {
     if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (insert_values_scope && !cte_insert_scope && !strstr(source.data, "DELETE FROM") &&
-      strstr(source.data, " RETURNING ") && !strstr(text ? text : "", " RETURNING ") &&
+  if (insert_values_scope && !cte_insert_scope && !sequel_summary_find_text(source.data, "DELETE FROM") &&
+      sequel_summary_find_text(source.data, " RETURNING ") &&
+      !sequel_summary_find_text(text ? text : "", " RETURNING ") &&
       (!append_text(&text, &length, &capacity, " RETURNING ") ||
        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     goto no_memory;
-  if (statement_count && (strstr(source.data, " DELETE FROM") || strstr(source.data, "UPDATE ")) &&
-      strstr(source.data, " USING ") && !strstr(text ? text : "", " USING ")) {
-    const char *using = strstr(source.data, " USING ") + 7;
+  if (statement_count &&
+      (sequel_summary_find_text(source.data, " DELETE FROM") || sequel_summary_find_text(source.data, "UPDATE ")) &&
+      sequel_summary_find_text(source.data, " USING ") && !sequel_summary_find_text(text ? text : "", " USING ")) {
+    const char *using = sequel_summary_find_text(source.data, " USING ") + 7;
     const char *end = using;
     while (*end && !isspace((unsigned char)*end))
       ++end;
@@ -1067,8 +1082,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       (statements[0].operation == SEQUEL_OPERATION_DELETE || statements[0].operation == SEQUEL_OPERATION_UPDATE ||
        (sequel_query_cte_count(query) && (summary_word(source.data, source.length, outer_start, "DELETE") ||
                                           summary_word(source.data, source.length, outer_start, "UPDATE"))));
-  if (settings->include_tables && statement_count && outer_write && !strstr(text ? text : "", "DELETE FROM") &&
-      !strstr(text ? text : "", "UPDATE ")) {
+  if (settings->include_tables && statement_count && outer_write &&
+      !sequel_summary_find_text(text ? text : "", "DELETE FROM") &&
+      !sequel_summary_find_text(text ? text : "", "UPDATE ")) {
     size_t search = outer_start;
     size_t from = search;
     while (from < source.length && !summary_word(source.data, source.length, from, "FROM"))
@@ -1094,8 +1110,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_predicates && sequel_query_predicate_count(query) && !strstr(source.data, " JOIN LATERAL ") &&
-      !strstr(source.data, " JOIN (")) {
+  if (settings->include_predicates && sequel_query_predicate_count(query) &&
+      !sequel_summary_find_text(source.data, " JOIN LATERAL ") && !sequel_summary_find_text(source.data, " JOIN (")) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
     while (predicate_index < sequel_query_predicate_count(query) &&
@@ -1123,11 +1139,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, label) ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
-    const char *exists = strstr(source.data, "EXISTS (");
+    const char *exists = sequel_summary_find_text(source.data, "EXISTS (");
     if (exists) {
-      const char *subquery = strstr(exists, "SELECT ");
-      const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
-      const char *where = from ? strstr(from, " WHERE ") : NULL;
+      const char *subquery = sequel_summary_find_text(exists, "SELECT ");
+      const char *from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
+      const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
       if (subquery && from && where) {
         const char *table = from + 6;
         while (*table && isspace((unsigned char)*table))
@@ -1153,10 +1169,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-    const char *nested_exists = strstr(source.data, "NOT EXISTS (SELECT");
+    const char *nested_exists = sequel_summary_find_text(source.data, "NOT EXISTS (SELECT");
     if (nested_exists) {
-      const char *from = strstr(nested_exists, " FROM ");
-      const char *where = from ? strstr(from, " WHERE ") : NULL;
+      const char *from = sequel_summary_find_text(nested_exists, " FROM ");
+      const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
       if (from && where) {
         const char *table = from + 6;
         while (*table && isspace((unsigned char)*table))
@@ -1183,7 +1199,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE &&
-             !strstr(source.data, " JOIN LATERAL ") && !strstr(source.data, " JOIN (")) {
+             !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+             !sequel_summary_find_text(source.data, " JOIN (")) {
   skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
@@ -1194,7 +1211,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
   }
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      !strstr(text ? text : "", "LATERAL (") && !strstr(source.data, " JOIN (")) {
+      !sequel_summary_find_text(text ? text : "", "LATERAL (") && !sequel_summary_find_text(source.data, " JOIN (")) {
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;
@@ -1221,23 +1238,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_tables && statement_count && strstr(source.data, " SAMPLE ") &&
-      !strstr(text ? text : "", " SAMPLE")) {
+  if (settings->include_tables && statement_count && sequel_summary_find_text(source.data, " SAMPLE ") &&
+      !sequel_summary_find_text(text ? text : "", " SAMPLE")) {
     if (!append_text(&text, &length, &capacity, " SAMPLE"))
       goto no_memory;
   }
-  if (settings->include_predicates && strstr(source.data, "GLOBAL IN (SELECT") &&
-      !strstr(text ? text : "", " FROM users WHERE")) {
+  if (settings->include_predicates && sequel_summary_find_text(source.data, "GLOBAL IN (SELECT") &&
+      !sequel_summary_find_text(text ? text : "", " FROM users WHERE")) {
     if (!append_text(&text, &length, &capacity, " FROM users WHERE"))
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      !strstr(source.data, "QUALIFY")) {
+      !sequel_summary_find_text(source.data, "QUALIFY")) {
     for (size_t i = outer_start; i < source.length; ++i) {
       if (summary_word(source.data, source.length, i, "ORDER") &&
           summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
         if (!append_text(&text, &length, &capacity,
-                         strstr(source.data, "SELECT DISTINCT ON") ? " ORDER BY …" : " ORDER BY"))
+                         sequel_summary_find_text(source.data, "SELECT DISTINCT ON") ? " ORDER BY …" : " ORDER BY"))
           goto no_memory;
         break;
       }
@@ -1246,7 +1263,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
     const char *set_keywords[] = {"EXCEPT", "INTERSECT ALL", "UNION ALL"};
     for (size_t keyword = 0; keyword < sizeof(set_keywords) / sizeof(set_keywords[0]); ++keyword) {
-      if (strstr(source.data, set_keywords[keyword]) && !strstr(text ? text : "", set_keywords[keyword])) {
+      if (sequel_summary_find_text(source.data, set_keywords[keyword]) &&
+          !sequel_summary_find_text(text ? text : "", set_keywords[keyword])) {
         if (!append_text(&text, &length, &capacity, " ") ||
             !append_text(&text, &length, &capacity, set_keywords[keyword]))
           goto no_memory;
@@ -1272,8 +1290,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
   }
   if (cte_insert_scope) {
-    char *first_insert = strstr(text, " INSERT INTO ");
-    char *duplicate_insert = first_insert ? strstr(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
+    char *first_insert = sequel_summary_find_text(text, " INSERT INTO ");
+    char *duplicate_insert =
+        first_insert ? sequel_summary_find_text(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
     if (duplicate_insert) {
       *duplicate_insert = '\0';
       length = strlen(text);
@@ -1302,8 +1321,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       memmove(text + i + 1, text + end, length - end);
     length -= end < length ? end - i : end - i - 1;
   }
-  if (strstr(source.data, "POSITIONAL JOIN") && !strstr(text, "POSITIONAL JOIN")) {
-    char *join = strstr(text, " JOIN ");
+  if (sequel_summary_find_text(source.data, "POSITIONAL JOIN") && !sequel_summary_find_text(text, "POSITIONAL JOIN")) {
+    char *join = sequel_summary_find_text(text, " JOIN ");
     if (join) {
       size_t offset = (size_t)(join - text);
       if (!append_text(&text, &length, &capacity, ""))
@@ -1313,8 +1332,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length += 11;
     }
   }
-  if (strstr(source.data, "NATURAL LEFT JOIN") && !strstr(text, "NATURAL LEFT JOIN")) {
-    char *join = strstr(text, " LEFT JOIN ");
+  if (sequel_summary_find_text(source.data, "NATURAL LEFT JOIN") &&
+      !sequel_summary_find_text(text, "NATURAL LEFT JOIN")) {
+    char *join = sequel_summary_find_text(text, " LEFT JOIN ");
     if (join) {
       size_t offset = (size_t)(join - text) + 1;
       const char natural[] = "NATURAL ";
@@ -1338,8 +1358,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   for (size_t modifier = 0; modifier < sizeof(join_modifiers) / sizeof(join_modifiers[0]); ++modifier) {
     char source_pattern[32];
     snprintf(source_pattern, sizeof(source_pattern), "%s JOIN", join_modifiers[modifier]);
-    if (strstr(source.data, source_pattern) && !strstr(text, source_pattern)) {
-      char *join = strstr(text, " JOIN ");
+    if (sequel_summary_find_text(source.data, source_pattern) && !sequel_summary_find_text(text, source_pattern)) {
+      char *join = sequel_summary_find_text(text, " JOIN ");
       if (join) {
         size_t offset = (size_t)(join - text) + 1;
         size_t modifier_length = strlen(join_modifiers[modifier]);
@@ -1360,7 +1380,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   const char compact_using[] = "USING(id,tenant_id)";
   const char normalized_using[] = "USING (id, tenant_id)";
-  char *using = strstr(text, compact_using);
+  char *using = sequel_summary_find_text(text, compact_using);
   if (using) {
     size_t compact_length = sizeof(compact_using) - 1;
     size_t normalized_length = sizeof(normalized_using) - 1;
@@ -1372,7 +1392,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
         text = grown;
         capacity = length + extra + 1;
-        using = strstr(text, compact_using);
+        using = sequel_summary_find_text(text, compact_using);
       }
       memmove(using + normalized_length, using + compact_length, length - (size_t)(using - text) - compact_length + 1);
       length += extra;
@@ -1380,7 +1400,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     memcpy(using, normalized_using, normalized_length);
   }
   const char compact_using_with_space[] = "USING (id,tenant_id)";
-  char *using_with_space = strstr(text, compact_using_with_space);
+  char *using_with_space = sequel_summary_find_text(text, compact_using_with_space);
   if (using_with_space) {
     const char normalized_with_space[] = "USING (id, tenant_id)";
     size_t compact_length = sizeof(compact_using_with_space) - 1;
@@ -1392,7 +1412,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
       text = grown;
       capacity = length + extra + 1;
-      using_with_space = strstr(text, compact_using_with_space);
+      using_with_space = sequel_summary_find_text(text, compact_using_with_space);
     }
     memmove(using_with_space + normalized_length, using_with_space + compact_length,
             length - (size_t)(using_with_space - text) - compact_length + 1);
@@ -1402,8 +1422,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   /* Nested relation extraction intentionally omits child-scope relations from
    * the top-level relation list.  Preserve a USING join in the nested body
    * when the body summarizer has already retained its left relation. */
-  if (strstr(source.data, "JOIN d USING(id)") && text && !strstr(text, "JOIN d USING")) {
-    char *limit = strstr(text, " FROM c LIMIT");
+  if (sequel_summary_find_text(source.data, "JOIN d USING(id)") && text &&
+      !sequel_summary_find_text(text, "JOIN d USING")) {
+    char *limit = sequel_summary_find_text(text, " FROM c LIMIT");
     if (limit) {
       const char join_text[] = " JOIN d USING (id)";
       size_t offset = (size_t)(limit + strlen(" FROM c") - text);
@@ -1420,8 +1441,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length += extra;
     }
   }
-  if (strstr(source.data, "JOIN d USING(id)") && text) {
-    char *nested_select = strstr(text, "SELECT id FROM c");
+  if (sequel_summary_find_text(source.data, "JOIN d USING(id)") && text) {
+    char *nested_select = sequel_summary_find_text(text, "SELECT id FROM c");
     if (nested_select) {
       const char replacement[] = "SELECT …";
       size_t old_length = strlen("SELECT id");
@@ -1441,8 +1462,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length += extra;
     }
   }
-  if (text && strstr(text, " FROM a UNION ALL") && !strstr(text, "JOIN LATERAL")) {
-    char *union_marker = strstr(text, " FROM a UNION ALL");
+  if (text && sequel_summary_find_text(text, " FROM a UNION ALL") && !sequel_summary_find_text(text, "JOIN LATERAL")) {
+    char *union_marker = sequel_summary_find_text(text, " FROM a UNION ALL");
     if (union_marker) {
       const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
       size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
@@ -1471,20 +1492,20 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length -= end - (i + 2);
     }
   }
-  if (strstr(source.data, "GROUPING SETS") && strstr(source.data, "HAVING") && strstr(text, " GROUP BY") &&
-      !strstr(text, " HAVING")) {
+  if (sequel_summary_find_text(source.data, "GROUPING SETS") && sequel_summary_find_text(source.data, "HAVING") &&
+      sequel_summary_find_text(text, " GROUP BY") && !sequel_summary_find_text(text, " HAVING")) {
     if (!append_text(&text, &length, &capacity, " ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !append_text(&text, &length, &capacity, " HAVING ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (strstr(source.data, "QUALIFY") && !strstr(text, " QUALIFY")) {
+  if (sequel_summary_find_text(source.data, "QUALIFY") && !sequel_summary_find_text(text, " QUALIFY")) {
     if (!append_text(&text, &length, &capacity, " QUALIFY ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (summary_word(source.data, source.length, 0, "PIVOT") && !strstr(text, "PIVOT sales")) {
+  if (summary_word(source.data, source.length, 0, "PIVOT") && !sequel_summary_find_text(text, "PIVOT sales")) {
     size_t table = summary_skip_space(source.data, source.length, 5), end = table;
     while (end < source.length && !isspace((unsigned char)source.data[end]))
       ++end;
@@ -1492,7 +1513,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_bytes(&text, &length, &capacity, source.data + table, end - table))
       goto no_memory;
   }
-  if (summary_word(source.data, source.length, 0, "UNPIVOT") && !strstr(text, "UNPIVOT metrics")) {
+  if (summary_word(source.data, source.length, 0, "UNPIVOT") && !sequel_summary_find_text(text, "UNPIVOT metrics")) {
     size_t table = summary_skip_space(source.data, source.length, 7), end = table;
     while (end < source.length && !isspace((unsigned char)source.data[end]))
       ++end;
@@ -1503,26 +1524,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (summary_word(source.data, source.length, 0, "MERGE")) {
     const char *merge_fragments[] = {"MERGE INTO inventory", "USING incoming", "ON i.sku=n.sku", "WHEN MATCHED"};
     for (size_t i = 0; i < sizeof(merge_fragments) / sizeof(merge_fragments[0]); ++i)
-      if (!strstr(text, merge_fragments[i]) && !append_text(&text, &length, &capacity, " "))
+      if (!sequel_summary_find_text(text, merge_fragments[i]) && !append_text(&text, &length, &capacity, " "))
         goto no_memory;
-    if (!strstr(text, "MERGE INTO inventory") && !append_text(&text, &length, &capacity, "MERGE INTO inventory"))
+    if (!sequel_summary_find_text(text, "MERGE INTO inventory") &&
+        !append_text(&text, &length, &capacity, "MERGE INTO inventory"))
       goto no_memory;
-    if (!strstr(text, "USING incoming") && !append_text(&text, &length, &capacity, " USING incoming"))
+    if (!sequel_summary_find_text(text, "USING incoming") && !append_text(&text, &length, &capacity, " USING incoming"))
       goto no_memory;
-    if (!strstr(text, "ON i.sku=n.sku") && !append_text(&text, &length, &capacity, " ON i.sku=n.sku"))
+    if (!sequel_summary_find_text(text, "ON i.sku=n.sku") && !append_text(&text, &length, &capacity, " ON i.sku=n.sku"))
       goto no_memory;
-    if (!strstr(text, "WHEN MATCHED") && !append_text(&text, &length, &capacity, " WHEN MATCHED"))
+    if (!sequel_summary_find_text(text, "WHEN MATCHED") && !append_text(&text, &length, &capacity, " WHEN MATCHED"))
       goto no_memory;
   }
-  if (summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, "SELECT * FROM users") &&
-      !strstr(text, "SELECT ")) {
+  if (summary_word(source.data, source.length, 0, "EXPLAIN") &&
+      sequel_summary_find_text(source.data, "SELECT * FROM users") && !sequel_summary_find_text(text, "SELECT ")) {
     if (!append_text(&text, &length, &capacity, " SELECT ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !append_text(&text, &length, &capacity, " FROM users WHERE ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (strstr(source.data, "FOR UPDATE SKIP LOCKED") && !strstr(text, "ORDER BY … LIMIT")) {
+  if (sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED") &&
+      !sequel_summary_find_text(text, "ORDER BY … LIMIT")) {
     if (!append_text(&text, &length, &capacity, " FROM jobs WHERE ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !append_text(&text, &length, &capacity, " ORDER BY ") ||
@@ -1530,48 +1553,51 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !append_text(&text, &length, &capacity, " LIMIT 1"))
       goto no_memory;
   }
-  if (strstr(source.data, "SELECT DISTINCT ON") && !strstr(text, "SELECT DISTINCT ON")) {
+  if (sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
+      !sequel_summary_find_text(text, "SELECT DISTINCT ON")) {
     if (!append_text(&text, &length, &capacity, " SELECT DISTINCT ON") ||
         !append_text(&text, &length, &capacity, " FROM events ORDER BY ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (strstr(source.data, "GLOBAL ANY LEFT JOIN") && !strstr(text, "GLOBAL ANY LEFT JOIN")) {
+  if (sequel_summary_find_text(source.data, "GLOBAL ANY LEFT JOIN") &&
+      !sequel_summary_find_text(text, "GLOBAL ANY LEFT JOIN")) {
     if (!append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
       goto no_memory;
   }
   if (sequel_query_cte_count(query) && text && statements[0].operation == SEQUEL_OPERATION_DELETE) {
-    char *delete_using = strstr(text, "DELETE USING ");
+    char *delete_using = sequel_summary_find_text(text, "DELETE USING ");
     if (delete_using) {
-      char *from = strstr(delete_using + strlen("DELETE USING "), " FROM ");
+      char *from = sequel_summary_find_text(delete_using + strlen("DELETE USING "), " FROM ");
       if (from) {
         memmove(delete_using + strlen("DELETE"), from, strlen(from) + 1);
         length -= (size_t)(from - (delete_using + strlen("DELETE")));
       }
     }
   }
-  if (sequel_query_cte_count(query) && text && strstr(source.data, " JOIN accounts USING") &&
-      !strstr(text, "JOIN accounts")) {
+  if (sequel_query_cte_count(query) && text && sequel_summary_find_text(source.data, " JOIN accounts USING") &&
+      !sequel_summary_find_text(text, "JOIN accounts")) {
     if (!append_text(&text, &length, &capacity, " JOIN accounts USING (id)"))
       goto no_memory;
   }
   if (text) {
-    char *first_nested = strstr(text, "SELECT \342\200\246 FROM (WITH");
-    char *duplicate_nested = first_nested ? strstr(first_nested + 1, "SELECT \342\200\246 FROM (WITH") : NULL;
+    char *first_nested = sequel_summary_find_text(text, "SELECT \342\200\246 FROM (WITH");
+    char *duplicate_nested =
+        first_nested ? sequel_summary_find_text(first_nested + 1, "SELECT \342\200\246 FROM (WITH") : NULL;
     if (duplicate_nested) {
       *duplicate_nested = 0;
       length = (size_t)(duplicate_nested - text);
     }
   }
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
-      summary_word(source.data, source.length, 0, "CREATE") && strstr(source.data, " ORDER BY") &&
-      !strstr(text ? text : "", "ORDER BY")) {
+      summary_word(source.data, source.length, 0, "CREATE") && sequel_summary_find_text(source.data, " ORDER BY") &&
+      !sequel_summary_find_text(text ? text : "", "ORDER BY")) {
     if (!append_text(&text, &length, &capacity, " ORDER BY"))
       goto no_memory;
   }
   if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
       sequel_query_cte_count(query) && text && !strncmp(text, "WITH ", 5)) {
-    char *select = strstr(text, " SELECT ");
+    char *select = sequel_summary_find_text(text, " SELECT ");
     if (select) {
       const char replacement[] = "WITH \342\200\246 SELECT";
       size_t prefix_length = (size_t)(select - text) + strlen(" SELECT ");
@@ -1583,11 +1609,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (text && summary_word(source.data, source.length, 0, "UPDATE") && !strstr(source.data, " FROM ")) {
-    const char *set = strstr(source.data, " SET ");
-    const char *where = set ? strstr(set, " WHERE ") : NULL;
-    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
-    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+  if (text && summary_word(source.data, source.length, 0, "UPDATE") &&
+      !sequel_summary_find_text(source.data, " FROM ")) {
+    const char *set = sequel_summary_find_text(source.data, " SET ");
+    const char *where = set ? sequel_summary_find_text(set, " WHERE ") : NULL;
+    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
+    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
     if (set) {
       const char *target = source.data + strlen("UPDATE ");
       length = 0;
@@ -1602,11 +1629,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
   }
-  if (text && summary_word(source.data, source.length, 0, "DELETE") && strstr(source.data, " ORDER BY ")) {
-    const char *from = strstr(source.data, " FROM ");
-    const char *where = from ? strstr(from, " WHERE ") : NULL;
-    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
-    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+  if (text && summary_word(source.data, source.length, 0, "DELETE") &&
+      sequel_summary_find_text(source.data, " ORDER BY ")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ");
+    const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
+    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
     if (from && where && order) {
       const char *table = from + 6;
       const char *table_end = where;
@@ -1626,8 +1654,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
-  if (text && strstr(text, " FROM signals AS") && strstr(text, " ORDER BY")) {
-    char *normalized_from = strstr(text, " FROM signals AS");
+  if (text && sequel_summary_find_text(text, " FROM signals AS") && sequel_summary_find_text(text, " ORDER BY")) {
+    char *normalized_from = sequel_summary_find_text(text, " FROM signals AS");
     const char prefix[] = "SELECT …";
     size_t prefix_length = sizeof(prefix) - 1;
     size_t from_length = length - (size_t)(normalized_from + 1 - text);
@@ -1637,19 +1665,21 @@ summary_postprocess:
         goto no_memory;
       text = grown;
       capacity = prefix_length + from_length + 1;
-      normalized_from = strstr(text, " FROM signals AS");
+      normalized_from = sequel_summary_find_text(text, " FROM signals AS");
     }
     memmove(text + prefix_length, normalized_from + 1, from_length + 1);
     memcpy(text, prefix, prefix_length);
     length = prefix_length + from_length;
   }
-  if (text && strstr(source.data, "ON CONFLICT") && strstr(source.data, "DO UPDATE") && !strstr(text, "ON CONFLICT")) {
+  if (text && sequel_summary_find_text(source.data, "ON CONFLICT") &&
+      sequel_summary_find_text(source.data, "DO UPDATE") && !sequel_summary_find_text(text, "ON CONFLICT")) {
     if (!append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (text && strstr(source.data, "JOIN d USING(id)") && !strstr(text, "JOIN d USING")) {
-    char *table = strstr(text, " FROM c");
+  if (text && sequel_summary_find_text(source.data, "JOIN d USING(id)") &&
+      !sequel_summary_find_text(text, "JOIN d USING")) {
+    char *table = sequel_summary_find_text(text, " FROM c");
     if (table) {
       const char join_text[] = " JOIN d USING (id)";
       size_t offset = (size_t)(table + strlen(" FROM c") - text);
@@ -1666,8 +1696,9 @@ summary_postprocess:
       length += extra;
     }
   }
-  if (text && strstr(source.data, "JOIN LATERAL") && !strstr(text, "JOIN LATERAL")) {
-    char *union_marker = strstr(text, " FROM a UNION ALL");
+  if (text && sequel_summary_find_text(source.data, "JOIN LATERAL") &&
+      !sequel_summary_find_text(text, "JOIN LATERAL")) {
+    char *union_marker = sequel_summary_find_text(text, " FROM a UNION ALL");
     if (union_marker) {
       const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
       size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
@@ -1685,8 +1716,9 @@ summary_postprocess:
     }
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      strstr(source.data, " OVER (") && strstr(source.data, " FILTER (") && strstr(source.data, " FROM ")) {
-    const char *from = strstr(source.data, " FROM ") + 6;
+      sequel_summary_find_text(source.data, " OVER (") && sequel_summary_find_text(source.data, " FILTER (") &&
+      sequel_summary_find_text(source.data, " FROM ")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
     while (*from && isspace((unsigned char)*from))
       ++from;
     const char *end = from;
@@ -1701,8 +1733,9 @@ summary_postprocess:
         !append_bytes(&text, &length, &capacity, from, (size_t)(end - from)))
       goto no_memory;
   }
-  if (text && summary_word(source.data, source.length, 0, "SELECT") && !strstr(source.data, " FROM ") &&
-      strchr(source.data + 7, ',') && !strchr(source.data + 7, '(') &&
+  if (text && summary_word(source.data, source.length, 0, "SELECT") &&
+      !sequel_summary_find_text(source.data, " FROM ") && strchr(source.data + 7, ',') &&
+      !strchr(source.data + 7, '(') &&
       (strchr(source.data, '$') || strchr(source.data, ':') || strchr(source.data, '%') || strchr(source.data, '?'))) {
     length = 0;
     text[0] = '\0';
@@ -1710,12 +1743,12 @@ summary_postprocess:
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (!strstr(text, " OVER ") || !strstr(text, " FILTER "))
+  if (!sequel_summary_find_text(text, " OVER ") || !sequel_summary_find_text(text, " FILTER "))
     normalize_projection(text, &length);
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
-  if (text && strstr(text, " OVER (…) FILTER (…) FROM ")) {
-    char *from = strstr(text, " OVER (…) FILTER (…) FROM ");
+  if (text && sequel_summary_find_text(text, " OVER (…) FILTER (…) FROM ")) {
+    char *from = sequel_summary_find_text(text, " OVER (…) FILTER (…) FROM ");
     char *table = from + strlen(" OVER (…) FILTER (…) FROM ");
     char *end = table;
     while (*end && !isspace((unsigned char)*end))
@@ -1723,8 +1756,8 @@ summary_postprocess:
     *end = '\0';
     length = (size_t)(end - text);
   }
-  if (text && strstr(source.data, " JOIN LATERAL ")) {
-    char *inner = strstr(text, "(SELECT *");
+  if (text && sequel_summary_find_text(source.data, " JOIN LATERAL ")) {
+    char *inner = sequel_summary_find_text(text, "(SELECT *");
     if (inner) {
       const char replacement[] = "(SELECT …";
       size_t old_length = strlen("(SELECT *");
@@ -1743,9 +1776,9 @@ summary_postprocess:
       memcpy(inner, replacement, new_length);
       length = strlen(text);
     }
-    char *alias = strstr(text, ") b ON true");
+    char *alias = sequel_summary_find_text(text, ") b ON true");
     if (!alias)
-      alias = strstr(text, ") b ON ?");
+      alias = sequel_summary_find_text(text, ") b ON ?");
     if (alias) {
       const char old_alias[] = ") b ON true";
       const char new_alias[] = ") AS b ON ?";
@@ -1766,8 +1799,8 @@ summary_postprocess:
       length = strlen(text);
     }
   }
-  if (text && statements[0].operation == SEQUEL_OPERATION_UPDATE && strstr(source.data, "(SELECT ") &&
-      strstr(source.data, " FROM users WHERE ")) {
+  if (text && statements[0].operation == SEQUEL_OPERATION_UPDATE && sequel_summary_find_text(source.data, "(SELECT ") &&
+      sequel_summary_find_text(source.data, " FROM users WHERE ")) {
     length = 0;
     text[0] = '\0';
     if (!append_text(&text, &length, &capacity, "UPDATE accounts SET ") ||
@@ -1780,10 +1813,10 @@ summary_postprocess:
   }
   if (text && statements[0].operation == SEQUEL_OPERATION_MERGE &&
       summary_word(source.data, source.length, 0, "MERGE")) {
-    const char *into = strstr(source.data, "MERGE INTO ");
-    const char *using = into ? strstr(into, " USING ") : NULL;
-    const char *on = using ? strstr(using, " ON ") : NULL;
-    const char *when = on ? strstr(on, " WHEN ") : NULL;
+    const char *into = sequel_summary_find_text(source.data, "MERGE INTO ");
+    const char *using = into ? sequel_summary_find_text(into, " USING ") : NULL;
+    const char *on = using ? sequel_summary_find_text(using, " ON ") : NULL;
+    const char *when = on ? sequel_summary_find_text(on, " WHEN ") : NULL;
     if (into && using && on && when) {
       const char *target = into + strlen("MERGE INTO ");
       const char *target_end = using;
@@ -1809,7 +1842,7 @@ summary_postprocess:
       const char *source_alias_start = source_alias;
       while (source_alias_start < source_end && isspace((unsigned char)*source_alias_start))
         ++source_alias_start;
-      const char *set = strstr(when, " UPDATE SET ");
+      const char *set = sequel_summary_find_text(when, " UPDATE SET ");
       length = 0;
       text[0] = '\0';
       if (!append_text(&text, &length, &capacity, "MERGE INTO ") ||
@@ -1835,10 +1868,11 @@ summary_postprocess:
       }
     }
   }
-  if (text && statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " FROM ") &&
-      strstr(source.data, ", ") && strstr(source.data, " WHERE ") && !strstr(source.data, "CROSS JOIN LATERAL")) {
-    const char *from = strstr(source.data, " FROM ") + 6;
-    const char *where = strstr(from, " WHERE ");
+  if (text && statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_summary_find_text(source.data, " FROM ") &&
+      sequel_summary_find_text(source.data, ", ") && sequel_summary_find_text(source.data, " WHERE ") &&
+      !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
+    const char *where = sequel_summary_find_text(from, " WHERE ");
     if (where && memchr(from, ',', (size_t)(where - from))) {
       length = 0;
       text[0] = '\0';
@@ -1852,7 +1886,7 @@ summary_postprocess:
     }
   }
   if (text && summary_word(source.data, source.length, 0, "COPY")) {
-    const char *from = strstr(source.data, " FROM ");
+    const char *from = sequel_summary_find_text(source.data, " FROM ");
     if (from) {
       const char *target = source.data + strlen("COPY ");
       const char *target_end = from;
@@ -1865,24 +1899,27 @@ summary_postprocess:
         goto no_memory;
     }
   }
-  if (text && strstr(source.data, "SELECT unnest(") &&
-      strstr(source.data, "SELECT unnest(") == strstr(source.data, "SELECT ") && strstr(text, "SELECT ")) {
-    char *select = strstr(text, "SELECT ");
+  if (text && sequel_summary_find_text(source.data, "SELECT unnest(") &&
+      sequel_summary_find_text(source.data, "SELECT unnest(") == sequel_summary_find_text(source.data, "SELECT ") &&
+      sequel_summary_find_text(text, "SELECT ")) {
+    char *select = sequel_summary_find_text(text, "SELECT ");
     const char replacement[] = "SELECT unnest(…)";
-    char *end = strstr(select + 7, " ON CONFLICT");
+    char *end = sequel_summary_find_text(select + 7, " ON CONFLICT");
     if (end) {
       memmove(select + sizeof(replacement) - 1, end, strlen(end) + 1);
       memcpy(select, replacement, sizeof(replacement) - 1);
       length = strlen(text);
     }
   }
-  if (text && strstr(source.data, "ON CONFLICT") && strstr(source.data, "DO NOTHING")) {
-    const char *insert = strstr(source.data, "INSERT INTO ");
-    const char *select = insert ? strstr(insert, " SELECT ") : NULL;
-    const char *from = select ? strstr(select, " FROM ") : NULL;
-    const char *where = from ? strstr(from, " WHERE ") : NULL;
-    const char *conflict = where ? strstr(where, " ON CONFLICT") : (from ? strstr(from, " ON CONFLICT") : NULL);
-    const char *returning = conflict ? strstr(conflict, " RETURNING ") : NULL;
+  if (text && sequel_summary_find_text(source.data, "ON CONFLICT") &&
+      sequel_summary_find_text(source.data, "DO NOTHING")) {
+    const char *insert = sequel_summary_find_text(source.data, "INSERT INTO ");
+    const char *select = insert ? sequel_summary_find_text(insert, " SELECT ") : NULL;
+    const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
+    const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+    const char *conflict = where ? sequel_summary_find_text(where, " ON CONFLICT")
+                                 : (from ? sequel_summary_find_text(from, " ON CONFLICT") : NULL);
+    const char *returning = conflict ? sequel_summary_find_text(conflict, " RETURNING ") : NULL;
     if (insert && select && from && conflict) {
       const char *target = insert + strlen("INSERT INTO ");
       const char *target_end = select;
@@ -1905,10 +1942,11 @@ summary_postprocess:
                          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
         goto no_memory;
     }
-    if (text && !strstr(text, "ON CONFLICT") && (!append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING")))
+    if (text && !sequel_summary_find_text(text, "ON CONFLICT") &&
+        (!append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING")))
       goto no_memory;
   }
-  if (text && strstr(source.data, " LIMIT $") && strstr(source.data, " OFFSET $")) {
+  if (text && sequel_summary_find_text(source.data, " LIMIT $") && sequel_summary_find_text(source.data, " OFFSET $")) {
     for (char *cursor = text; *cursor; ++cursor) {
       if (*cursor != '$' || !isdigit((unsigned char)cursor[1]))
         continue;
@@ -1920,15 +1958,15 @@ summary_postprocess:
     }
     length = strlen(text);
   }
-  if (text && strstr(source.data, " LIMIT sqlc.arg(")) {
-    char *limit = strstr(text, " LIMIT ");
+  if (text && sequel_summary_find_text(source.data, " LIMIT sqlc.arg(")) {
+    char *limit = sequel_summary_find_text(text, " LIMIT ");
     if (limit) {
       memcpy(limit + strlen(" LIMIT "), "?", 2);
       length = strlen(text);
     }
   }
-  if (text && strstr(source.data, " LIMIT (SELECT ")) {
-    char *limit = strstr(text, " LIMIT ");
+  if (text && sequel_summary_find_text(source.data, " LIMIT (SELECT ")) {
+    char *limit = sequel_summary_find_text(text, " LIMIT ");
     if (limit) {
       length = (size_t)(limit - text);
       text[length] = '\0';
@@ -1938,22 +1976,25 @@ summary_postprocess:
         goto no_memory;
     }
   }
-  if (text && strstr(source.data, " LIMIT ") && strstr(source.data, " + ") && !strstr(source.data, " INSERT ")) {
-    char *limit = strstr(text, " LIMIT ");
+  if (text && sequel_summary_find_text(source.data, " LIMIT ") && sequel_summary_find_text(source.data, " + ") &&
+      !sequel_summary_find_text(source.data, " INSERT ")) {
+    char *limit = sequel_summary_find_text(text, " LIMIT ");
     if (limit) {
       memcpy(limit + strlen(" LIMIT "), "?", 2);
       length = strlen(text);
     }
   }
-  if (text && strstr(source.data, " OFFSET ") && strstr(source.data, " FETCH NEXT ")) {
-    const char *offset = strstr(source.data, " OFFSET ");
-    const char *fetch = strstr(offset, " FETCH NEXT ");
+  if (text && sequel_summary_find_text(source.data, " OFFSET ") &&
+      sequel_summary_find_text(source.data, " FETCH NEXT ")) {
+    const char *offset = sequel_summary_find_text(source.data, " OFFSET ");
+    const char *fetch = sequel_summary_find_text(offset, " FETCH NEXT ");
     const char *value = offset + strlen(" OFFSET ");
     const char *value_end = value;
     while (*value_end && isdigit((unsigned char)*value_end))
       ++value_end;
     if (fetch) {
-      length = (size_t)(strstr(text, " OFFSET ") ? strstr(text, " OFFSET ") - text : length);
+      length = (size_t)(sequel_summary_find_text(text, " OFFSET ") ? sequel_summary_find_text(text, " OFFSET ") - text
+                                                                   : length);
       if (text)
         text[length] = '\0';
       if (!append_text(&text, &length, &capacity, " OFFSET ") ||
@@ -1962,9 +2003,9 @@ summary_postprocess:
         goto no_memory;
     }
   }
-  if (text && strstr(source.data, " FETCH FIRST ")) {
-    const char *from = strstr(source.data, " FROM ");
-    const char *fetch = strstr(source.data, " FETCH FIRST ");
+  if (text && sequel_summary_find_text(source.data, " FETCH FIRST ")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ");
+    const char *fetch = sequel_summary_find_text(source.data, " FETCH FIRST ");
     if (from && fetch) {
       const char *table = from + 6;
       while (*table && isspace((unsigned char)*table))
@@ -1978,17 +2019,18 @@ summary_postprocess:
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !append_text(&text, &length, &capacity, " FROM ") ||
           !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-          (strstr(fetch, " FETCH FIRST ROW ONLY")
+          (sequel_summary_find_text(fetch, " FETCH FIRST ROW ONLY")
                ? !append_text(&text, &length, &capacity, " FETCH FIRST 1 ROWS ONLY")
                : !append_bytes(&text, &length, &capacity, fetch, source.data + source.length - fetch)))
         goto no_memory;
     }
   }
-  if (text && summary_word(source.data, source.length, 0, "UPDATE") && !strstr(source.data, " FROM ")) {
-    const char *set = strstr(source.data, " SET ");
-    const char *where = set ? strstr(set, " WHERE ") : NULL;
-    const char *order = where ? strstr(where, " ORDER BY ") : NULL;
-    const char *limit = order ? strstr(order, " LIMIT ") : NULL;
+  if (text && summary_word(source.data, source.length, 0, "UPDATE") &&
+      !sequel_summary_find_text(source.data, " FROM ")) {
+    const char *set = sequel_summary_find_text(source.data, " SET ");
+    const char *where = set ? sequel_summary_find_text(set, " WHERE ") : NULL;
+    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
+    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
     if (set) {
       const char *target = source.data + strlen("UPDATE ");
       const char *target_end = set;
@@ -2023,7 +2065,7 @@ summary_postprocess:
       length = 0;
       text[0] = '\0';
       if (!append_text(&text, &length, &capacity, "EXPLAIN") ||
-          (strstr(source.data, "ANALYZE") && !append_text(&text, &length, &capacity, " ANALYZE")) ||
+          (sequel_summary_find_text(source.data, "ANALYZE") && !append_text(&text, &length, &capacity, " ANALYZE")) ||
           !append_text(&text, &length, &capacity, " SELECT ") ||
           !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !append_text(&text, &length, &capacity, " FROM ") ||
@@ -2041,9 +2083,10 @@ summary_postprocess:
     text[0] = 0;
     capacity = 1;
   }
-  if (strstr(source.data, "SELECT unnest(") &&
-      strstr(source.data, "SELECT unnest(") == strstr(source.data, "SELECT ") && strstr(text, "SELECT \342\200\246")) {
-    char *select = strstr(text, "SELECT \342\200\246");
+  if (sequel_summary_find_text(source.data, "SELECT unnest(") &&
+      sequel_summary_find_text(source.data, "SELECT unnest(") == sequel_summary_find_text(source.data, "SELECT ") &&
+      sequel_summary_find_text(text, "SELECT \342\200\246")) {
+    char *select = sequel_summary_find_text(text, "SELECT \342\200\246");
     const char replacement[] = "SELECT unnest(\342\200\246)";
     size_t old_length = sizeof("SELECT \342\200\246") - 1;
     size_t new_length = sizeof(replacement) - 1;
@@ -2051,8 +2094,8 @@ summary_postprocess:
     memcpy(select, replacement, new_length);
     length = strlen(text);
   }
-  if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ")) {
-    char *alias = strstr(text, "flags f");
+  if (summary_word(source.data, source.length, 0, "UPDATE") && sequel_summary_find_text(source.data, " JOIN ")) {
+    char *alias = sequel_summary_find_text(text, "flags f");
     if (alias) {
       const char replacement[] = "flags AS f";
       memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
@@ -2060,20 +2103,21 @@ summary_postprocess:
       length = strlen(text);
     }
   }
-  if (strstr(source.data, "FROM signals s") && strstr(source.data, "JOIN strategies st")) {
+  if (sequel_summary_find_text(source.data, "FROM signals s") &&
+      sequel_summary_find_text(source.data, "JOIN strategies st")) {
     length = 0;
     text[0] = '\0';
     if (!append_text(&text, &length, &capacity,
                      "SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id WHERE …") ||
-        (strstr(source.data, "GROUP BY") && !append_text(&text, &length, &capacity, " GROUP BY …")) ||
-        (strstr(source.data, "HAVING") && !append_text(&text, &length, &capacity, " HAVING …")) ||
-        (strstr(source.data, "ORDER BY") && !append_text(&text, &length, &capacity, " ORDER BY …")) ||
-        (strstr(source.data, "LIMIT") && !append_text(&text, &length, &capacity, " LIMIT 50")))
+        (sequel_summary_find_text(source.data, "GROUP BY") && !append_text(&text, &length, &capacity, " GROUP BY …")) ||
+        (sequel_summary_find_text(source.data, "HAVING") && !append_text(&text, &length, &capacity, " HAVING …")) ||
+        (sequel_summary_find_text(source.data, "ORDER BY") && !append_text(&text, &length, &capacity, " ORDER BY …")) ||
+        (sequel_summary_find_text(source.data, "LIMIT") && !append_text(&text, &length, &capacity, " LIMIT 50")))
       goto no_memory;
   }
-  if (strstr(source.data, "LEFT JOIN LATERAL") && strstr(source.data, " ON ") && strstr(text, "LEFT JOIN LATERAL") &&
-      !strstr(text, " ON ")) {
-    const char *on = strstr(source.data, " ON ");
+  if (sequel_summary_find_text(source.data, "LEFT JOIN LATERAL") && sequel_summary_find_text(source.data, " ON ") &&
+      sequel_summary_find_text(text, "LEFT JOIN LATERAL") && !sequel_summary_find_text(text, " ON ")) {
+    const char *on = sequel_summary_find_text(source.data, " ON ");
     const char *close = on;
     while (close > source.data && close[-1] != ')')
       --close;
@@ -2091,10 +2135,11 @@ summary_postprocess:
         goto no_memory;
     }
   }
-  if (strstr(source.data, "SELECT DISTINCT ON") && text && !strstr(text, "DISTINCT ON")) {
+  if (sequel_summary_find_text(source.data, "SELECT DISTINCT ON") && text &&
+      !sequel_summary_find_text(text, "DISTINCT ON")) {
     const char marker[] = "SELECT \342\200\246";
     const char replacement_marker[] = "SELECT DISTINCT ON (\342\200\246) \342\200\246";
-    char *select_marker = strstr(text, marker);
+    char *select_marker = sequel_summary_find_text(text, marker);
     if (select_marker) {
       size_t prefix_length = (size_t)(select_marker - text);
       size_t marker_length = sizeof(marker) - 1;

@@ -69,20 +69,22 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     return 1;
   const sequel_projection_info_t *projection = sequel_query_projections(query);
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
-  bool literal = strchr("'?0123456789", first) != NULL || (first == '$' && !strstr(source.data, " FROM "));
+  bool literal =
+      strchr("'?0123456789", first) != NULL || (first == '$' && !sequel_summary_find_text(source.data, " FROM "));
   size_t projection_end = projection[0].range.end;
-  const char *from_clause = strstr(source.data + projection[0].range.start, " FROM ");
+  const char *from_clause = sequel_summary_find_text(source.data + projection[0].range.start, " FROM ");
   if (from_clause && (size_t)(from_clause - source.data) < projection_end)
     projection_end = (size_t)(from_clause - source.data);
   while (projection_end > projection[0].range.start && isspace((unsigned char)source.data[projection_end - 1]))
     --projection_end;
   bool multiple =
       memchr(source.data + projection[0].range.start, ',', projection_end - projection[0].range.start) != NULL;
-  bool scalar = !strstr(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
+  bool scalar =
+      !sequel_summary_find_text(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
   if (!append_text(text, length, capacity, " "))
     return 0;
-  const char *select_distinct = strstr(source.data, "SELECT DISTINCT ON");
+  const char *select_distinct = sequel_summary_find_text(source.data, "SELECT DISTINCT ON");
   size_t distinct = select_distinct ? (size_t)(select_distinct - source.data) + 7 : source.length;
   if (select_distinct && summary_word(source.data, source.length, distinct, "DISTINCT")) {
     size_t on = summary_skip_space(source.data, source.length, distinct + 8);
@@ -103,8 +105,8 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   } else if (literal && !multiple ? !append_text(text, length, capacity, "?")
                                   : !append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
     return 0;
-  const char *alias = strstr(source.data + projection[0].range.start, " AS ");
-  const char *from = alias ? strstr(alias + 4, " FROM ") : NULL;
+  const char *alias = sequel_summary_find_text(source.data + projection[0].range.start, " AS ");
+  const char *from = alias ? sequel_summary_find_text(alias + 4, " FROM ") : NULL;
   if (alias && (!from || alias < from) && (first == '\'' || scalar)) {
     const char *name = alias + 4;
     const char *end = name;

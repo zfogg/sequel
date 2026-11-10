@@ -2,10 +2,12 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "internal.h"
+
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
-  if (strstr(text, " OVER (…) FILTER (…) FROM "))
+  if (sequel_summary_find_text(text, " OVER (…) FILTER (…) FROM "))
     return;
   for (size_t i = 0; i + 1 < *length; ++i) {
     if (text[i] != '$')
@@ -17,8 +19,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
       continue;
     size_t delimiter_length = delimiter_end + 1 - i;
     size_t end = delimiter_end + 1;
-    while (end + delimiter_length <= *length &&
-           memcmp(text + end, text + i, delimiter_length) != 0)
+    while (end + delimiter_length <= *length && memcmp(text + end, text + i, delimiter_length) != 0)
       ++end;
     if (end + delimiter_length > *length)
       continue;
@@ -71,8 +72,8 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
       ++i;
       continue;
     }
-    bool word_boundary = (i == 0 || !isalnum((unsigned char)text[i - 1])) &&
-                         (i + 4 >= *length || !isalnum((unsigned char)text[i + 4]));
+    bool word_boundary =
+        (i == 0 || !isalnum((unsigned char)text[i - 1])) && (i + 4 >= *length || !isalnum((unsigned char)text[i + 4]));
     if (word_boundary && (!memcmp(text + i, "true", 4) || !memcmp(text + i, "false", 5))) {
       size_t word_length = text[i] == 't' ? 4 : 5;
       text[i] = '?';
@@ -89,7 +90,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
 
 static void normalize_function_arguments(char *text, size_t *length) {
   for (char *function = text; function;) {
-    function = strstr(function, "argMax(");
+    function = sequel_summary_find_text(function, "argMax(");
     if (!function)
       return;
     char *close = strchr(function + strlen("argMax("), ')');
@@ -111,7 +112,7 @@ static void collapse_adjacent_ellipsis(char *text, size_t *length) {
   const char pair[] = "… …";
   const size_t pair_length = sizeof(pair) - 1;
   const size_t one_length = sizeof("…") - 1;
-  for (char *match = strstr(text, pair); match; match = strstr(match, pair)) {
+  for (char *match = sequel_summary_find_text(text, pair); match; match = sequel_summary_find_text(match, pair)) {
     memmove(match + one_length, match + pair_length, strlen(match + pair_length) + 1);
     *length -= pair_length - one_length;
   }
@@ -120,10 +121,10 @@ static void collapse_adjacent_ellipsis(char *text, size_t *length) {
 static void collapse_duplicate_relation(char *text, size_t *length) {
   if (strncmp(text, "SELECT *", 8) != 0)
     return;
-  char *first = strstr(text, "FROM ");
+  char *first = sequel_summary_find_text(text, "FROM ");
   if (!first)
     return;
-  char *second = strstr(first + 5, " FROM ");
+  char *second = sequel_summary_find_text(first + 5, " FROM ");
   if (!second)
     return;
   size_t prefix_length = (size_t)(first - text);
@@ -143,7 +144,8 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
   for (size_t operator_index = 0; operator_index < 4; ++operator_index) {
     const char *operator = operators[operator_index];
     size_t width = strlen(operator);
-    for (char *match = strstr(text, operator); match; match = strstr(match + width, operator)) {
+    for (char *match = sequel_summary_find_text(text, operator); match;
+         match = sequel_summary_find_text(match + width, operator)) {
       while (match[width] == ' ')
         memmove(match + width, match + width + 1, strlen(match + width + 1) + 1), --*length;
     }
@@ -151,17 +153,17 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
   collapse_duplicate_relation(text, length);
   collapse_adjacent_ellipsis(text, length);
   normalize_function_arguments(text, length);
-  char *projection = strstr(text, "SELECT ");
+  char *projection = sequel_summary_find_text(text, "SELECT ");
   if (!projection)
     return;
   /* In a WITH summary the first SELECT belongs to a CTE body.  Projection
    * normalization must target the outer query, otherwise a scalar CTE such as
    * pg_advisory_lock(...) is incorrectly collapsed to an ellipsis. */
   if (!strncmp(text, "WITH ", 5)) {
-    for (char *candidate = projection; (candidate = strstr(candidate + 1, "SELECT ")) != NULL;)
+    for (char *candidate = projection; (candidate = sequel_summary_find_text(candidate + 1, "SELECT ")) != NULL;)
       projection = candidate;
   }
-  char *from = strstr(projection + strlen("SELECT "), "FROM ");
+  char *from = sequel_summary_find_text(projection + strlen("SELECT "), "FROM ");
   char *projection_start = projection + strlen("SELECT ");
   char *comma = strchr(projection_start, ',');
   char *open = strchr(projection_start, '(');

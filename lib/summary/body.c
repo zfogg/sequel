@@ -10,7 +10,7 @@ static const char summary_ellipsis[] = "\342\200\246";
 #define summary_skip_space sequel_summary_skip_space
 
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
-                               sequel_source_range_t range, bool preserve_limit) {
+                                       sequel_source_range_t range, bool preserve_limit) {
   size_t start = summary_skip_space(source, range.end, range.start);
   if (summary_word(source, range.end, start, "SELECT")) {
     size_t from = start;
@@ -75,12 +75,12 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     if (where < range.end && (!append_text(text, length, capacity, " WHERE ") ||
                               !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
       return 0;
-    const char *union_all = strstr(source + table_end, "UNION ALL");
+    const char *union_all = sequel_summary_find_text(source + table_end, "UNION ALL");
     if (union_all && union_all < source + range.end) {
-      const char *second = strstr(union_all, "SELECT ");
-      const char *second_from = second ? strstr(second, " FROM ") : NULL;
-      const char *join = second_from ? strstr(second_from, " JOIN ") : NULL;
-      const char *on = join ? strstr(join, " ON ") : NULL;
+      const char *second = sequel_summary_find_text(union_all, "SELECT ");
+      const char *second_from = second ? sequel_summary_find_text(second, " FROM ") : NULL;
+      const char *join = second_from ? sequel_summary_find_text(second_from, " JOIN ") : NULL;
+      const char *on = join ? sequel_summary_find_text(join, " ON ") : NULL;
       if (second && second_from && join && on && on < source + range.end) {
         const char *second_table = second_from + 6;
         while (*second_table && isspace((unsigned char)*second_table))
@@ -145,8 +145,10 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
         return 0;
       memcpy(numeric, source + value, numeric_length);
       numeric[numeric_length] = 0;
-      if (!append_text(text, length, capacity, " LIMIT ") ||
-          !append_text(text, length, capacity, preserve_limit && !parameter ? numeric : parameter ? "?" : "1"))
+      if (!append_text(text, length, capacity, " LIMIT ") || !append_text(text, length, capacity,
+                                                                          preserve_limit && !parameter ? numeric
+                                                                          : parameter                  ? "?"
+                                                                                                       : "1"))
         return 0;
     }
     return 1;
