@@ -175,7 +175,6 @@ int main(void) {
     found_in_list |= nodes[i].kind == SEQUEL_SYNTAX_IN_LIST;
   }
   if (!check(found_binary && binary_count >= 2 && found_in_list, "keyword and comparison precedence nodes")) {
-    fprintf(stderr, "binary=%zu in=%d nodes=%zu\\n", binary_count, found_in_list, node_count);
     return 1;
   }
   int found_call = 0;
