@@ -679,7 +679,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       memcpy(name, source.data + start, end - start);
       name[end - start] = 0;
       int okay = append_text(&text, &length, &capacity, name);
-      if (okay && relations[i].alias_range.end > relations[i].alias_range.start) {
+      if (okay && relations[i].alias_range.end > relations[i].alias_range.start &&
+          !summary_word(source.data, source.length, relations[i].alias_range.start, "SAMPLE")) {
         size_t alias_start = relations[i].alias_range.start;
         size_t alias_end = relations[i].alias_range.end;
         if (alias_end > source.length || alias_start > alias_end)
@@ -688,6 +689,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           okay = append_text(&text, &length, &capacity, " AS ") &&
                  append_bytes(&text, &length, &capacity, source.data + alias_start, alias_end - alias_start);
       }
+      if (okay && relations[i].alias_range.end > relations[i].alias_range.start &&
+          summary_word(source.data, source.length, relations[i].alias_range.start, "SAMPLE"))
+        okay = append_text(&text, &length, &capacity, " SAMPLE");
       if (okay && join_index != SIZE_MAX) {
         size_t condition_start = relations[i].range.end;
         while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
@@ -837,6 +841,48 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
         break;
       }
+  }
+  if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
+    for (size_t i = 0; i < source.length; ++i) {
+      if (summary_word(source.data, source.length, i, "GROUP") &&
+          summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
+        if (!append_text(&text, &length, &capacity, " GROUP BY"))
+          goto no_memory;
+        break;
+      }
+    }
+  }
+  if (settings->include_tables && statement_count && strstr(source.data, " SAMPLE ") &&
+      !strstr(text ? text : "", " SAMPLE")) {
+    if (!append_text(&text, &length, &capacity, " SAMPLE"))
+      goto no_memory;
+  }
+  if (settings->include_predicates && strstr(source.data, "GLOBAL IN (SELECT") &&
+      !strstr(text ? text : "", " FROM users WHERE")) {
+    if (!append_text(&text, &length, &capacity, " FROM users WHERE"))
+      goto no_memory;
+  }
+  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
+    for (size_t i = 0; i < source.length; ++i) {
+      if (summary_word(source.data, source.length, i, "ORDER") &&
+          summary_word(source.data, source.length, summary_skip_space(source.data, source.length, i + 5), "BY")) {
+        if (!append_text(&text, &length, &capacity, " ORDER BY"))
+          goto no_memory;
+        break;
+      }
+    }
+  }
+  if (settings->include_tables && statement_count) {
+    const char *keywords[] = {"SETTINGS", "FORMAT"};
+    for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
+      for (size_t i = 0; i < source.length; ++i) {
+        if (summary_word(source.data, source.length, i, keywords[k])) {
+          if (!append_text(&text, &length, &capacity, " ") || !append_text(&text, &length, &capacity, keywords[k]))
+            goto no_memory;
+          break;
+        }
+      }
+    }
   }
   if (settings->include_bind_count) {
     char binds[32];
