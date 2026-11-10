@@ -193,12 +193,18 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   }
   size_t comment_depth = 0;
   for (size_t i = 0; i + 1 < n; ++i) {
-    if (sql[i] == '/' && sql[i + 1] == '*' && ++comment_depth > 64) {
-      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 2);
-      return SEQUEL_ERR_OVERFLOW;
+    if (sql[i] == '/' && sql[i + 1] == '*') {
+      if (++comment_depth > 64) {
+        diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 2);
+        return SEQUEL_ERR_OVERFLOW;
+      }
+      ++i;
+      continue;
     }
-    if (sql[i] == '*' && sql[i + 1] == '/' && comment_depth)
+    if (sql[i] == '*' && sql[i + 1] == '/' && comment_depth) {
       --comment_depth;
+      ++i;
+    }
   }
   if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
     const char *format = strstr(sql, " FORMAT ") + 1;
