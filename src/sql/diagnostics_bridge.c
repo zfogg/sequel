@@ -36,9 +36,21 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   const sequel_parse_issue_t *issue = &issues[issue_index];
   sequel_diagnostic_code_t code = issue->code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE  ? SEQUEL_DIAG_UNMATCHED_CLOSE
                                   : issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ? SEQUEL_DIAG_UNCLOSED_GROUP
-                                  : issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN
-                                      ? SEQUEL_DIAG_UNTERMINATED_STRING
-                                      : SEQUEL_DIAG_INVALID_ARGUMENT;
+                                                                                     : SEQUEL_DIAG_INVALID_ARGUMENT;
+  if (issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN) {
+    size_t token_count = 0;
+    const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(document), &token_count);
+    code = SEQUEL_DIAG_UNTERMINATED_STRING;
+    for (size_t i = 0; i < token_count; ++i) {
+      if (tokens[i].range.start != issue->range.start)
+        continue;
+      if (tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER)
+        code = SEQUEL_DIAG_UNTERMINATED_IDENTIFIER;
+      else if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+        code = SEQUEL_DIAG_UNTERMINATED_COMMENT;
+      break;
+    }
+  }
   memset(diagnostic, 0, sizeof(*diagnostic));
   diagnostic->code = code;
   diagnostic->severity = issue->recovery == SEQUEL_RECOVERY_NONE ? SEQUEL_ERROR : SEQUEL_WARNING;

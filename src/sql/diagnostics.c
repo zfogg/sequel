@@ -182,46 +182,34 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_status_t status = diagnostic_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
-  format_token *ts = NULL;
-  size_t count = format_scan_ex(sql, n, dialect, &ts, false, out);
-  if (count == SIZE_MAX) {
-    free(ts);
-    return out->code == SEQUEL_DIAG_OUT_OF_MEMORY   ? SEQUEL_ERR_NOMEM
-           : out->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW
-                                                    : SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = dialect;
+  options.retain_comments = true;
+  sequel_source_view_t source = {sql, n};
+  sequel_syntax_document_t *document = NULL;
+  status = sequel_parse_sql(&source, &options, NULL, &document);
+  if (status != SEQUEL_OK)
+    return status;
+  size_t issue_count = 0;
+  sequel_syntax_issues(document, &issue_count);
+  if (issue_count) {
+    status = sequel_syntax_diagnostic(document, 0, out);
+    sequel_syntax_document_free(document);
+    return status == SEQUEL_OK ? SEQUEL_ERR_INVALID_ARGUMENT : status;
   }
-  size_t stack[64], depth = 0, last = SIZE_MAX;
-  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
-    if (ts[i].kind >= 3)
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(document);
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  for (size_t i = token_count; i > 0; --i) {
+    if (tokens[i - 1].kind == SEQUEL_TOKEN_EOF)
       continue;
-    last = i;
-    token t = ts[i].t;
-    if (ts[i].kind != 0)
-      continue;
-    if (sym(t, '(') || sym(t, '[')) {
-      if (depth == 64) {
-        diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, (size_t)(t.p - sql), (size_t)(t.p - sql) + 1);
-        free(ts);
-        return SEQUEL_ERR_OVERFLOW;
-      }
-      stack[depth++] = i;
-    } else if (sym(t, ')') || sym(t, ']')) {
-      if (!depth || (sym(t, ')') != sym(ts[stack[depth - 1]].t, '('))) {
-        diagnostic_report(sql, n, out, SEQUEL_DIAG_UNMATCHED_CLOSE, (size_t)(t.p - sql), (size_t)(t.p - sql) + 1);
-        free(ts);
-        return SEQUEL_ERR_INVALID_ARGUMENT;
-      }
-      --depth;
-    }
+    out->statement_complete =
+        tokens[i - 1].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i - 1].range.start] == ';';
+    break;
   }
-  if (depth) {
-    token opening = ts[stack[depth - 1]].t;
-    diagnostic_report(sql, n, out, SEQUEL_DIAG_UNCLOSED_GROUP, (size_t)(opening.p - sql), n);
-    status = SEQUEL_ERR_INVALID_ARGUMENT;
-  } else
-    out->statement_complete = last != SIZE_MAX && sym(ts[last].t, ';');
-  free(ts);
-  return status;
+  sequel_syntax_document_free(document);
+  return SEQUEL_OK;
 }
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   size_t n = 0;

@@ -39,6 +39,10 @@ static int append_token(sequel_lexed_document_t *document, sequel_token_t token,
 static size_t scan_quoted(const char *source, size_t length, size_t start, char quote) {
   size_t i = start + 1;
   while (i < length) {
+    if (source[i] == '\\' && i + 1 < length) {
+      i += 2;
+      continue;
+    }
     if (source[i] == quote) {
       if (i + 1 < length && source[i + 1] == quote) {
         i += 2;
@@ -49,6 +53,15 @@ static size_t scan_quoted(const char *source, size_t length, size_t start, char 
     ++i;
   }
   return length;
+}
+
+static int quoted_token_is_terminated(const char *source, size_t start, size_t end, char quote) {
+  if (end <= start + 1 || end != strlen(source) || source[end - 1] != quote)
+    return 0;
+  size_t backslashes = 0;
+  for (size_t i = end - 1; i > start && source[i - 1] == '\\'; --i)
+    ++backslashes;
+  return (backslashes & 1u) == 0;
 }
 
 void sequel_parse_options_init(sequel_parse_options_t *options) {
@@ -118,9 +131,12 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       i += 2;
       while (i + 1 < source->length && !(source->data[i] == '*' && source->data[i + 1] == '/'))
         ++i;
-      i = i + 1 < source->length ? i + 2 : source->length;
+      int terminated = i + 1 < source->length;
+      i = terminated ? i + 2 : source->length;
       kind = SEQUEL_TOKEN_BLOCK_COMMENT;
       flags = SEQUEL_TOKEN_FLAG_COMMENT;
+      if (!terminated)
+        flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       if (!settings->retain_comments)
         continue;
     } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
@@ -140,7 +156,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       char quote = source->data[i++];
       i = scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
       kind = quote == '\'' ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
-      flags = i == source->length && source->data[i - 1] != (quote == '[' ? ']' : quote)
+      char closing_quote = quote == '[' ? ']' : quote;
+      flags = i == source->length && !quoted_token_is_terminated(source->data, start, i, closing_quote)
                   ? SEQUEL_TOKEN_FLAG_UNTERMINATED
                   : 0;
     } else if (isdigit((unsigned char)source->data[i])) {
@@ -149,6 +166,27 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
       kind = SEQUEL_TOKEN_NUMBER;
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
+    } else if (source->data[i] == '$' && settings->dialect == SEQUEL_POSTGRESQL) {
+      size_t tag_end = i + 1;
+      while (tag_end < source->length &&
+             (isalnum((unsigned char)source->data[tag_end]) || source->data[tag_end] == '_'))
+        ++tag_end;
+      if (tag_end < source->length && source->data[tag_end] == '$') {
+        size_t content = tag_end + 1;
+        size_t close = content;
+        while (close + (tag_end - i + 1) <= source->length &&
+               memcmp(source->data + close, source->data + i, tag_end - i + 1) != 0)
+          ++close;
+        i = close + (tag_end - i + 1) <= source->length ? close + (tag_end - i + 1) : source->length;
+        kind = SEQUEL_TOKEN_STRING;
+        flags = i == source->length ? SEQUEL_TOKEN_FLAG_UNTERMINATED : 0;
+      } else {
+        ++i;
+        while (i < source->length && is_word_part((unsigned char)source->data[i]))
+          ++i;
+        kind = SEQUEL_TOKEN_PARAMETER;
+        flags = SEQUEL_TOKEN_FLAG_BIND;
+      }
     } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' || source->data[i] == '@') {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))

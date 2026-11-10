@@ -147,6 +147,13 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
         }
       }
     }
+    if (i < token_count && (tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED)) {
+      if (!append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
+                                                         SEQUEL_RECOVERY_OPAQUE_REGION, tokens[i].range, SIZE_MAX})) {
+        sequel_syntax_document_free(document);
+        return SEQUEL_ERR_NOMEM;
+      }
+    }
     if (!boundary)
       continue;
     size_t first = start_token;

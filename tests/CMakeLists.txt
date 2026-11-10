@@ -49,7 +49,15 @@ add_executable(sequel-limits-test limits_api_test.c)
 target_link_libraries(sequel-limits-test PRIVATE sequel::sequel)
 add_test(NAME sequel-limits COMMAND sequel-limits-test)
 # Exercise exact boundaries with the same engine and small test-only constants.
-add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/main.c ../src/utf8.c)
+set(SEQUEL_PARSER_SOURCES
+  ../src/sql/source.c
+  ../src/sql/dialect.c
+  ../src/sql/lexer.c
+  ../src/sql/parser.c
+  ../src/sql/query.c
+  ../src/sql/diagnostics_bridge.c)
+
+add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/main.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-limit-boundary-test PRIVATE ../include)
 target_link_libraries(sequel-limit-boundary-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 target_compile_definitions(sequel-limit-boundary-test PRIVATE
@@ -66,14 +74,14 @@ target_link_libraries(sequel-analysis-test PRIVATE sequel::sequel)
 add_test(NAME sequel-analysis-api COMMAND sequel-analysis-test)
 
 # Test the private streaming digest against standard vectors without exposing it.
-add_executable(sequel-sha256-test sha256_api_test.c ../src/utf8.c)
+add_executable(sequel-sha256-test sha256_api_test.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-sha256-test PRIVATE ../include)
 target_link_libraries(sequel-sha256-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 add_test(NAME sequel-sha256-api COMMAND sequel-sha256-test)
 
 # Keep the bundled utf8proc malloc/free ABI and scan accounting unchanged when
 # the SQL implementation is followed by other sources in cgo's unity build.
-add_executable(sequel-unity-test unity_api_test.c)
+add_executable(sequel-unity-test unity_api_test.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-unity-test PRIVATE ../include ../third_party)
 target_compile_definitions(sequel-unity-test PRIVATE SEQUEL_TEST_UNITY UTF8PROC_STATIC)
 target_compile_features(sequel-unity-test PRIVATE c_std_11)
