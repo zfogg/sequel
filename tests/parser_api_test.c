@@ -115,6 +115,13 @@ int main(void) {
              "diagnostic budget"))
     return 1;
   sequel_syntax_document_free(limited_syntax);
+  sequel_parse_options_t node_limited_options = options;
+  node_limited_options.max_nodes = 1;
+  sequel_syntax_document_t *node_limited_syntax = NULL;
+  if (!check(sequel_parse_sql(&source, &node_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT &&
+                 node_limited_syntax == NULL,
+             "node budget"))
+    return 1;
 
   sequel_syntax_document_t *syntax = NULL;
   if (!check(sequel_parse_sql(&source, &options, NULL, &syntax) == SEQUEL_OK, "parse succeeds"))

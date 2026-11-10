@@ -14,6 +14,7 @@ struct sequel_syntax_document {
   sequel_parse_issue_t *issues;
   size_t issue_count;
   size_t max_diagnostics;
+  size_t max_nodes;
 };
 
 static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed, size_t token_index) {
@@ -331,6 +332,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
     return SEQUEL_ERR_NOMEM;
   document->lexed = lexed;
   document->max_diagnostics = options && options->max_diagnostics ? options->max_diagnostics : 64;
+  document->max_nodes = options && options->max_nodes ? options->max_nodes : SIZE_MAX;
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   size_t start_token = 0;
@@ -467,7 +469,10 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
       return SEQUEL_ERR_NOMEM;
     }
   }
-  (void)options;
+  if (document->node_count > document->max_nodes) {
+    sequel_syntax_document_free(document);
+    return SEQUEL_ERR_LIMIT;
+  }
   *out = document;
   return SEQUEL_OK;
 }
