@@ -137,6 +137,103 @@ void sequel_metadata_free(sequel_metadata_t *metadata) {
   }
 }
 
+static sequel_status_t inspect_document(const char *sql, size_t length, const sequel_options_t *options,
+                                        sequel_metadata_t *out) {
+  sequel_parse_options_t parse_options;
+  sequel_parse_options_init(&parse_options);
+  parse_options.dialect = options ? options->dialect : SEQUEL_GENERIC;
+  parse_options.retain_comments = true;
+  parse_options.retain_whitespace = true;
+  sequel_source_view_t source = {sql, length};
+  sequel_syntax_document_t *syntax = NULL;
+  sequel_query_document_t *query = NULL;
+  sequel_text_result_t sanitized = {0}, summary = {0};
+  sequel_status_t status = sequel_parse_sql(&source, &parse_options, NULL, &syntax);
+  if (status != SEQUEL_OK)
+    goto done;
+  size_t issue_count = sequel_syntax_issue_count(syntax);
+  if (issue_count) {
+    status = SEQUEL_ERR_INVALID_ARGUMENT;
+    goto done;
+  }
+  status = sequel_build_query_document(syntax, &parse_options, &query);
+  if (status != SEQUEL_OK)
+    goto done;
+  status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS |
+                                                                  SEQUEL_SANITIZE_REPLACE_LITERALS,
+                                  &sanitized);
+  if (status != SEQUEL_OK)
+    goto done;
+  if (options && !options->keep_in_lists)
+    collapse_in(sanitized.data, parse_options.dialect);
+  sequel_summary_options_t summary_options;
+  sequel_summary_options_init(&summary_options);
+  summary_options.max_length = 0;
+  status = sequel_summarize_query(query, &summary_options, &summary);
+  if (status != SEQUEL_OK)
+    goto done;
+  if (summary.length > SEQUEL_SUMMARY_MAX) {
+    size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
+    char *short_summary = realloc(summary.data, limit + 4);
+    if (!short_summary) {
+      status = SEQUEL_ERR_NOMEM;
+      goto done;
+    }
+    summary.data = short_summary;
+    memcpy(summary.data + limit, "…", 3);
+    summary.data[limit + 3] = 0;
+    summary.length = limit + 3;
+    summary.capacity = limit + 4;
+  }
+  size_t text_length = options && options->omit_query_text ? 0 : sanitized.length;
+  size_t summary_length = summary.length;
+  char *storage = malloc(text_length + summary_length + 2);
+  if (!storage) {
+    status = SEQUEL_ERR_NOMEM;
+    goto done;
+  }
+  memcpy(storage, sanitized.data, text_length);
+  storage[text_length] = 0;
+  memcpy(storage + text_length + 1, summary.data, summary_length + 1);
+  out->_storage = storage;
+  out->text = storage;
+  out->summary = storage + text_length + 1;
+  out->statement_count = sequel_query_statement_count(query);
+  const sequel_statement_info_t *statements = sequel_query_statements(query);
+  if (out->statement_count) {
+    sequel_source_view_t query_source = sequel_query_source(query);
+    const sequel_statement_info_t *first = &statements[0];
+    size_t start = first->range.start, end = first->range.end;
+    if (end <= query_source.length && end >= start) {
+      size_t amount = end - start < sizeof(out->operation) - 1 ? end - start : sizeof(out->operation) - 1;
+      size_t cursor = start;
+      while (cursor < end && isspace((unsigned char)query_source.data[cursor]))
+        ++cursor;
+      amount = end - cursor < sizeof(out->operation) - 1 ? end - cursor : sizeof(out->operation) - 1;
+      size_t written = 0;
+      while (written < amount && !isspace((unsigned char)query_source.data[cursor + written]) &&
+             query_source.data[cursor + written] != '(') {
+        out->operation[written] = (char)toupper((unsigned char)query_source.data[cursor + written]);
+        ++written;
+      }
+      out->operation[written] = 0;
+    }
+  }
+  out->truncated = text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes
+                                                                            : SEQUEL_TEXT_MAX);
+  if (out->truncated) {
+    size_t limit = options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX;
+    utf8_cut((char *)out->text, limit);
+  }
+  status = SEQUEL_OK;
+done:
+  sequel_text_result_free(&sanitized);
+  sequel_text_result_free(&summary);
+  sequel_query_document_free(query);
+  sequel_syntax_document_free(syntax);
+  return status;
+}
+
 sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
@@ -153,123 +250,5 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  size_t summary_capacity = n < 64 ? 64 : n + 1;
-  if (summary_capacity > SEQUEL_SUMMARY_MAX + 1)
-    summary_capacity = SEQUEL_SUMMARY_MAX + 1;
-  char *safe = calloc(n + 1, 1), *shape = calloc(n + 1, 1), *summary_text = calloc(summary_capacity, 1);
-  token *tokens = NULL;
-  if (!safe || !shape || !summary_text) {
-    free(safe);
-    free(shape);
-    free(tokens);
-    free(summary_text);
-    return SEQUEL_ERR_NOMEM;
-  }
-  output a = {safe, 0, n + 1}, b = {shape, 0, n + 1};
-  sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
-  if (!sanitize(sql, n, o.dialect, false, &a) || !sanitize(sql, n, o.dialect, true, &b))
-    goto done;
-  size_t count = tokenize(shape, &tokens, o.dialect);
-  if (count == SIZE_MAX) {
-    status = SEQUEL_ERR_NOMEM;
-    goto done;
-  }
-  if (!count) {
-    status = *safe ? SEQUEL_ERR_OVERFLOW : SEQUEL_OK;
-    goto done;
-  }
-retry_summary:;
-  output summary = {summary_text, 0, summary_capacity};
-  *summary_text = 0;
-  out->statement_count = 0;
-  *out->operation = 0;
-  bool mixed_operations = false;
-  for (size_t start = 0; (sequel_work_tick(1), start < count);) {
-    size_t end = start, nesting = 0;
-    for (; (sequel_work_tick(1), end < count); ++end) {
-      if (sym(tokens[end], '('))
-        ++nesting;
-      else if (sym(tokens[end], ')') && nesting)
-        --nesting;
-      else if (!nesting && sym(tokens[end], ';'))
-        break;
-    }
-    if (end > start) {
-      ++out->statement_count;
-      token *statement = tokens + start;
-      size_t length = end - start;
-      size_t op = 0;
-      while (op < length && sym(statement[op], '('))
-        ++op;
-      if (kw(statement[0], "WITH"))
-        for (op = 1; (sequel_work_tick(1), op < length); ++op) {
-          if (sym(statement[op], '(')) {
-            op = close_group(statement, length, op);
-            continue;
-          }
-          if (kw(statement[op], "SELECT") || kw(statement[op], "INSERT") || kw(statement[op], "UPDATE") ||
-              kw(statement[op], "DELETE") || kw(statement[op], "MERGE") || kw(statement[op], "VALUES"))
-            break;
-        }
-      char current_operation[sizeof(out->operation)] = {0};
-      if (op < length && statement[op].word) {
-        output p = {current_operation, 0, sizeof(current_operation)};
-        upper(&p, statement[op]);
-      }
-      if (out->statement_count == 1)
-        strcpy(out->operation, current_operation);
-      else if (strcmp(out->operation, current_operation))
-        mixed_operations = true;
-      if (mixed_operations)
-        *out->operation = 0;
-      if (summary.n)
-        text(&summary, "; ");
-      summarize(&summary, statement, length, 0);
-    }
-    start = end < count ? end + 1 : count;
-  }
-  if (summary.overflow && summary_capacity < SEQUEL_SUMMARY_MAX + 1) {
-    size_t next = summary_capacity > (SEQUEL_SUMMARY_MAX + 1) / 2 ? SEQUEL_SUMMARY_MAX + 1 : summary_capacity * 2;
-    char *grown = realloc(summary_text, next);
-    if (!grown) {
-      status = SEQUEL_ERR_NOMEM;
-      goto done;
-    }
-    summary_text = grown;
-    summary_capacity = next;
-    goto retry_summary;
-  }
-  if (!*summary_text)
-    strcpy(summary_text, "SQL");
-  if (summary.overflow) {
-    utf8_cut(summary_text, SEQUEL_SUMMARY_MAX - 3);
-    strcat(summary_text, "…");
-  }
-  if (!o.keep_in_lists)
-    collapse_in(safe, o.dialect);
-  if (!o.omit_query_text) {
-    size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
-    out->truncated = strlen(safe) > limit;
-    utf8_cut(safe, limit);
-  }
-  size_t text_length = o.omit_query_text ? 0 : strlen(safe);
-  size_t summary_length = strlen(summary_text);
-  char *storage = malloc(text_length + summary_length + 2);
-  if (!storage) {
-    status = SEQUEL_ERR_NOMEM;
-    goto done;
-  }
-  memcpy(storage, safe, text_length);
-  storage[text_length] = 0;
-  memcpy(storage + text_length + 1, summary_text, summary_length + 1);
-  out->_storage = storage;
-  out->text = storage;
-  out->summary = storage + text_length + 1;
-  status = SEQUEL_OK;
-done:
-  free(safe);
-  free(shape);
-  free(tokens);
-  free(summary_text);
-  return status;
+  return inspect_document(sql, n, &o, out);
 }

@@ -106,6 +106,7 @@ class ReleaseTests(unittest.TestCase):
             stage = root / "stage"
             files = {
                 "include/sequel.h": b"header",
+                "include/sequel/status.h": b"header",
                 "lib/cmake/sequel/sequelConfig.cmake": b"config",
                 "lib/libsequel.a": b"archive",
                 "lib/libsequel_utf8proc.a": b"archive",

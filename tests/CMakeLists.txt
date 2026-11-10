@@ -55,6 +55,12 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/lexer.c
   ../lib/parser.c
   ../lib/query.c
+  ../lib/analysis_document.c
+  ../lib/serialization.c
+  ../lib/formatter.c
+  ../lib/fingerprint.c
+  ../lib/summary_document.c
+  ../lib/sanitizer.c
   ../lib/diagnostics.c)
 
 add_executable(sequel-limit-boundary-test limit_boundary_test.c ../lib/engine.c ../lib/utf8.c ${SEQUEL_PARSER_SOURCES})
