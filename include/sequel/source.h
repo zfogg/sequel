@@ -5,6 +5,8 @@
 #include <sequel/status.h>
 #include <sequel/dialect.h>
 
+SEQUEL_EXTERN_C_BEGIN
+
 /** A half-open byte range in UTF-8 source text. */
 typedef struct {
   size_t start;
@@ -56,3 +58,5 @@ sequel_status_t sequel_source_position(const sequel_source_view_t *source, size_
                                        sequel_position_t *position);
 sequel_status_t sequel_source_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
                                              sequel_location_t *location);
+
+SEQUEL_EXTERN_C_END

@@ -1,3 +1,6 @@
+#include <sequel/parser.h>
+#include <sequel/query.h>
+#include <sequel/source.h>
 #include <sequel/sequel.hpp>
 
 #include <cassert>

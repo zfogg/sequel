@@ -5,6 +5,8 @@
 
 #include <sequel/source.h>
 
+SEQUEL_EXTERN_C_BEGIN
+
 typedef enum {
   SEQUEL_TOKEN_EOF = 0,
   SEQUEL_TOKEN_IDENTIFIER,
@@ -44,3 +46,5 @@ typedef struct {
   uint32_t keyword_id;
   uint32_t dialect_id;
 } sequel_token_t;
+
+SEQUEL_EXTERN_C_END

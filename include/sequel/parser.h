@@ -8,6 +8,8 @@
 #include <sequel/status.h>
 #include <sequel/syntax.h>
 
+SEQUEL_EXTERN_C_BEGIN
+
 typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
 
@@ -148,3 +150,5 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
 /** Compute the byte regions affected by an edit without reparsing. */
 sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit,
                                       sequel_reparse_impact_t *impact);
+
+SEQUEL_EXTERN_C_END

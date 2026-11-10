@@ -1,5 +1,13 @@
 #pragma once
 
+#ifdef __cplusplus
+#define SEQUEL_EXTERN_C_BEGIN extern "C" {
+#define SEQUEL_EXTERN_C_END }
+#else
+#define SEQUEL_EXTERN_C_BEGIN
+#define SEQUEL_EXTERN_C_END
+#endif
+
 /** Status returned by public operations. */
 typedef enum {
   SEQUEL_OK = 0,

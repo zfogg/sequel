@@ -9,6 +9,8 @@
 #include <sequel/source.h>
 #include <sequel/syntax.h>
 
+SEQUEL_EXTERN_C_BEGIN
+
 typedef struct sequel_query_document sequel_query_document_t;
 
 typedef enum {
@@ -129,3 +131,5 @@ const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_docume
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document);
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor);
+
+SEQUEL_EXTERN_C_END

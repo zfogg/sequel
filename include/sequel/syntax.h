@@ -5,6 +5,8 @@
 
 #include <sequel/source.h>
 
+SEQUEL_EXTERN_C_BEGIN
+
 typedef enum {
   SEQUEL_SYNTAX_DOCUMENT = 0,
   SEQUEL_SYNTAX_STATEMENT,
@@ -74,3 +76,5 @@ typedef struct {
   size_t token_count;
   uint32_t production_id;
 } sequel_syntax_node_t;
+
+SEQUEL_EXTERN_C_END
