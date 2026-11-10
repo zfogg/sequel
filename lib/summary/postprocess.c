@@ -22,9 +22,29 @@ static void normalize_function_arguments(char *text, size_t *length) {
   }
 }
 
+static void collapse_duplicate_relation(char *text, size_t *length) {
+  if (strncmp(text, "SELECT *", 8) != 0)
+    return;
+  char *first = strstr(text, "FROM ");
+  if (!first)
+    return;
+  char *second = strstr(first + 5, " FROM ");
+  if (!second)
+    return;
+  size_t prefix_length = (size_t)(first - text);
+  const char *replacement = second + 1;
+  size_t replacement_length = strlen(replacement);
+  memmove(text + prefix_length, replacement, replacement_length + 1);
+  *length = prefix_length + replacement_length;
+  memmove(text + 10, text + 8, *length - 8 + 1);
+  memcpy(text + 7, "…", sizeof("…") - 1);
+  *length += sizeof("…") - 1 - 1;
+}
+
 void sequel_summary_normalize_projection(char *text, size_t *length) {
   if (!text || !length)
     return;
+  collapse_duplicate_relation(text, length);
   normalize_function_arguments(text, length);
   char *projection = strstr(text, "SELECT ");
   if (!projection)
