@@ -104,6 +104,9 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
   size_t start_token = 0;
   size_t delimiter_stack[64];
   size_t delimiter_depth = 0;
+  size_t nesting_limit = options && options->max_nesting ? options->max_nesting : 64;
+  if (nesting_limit > sizeof(delimiter_stack) / sizeof(delimiter_stack[0]))
+    nesting_limit = sizeof(delimiter_stack) / sizeof(delimiter_stack[0]);
   for (size_t i = 0; i <= token_count; ++i) {
     if (cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata)) {
       sequel_syntax_document_free(document);
@@ -112,16 +115,11 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
     bool boundary = i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF ||
                     (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1 &&
                      sequel_lexed_source(lexed).data[tokens[i].range.start] == ';');
-    if (!boundary)
-      ;
-    else {
-      /* Statement segmentation is handled below; delimiter validation runs for every token. */
-    }
     if (i < token_count && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION) {
       sequel_source_view_t source = sequel_lexed_source(lexed);
       char punctuation = source.data[tokens[i].range.start];
       if (punctuation == '(' || punctuation == '[') {
-        if (delimiter_depth < (options && options->max_nesting ? options->max_nesting : 64))
+        if (delimiter_depth < nesting_limit)
           delimiter_stack[delimiter_depth++] = i;
       } else if (punctuation == ')' || punctuation == ']') {
         if (!delimiter_depth) {

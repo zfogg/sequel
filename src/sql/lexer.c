@@ -55,8 +55,8 @@ static size_t scan_quoted(const char *source, size_t length, size_t start, char 
   return length;
 }
 
-static int quoted_token_is_terminated(const char *source, size_t start, size_t end, char quote) {
-  if (end <= start + 1 || end != strlen(source) || source[end - 1] != quote)
+static int quoted_token_is_terminated(const char *source, size_t start, size_t end, size_t length, char quote) {
+  if (end <= start + 1 || end != length || source[end - 1] != quote)
     return 0;
   size_t backslashes = 0;
   for (size_t i = end - 1; i > start && source[i - 1] == '\\'; --i)
@@ -157,7 +157,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       i = scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
       kind = quote == '\'' ? SEQUEL_TOKEN_STRING : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
-      flags = i == source->length && !quoted_token_is_terminated(source->data, start, i, closing_quote)
+      flags = i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote)
                   ? SEQUEL_TOKEN_FLAG_UNTERMINATED
                   : 0;
     } else if (isdigit((unsigned char)source->data[i])) {
