@@ -400,14 +400,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-    if (cte_insert_scope) {
-      char *returning = strstr(text, "RETURNING");
-      if (returning) {
-        char *close = strchr(returning, ')');
-        if (close)
-          memmove(returning, close, strlen(close) + 1);
-      }
-    }
     outer_start = ctes[sequel_query_cte_count(query) - 1].range.end;
   }
   if (settings->include_operation && scalar_with_scope && !append_text(&text, &length, &capacity, "WITH "))
@@ -1155,21 +1147,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
   }
   if (cte_insert_scope) {
-    char *returning = strstr(text, "RETURNING");
-    if (returning) {
-      char *close = strchr(returning, ')');
-      if (close)
-        memmove(returning, close, strlen(close) + 1);
-    }
-  }
-  if (cte_insert_scope) {
-    char *returning = strstr(text, " RETURNING ");
-    if (returning) {
-      char *close = strchr(returning, ')');
-      if (close) {
-        memmove(returning, close, strlen(close) + 1);
-        length = strlen(text);
-      }
+    char *first_insert = strstr(text, " INSERT INTO ");
+    char *duplicate_insert = first_insert ? strstr(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
+    if (duplicate_insert) {
+      *duplicate_insert = '\0';
+      length = strlen(text);
     }
   }
   for (size_t i = 0; i < length; ++i) {
