@@ -44,6 +44,40 @@ static int append_node(sequel_syntax_document_t *document, sequel_syntax_node_t 
   return 1;
 }
 
+static sequel_syntax_kind_t clause_kind(const sequel_token_t *token) {
+  if (token->kind != SEQUEL_TOKEN_KEYWORD)
+    return SEQUEL_SYNTAX_ERROR;
+  switch (token->keyword_id) {
+  case 6:
+    return SEQUEL_SYNTAX_FROM_CLAUSE;
+  case 7:
+    return SEQUEL_SYNTAX_WHERE_CLAUSE;
+  case 8:
+    return SEQUEL_SYNTAX_GROUP_BY_CLAUSE;
+  case 9:
+    return SEQUEL_SYNTAX_ORDER_BY_CLAUSE;
+  case 11:
+    return SEQUEL_SYNTAX_LIMIT_CLAUSE;
+  case 12:
+    return SEQUEL_SYNTAX_OFFSET_CLAUSE;
+  default:
+    return SEQUEL_SYNTAX_ERROR;
+  }
+}
+
+static int append_child(sequel_syntax_document_t *document, size_t parent, size_t child) {
+  size_t count = document->child_count + 1;
+  size_t *children = realloc(document->children, count * sizeof(*children));
+  if (!children)
+    return 0;
+  document->children = children;
+  document->children[document->child_count++] = child;
+  if (!document->nodes[parent].child_count)
+    document->nodes[parent].first_child = count - 1;
+  ++document->nodes[parent].child_count;
+  return 1;
+}
+
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
                              const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out) {
   if (!lexed || !out)
@@ -78,17 +112,44 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
       --last;
     if (first < last) {
       sequel_source_view_t source = sequel_lexed_source(lexed);
-      sequel_syntax_kind_t kind = statement_kind(lexed, first);
-      sequel_syntax_node_t node = {.kind = SEQUEL_SYNTAX_STATEMENT,
+      sequel_syntax_kind_t statement_kind_value = statement_kind(lexed, first);
+      sequel_syntax_node_t node = {.kind = statement_kind_value,
                                    .range = {tokens[first].range.start, tokens[last - 1].range.end},
                                    .header_range = {tokens[first].range.start, tokens[first].range.end},
                                    .first_token = first,
                                    .token_count = last - first,
-                                   .production_id = (uint32_t)kind};
+                                   .production_id = (uint32_t)statement_kind_value};
       (void)source;
       if (!append_node(document, node)) {
         sequel_syntax_document_free(document);
         return SEQUEL_ERR_NOMEM;
+      }
+      size_t parent = document->node_count - 1;
+      for (size_t token_index = first + 1; token_index < last; ++token_index) {
+        sequel_syntax_kind_t child_kind = clause_kind(&tokens[token_index]);
+        if (child_kind == SEQUEL_SYNTAX_ERROR)
+          continue;
+        size_t child_end = last;
+        for (size_t next = token_index + 1; next < last; ++next) {
+          if (clause_kind(&tokens[next]) != SEQUEL_SYNTAX_ERROR) {
+            child_end = next;
+            break;
+          }
+        }
+        sequel_syntax_node_t child = {.kind = child_kind,
+                                      .range = {tokens[token_index].range.start, tokens[child_end - 1].range.end},
+                                      .header_range = tokens[token_index].range,
+                                      .first_token = token_index,
+                                      .token_count = child_end - token_index,
+                                      .production_id = (uint32_t)child_kind};
+        if (!append_node(document, child)) {
+          sequel_syntax_document_free(document);
+          return SEQUEL_ERR_NOMEM;
+        }
+        if (!append_child(document, parent, document->node_count - 1)) {
+          sequel_syntax_document_free(document);
+          return SEQUEL_ERR_NOMEM;
+        }
       }
     }
     if (i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF)

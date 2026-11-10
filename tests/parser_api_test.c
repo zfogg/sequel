@@ -34,12 +34,18 @@ int main(void) {
     return 1;
   size_t node_count = 0;
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
-  if (!check(node_count == 2, "two statement nodes"))
+  if (!check(node_count >= 2, "statement and clause nodes"))
     return 1;
-  if (!check(nodes[0].production_id == SEQUEL_SYNTAX_SELECT_STATEMENT, "select production"))
+  if (!check(nodes[0].kind == SEQUEL_SYNTAX_SELECT_STATEMENT, "select production"))
     return 1;
-  if (!check(nodes[1].production_id == SEQUEL_SYNTAX_SELECT_STATEMENT, "second select production"))
+  sequel_query_document_t *query = NULL;
+  if (!check(sequel_build_query_document(syntax, &options, &query) == SEQUEL_OK, "query document succeeds"))
     return 1;
+  if (!check(sequel_query_statement_count(query) == 2, "two query statements"))
+    return 1;
+  if (!check(sequel_query_statements(query)[0].operation == SEQUEL_OPERATION_SELECT, "query operation"))
+    return 1;
+  sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return 0;
 }
