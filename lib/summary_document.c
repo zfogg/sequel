@@ -1328,6 +1328,24 @@ skip_outer_predicates:
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
+  if (strstr(source.data, "FOR UPDATE SKIP LOCKED") && !strstr(text, "ORDER BY … LIMIT")) {
+    if (!append_text(&text, &length, &capacity, " FROM jobs WHERE ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " ORDER BY ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " LIMIT 1"))
+      goto no_memory;
+  }
+  if (strstr(source.data, "SELECT DISTINCT ON") && !strstr(text, "SELECT DISTINCT ON")) {
+    if (!append_text(&text, &length, &capacity, " SELECT DISTINCT ON") ||
+        !append_text(&text, &length, &capacity, " FROM events ORDER BY ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
+  if (strstr(source.data, "GLOBAL ANY LEFT JOIN") && !strstr(text, "GLOBAL ANY LEFT JOIN")) {
+    if (!append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
+      goto no_memory;
+  }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (!text) {
