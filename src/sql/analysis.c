@@ -922,6 +922,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         analysis_add_statement(out, first.offset, n);
       analysis_add_diagnostic(out, first.code, first.offset, first.end_offset);
       valid = SEQUEL_ERR_INVALID_ARGUMENT;
+    } else if (!out->diagnostic_count && syntax && sequel_syntax_issue_count(syntax)) {
+      sequel_diagnostic_t parser_diagnostic;
+      if (sequel_syntax_diagnostic(syntax, 0, &parser_diagnostic) == SEQUEL_OK)
+        analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset, parser_diagnostic.end_offset);
     }
     if (out->diagnostic_count) {
       analysis_positions(sql, out);
@@ -998,13 +1002,13 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
               analysis_format_map(&layout, safe.n, b.n, &fm);
               out->sanitized_to_formatted = (sequel_source_map_t){safe.n, b.n, fm.p, fm.n};
             }
-            sequel_query_document_free(query);
-            sequel_syntax_document_free(syntax);
           }
         }
       }
       free(layout.p);
     }
+    sequel_query_document_free(query);
+    sequel_syntax_document_free(syntax);
     free(tokens);
   }
 
