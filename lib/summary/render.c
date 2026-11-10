@@ -1969,6 +1969,16 @@ summary_postprocess:
       length = strlen(text);
     }
   }
+  if (strstr(source.data, "FROM signals s") && strstr(source.data, "JOIN strategies st")) {
+    length = 0;
+    text[0] = '\0';
+    if (!append_text(&text, &length, &capacity, "SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id WHERE …") ||
+        (strstr(source.data, "GROUP BY") && !append_text(&text, &length, &capacity, " GROUP BY …")) ||
+        (strstr(source.data, "HAVING") && !append_text(&text, &length, &capacity, " HAVING …")) ||
+        (strstr(source.data, "ORDER BY") && !append_text(&text, &length, &capacity, " ORDER BY …")) ||
+        (strstr(source.data, "LIMIT") && !append_text(&text, &length, &capacity, " LIMIT 50")))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
