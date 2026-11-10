@@ -27,6 +27,12 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 int main(void) {
   const char sql[] = "SELECT id, 'value' FROM users WHERE id = $1; SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
+  sequel_source_t *owned_source = NULL;
+  if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
+    return 1;
+  if (!check(sequel_source_view(owned_source).length == source.length, "owned source length"))
+    return 1;
+  sequel_source_free(owned_source);
   sequel_parse_options_t options;
   sequel_parse_options_init(&options);
   options.dialect = SEQUEL_POSTGRESQL;

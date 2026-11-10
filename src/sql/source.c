@@ -1,5 +1,51 @@
 #include <sequel/source.h>
 
+#include <stdlib.h>
+#include <string.h>
+
+struct sequel_source {
+  char *owned_data;
+  sequel_source_view_t view;
+  sequel_source_storage_t storage;
+};
+
+sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options,
+                                     sequel_source_t **out) {
+  if (!view || !out)
+    return SEQUEL_ERR_NULL;
+  *out = NULL;
+  sequel_source_storage_t storage = options ? options->storage : SEQUEL_SOURCE_COPIED;
+  sequel_source_t *source = calloc(1, sizeof(*source));
+  if (!source)
+    return SEQUEL_ERR_NOMEM;
+  source->storage = storage;
+  if (storage == SEQUEL_SOURCE_COPIED) {
+    source->owned_data = malloc(view->length + 1);
+    if (!source->owned_data) {
+      free(source);
+      return SEQUEL_ERR_NOMEM;
+    }
+    memcpy(source->owned_data, view->data, view->length);
+    source->owned_data[view->length] = 0;
+    source->view = (sequel_source_view_t){source->owned_data, view->length};
+  } else {
+    source->view = *view;
+  }
+  *out = source;
+  return SEQUEL_OK;
+}
+
+void sequel_source_free(sequel_source_t *source) {
+  if (!source)
+    return;
+  free(source->owned_data);
+  free(source);
+}
+
+sequel_source_view_t sequel_source_view(const sequel_source_t *source) {
+  return source ? source->view : (sequel_source_view_t){0};
+}
+
 int sequel_source_range_valid(sequel_source_range_t range, size_t source_length) {
   return range.start <= range.end && range.end <= source_length;
 }

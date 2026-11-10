@@ -29,6 +29,20 @@ typedef struct {
   size_t length;
 } sequel_source_view_t;
 
+typedef struct sequel_source sequel_source_t;
+
+typedef enum { SEQUEL_SOURCE_BORROWED = 0, SEQUEL_SOURCE_COPIED } sequel_source_storage_t;
+
+typedef struct {
+  sequel_source_view_t view;
+  sequel_source_storage_t storage;
+} sequel_source_options_t;
+
+sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options,
+                                     sequel_source_t **out);
+void sequel_source_free(sequel_source_t *source);
+sequel_source_view_t sequel_source_view(const sequel_source_t *source);
+
 /** Return whether a range is ordered and contained in a source of length. */
 int sequel_source_range_valid(sequel_source_range_t range, size_t source_length);
 
