@@ -1963,8 +1963,17 @@ summary_postprocess:
   if (text && sequel_summary_find_text(source.data, " LIMIT sqlc.arg(")) {
     char *limit = sequel_summary_find_text(text, " LIMIT ");
     if (limit) {
-      memcpy(limit + strlen(" LIMIT "), "?", 2);
-      length = strlen(text);
+      char *value = limit + strlen(" LIMIT ");
+      char *argument = sequel_summary_find_text(value, "sqlc.arg(");
+      if (argument && (argument == value || (argument > value && argument[-1] == '?'))) {
+        char *close = strchr(argument + strlen("sqlc.arg("), ')');
+        if (close) {
+          if (argument == value)
+            value[0] = '?';
+          memmove(argument == value ? value + 1 : argument, close + 1, strlen(close + 1) + 1);
+          length -= (size_t)(close + 1 - (argument == value ? value : argument)) - (argument == value ? 1 : 0);
+        }
+      }
     }
   }
   if (text && sequel_summary_find_text(source.data, " LIMIT (SELECT ")) {
@@ -1981,8 +1990,16 @@ summary_postprocess:
   if (text && sequel_summary_find_text(source.data, " LIMIT ") && sequel_summary_find_text(source.data, " + ") &&
       !sequel_summary_find_text(source.data, " INSERT ")) {
     char *limit = sequel_summary_find_text(text, " LIMIT ");
+    for (char *candidate = limit; candidate;) {
+      char *next = sequel_summary_find_text(candidate + strlen(" LIMIT "), " LIMIT ");
+      if (!next)
+        break;
+      limit = candidate = next;
+    }
     if (limit) {
-      memcpy(limit + strlen(" LIMIT "), "?", 2);
+      char *value = limit + strlen(" LIMIT ");
+      value[0] = '?';
+      value[1] = '\0';
       length = strlen(text);
     }
   }
