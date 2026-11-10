@@ -367,6 +367,17 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       while (i < source->length && is_operator_char((unsigned char)source->data[i]))
         ++i;
+      /* Keep a trailing unary sign separate from a preceding comparison or
+       * arithmetic operator.  This gives consumers the same token boundary
+       * for `x>=-1` as for `x >= -1`, while retaining PostgreSQL custom
+       * operators that contain the other special characters. */
+      bool custom = false;
+      for (size_t operator_offset = start; operator_offset < i; ++operator_offset)
+        if (strchr("~!#%^&|@", source->data[operator_offset]))
+          custom = true;
+      if (!custom)
+        while (i > start + 1 && (source->data[i - 1] == '+' || source->data[i - 1] == '-'))
+          --i;
       kind = SEQUEL_TOKEN_OPERATOR;
     } else {
       ++i;

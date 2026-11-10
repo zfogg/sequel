@@ -30,6 +30,8 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
   sequel_source_view_t source = sequel_lexed_source(lexed);
   size_t capacity = 0;
   size_t previous_end = 0;
+  bool gap = false;
+  bool pending_newline = false;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
@@ -38,7 +40,10 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
       goto invalid;
     }
     if (token->kind == SEQUEL_TOKEN_WHITESPACE) {
+      for (size_t offset = token->range.start; offset < token->range.end; ++offset)
+        pending_newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
       previous_end = token->range.end;
+      gap = true;
       continue;
     }
     if (*count == capacity) {
@@ -59,17 +64,34 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
     (*out)[(*count)++] = (format_token){.t = {.p = source.data + token->range.start,
                                               .n = token->range.end - token->range.start,
                                               .word = kind == 1,
-                                              .space = token->range.start > previous_end,
+                                              .space = gap,
                                               .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
-                                        .gap = token->range.start > previous_end,
-                                        .newline = newline,
+                                        .gap = gap,
+                                        .newline = newline || pending_newline,
                                         .kind = kind,
                                         .matching = SIZE_MAX,
                                         .multiline = newline,
-                                        .flat_width = token->range.end - token->range.start,
+                                        .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) +
+                                                      token->range.end - token->range.start + 1,
                                         .source_offset = token->range.start,
                                         .rendered_offset = 0};
     previous_end = token->range.end;
+    gap = false;
+    pending_newline = false;
+  }
+  size_t delimiter_stack[64];
+  size_t delimiter_depth = 0;
+  for (size_t i = 0; i < *count; ++i) {
+    if (sym((*out)[i].t, '(') || sym((*out)[i].t, '[') || sym((*out)[i].t, '{')) {
+      if (delimiter_depth < sizeof(delimiter_stack) / sizeof(delimiter_stack[0]))
+        delimiter_stack[delimiter_depth++] = i;
+    } else if (sym((*out)[i].t, ')') || sym((*out)[i].t, ']') || sym((*out)[i].t, '}')) {
+      if (delimiter_depth) {
+        size_t opening = delimiter_stack[--delimiter_depth];
+        (*out)[opening].matching = i;
+        (*out)[i].matching = opening;
+      }
+    }
   }
   return SEQUEL_OK;
 invalid:

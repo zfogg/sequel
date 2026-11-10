@@ -226,6 +226,7 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
 
 // clang-format off
 static bool boundary(token t);
+static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
 /* Preserve lexical contents; only whitespace outside lexical tokens changes.
  * Keeping the formatter independent of a grammar also supports driver/sqlc
  * parameters and sanitized telemetry templates that aren't executable SQL. */
@@ -787,7 +788,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
             j = ts[j].matching;
           end = j;
         }
-        if (!list && ts[end].flat_width - ts[i].flat_width <= 60)
+        if (!list && end < count && ts[end].flat_width - ts[i].flat_width <= 60)
           ctx->pending = false;
       }
     } else if (bound || setop || conflict) {
@@ -865,22 +866,35 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   format_token *ts = NULL;
+  sequel_lexed_document_t *lexed = NULL;
+  sequel_parse_options_t parse_options;
+  sequel_parse_options_init(&parse_options);
+  parse_options.dialect = dialect;
+  parse_options.retain_comments = true;
+  parse_options.retain_whitespace = true;
+  sequel_source_view_t source = {sql, n};
+  sequel_status_t status = sequel_lex(&source, &parse_options, NULL, &lexed);
+  if (status != SEQUEL_OK)
+    return status;
   size_t cap = n + 1024;
   char *buf = calloc(cap, 1);
   if (!buf) {
-    free(ts);
+    sequel_lexed_document_free(lexed);
     free(buf);
     return SEQUEL_ERR_NOMEM;
   }
-  sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
-  sequel_diagnostic_t scan_diagnostic;
   size_t scanned = 0;
-  size_t count = format_scan_recover(sql, n, dialect, &ts, false, &scan_diagnostic, &scanned);
-  if (count == SIZE_MAX) {
-    if (scan_diagnostic.code == SEQUEL_DIAG_OUT_OF_MEMORY)
-      status = SEQUEL_ERR_NOMEM;
+  status = adapt_lexed_tokens(lexed, &ts, &scanned);
+  if (status != SEQUEL_OK)
     goto done;
-  }
+  size_t count = scanned;
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  for (size_t i = 0; i < token_count; ++i)
+    if (tokens[i].flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED)) {
+      status = SEQUEL_ERR_INVALID_ARGUMENT;
+      goto done;
+    }
   output b = {buf, 0, cap};
   while (!format_layout(ts, count, &b)) {
     if (!b.overflow) {
@@ -915,6 +929,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
 done:
   free(ts);
   free(buf);
+  sequel_lexed_document_free(lexed);
   return status;
 }
 
