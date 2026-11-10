@@ -976,6 +976,31 @@ unsafe extern "C" {
         count: *mut usize,
     ) -> *const sequel_parameter_info_t;
 }
+unsafe extern "C" {
+    #[doc = " Return the optional normalized summary owned by the analysis object."]
+    pub fn sequel_query_analysis_summary(
+        analysis: *const sequel_query_analysis_t,
+    ) -> *const sequel_text_result_t;
+}
+unsafe extern "C" {
+    #[doc = " Return the optional sanitized SQL owned by the analysis object."]
+    pub fn sequel_query_analysis_sanitized_sql(
+        analysis: *const sequel_query_analysis_t,
+    ) -> *const sequel_text_result_t;
+}
+unsafe extern "C" {
+    #[doc = " Return the optional formatted SQL owned by the analysis object."]
+    pub fn sequel_query_analysis_formatted_sql(
+        analysis: *const sequel_query_analysis_t,
+    ) -> *const sequel_text_result_t;
+}
+unsafe extern "C" {
+    #[doc = " Copy the optional requested fingerprint into a caller-provided buffer."]
+    pub fn sequel_query_analysis_fingerprint(
+        analysis: *const sequel_query_analysis_t,
+        out: *mut ::std::os::raw::c_char,
+    ) -> sequel_status_t;
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct sequel_schema_version_t {
