@@ -62,7 +62,8 @@ int main(void) {
     return 1;
   const char *token_text = NULL;
   size_t token_text_length = 0;
-  if (!check(sequel_token_text(sequel_lexed_source(lexed), &tokens[0], &token_text, &token_text_length) ==
+  sequel_source_view_t token_source_view = sequel_lexed_source(lexed);
+  if (!check(sequel_token_text(&token_source_view, &tokens[0], &token_text, &token_text_length) ==
                  SEQUEL_OK && token_text_length > 0,
              "token text accessor"))
     return 1;
