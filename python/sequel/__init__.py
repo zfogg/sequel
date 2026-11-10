@@ -24,6 +24,7 @@ from .formatting import format_sql, format_sql_or_original
 from .highlighting import Appearance, HighlightMode, colorschemes, highlight_sql
 from .inspection import Query, SQLInspectionError, inspect
 from .limits import DEFAULT_MAX_QUERY_TEXT_BYTES, DEFAULT_MAX_SUMMARY_BYTES, MAX_INPUT_BYTES
+from .parser import parse_document
 from .sanitization import sanitize
 
 __all__ = [
@@ -60,5 +61,6 @@ __all__ = [
     "format_sql_or_original",
     "highlight_sql",
     "inspect",
+    "parse_document",
     "sanitize",
 ]

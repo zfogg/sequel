@@ -182,6 +182,107 @@ static PyObject *colorschemes(PyObject *self, PyObject *unused) {
   }
   return result;
 }
+
+static PyObject *parse_document_sql(PyObject *self, PyObject *args) {
+  const char *sql;
+  Py_ssize_t length;
+  int dialect;
+  if (!PyArg_ParseTuple(args, "s#i", &sql, &length, &dialect))
+    return NULL;
+  sequel_source_view_t source = {sql, (size_t)length};
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = (sequel_dialect_t)dialect;
+  sequel_syntax_document_t *syntax = NULL;
+  sequel_status_t status = sequel_parse_sql(&source, &options, NULL, &syntax);
+  if (status != SEQUEL_OK) {
+    PyErr_Format(PyExc_ValueError, "SQL parse failed with status %d", status);
+    return NULL;
+  }
+  sequel_query_document_t *query = NULL;
+  status = sequel_build_query_document(syntax, &options, &query);
+  if (status != SEQUEL_OK) {
+    sequel_syntax_document_free(syntax);
+    PyErr_Format(PyExc_ValueError, "query indexing failed with status %d", status);
+    return NULL;
+  }
+  PyObject *result = PyDict_New();
+  PyObject *tokens = PyList_New(0), *statements = PyList_New(0), *relations = PyList_New(0), *issues = PyList_New(0);
+  if (!result || !tokens || !statements || !relations || !issues)
+    goto error;
+  size_t token_count = 0;
+  const sequel_token_t *token_values = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &token_count);
+  for (size_t i = 0; i < token_count; ++i) {
+    PyObject *value = Py_BuildValue("{s:i,s:I,s:n,s:n}", "kind", token_values[i].kind, "flags", token_values[i].flags,
+                                    "start", (Py_ssize_t)token_values[i].range.start,
+                                    "end", (Py_ssize_t)token_values[i].range.end);
+    if (!value || PyList_Append(tokens, value) < 0) {
+      Py_XDECREF(value);
+      goto error;
+    }
+    Py_DECREF(value);
+  }
+  size_t statement_count = sequel_query_statement_count(query);
+  const sequel_statement_info_t *statement_values = sequel_query_statements(query);
+  for (size_t i = 0; i < statement_count; ++i) {
+    PyObject *value = Py_BuildValue("{s:i,s:n,s:n}", "operation", statement_values[i].operation,
+                                    "start", (Py_ssize_t)statement_values[i].range.start,
+                                    "end", (Py_ssize_t)statement_values[i].range.end);
+    if (!value || PyList_Append(statements, value) < 0) {
+      Py_XDECREF(value);
+      goto error;
+    }
+    Py_DECREF(value);
+  }
+  size_t relation_count = sequel_query_relation_count(query);
+  const sequel_relation_info_t *relation_values = sequel_query_relations(query);
+  for (size_t i = 0; i < relation_count; ++i) {
+    PyObject *value = Py_BuildValue("{s:i,s:n,s:n,s:n,s:n}", "kind", relation_values[i].kind,
+                                    "start", (Py_ssize_t)relation_values[i].range.start,
+                                    "end", (Py_ssize_t)relation_values[i].range.end,
+                                    "name_start", (Py_ssize_t)relation_values[i].name_range.start,
+                                    "name_end", (Py_ssize_t)relation_values[i].name_range.end);
+    if (!value || PyList_Append(relations, value) < 0) {
+      Py_XDECREF(value);
+      goto error;
+    }
+    Py_DECREF(value);
+  }
+  size_t issue_count = 0;
+  const sequel_parse_issue_t *issue_values = sequel_syntax_issues(syntax, &issue_count);
+  for (size_t i = 0; i < issue_count; ++i) {
+    PyObject *value = Py_BuildValue("{s:i,s:i,s:n,s:n}", "code", issue_values[i].code,
+                                    "recovery", issue_values[i].recovery,
+                                    "start", (Py_ssize_t)issue_values[i].range.start,
+                                    "end", (Py_ssize_t)issue_values[i].range.end);
+    if (!value || PyList_Append(issues, value) < 0) {
+      Py_XDECREF(value);
+      goto error;
+    }
+    Py_DECREF(value);
+  }
+  if (PyDict_SetItemString(result, "tokens", tokens) < 0 || PyDict_SetItemString(result, "statements", statements) < 0 ||
+      PyDict_SetItemString(result, "relations", relations) < 0 || PyDict_SetItemString(result, "issues", issues) < 0)
+    goto error;
+  Py_DECREF(tokens);
+  Py_DECREF(statements);
+  Py_DECREF(relations);
+  Py_DECREF(issues);
+  sequel_query_document_free(query);
+  sequel_syntax_document_free(syntax);
+  return result;
+error:
+  Py_XDECREF(result);
+  Py_XDECREF(tokens);
+  Py_XDECREF(statements);
+  Py_XDECREF(relations);
+  Py_XDECREF(issues);
+  sequel_query_document_free(query);
+  sequel_syntax_document_free(syntax);
+  if (!PyErr_Occurred())
+    PyErr_NoMemory();
+  return NULL;
+}
 #include "_analysis.c"
 static PyMethodDef methods[] = {
     {"analyze", analyze_sql, METH_VARARGS, "Analyze SQL with bounded work and privacy-safe metadata."},
@@ -197,6 +298,7 @@ static PyMethodDef methods[] = {
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},
     {"inspect", inspect_sql, METH_VARARGS, "Inspect using the shared C engine."},
     {"format", format_sql, METH_VARARGS, "Format without sanitizing."},
+    {"parse_document", parse_document_sql, METH_VARARGS, "Parse into shared token, statement, relation and issue records."},
     {NULL, NULL, 0, NULL}};
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "_sql", NULL, -1, methods};
 PyMODINIT_FUNC PyInit__sql(void) {
