@@ -1841,9 +1841,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
                         call->ambiguous_offset + 2);
       count = SIZE_MAX;
     }
-    analysis_structure(sql, n, tokens, scanned, out);
-    if (syntax && parse_issue_count)
+    if (syntax)
       analysis_structure_from_lexed(sequel_syntax_lexed(syntax), out);
+    else
+      analysis_structure(sql, n, tokens, scanned, out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
