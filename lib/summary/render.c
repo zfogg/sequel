@@ -1013,9 +1013,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (sequel_query_cte_count(query) && statement_count &&
         (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
       size_t outer = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
-      const char *from = sequel_summary_find_text(source.data + outer, " FROM ");
+      const char *from = sequel_summary_find_word(source.data, source.length, outer, "FROM");
       if (from) {
-        const char *table = from + 6;
+        const char *table = from + 4;
         while (*table && isspace((unsigned char)*table))
           ++table;
         const char *end = table;
@@ -1032,9 +1032,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
     size_t outer = outer_start;
     const char *select = sequel_summary_find_text(source.data + outer, "SELECT ");
-    const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
+    const char *from =
+        select ? sequel_summary_find_word(source.data, source.length, (size_t)(select - source.data), "FROM") : NULL;
     if (from) {
-      const char *table = from + 6;
+      const char *table = from + 4;
       while (*table && isspace((unsigned char)*table))
         ++table;
       const char *end = table;
@@ -1045,6 +1046,45 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !append_text(&text, &length, &capacity, " FROM ") ||
           !append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
         goto no_memory;
+      size_t first_outer_relation = SIZE_MAX;
+      size_t relation_count = sequel_query_relation_count(query);
+      const sequel_relation_info_t *relations = sequel_query_relations(query);
+      for (size_t i = 0; i < relation_count; ++i) {
+        if (relations[i].range.start >= outer) {
+          first_outer_relation = i;
+          break;
+        }
+      }
+      if (first_outer_relation != SIZE_MAX) {
+        for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
+          size_t condition_start = relations[i].range.end;
+          while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
+            ++condition_start;
+          if (!append_text(&text, &length, &capacity, " JOIN ") ||
+              !sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
+            goto no_memory;
+          if (condition_start < source.length && summary_word(source.data, source.length, condition_start, "ON")) {
+            size_t condition_end = source.length;
+            const char *where = sequel_summary_find_word(source.data, source.length, condition_start, "WHERE");
+            const char *order = sequel_summary_find_word(source.data, source.length, condition_start, "ORDER");
+            if (where)
+              condition_end = (size_t)(where - source.data);
+            if (order && (size_t)(order - source.data) < condition_end)
+              condition_end = (size_t)(order - source.data);
+            if (!append_text(&text, &length, &capacity, " ") ||
+                !append_redacted_range(&text, &length, &capacity, query, condition_start, condition_end))
+              goto no_memory;
+          }
+          const char *using = sequel_summary_find_word(source.data, source.length, condition_start, "USING");
+          const char *open = using ? strchr(using, '(') : NULL;
+          const char *close = open ? strchr(open, ')') : NULL;
+          if (using && open && close &&
+              (!append_text(&text, &length, &capacity, " USING (") ||
+               !append_bytes(&text, &length, &capacity, open + 1, (size_t)(close - open - 1)) ||
+               !append_text(&text, &length, &capacity, ")")))
+            goto no_memory;
+        }
+      }
     }
   }
   if (settings->include_operation && sequel_query_cte_count(query) && statement_count && !cte_insert_scope &&
