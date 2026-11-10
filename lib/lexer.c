@@ -209,6 +209,22 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = opener == 0x98 ? SEQUEL_TOKEN_FLAG_LITERAL : 0;
       if (i == source->length && (unsigned char)source->data[i - 1] != closer)
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+    } else if ((source->data[i] == 'U' || source->data[i] == 'u') && i + 2 < source->length &&
+               source->data[i + 1] == '&' && source->data[i + 2] == '\'') {
+      i = scan_quoted(source->data, source->length, i + 2, '\'');
+      kind = SEQUEL_TOKEN_STRING;
+      flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
+      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
+        flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+    } else if ((source->data[i] == 'E' || source->data[i] == 'e' || source->data[i] == 'B' ||
+                source->data[i] == 'b' || source->data[i] == 'X' || source->data[i] == 'x' ||
+                source->data[i] == 'N' || source->data[i] == 'n') &&
+               i + 1 < source->length && source->data[i + 1] == '\'') {
+      i = scan_quoted(source->data, source->length, i + 1, '\'');
+      kind = SEQUEL_TOKEN_STRING;
+      flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
+      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
+        flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
       ++i;
       while (i < source->length && is_word_part((unsigned char)source->data[i]))

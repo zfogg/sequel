@@ -161,6 +161,17 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     if (dollar_quote && !strstr(dollar_quote + 2, "$$"))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
+  if (dialect != SEQUEL_MYSQL && strstr(sql, "_utf8mb4'"))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  {
+    size_t open_brackets = 0, close_brackets = 0;
+    for (size_t index = 0; index < n; ++index) {
+      open_brackets += sql[index] == '[';
+      close_brackets += sql[index] == ']';
+    }
+    if (open_brackets > close_brackets)
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_parse_options_t options;
   sequel_parse_options_init(&options);
   options.dialect = dialect;
