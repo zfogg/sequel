@@ -23,3 +23,8 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
                                           const sequel_query_document_t *query,
                                           const sequel_summary_options_t *settings,
                                           const sequel_statement_info_t *statement);
+
+int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *capacity,
+                                           sequel_source_view_t source,
+                                           const sequel_query_document_t *query,
+                                           const sequel_statement_info_t *statement);

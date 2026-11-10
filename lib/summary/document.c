@@ -209,41 +209,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       !cte_insert_scope && !append_statement_shape(&text, &length, &capacity, source, query, settings, &statements[0]))
     goto no_memory;
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query) &&
-      !append_text(&text, &length, &capacity, " "))
+      !sequel_summary_append_projection_shape(&text, &length, &capacity, source, query, &statements[0]))
     goto no_memory;
-  if (settings->include_operation && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query)) {
-    const sequel_projection_info_t *projection = sequel_query_projections(query);
-    char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
-    bool literal =
-        strchr("'?0123456789", first) != NULL || (first == '$' && projection[0].range.start + 1 < source.length &&
-                                                  isdigit((unsigned char)source.data[projection[0].range.start + 1]));
-    bool scalar_function = !strstr(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
-    const char *function_open = scalar_function ? strchr(source.data + projection[0].range.start, '(') : NULL;
-    bool empty_arguments = function_open && function_open[1] == ')';
-    if (scalar_function
-            ? (!append_bytes(&text, &length, &capacity, source.data + projection[0].range.start,
-                             (size_t)(function_open - (source.data + projection[0].range.start) + 1)) ||
-               (empty_arguments ? !append_text(&text, &length, &capacity, ")")
-                                : (!append_bytes(&text, &length, &capacity, summary_ellipsis,
-                                                  sizeof(summary_ellipsis) - 1) ||
-                                   !append_text(&text, &length, &capacity, ")"))))
-            : literal ? !append_text(&text, &length, &capacity, "?")
-                : !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-      goto no_memory;
-    const char *alias = strstr(source.data + projection[0].range.start, " AS ");
-    const char *from = alias ? strstr(alias + 4, " FROM ") : NULL;
-    if (alias && (!from || alias < from) && (first == '\'' || scalar_function)) {
-      const char *name = alias + 4;
-      const char *end = name;
-      while (end < source.data + source.length && !isspace((unsigned char)*end))
-        ++end;
-      if (!append_text(&text, &length, &capacity, " AS ") ||
-          !append_bytes(&text, &length, &capacity, name, (size_t)(end - name)))
-        goto no_memory;
-    }
-  }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT) {
     size_t into = SIZE_MAX;
     for (size_t i = 0; i < source.length; ++i)
