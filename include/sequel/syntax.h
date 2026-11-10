@@ -66,8 +66,8 @@ typedef enum {
 typedef struct {
   sequel_syntax_kind_t kind;
   uint32_t flags;
-  sequel_range_t range;
-  sequel_range_t header_range;
+  sequel_source_range_t range;
+  sequel_source_range_t header_range;
   size_t first_child;
   size_t child_count;
   size_t first_token;

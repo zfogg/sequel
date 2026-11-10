@@ -38,9 +38,9 @@ enum {
 typedef struct {
   sequel_token_kind_t kind;
   uint32_t flags;
-  sequel_range_t range;
-  sequel_range_t leading_trivia;
-  sequel_range_t trailing_trivia;
+  sequel_source_range_t range;
+  sequel_source_range_t leading_trivia;
+  sequel_source_range_t trailing_trivia;
   uint32_t keyword_id;
   uint32_t dialect_id;
 } sequel_token_t;

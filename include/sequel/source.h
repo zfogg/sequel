@@ -6,7 +6,7 @@
 typedef struct {
   size_t start;
   size_t end;
-} sequel_range_t;
+} sequel_source_range_t;
 
 /** A one-based source position. Columns count Unicode scalar values. */
 typedef struct {
@@ -16,7 +16,7 @@ typedef struct {
 
 /** A byte range with its derived line and column positions. */
 typedef struct {
-  sequel_range_t bytes;
+  sequel_source_range_t bytes;
   sequel_position_t start;
   sequel_position_t end;
 } sequel_location_t;
@@ -28,7 +28,7 @@ typedef struct {
 } sequel_source_view_t;
 
 /** Return whether a range is ordered and contained in a source of length. */
-int sequel_range_valid(sequel_range_t range, size_t source_length);
+int sequel_source_range_valid(sequel_source_range_t range, size_t source_length);
 
 /** Return whether inner is contained by outer. */
-int sequel_range_contains(sequel_range_t outer, sequel_range_t inner);
+int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_range_t inner);
