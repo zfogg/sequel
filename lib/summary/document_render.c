@@ -254,7 +254,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         break;
       }
   }
-  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE) {
+  if (settings->include_tables && settings->dialect != SEQUEL_MYSQL && statement_count &&
+      statements[0].operation == SEQUEL_OPERATION_CREATE) {
     size_t index = SIZE_MAX;
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "INDEX")) {
