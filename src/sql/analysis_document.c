@@ -2,11 +2,17 @@
 #include <string.h>
 
 #include <sequel/analysis.h>
+#include <sequel/sanitizer.h>
+#include <sequel/summary.h>
 
 struct sequel_query_analysis {
   const sequel_query_document_t *query;
   sequel_query_analysis_options_t options;
   sequel_diagnostic_list_t diagnostics;
+  sequel_text_result_t summary;
+  sequel_text_result_t sanitized_sql;
+  sequel_text_result_t formatted_sql;
+  char fingerprint[SEQUEL_FINGERPRINT_LENGTH];
 };
 
 static int append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source) {
@@ -70,6 +76,19 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
     status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
   if (status == SEQUEL_OK && analysis->options.include_lints)
     status = sequel_collect_query_diagnostics(analysis->query, &query_diagnostics);
+  if (status == SEQUEL_OK && analysis->options.include_summary) {
+    sequel_summary_options_t summary_options;
+    sequel_summary_options_init(&summary_options);
+    status = sequel_summarize_query(query, &summary_options, &analysis->summary);
+  }
+  if (status == SEQUEL_OK && analysis->options.include_fingerprint)
+    status = sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, analysis->fingerprint);
+  if (status == SEQUEL_OK && analysis->options.include_sanitized_sql)
+    status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS |
+                                                               SEQUEL_SANITIZE_REPLACE_LITERALS,
+                                     &analysis->sanitized_sql);
+  if (status == SEQUEL_OK && analysis->options.include_formatted_sql)
+    status = sequel_format_syntax(syntax, NULL, &analysis->formatted_sql);
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
     status = SEQUEL_ERR_NOMEM;
   if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &syntax_diagnostics))
@@ -91,7 +110,34 @@ void sequel_query_analysis_free(sequel_query_analysis_t *analysis) {
   if (!analysis)
     return;
   sequel_diagnostic_list_free(&analysis->diagnostics);
+  sequel_text_result_free(&analysis->summary);
+  sequel_text_result_free(&analysis->sanitized_sql);
+  sequel_text_result_free(&analysis->formatted_sql);
   free(analysis);
+}
+
+const sequel_text_result_t *sequel_query_analysis_summary(const sequel_query_analysis_t *analysis) {
+  return analysis && analysis->summary.data ? &analysis->summary : NULL;
+}
+
+const sequel_text_result_t *sequel_query_analysis_sanitized_sql(const sequel_query_analysis_t *analysis) {
+  return analysis && analysis->sanitized_sql.data ? &analysis->sanitized_sql : NULL;
+}
+
+const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_query_analysis_t *analysis) {
+  return analysis && analysis->formatted_sql.data ? &analysis->formatted_sql : NULL;
+}
+
+sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis,
+                                                  char out[SEQUEL_FINGERPRINT_LENGTH]) {
+  if (!analysis || !out)
+    return SEQUEL_ERR_NULL;
+  if (!analysis->fingerprint[0]) {
+    out[0] = 0;
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  memcpy(out, analysis->fingerprint, sizeof(analysis->fingerprint));
+  return SEQUEL_OK;
 }
 
 const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis) {

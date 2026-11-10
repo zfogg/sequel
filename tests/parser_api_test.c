@@ -202,6 +202,24 @@ int main(void) {
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
+  const sequel_text_result_t *analysis_summary = sequel_query_analysis_summary(document_analysis);
+  if (!check(analysis_summary && analysis_summary->length > 0, "analysis summary output"))
+    return 1;
+  char analysis_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  if (!check(sequel_query_analysis_fingerprint(document_analysis, analysis_fingerprint) == SEQUEL_OK &&
+                 strlen(analysis_fingerprint) == 16,
+             "analysis fingerprint output"))
+    return 1;
+  sequel_query_analysis_options_t output_options = analysis_options;
+  output_options.include_sanitized_sql = true;
+  output_options.include_formatted_sql = true;
+  sequel_query_analysis_t *output_analysis = NULL;
+  if (!check(sequel_analyze_document(syntax, query, &output_options, NULL, &output_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_sanitized_sql(output_analysis) != NULL &&
+                 sequel_query_analysis_formatted_sql(output_analysis) != NULL,
+             "analysis rendered outputs"))
+    return 1;
+  sequel_query_analysis_free(output_analysis);
   sequel_source_view_t broken_source = {"select 'unterminated", strlen("select 'unterminated")};
   sequel_syntax_document_t *broken_syntax = NULL;
   if (!check(sequel_parse_sql(&broken_source, &options, NULL, &broken_syntax) == SEQUEL_OK,

@@ -4,6 +4,8 @@
 
 #include <sequel/query.h>
 #include <sequel/diagnostics.h>
+#include <sequel/fingerprint.h>
+#include <sequel/formatter.h>
 
 typedef struct sequel_query_analysis sequel_query_analysis_t;
 
@@ -43,3 +45,16 @@ const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_q
 
 /** Return canonical bind metadata borrowed from the retained query document. */
 const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis, size_t *count);
+
+/** Return the optional normalized summary owned by the analysis object. */
+const sequel_text_result_t *sequel_query_analysis_summary(const sequel_query_analysis_t *analysis);
+
+/** Return the optional sanitized SQL owned by the analysis object. */
+const sequel_text_result_t *sequel_query_analysis_sanitized_sql(const sequel_query_analysis_t *analysis);
+
+/** Return the optional formatted SQL owned by the analysis object. */
+const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_query_analysis_t *analysis);
+
+/** Copy the optional requested fingerprint into a caller-provided buffer. */
+sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis,
+                                                  char out[SEQUEL_FINGERPRINT_LENGTH]);
