@@ -17,6 +17,7 @@
 #include <sequel/parser.h>
 #include <sequel/query.h>
 #include <sequel/source.h>
+#include <sequel/serialization.h>
 #include <sequel/status.h>
 #include <sequel/syntax.h>
 

@@ -284,6 +284,10 @@ const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *documen
   return document ? document->tokens : NULL;
 }
 
+sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document) {
+  return document ? document->dialect : SEQUEL_GENERIC;
+}
+
 sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
                                   size_t *length) {
   if (!source || !token || !data || !length)

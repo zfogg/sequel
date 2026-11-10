@@ -126,6 +126,18 @@ int main(void) {
              "document analysis"))
     return 1;
   sequel_query_analysis_free(document_analysis);
+  sequel_buffer_t serialized = {0};
+  if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,
+             "document serialization"))
+    return 1;
+  sequel_buffer_view_t serialized_view = {serialized.data, serialized.length};
+  sequel_document_bundle_t *bundle = NULL;
+  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_OK &&
+                 sequel_document_bundle_syntax(bundle) != NULL && sequel_document_bundle_query(bundle) != NULL,
+             "document deserialization"))
+    return 1;
+  sequel_document_bundle_free(bundle);
+  sequel_buffer_free(&serialized);
   int found_from = 0;
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))

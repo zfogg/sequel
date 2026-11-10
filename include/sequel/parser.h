@@ -85,6 +85,7 @@ sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document
 
 /** Return the immutable lexical token array. */
 const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count);
+sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);
 
 sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
                                   size_t *length);
