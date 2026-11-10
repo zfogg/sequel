@@ -276,6 +276,36 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != 13)
+      continue;
+    size_t left = SIZE_MAX;
+    size_t right = SIZE_MAX;
+    for (size_t r = 0; r < document->relation_count; ++r) {
+      if (document->relations[r].range.start < tokens[i].range.start)
+        left = r;
+      else if (right == SIZE_MAX)
+        right = r;
+    }
+    if (left == SIZE_MAX || right == SIZE_MAX)
+      continue;
+    sequel_join_info_t join = {.kind = SEQUEL_JOIN_INNER,
+                               .range = {tokens[i].range.start, document->relations[right].range.end},
+                               .left_relation = left,
+                               .right_relation = right,
+                               .condition_node = SIZE_MAX,
+                               .has_condition = false};
+    for (size_t j = i + 1; j < token_count && tokens[j].range.start < document->relations[right].range.start; ++j) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == 14) {
+        join.has_condition = true;
+        break;
+      }
+    }
+    if (!append((void **)&document->joins, &document->join_count, sizeof(join), &join)) {
+      sequel_query_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
   *out = document;
   return SEQUEL_OK;
 }
