@@ -1505,7 +1505,7 @@ summary_postprocess:
   if (text && strstr(source.data, " LIMIT sqlc.arg(")) {
     char *limit = strstr(text, " LIMIT ");
     if (limit) {
-      strcpy(limit + strlen(" LIMIT "), "?");
+      memcpy(limit + strlen(" LIMIT "), "?", 2);
       length = strlen(text);
     }
   }
@@ -1524,7 +1524,7 @@ summary_postprocess:
       !strstr(source.data, " INSERT ")) {
     char *limit = strstr(text, " LIMIT ");
     if (limit) {
-      strcpy(limit + strlen(" LIMIT "), "?");
+      memcpy(limit + strlen(" LIMIT "), "?", 2);
       length = strlen(text);
     }
   }
