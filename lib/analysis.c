@@ -61,6 +61,10 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
     for (size_t offset = previous_end; offset < token->range.start; ++offset)
       newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
     int kind = shared_token_kind(token->kind);
+    bool opening = kind == 0 && token->range.end == token->range.start + 1 &&
+                   strchr("([{", source.data[token->range.start]) != NULL;
+    bool previous_open = *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 &&
+                         strchr("([{", *(*out)[*count - 1].t.p) != NULL;
     (*out)[(*count)++] = (format_token){.t = {.p = source.data + token->range.start,
                                               .n = token->range.end - token->range.start,
                                               .word = kind == 1,
@@ -70,13 +74,7 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
                                         .newline = newline || pending_newline,
                                         .kind = kind,
                                         .matching = 0,
-                                        .multiline = newline ||
-                                                      (pending_newline &&
-                                                       (!(kind == 0 && token->range.end == token->range.start + 1 &&
-                                                          strchr("([{", source.data[token->range.start])) ) ||
-                                                        (*count && (*out)[*count - 1].kind == 0 &&
-                                                         (*out)[*count - 1].t.n == 1 &&
-                                                         strchr("([{", *(*out)[*count - 1].t.p)))),
+                                        .multiline = newline || (pending_newline && (!opening || previous_open)),
                                         .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) +
                                                       token->range.end - token->range.start + 1,
                                         .source_offset = token->range.start,

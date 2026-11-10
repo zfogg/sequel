@@ -254,6 +254,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
     } else if (source->data[i] == '$' &&
                (settings->dialect == SEQUEL_GENERIC || settings->dialect == SEQUEL_POSTGRESQL ||
+                settings->dialect == SEQUEL_MYSQL ||
                 settings->dialect == SEQUEL_DUCKDB || settings->dialect == SEQUEL_SQLITE)) {
       size_t tag_end = i + 1;
       while (tag_end < source->length &&
@@ -275,7 +276,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
           ++i;
         if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
-          if (memchr(source->data + start, '(', source->length - start)) {
+          if (i < source->length && source->data[i] == '(') {
             while (i < source->length && source->data[i] != ')' && source->data[i] != ';')
               ++i;
             if (i < source->length && source->data[i] == ')')
@@ -362,9 +363,16 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       flags = SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
     } else if (source->data[i] == '?') {
       ++i;
-      while (i < source->length && is_operator_char((unsigned char)source->data[i]))
-        ++i;
-      kind = SEQUEL_TOKEN_OPERATOR;
+      if (i < source->length && isdigit((unsigned char)source->data[i])) {
+        while (i < source->length && isdigit((unsigned char)source->data[i]))
+          ++i;
+        kind = SEQUEL_TOKEN_PARAMETER;
+        flags = SEQUEL_TOKEN_FLAG_BIND;
+      } else {
+        while (i < source->length && is_operator_char((unsigned char)source->data[i]))
+          ++i;
+        kind = SEQUEL_TOKEN_OPERATOR;
+      }
     } else if (is_operator_char((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && is_operator_char((unsigned char)source->data[i]))
