@@ -260,6 +260,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     return SEQUEL_ERR_INVALID_ARGUMENT;
   const uint8_t *validation_cursor = cursor;
   size_t validation_remaining = remaining;
+  uint64_t serialized_fingerprint[9] = {0};
   for (uint64_t i = 0; i < header[5]; ++i) {
     uint64_t record[10];
     for (size_t j = 0; j < 10; ++j)
@@ -361,8 +362,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   if (header[15] != 9)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   for (uint64_t i = 0; i < header[15]; ++i) {
-    uint64_t fingerprint_word;
-    if (!read_u64(&validation_cursor, &validation_remaining, &fingerprint_word))
+    if (!read_u64(&validation_cursor, &validation_remaining, &serialized_fingerprint[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   if (validation_remaining != 0)
@@ -388,6 +388,13 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
       sequel_query_join_count(bundle->query) != header[12] ||
       sequel_query_projection_count(bundle->query) != header[13] ||
       sequel_query_predicate_count(bundle->query) != header[14]) {
+    sequel_document_bundle_free(bundle);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  char rebuilt_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
+  if (sequel_fingerprint_document(bundle->syntax, bundle->query, SEQUEL_FINGERPRINT_QUERY_SHAPE, rebuilt_fingerprint) !=
+          SEQUEL_OK ||
+      strcmp((const char *)serialized_fingerprint, rebuilt_fingerprint) != 0) {
     sequel_document_bundle_free(bundle);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
