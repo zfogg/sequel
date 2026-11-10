@@ -20,11 +20,10 @@ setup(
                 "lib/fingerprint.c",
                 "lib/summary_document.c",
                 "lib/sanitizer.c",
-                "lib/diagnostics.c",
                 "lib/util/utf8.c",
                 "third_party/utf8proc/utf8proc.c",
             ],
-            include_dirs=["include", "third_party"],
+            include_dirs=["include", "third_party/utf8proc"],
             define_macros=[("UTF8PROC_STATIC", "1")],
         )
     ]
