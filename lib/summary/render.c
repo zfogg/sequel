@@ -501,6 +501,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         if (where && (!append_text(&text, &length, &capacity, " WHERE ") ||
                       !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
           goto no_memory;
+        const char *limit = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "LIMIT");
+        if (limit) {
+          const char *value = limit + 5;
+          while (*value && isspace((unsigned char)*value))
+            ++value;
+          if (!append_text(&text, &length, &capacity, " LIMIT ") ||
+              !append_text(&text, &length, &capacity, *value == '$' || *value == '?' ? "?" : "1"))
+            goto no_memory;
+        }
         break;
       }
       const char *where = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "WHERE");
