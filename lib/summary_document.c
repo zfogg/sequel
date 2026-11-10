@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <sequel/summary.h>
 
@@ -23,6 +24,27 @@ static int append_text(char **text, size_t *length, size_t *capacity, const char
   if (required + 1 > *capacity) {
     size_t next = *capacity ? *capacity : 64;
     while (next < required + 1) {
+      if (next > SIZE_MAX / 2)
+        return 0;
+      next *= 2;
+    }
+    char *grown = realloc(*text, next);
+    if (!grown)
+      return 0;
+    *text = grown;
+    *capacity = next;
+  }
+  memcpy(*text + *length, value, amount);
+  *length += amount;
+  (*text)[*length] = 0;
+  return 1;
+}
+
+static int append_bytes(char **text, size_t *length, size_t *capacity, const char *value, size_t amount) {
+  if (amount > SIZE_MAX - *length || *length + amount + 1 > *capacity) {
+    size_t required = *length + amount + 1;
+    size_t next = *capacity ? *capacity : 64;
+    while (next < required) {
       if (next > SIZE_MAX / 2)
         return 0;
       next *= 2;
@@ -66,6 +88,17 @@ static const char *operation_name(sequel_operation_t operation) {
   }
 }
 
+static int summary_word(const char *source, size_t length, size_t offset, const char *word) {
+  size_t n = strlen(word);
+  if (offset + n > length)
+    return 0;
+  for (size_t i = 0; i < n; ++i)
+    if (toupper((unsigned char)source[offset + i]) != toupper((unsigned char)word[i]))
+      return 0;
+  return (!offset || !isalnum((unsigned char)source[offset - 1])) &&
+         (offset + n == length || !isalnum((unsigned char)source[offset + n]));
+}
+
 sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, const sequel_summary_options_t *options,
                                        sequel_text_result_t *out) {
   if (!query || !out)
@@ -80,12 +113,81 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_operation && statement_count &&
       !append_text(&text, &length, &capacity, operation_name(statements[0].operation)))
     goto no_memory;
+  sequel_source_view_t source = sequel_query_source(query);
+  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE) {
+    size_t index = SIZE_MAX;
+    for (size_t i = 0; i < source.length; ++i)
+      if (summary_word(source.data, source.length, i, "INDEX")) {
+        index = i;
+        break;
+      }
+    if (index != SIZE_MAX) {
+      size_t name = index + 5;
+      while (name < source.length && isspace((unsigned char)source.data[name]))
+        ++name;
+      for (const char *modifier = "CONCURRENTLY"; modifier;) {
+        size_t n = strlen(modifier);
+        if (!summary_word(source.data, source.length, name, modifier))
+          break;
+        name += n;
+        while (name < source.length && isspace((unsigned char)source.data[name]))
+          ++name;
+        modifier = NULL;
+      }
+      if (summary_word(source.data, source.length, name, "IF")) {
+        size_t cursor = name + 2;
+        while (cursor < source.length && isspace((unsigned char)source.data[cursor]))
+          ++cursor;
+        if (summary_word(source.data, source.length, cursor, "NOT")) {
+          cursor += 3;
+          while (cursor < source.length && isspace((unsigned char)source.data[cursor]))
+            ++cursor;
+          if (summary_word(source.data, source.length, cursor, "EXISTS")) {
+            name = cursor + 6;
+            while (name < source.length && isspace((unsigned char)source.data[name]))
+              ++name;
+          }
+        }
+      }
+      size_t end = name;
+      if (name < source.length && source.data[name] != '\'' && !summary_word(source.data, source.length, name, "ON")) {
+        if (source.data[name] == '"' || source.data[name] == '`') {
+          size_t quoted_name = name;
+          char quote = source.data[name++];
+          end = name;
+          while (end < source.length && source.data[end] != quote)
+            ++end;
+          if (end < source.length)
+            ++end;
+          name = quoted_name;
+        } else {
+          while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != ';')
+            ++end;
+        }
+        size_t unique = index;
+        while (unique && isspace((unsigned char)source.data[unique - 1]))
+          --unique;
+        while (unique && (isalnum((unsigned char)source.data[unique - 1]) || source.data[unique - 1] == '_'))
+          --unique;
+        const char *index_label = summary_word(source.data, source.length, unique, "UNIQUE") ? " UNIQUE INDEX "
+                                                                                              : " INDEX ";
+        if (end > name && !append_text(&text, &length, &capacity, index_label))
+          goto no_memory;
+        if (end > name && !append_bytes(&text, &length, &capacity, source.data + name, end - name))
+          goto no_memory;
+      }
+    }
+  }
   if (settings->include_tables) {
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
-    sequel_source_view_t source = sequel_query_source(query);
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
     for (size_t i = 0; i < relation_count; ++i) {
+      if (operation == SEQUEL_OPERATION_CREATE) {
+        if (text && strstr(text, " INDEX ") && !append_text(&text, &length, &capacity, " ON ..."))
+          goto no_memory;
+        break;
+      }
       if (!append_text(&text, &length, &capacity, i ? "," : (operation == SEQUEL_OPERATION_CREATE ? " ON " : " FROM ")))
         goto no_memory;
       size_t start = relations[i].name_range.start;
