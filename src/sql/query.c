@@ -114,11 +114,12 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     sequel_bind_style_t style = bind_style(text, length, &explicit_number);
     if (style == SEQUEL_BIND_UNKNOWN)
       continue;
+    ++ordinal;
     sequel_parameter_info_t parameter = {
         .range = tokens[i].range,
         .style = style,
         .statement_index = statement_for_range(document, tokens[i].range),
-        .ordinal = ++ordinal,
+        .ordinal = ordinal,
         .explicit_number = explicit_number,
         .name_range = {tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1), tokens[i].range.end},
         .type_range = {tokens[i].range.end, tokens[i].range.end},
