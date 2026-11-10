@@ -111,7 +111,8 @@ int main(void) {
     return 1;
   size_t limited_issue_count = 0;
   (void)sequel_syntax_issues(limited_syntax, &limited_issue_count);
-  if (!check(limited_issue_count == 1, "diagnostic budget"))
+  if (!check(limited_issue_count == 1 && sequel_syntax_issue_count(limited_syntax) == limited_issue_count,
+             "diagnostic budget"))
     return 1;
   sequel_syntax_document_free(limited_syntax);
 

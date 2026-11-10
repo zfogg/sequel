@@ -131,6 +131,9 @@ const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *docum
 
 const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count);
 
+/** Return the number of recovered syntax issues in a syntax document. */
+size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document);
+
 sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
                                     const sequel_syntax_visitor_t *visitor);
 

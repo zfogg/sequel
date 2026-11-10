@@ -489,6 +489,10 @@ const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t 
   return document ? document->issues : NULL;
 }
 
+size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document) {
+  return document ? document->issue_count : 0;
+}
+
 const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document) {
   return document ? document->lexed : NULL;
 }
