@@ -222,8 +222,6 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
   return 0;
 }
 
-
-
 // clang-format off
 static bool boundary(token t);
 static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
@@ -725,7 +723,7 @@ done:
 #include "highlight.c"
 #include "contracts.c"
 #include "sha256.c"
-#include "analysis.c"
+#include "analysis_pipeline.c"
 // clang-format on
 
 #undef malloc
