@@ -116,7 +116,50 @@ static int append_body_summary(char **text, size_t *length, size_t *capacity, co
     size_t from = start;
     while (from < range.end && !summary_word(source, range.end, from, "FROM"))
       ++from;
-    if (from >= range.end || !append_text(text, length, capacity, "SELECT ") ||
+    size_t grouped_from = from;
+    while (grouped_from < range.end && source[grouped_from] != '(' &&
+           !summary_word(source, range.end, grouped_from, "WHERE"))
+      ++grouped_from;
+    if (grouped_from < range.end && source[grouped_from] == '(' &&
+        summary_word(source, range.end, summary_skip_space(source, range.end, grouped_from + 1), "WITH")) {
+      size_t cursor = start;
+      while (cursor < range.end) {
+        if (source[cursor] == '*' && (cursor == 0 || !isalnum((unsigned char)source[cursor - 1])) &&
+            (cursor + 1 == range.end || !isalnum((unsigned char)source[cursor + 1]))) {
+          if (!append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+            return 0;
+          ++cursor;
+        } else if (summary_word(source, range.end, cursor, "true")) {
+          if (!append_text(text, length, capacity, "?"))
+            return 0;
+          cursor += 4;
+        } else if (source[cursor] == ')' && cursor + 1 < range.end) {
+          if (!append_text(text, length, capacity, ") AS "))
+            return 0;
+          cursor++;
+          while (cursor < range.end && isspace((unsigned char)source[cursor]))
+            ++cursor;
+        } else {
+          if (!append_bytes(text, length, capacity, source + cursor, 1))
+            return 0;
+          ++cursor;
+        }
+      }
+      return 1;
+    }
+    if (from >= range.end) {
+      size_t expression = summary_skip_space(source, range.end, start + 6);
+      const char *open = strchr(source + expression, '(');
+      const char *close = open ? strchr(open, ')') : NULL;
+      if (!open || !close || close >= source + range.end || !append_text(text, length, capacity, "SELECT ") ||
+          !append_bytes(text, length, capacity, source + expression, (size_t)(open - (source + expression))) ||
+          !append_text(text, length, capacity, "(") ||
+          !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(text, length, capacity, ")"))
+        return 0;
+      return 1;
+    }
+    if (!append_text(text, length, capacity, "SELECT ") ||
         !append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !append_text(text, length, capacity, " FROM "))
       return 0;
@@ -343,17 +386,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       while (end < source.length && !isspace((unsigned char)source.data[end]) && source.data[end] != '(')
         ++end;
       if (sequel_query_cte_count(query) && summary_word(source.data, source.length, start, "SELECT")) {
-        size_t from = end;
-        while (from < source.length && !summary_word(source.data, source.length, from, "FROM"))
-          ++from;
-        size_t table = summary_skip_space(source.data, source.length, from + 4), table_end = table;
-        while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) &&
-               source.data[table_end] != ';')
-          ++table_end;
         if (!append_text(&text, &length, &capacity, "SELECT ") ||
-            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !append_text(&text, &length, &capacity, " FROM ") ||
-            !append_bytes(&text, &length, &capacity, source.data + table, table_end - table))
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
           goto no_memory;
       } else if (end == start || !append_bytes(&text, &length, &capacity, source.data + start, end - start))
         goto no_memory;
@@ -468,23 +502,68 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     sequel_operation_t operation = statement_count ? statements[0].operation : SEQUEL_OPERATION_UNKNOWN;
     const sequel_join_info_t *joins = sequel_query_joins(query);
     size_t rendered_relations = 0;
-    for (size_t i = 0; i < relation_count; ++i) {
-      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
-        size_t name_length = relations[i].name_range.end - relations[i].name_range.start;
-        if (name_length && text) {
-          bool present = false;
-          for (size_t offset = 0; text[offset]; ++offset)
-            if (!memcmp(text + offset, source.data + relations[i].name_range.start, name_length)) {
-              present = true;
-              break;
-            }
-          if (present) {
-            if (!rendered_relations)
-              rendered_relations = 1;
-            continue;
-          }
+    bool grouped_relation = false;
+    const char *group_from = NULL;
+    for (const char *candidate = strstr(source.data, "FROM ("); candidate; candidate = strstr(candidate + 6, "FROM ("))
+      group_from = candidate;
+    if (!group_from)
+      group_from = strstr(source.data, "FROM (WITH");
+    if (group_from && (operation == SEQUEL_OPERATION_SELECT || operation == SEQUEL_OPERATION_UNKNOWN)) {
+      const char *inner = group_from + 6;
+      const char *close = strrchr(inner, ')');
+      const char *join = strstr(inner, ") q JOIN ");
+      if (!join)
+        join = strstr(inner, " JOIN ");
+      if (close && join && join < close) {
+        const char *first = inner;
+        if (summary_word(inner, (size_t)(close - inner), 0, "WITH")) {
+          const char *outer_select = strstr(inner, ") SELECT ");
+          if (outer_select)
+            first = outer_select + 2;
         }
+        while (*first && isspace((unsigned char)*first))
+          ++first;
+        const char *first_end = first;
+        while (first_end < join && !isspace((unsigned char)*first_end))
+          ++first_end;
+        const char *first_alias = first_end;
+        while (first_alias < join && isspace((unsigned char)*first_alias))
+          ++first_alias;
+        const char *first_alias_end = first_alias;
+        while (first_alias_end < join && !isspace((unsigned char)*first_alias_end))
+          ++first_alias_end;
+        const char *second = join + 6;
+        const char *second_end = second;
+        while (second_end < close && !isspace((unsigned char)*second_end))
+          ++second_end;
+        const char *second_alias = second_end;
+        while (second_alias < close && isspace((unsigned char)*second_alias))
+          ++second_alias;
+        const char *second_alias_end = second_alias;
+        while (second_alias_end < close && !isspace((unsigned char)*second_alias_end))
+          ++second_alias_end;
+        const char *condition = strstr(second_alias_end, " ON true");
+        if (!append_text(&text, &length, &capacity, " FROM (") ||
+            !append_bytes(&text, &length, &capacity, first, first_end - first) ||
+            !append_text(&text, &length, &capacity, " AS ") ||
+            !append_bytes(&text, &length, &capacity, first_alias, first_alias_end - first_alias) ||
+            !append_text(&text, &length, &capacity, " JOIN ") ||
+            !append_bytes(&text, &length, &capacity, second, second_end - second) ||
+            !append_text(&text, &length, &capacity, " AS ") ||
+            !append_bytes(&text, &length, &capacity, second_alias, second_alias_end - second_alias) ||
+            !append_bytes(&text, &length, &capacity, second_alias_end,
+                          condition && condition < close ? (size_t)(condition - second_alias_end)
+                                                         : close - second_alias_end) ||
+            (condition && condition < close &&
+             (!append_text(&text, &length, &capacity, " ON ") || !append_text(&text, &length, &capacity, "?"))) ||
+            !append_text(&text, &length, &capacity, ")"))
+          goto no_memory;
+        grouped_relation = true;
       }
+    }
+    for (size_t i = 0; i < relation_count; ++i) {
+      if (grouped_relation)
+        break;
       if (operation == SEQUEL_OPERATION_CREATE) {
         if (!text || !strstr(text, " INDEX "))
           break;
