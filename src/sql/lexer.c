@@ -95,6 +95,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (source->length > settings->max_input_bytes || source->length > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
+  if ((settings->max_memory_bytes && source->length + 1 > settings->max_memory_bytes) ||
+      (settings->max_work_units && source->length > settings->max_work_units))
+    return SEQUEL_ERR_LIMIT;
   sequel_lexed_document_t *document = calloc(1, sizeof(*document));
   if (!document)
     return SEQUEL_ERR_NOMEM;

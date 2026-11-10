@@ -122,6 +122,12 @@ int main(void) {
                  node_limited_syntax == NULL,
              "node budget"))
     return 1;
+  sequel_parse_options_t memory_limited_options = options;
+  memory_limited_options.max_memory_bytes = source.length;
+  if (!check(sequel_parse_sql(&source, &memory_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT &&
+                 node_limited_syntax == NULL,
+             "memory budget"))
+    return 1;
 
   sequel_syntax_document_t *syntax = NULL;
   if (!check(sequel_parse_sql(&source, &options, NULL, &syntax) == SEQUEL_OK, "parse succeeds"))
