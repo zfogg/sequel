@@ -70,7 +70,13 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
                                         .newline = newline || pending_newline,
                                         .kind = kind,
                                         .matching = 0,
-                                        .multiline = newline,
+                                        .multiline = newline ||
+                                                      (pending_newline &&
+                                                       (!(kind == 0 && token->range.end == token->range.start + 1 &&
+                                                          strchr("([{", source.data[token->range.start])) ) ||
+                                                        (*count && (*out)[*count - 1].kind == 0 &&
+                                                         (*out)[*count - 1].t.n == 1 &&
+                                                         strchr("([{", *(*out)[*count - 1].t.p)))),
                                         .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) +
                                                       token->range.end - token->range.start + 1,
                                         .source_offset = token->range.start,

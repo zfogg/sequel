@@ -338,6 +338,8 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       opens[++level] = i;
       if (i && kw(ts[i - 1].t, "OVER"))
         ts[i].multiline = true;
+      if (i && ts[i].newline && ts[i - 1].kind == 0 && ts[i - 1].t.n == 1 && strchr("([{", *ts[i - 1].t.p))
+        ts[i].multiline = true;
     } else if (ts[i].kind == 0 && t.n == 1 && strchr(")]}", *t.p)) {
       if (!level)
         return false;
@@ -549,7 +551,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
             j = ts[j].matching;
           end = j;
         }
-        if (!list && end < count && ts[end].flat_width - ts[i].flat_width <= 60)
+        if (!list && ctx->window)
           ctx->pending = false;
       }
     } else if (bound || setop || conflict) {
