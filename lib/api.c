@@ -101,28 +101,34 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  char *safe = calloc(n + 1, 1);
-  if (!safe)
-    return SEQUEL_ERR_NOMEM;
-  output text_output = {safe, 0, n + 1};
-  sequel_status_t status = SEQUEL_ERR_INVALID_ARGUMENT;
-  if (!sanitize_policy(sql, n, dialect, false, (flags & SEQUEL_REMOVE_COMMENTS) != 0,
-                       (flags & SEQUEL_REPLACE_LITERALS) != 0, &text_output))
-    goto done;
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = dialect;
+  options.retain_comments = true;
+  options.retain_whitespace = true;
+  sequel_source_view_t source = {sql, n};
+  sequel_lexed_document_t *lexed = NULL;
+  sequel_status_t status = sequel_lex(&source, &options, NULL, &lexed);
+  if (status != SEQUEL_OK)
+    return status;
+  sequel_text_result_t result = {0};
+  status = sequel_sanitize_tokens(lexed, flags, &result);
+  sequel_lexed_document_free(lexed);
+  if (status != SEQUEL_OK)
+    return status;
   if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
-    collapse_in(safe, dialect);
-  *truncated = strlen(safe) > limit;
-  utf8_cut(safe, limit);
-  if (strlen(safe) >= capacity) {
+    collapse_in(result.data, dialect);
+  *truncated = result.length > limit;
+  utf8_cut(result.data, limit);
+  result.length = strlen(result.data);
+  if (result.length >= capacity) {
+    sequel_text_result_free(&result);
     *truncated = false;
-    status = SEQUEL_ERR_OVERFLOW;
-    goto done;
+    return SEQUEL_ERR_OVERFLOW;
   }
-  memcpy(out, safe, strlen(safe) + 1);
-  status = SEQUEL_OK;
-done:
-  free(safe);
-  return status;
+  memcpy(out, result.data, result.length + 1);
+  sequel_text_result_free(&result);
+  return SEQUEL_OK;
 }
 sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
                                 char *out, size_t capacity, bool *truncated) {
