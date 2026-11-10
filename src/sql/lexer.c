@@ -301,6 +301,10 @@ const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *documen
   return document ? document->tokens : NULL;
 }
 
+size_t sequel_lexed_token_count(const sequel_lexed_document_t *document) {
+  return document ? document->token_count : 0;
+}
+
 sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document) {
   return document ? document->dialect : SEQUEL_GENERIC;
 }

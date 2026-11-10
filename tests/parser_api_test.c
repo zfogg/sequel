@@ -51,7 +51,7 @@ int main(void) {
     return 1;
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
-  if (!check(token_count > 10, "lexed token count"))
+  if (!check(token_count > 10 && sequel_lexed_token_count(lexed) == token_count, "lexed token count"))
     return 1;
   if (!check(tokens[0].kind == SEQUEL_TOKEN_KEYWORD && tokens[0].keyword_id != 0, "keyword token"))
     return 1;
