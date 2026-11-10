@@ -11,6 +11,7 @@
 #include "../src/sql/format_document.c"
 #include "../src/sql/fingerprint.c"
 #include "../src/sql/summary_document.c"
+#include "../src/sql/sanitizer.c"
 #include "../src/sql/diagnostics_bridge.c"
 #include "../src/utf8.c"
 #include "../third_party/utf8proc.c"

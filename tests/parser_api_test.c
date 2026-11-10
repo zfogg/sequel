@@ -80,6 +80,12 @@ int main(void) {
   if (!check(operator_tokens[5].kind == SEQUEL_TOKEN_BOOLEAN, "boolean literal"))
     return 1;
   sequel_lexed_document_free(operator_lexed);
+  sequel_text_result_t sanitized = {0};
+  if (!check(sequel_sanitize_tokens(lexed, SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized) == SEQUEL_OK &&
+                 strstr(sanitized.data, "?") != NULL && strstr(sanitized.data, "'value'") == NULL,
+             "token sanitizer"))
+    return 1;
+  sequel_text_result_free(&sanitized);
   sequel_lexed_document_free(lexed);
 
   const char lexical_sql[] = "SELECT 'unfinished";

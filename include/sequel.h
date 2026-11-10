@@ -15,6 +15,7 @@
 #include <sequel/formatter.h>
 #include <sequel/fingerprint.h>
 #include <sequel/summary.h>
+#include <sequel/sanitizer.h>
 #include <sequel/binds.h>
 #include <sequel/analysis.h>
 #include <sequel/lexer.h>

@@ -179,9 +179,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       kind = quote == '\'' || (quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_STRING
                                                                                   : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
-      flags = i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote)
-                  ? SEQUEL_TOKEN_FLAG_UNTERMINATED
-                  : 0;
+      flags = SEQUEL_TOKEN_FLAG_LITERAL;
+      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
+        flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (isdigit((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && (isdigit((unsigned char)source->data[i]) || source->data[i] == '.'))
@@ -203,7 +203,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         int terminated = close + (tag_end - start + 1) <= source->length;
         i = terminated ? close + (tag_end - start + 1) : source->length;
         kind = SEQUEL_TOKEN_STRING;
-        flags = terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED;
+        flags = SEQUEL_TOKEN_FLAG_LITERAL | (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       } else {
         ++i;
         while (i < source->length && is_word_part((unsigned char)source->data[i]))
