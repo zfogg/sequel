@@ -250,6 +250,25 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
   }
+  if (!document->statement_count && token_count) {
+    for (size_t token = 0; token < token_count; ++token) {
+      if (is_trivia(&tokens[token]))
+        continue;
+      sequel_operation_t recovered = operation_from_word(source.data + tokens[token].range.start,
+                                                         tokens[token].range.end - tokens[token].range.start);
+      if (recovered == SEQUEL_OPERATION_UNKNOWN)
+        continue;
+      sequel_statement_info_t statement = {.range = {0, source.length},
+                                           .operation = recovered,
+                                           .syntax_node = SIZE_MAX,
+                                           .query_body = SIZE_MAX};
+      if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {
+        sequel_query_document_free(document);
+        return SEQUEL_ERR_NOMEM;
+      }
+      break;
+    }
+  }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
       continue;
@@ -394,6 +413,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
       if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = body_operation;
+        break;
+      }
+    }
+  }
+  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
+    for (size_t token = 0; token < token_count; ++token) {
+      if (is_trivia(&tokens[token]))
+        continue;
+      sequel_operation_t recovered = operation_from_word(source.data + tokens[token].range.start,
+                                                         tokens[token].range.end - tokens[token].range.start);
+      if (recovered != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = recovered;
         break;
       }
     }
