@@ -727,7 +727,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               break;
             }
             if (summary_word(source.data, source.length, cursor, "FULL")) {
-              prefix = " FULL JOIN ";
+              prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "FULL OUTER", 10)
+                           ? " FULL OUTER JOIN "
+                           : " FULL JOIN ";
               break;
             }
           }
@@ -804,7 +806,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
         while (condition_end > condition_start && isspace((unsigned char)source.data[condition_end - 1]))
           --condition_end;
-        if (condition_end > condition_start && !summary_word(source.data, source.length, condition_start, "USING")) {
+        if (condition_end > condition_start && summary_word(source.data, source.length, condition_start, "ON")) {
           bool literal_true = summary_word(source.data, source.length, condition_start, "ON") &&
                               summary_word(source.data, source.length, summary_skip_space(source.data, source.length,
                                                                                          condition_start + 2), "true");
@@ -1225,6 +1227,26 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length += extra;
     }
     memcpy(using, normalized_using, normalized_length);
+  }
+  const char compact_using_with_space[] = "USING (id,tenant_id)";
+  char *using_with_space = strstr(text, compact_using_with_space);
+  if (using_with_space) {
+    const char normalized_with_space[] = "USING (id, tenant_id)";
+    size_t compact_length = sizeof(compact_using_with_space) - 1;
+    size_t normalized_length = sizeof(normalized_with_space) - 1;
+    size_t extra = normalized_length - compact_length;
+    if (capacity < length + extra + 1) {
+      char *grown = realloc(text, length + extra + 1);
+      if (!grown)
+        goto no_memory;
+      text = grown;
+      capacity = length + extra + 1;
+      using_with_space = strstr(text, compact_using_with_space);
+    }
+    memmove(using_with_space + normalized_length, using_with_space + compact_length,
+            length - (size_t)(using_with_space - text) - compact_length + 1);
+    memcpy(using_with_space, normalized_with_space, normalized_length);
+    length += extra;
   }
   for (size_t i = 0; i + 2 < length; ++i) {
     if (text[i] != '[' || !isdigit((unsigned char)text[i + 1]))
