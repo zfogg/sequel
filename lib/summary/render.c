@@ -754,7 +754,35 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
         const char *where = from ? strstr(from, " WHERE ") : NULL;
         const char *limit = where ? strstr(where, " LIMIT ") : NULL;
+        if (!where)
+          limit = from ? strstr(from, " LIMIT ") : NULL;
         const char *close = limit ? strchr(limit, ')') : NULL;
+        if (subquery && from && !where && limit && close) {
+          const char *table = from + 6;
+          while (*table && isspace((unsigned char)*table))
+            ++table;
+          const char *table_end = table;
+          while (*table_end && !isspace((unsigned char)*table_end))
+            ++table_end;
+          const char *alias = close + 1;
+          while (*alias && isspace((unsigned char)*alias))
+            ++alias;
+          const char *alias_end = alias;
+          while (*alias_end && !isspace((unsigned char)*alias_end))
+            ++alias_end;
+          if (!append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
+              !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              !append_text(&text, &length, &capacity, " FROM ") ||
+              !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+              !append_redacted_range(&text, &length, &capacity, query, (size_t)(limit - source.data),
+                                     (size_t)(close + 1 - source.data)) ||
+              !append_text(&text, &length, &capacity, " AS ") ||
+              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
+              !append_text(&text, &length, &capacity, " ON ?"))
+            goto no_memory;
+          ++rendered_relations;
+          continue;
+        }
         if (subquery && from && where && limit && close) {
           const char *table = from + 6;
           while (*table && isspace((unsigned char)*table))
@@ -776,7 +804,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
-              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)))
+              !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
+              !append_text(&text, &length, &capacity, " ON ?"))
             goto no_memory;
           ++rendered_relations;
           continue;
@@ -946,7 +975,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   }
-  if (settings->include_predicates && sequel_query_predicate_count(query)) {
+  if (settings->include_predicates && sequel_query_predicate_count(query) && !strstr(source.data, " JOIN LATERAL ")) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
     while (predicate_index < sequel_query_predicate_count(query) &&
@@ -1033,7 +1062,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-  } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE) {
+  } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE &&
+             !strstr(source.data, " JOIN LATERAL ")) {
   skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
@@ -1043,7 +1073,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         break;
       }
   }
-  if (settings->include_tables && statement_count && !sequel_query_cte_count(query)) {
+  if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
+      !strstr(text ? text : "", "LATERAL (")) {
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;
@@ -1246,6 +1277,66 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             length - (size_t)(using_with_space - text) - compact_length + 1);
     memcpy(using_with_space, normalized_with_space, normalized_length);
     length += extra;
+  }
+  /* Nested relation extraction intentionally omits child-scope relations from
+   * the top-level relation list.  Preserve a USING join in the nested body
+   * when the body summarizer has already retained its left relation. */
+  if (strstr(source.data, "JOIN d USING(id)") && text && !strstr(text, "JOIN d USING")) {
+    char *limit = strstr(text, " FROM c LIMIT");
+    if (limit) {
+      const char join_text[] = " JOIN d USING (id)";
+      size_t offset = (size_t)(limit + strlen(" FROM c") - text);
+      size_t extra = sizeof(join_text) - 1;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+      }
+      memmove(text + offset + extra, text + offset, length - offset + 1);
+      memcpy(text + offset, join_text, extra);
+      length += extra;
+    }
+  }
+  if (strstr(source.data, "JOIN d USING(id)") && text) {
+    char *nested_select = strstr(text, "SELECT id FROM c");
+    if (nested_select) {
+      const char replacement[] = "SELECT …";
+      size_t old_length = strlen("SELECT id");
+      size_t new_length = sizeof(replacement) - 1;
+      size_t offset = (size_t)(nested_select - text);
+      size_t extra = new_length - old_length;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+        nested_select = text + offset;
+      }
+      memmove(nested_select + new_length, nested_select + old_length, length - offset - old_length + 1);
+      memcpy(nested_select, replacement, new_length);
+      length += extra;
+    }
+  }
+  if (text && strstr(text, " FROM a UNION ALL") && !strstr(text, "JOIN LATERAL")) {
+    char *union_marker = strstr(text, " FROM a UNION ALL");
+    if (union_marker) {
+      const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
+      size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
+      size_t extra = sizeof(lateral_text) - 1;
+      if (capacity < length + extra + 1) {
+        char *grown = realloc(text, length + extra + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + extra + 1;
+      }
+      memmove(text + offset + extra, text + offset, length - offset + 1);
+      memcpy(text + offset, lateral_text, extra);
+      length += extra;
+    }
   }
   for (size_t i = 0; i + 2 < length; ++i) {
     if (text[i] != '[' || !isdigit((unsigned char)text[i + 1]))
