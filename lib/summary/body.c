@@ -8,8 +8,10 @@ static const char summary_ellipsis[] = "\342\200\246";
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
                                        sequel_source_range_t range, bool preserve_limit) {
   size_t start = sequel_summary_skip_space(source, range.end, range.start);
-  if (!sequel_summary_word(source, range.end, start, "SELECT") && !sequel_summary_word(source, range.end, start, "INSERT") &&
-      !sequel_summary_word(source, range.end, start, "UPDATE") && !sequel_summary_word(source, range.end, start, "DELETE")) {
+  if (!sequel_summary_word(source, range.end, start, "SELECT") &&
+      !sequel_summary_word(source, range.end, start, "INSERT") &&
+      !sequel_summary_word(source, range.end, start, "UPDATE") &&
+      !sequel_summary_word(source, range.end, start, "DELETE")) {
     const char *keywords[] = {"SELECT", "INSERT", "UPDATE", "DELETE"};
     const char *first = NULL;
     for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i) {
@@ -29,7 +31,8 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
            !sequel_summary_word(source, range.end, grouped_from, "WHERE"))
       ++grouped_from;
     if (grouped_from < range.end && source[grouped_from] == '(' &&
-        sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, grouped_from + 1), "WITH")) {
+        sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, grouped_from + 1),
+                            "WITH")) {
       size_t cursor = start;
       while (cursor < range.end) {
         if (source[cursor] == '*' && (cursor == 0 || !isalnum((unsigned char)source[cursor - 1])) &&
@@ -59,8 +62,10 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       size_t expression = sequel_summary_skip_space(source, range.end, start + 6);
       const char *open = strchr(source + expression, '(');
       const char *close = open ? strchr(open, ')') : NULL;
-      if (!open || !close || close >= source + range.end || !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
-          !sequel_summary_append_bytes(text, length, capacity, source + expression, (size_t)(open - (source + expression))) ||
+      if (!open || !close || close >= source + range.end ||
+          !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+          !sequel_summary_append_bytes(text, length, capacity, source + expression,
+                                       (size_t)(open - (source + expression))) ||
           !sequel_summary_append_text(text, length, capacity, "(") ||
           !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !sequel_summary_append_text(text, length, capacity, ")"))
@@ -192,10 +197,11 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
         return 0;
       memcpy(numeric, source + value, numeric_length);
       numeric[numeric_length] = 0;
-      if (!sequel_summary_append_text(text, length, capacity, " LIMIT ") || !sequel_summary_append_text(text, length, capacity,
-                                                                          preserve_limit && !parameter ? numeric
-                                                                          : parameter                  ? "?"
-                                                                                                       : "1"))
+      if (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
+          !sequel_summary_append_text(text, length, capacity,
+                                      preserve_limit && !parameter ? numeric
+                                      : parameter                  ? "?"
+                                                                   : "1"))
         return 0;
     }
     return 1;
@@ -220,8 +226,9 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       return 0;
     while (where < range.end && !sequel_summary_word(source, range.end, where, "RETURNING"))
       ++where;
-    return where >= range.end || (sequel_summary_append_text(text, length, capacity, " RETURNING ") &&
-                                  sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+    return where >= range.end ||
+           (sequel_summary_append_text(text, length, capacity, " RETURNING ") &&
+            sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
   }
   if (sequel_summary_word(source, range.end, start, "UPDATE")) {
     size_t table = sequel_summary_skip_space(source, range.end, start + 6), end = table;
@@ -278,4 +285,3 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
            sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
   return sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
 }
-

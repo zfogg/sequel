@@ -62,8 +62,7 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
         while (cast < source.data + token->range.end && !(cast[0] == ':' && cast[1] == ':'))
           ++cast;
         const char *token_end = source.data + token->range.end;
-        if (cast < token_end &&
-            !sanitizer_append_bytes(&data, &length, &capacity, cast, (size_t)(token_end - cast)))
+        if (cast < token_end && !sanitizer_append_bytes(&data, &length, &capacity, cast, (size_t)(token_end - cast)))
           goto no_memory;
       }
       continue;
@@ -89,4 +88,3 @@ no_memory:
   free(data);
   return SEQUEL_ERR_NOMEM;
 }
-

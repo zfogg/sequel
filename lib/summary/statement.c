@@ -5,7 +5,6 @@
 
 #include "internal.h"
 
-
 static const char ellipsis[] = "\342\200\246";
 
 int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
@@ -50,8 +49,9 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
     while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) &&
            source.data[table_end] != ';')
       ++table_end;
-    if (table_end > table && (!sequel_summary_append_text(text, length, capacity, " ") ||
-                              !sequel_summary_append_bytes(text, length, capacity, source.data + table, table_end - table)))
+    if (table_end > table &&
+        (!sequel_summary_append_text(text, length, capacity, " ") ||
+         !sequel_summary_append_bytes(text, length, capacity, source.data + table, table_end - table)))
       return 0;
   }
   return 1;
@@ -89,7 +89,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   }
   if (scalar) {
     if (!sequel_summary_append_bytes(text, length, capacity, source.data + projection[0].range.start,
-                      (size_t)(open - (source.data + projection[0].range.start) + 1)))
+                                     (size_t)(open - (source.data + projection[0].range.start) + 1)))
       return 0;
     if (open[1] == ')') {
       if (!sequel_summary_append_text(text, length, capacity, ")"))
@@ -97,8 +97,9 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     } else if (!sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
                !sequel_summary_append_text(text, length, capacity, ")"))
       return 0;
-  } else if (literal && !multiple ? !sequel_summary_append_text(text, length, capacity, "?")
-                                  : !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
+  } else if (literal && !multiple
+                 ? !sequel_summary_append_text(text, length, capacity, "?")
+                 : !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
     return 0;
   const char *alias = sequel_summary_find_text(source.data + projection[0].range.start, " AS ");
   const char *from = alias ? sequel_summary_find_text(alias + 4, " FROM ") : NULL;
@@ -113,4 +114,3 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   }
   return 1;
 }
-
