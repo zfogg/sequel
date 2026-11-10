@@ -166,7 +166,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
       kind = SEQUEL_TOKEN_NUMBER;
       flags = SEQUEL_TOKEN_FLAG_LITERAL;
-    } else if (source->data[i] == '$' && settings->dialect == SEQUEL_POSTGRESQL) {
+    } else if (source->data[i] == '$' &&
+               (settings->dialect == SEQUEL_POSTGRESQL || settings->dialect == SEQUEL_DUCKDB)) {
       size_t tag_end = i + 1;
       while (tag_end < source->length &&
              (isalnum((unsigned char)source->data[tag_end]) || source->data[tag_end] == '_'))
