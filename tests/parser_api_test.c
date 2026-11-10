@@ -52,6 +52,12 @@ int main(void) {
     return 1;
   if (!check(sequel_query_statements(query)[0].operation == SEQUEL_OPERATION_SELECT, "query operation"))
     return 1;
+  if (!check(sequel_query_parameter_count(query) == 1, "parameter count"))
+    return 1;
+  if (!check(sequel_query_parameters(query)[0].style == SEQUEL_BIND_NUMBERED &&
+                 sequel_query_parameters(query)[0].explicit_number == 1,
+             "numbered parameter"))
+    return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   return 0;
