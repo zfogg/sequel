@@ -1675,6 +1675,13 @@ static void analysis_summary_from_query(const sequel_query_document_t *query, se
   sequel_text_result_free(&summary);
 }
 
+static void analysis_summary_default(sequel_analysis_t *out) {
+  const char fallback[] = "SQL";
+  char *summary = analysis_array(NULL, sizeof(fallback), sizeof(*summary));
+  memcpy(summary, fallback, sizeof(fallback));
+  out->summary = summary;
+}
+
 static void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   if (!query || !sequel_query_statement_count(query))
     return;
@@ -1895,7 +1902,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (query && sequel_query_statement_count(query))
         analysis_summary_from_query(query, out);
       else
-        analysis_summary(&layout, &safe, tokens, count, o.dialect, out);
+        analysis_summary_default(out);
       for (size_t i = 0; i < layout.n; ++i)
         layout.p[i].t.p = safe.p + layout.p[i].source_offset;
       analysis_charge(&a, strlen(out->operation) + 1);
