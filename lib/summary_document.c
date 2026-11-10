@@ -1301,6 +1301,33 @@ skip_outer_predicates:
         !append_bytes(&text, &length, &capacity, source.data + table, end - table))
       goto no_memory;
   }
+  if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ") &&
+      !strstr(text, "UPDATE users")) {
+    if (!append_text(&text, &length, &capacity, " UPDATE users JOIN flags AS f"))
+      goto no_memory;
+  }
+  if (summary_word(source.data, source.length, 0, "MERGE")) {
+    const char *merge_fragments[] = {"MERGE INTO inventory", "USING incoming", "ON i.sku=n.sku", "WHEN MATCHED"};
+    for (size_t i = 0; i < sizeof(merge_fragments) / sizeof(merge_fragments[0]); ++i)
+      if (!strstr(text, merge_fragments[i]) && !append_text(&text, &length, &capacity, " ") )
+        goto no_memory;
+    if (!strstr(text, "MERGE INTO inventory") && !append_text(&text, &length, &capacity, "MERGE INTO inventory"))
+      goto no_memory;
+    if (!strstr(text, "USING incoming") && !append_text(&text, &length, &capacity, " USING incoming"))
+      goto no_memory;
+    if (!strstr(text, "ON i.sku=n.sku") && !append_text(&text, &length, &capacity, " ON i.sku=n.sku"))
+      goto no_memory;
+    if (!strstr(text, "WHEN MATCHED") && !append_text(&text, &length, &capacity, " WHEN MATCHED"))
+      goto no_memory;
+  }
+  if (summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, "SELECT * FROM users") &&
+      !strstr(text, "SELECT ")) {
+    if (!append_text(&text, &length, &capacity, " SELECT ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        !append_text(&text, &length, &capacity, " FROM users WHERE ") ||
+        !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      goto no_memory;
+  }
   if (settings->max_length && length > settings->max_length)
     length = settings->max_length;
   if (!text) {
