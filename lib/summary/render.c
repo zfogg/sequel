@@ -812,6 +812,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
           bool cross_lateral = strstr(source.data, "CROSS JOIN LATERAL") != NULL;
+          bool omit_cross_condition = cross_lateral && !strstr(close + 1, " ON ");
           const char *inner_alias = table_end;
           const char *inner_alias_end = table_end;
           if (cross_lateral) {
@@ -847,7 +848,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !append_text(&text, &length, &capacity, " AS ") ||
               !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              (cross_lateral ? 0 :
+              (omit_cross_condition ? 0 :
                !append_text(&text, &length, &capacity, strstr(source.data, "a.id=b.id") ? " ON a.id=b.id" : " ON ?")) ||
               (strstr(close + 1, " LIMIT ") && !append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
