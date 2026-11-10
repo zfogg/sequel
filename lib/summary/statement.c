@@ -13,8 +13,7 @@
 
 static const char ellipsis[] = "\342\200\246";
 
-int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *capacity,
-                                          sequel_source_view_t source,
+int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                           const sequel_query_document_t *query,
                                           const sequel_summary_options_t *settings,
                                           const sequel_statement_info_t *statement) {
@@ -53,7 +52,8 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
     while (table < source.length && isspace((unsigned char)source.data[table]))
       ++table;
     size_t table_end = table;
-    while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) && source.data[table_end] != ';')
+    while (table_end < source.length && !isspace((unsigned char)source.data[table_end]) &&
+           source.data[table_end] != ';')
       ++table_end;
     if (table_end > table && (!append_text(text, length, capacity, " ") ||
                               !append_bytes(text, length, capacity, source.data + table, table_end - table)))
@@ -62,8 +62,7 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
   return 1;
 }
 
-int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *capacity,
-                                           sequel_source_view_t source,
+int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                            const sequel_query_document_t *query,
                                            const sequel_statement_info_t *statement) {
   if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || !sequel_query_projection_count(query))
@@ -71,7 +70,14 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   const sequel_projection_info_t *projection = sequel_query_projections(query);
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
   bool literal = strchr("'?0123456789", first) != NULL || (first == '$' && !strstr(source.data, " FROM "));
-  bool multiple = strchr(source.data + projection[0].range.start, ',') != NULL;
+  size_t projection_end = projection[0].range.end;
+  const char *from_clause = strstr(source.data + projection[0].range.start, " FROM ");
+  if (from_clause && (size_t)(from_clause - source.data) < projection_end)
+    projection_end = (size_t)(from_clause - source.data);
+  while (projection_end > projection[0].range.start && isspace((unsigned char)source.data[projection_end - 1]))
+    --projection_end;
+  bool multiple =
+      memchr(source.data + projection[0].range.start, ',', projection_end - projection[0].range.start) != NULL;
   bool scalar = !strstr(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
   if (!append_text(text, length, capacity, " "))
@@ -95,7 +101,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
                !append_text(text, length, capacity, ")"))
       return 0;
   } else if (literal && !multiple ? !append_text(text, length, capacity, "?")
-                     : !append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
+                                  : !append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
     return 0;
   const char *alias = strstr(source.data + projection[0].range.start, " AS ");
   const char *from = alias ? strstr(alias + 4, " FROM ") : NULL;
