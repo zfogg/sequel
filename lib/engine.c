@@ -61,9 +61,9 @@ static bool equal(const char *s, size_t n, const char *word) {
   return true;
 }
 
-static bool kw(token t, const char *word) { return t.word && equal(t.p, t.n, word); }
+static bool kw(token t, const char *word) { return t.word && t.p && equal(t.p, t.n, word); }
 
-static bool sym(token t, char c) { return t.n == 1 && *t.p == c; }
+static bool sym(token t, char c) { return t.n == 1 && t.p && *t.p == c; }
 
 static void put(output *b, const char *s, size_t n) {
   if (b->charge_output)
@@ -86,9 +86,14 @@ static void item(output *b, const char *s) {
   text(b, s);
 }
 
-static void emit_token(output *b, token t) { put(b, t.p, t.n); }
+static void emit_token(output *b, token t) {
+  if (t.p && t.n)
+    put(b, t.p, t.n);
+}
 
 static void upper(output *b, token t) {
+  if (!t.p)
+    return;
   for (size_t i = 0; (sequel_work_tick(1), i < t.n); ++i) {
     char c = (char)toupper((unsigned char)t.p[i]);
     put(b, &c, 1);
@@ -303,12 +308,16 @@ static bool format_join(format_token *ts, size_t n, size_t i) {
 }
 
 static bool format_comparison(token t) {
+  if (!t.p)
+    return false;
   return equal(t.p, t.n, "=") || equal(t.p, t.n, "!=") || equal(t.p, t.n, "<>") || equal(t.p, t.n, "<") ||
          equal(t.p, t.n, ">") || equal(t.p, t.n, "<=") || equal(t.p, t.n, ">=");
 }
 
 static bool format_spaced_operator(format_token *ts, size_t i, size_t previous) {
   token t = ts[i].t;
+  if (!t.p)
+    return false;
   if (format_comparison(t))
     return true;
   if (!(equal(t.p, t.n, "+") || equal(t.p, t.n, "-") || equal(t.p, t.n, "*") || equal(t.p, t.n, "/") ||
@@ -330,6 +339,8 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   size_t opens[65] = {0}, level = 0;
   for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     token t = ts[i].t;
+    if (!t.p || !t.n)
+      continue;
     if (ts[i].kind == 0 && t.n == 1 && strchr("([{", *t.p)) {
       if (level == 64)
         return false;
@@ -375,8 +386,8 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
   for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
     format_token f = ts[i];
     token t = f.t;
-    bool open = f.kind == 0 && t.n == 1 && strchr("([{", *t.p);
-    bool close = f.kind == 0 && t.n == 1 && strchr(")]}", *t.p);
+    bool open = f.kind == 0 && t.p && t.n == 1 && strchr("([{", *t.p);
+    bool close = f.kind == 0 && t.p && t.n == 1 && strchr(")]}", *t.p);
     bool line = false;
     size_t indent = format_body(frames[depth]);
     if (close) {
@@ -487,7 +498,7 @@ static bool format_layout(format_token *ts, size_t count, output *b) {
       format_line(b, indent);
       line_indent = indent;
     } else if (!close && !sym(t, ',') && !sym(t, ';') &&
-               ((f.gap && !(previous != SIZE_MAX && ts[previous].kind == 0 && ts[previous].t.n == 1 &&
+               ((f.gap && !(previous != SIZE_MAX && ts[previous].kind == 0 && ts[previous].t.p && ts[previous].t.n == 1 &&
                             strchr("([{", *ts[previous].t.p))) ||
                 after_comparison || spaced_operator || keyword_group ||
                 (previous != SIZE_MAX && sym(ts[previous].t, ',')))) {

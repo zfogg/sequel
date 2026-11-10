@@ -731,9 +731,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
          (isspace((unsigned char)source.data[outer_start]) || source.data[outer_start] == ')'))
     ++outer_start;
   bool outer_write =
-      statements[0].operation == SEQUEL_OPERATION_DELETE || statements[0].operation == SEQUEL_OPERATION_UPDATE ||
-      (sequel_query_cte_count(query) && (summary_word(source.data, source.length, outer_start, "DELETE") ||
-                                         summary_word(source.data, source.length, outer_start, "UPDATE")));
+      statement_count &&
+      (statements[0].operation == SEQUEL_OPERATION_DELETE || statements[0].operation == SEQUEL_OPERATION_UPDATE ||
+       (sequel_query_cte_count(query) && (summary_word(source.data, source.length, outer_start, "DELETE") ||
+                                          summary_word(source.data, source.length, outer_start, "UPDATE"))));
   if (settings->include_tables && statement_count && outer_write) {
     size_t search = outer_start;
     size_t from = search;
