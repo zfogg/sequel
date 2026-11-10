@@ -1228,8 +1228,8 @@ static bool analysis_word(format_token t, const char *word) {
   return true;
 }
 
-static void analysis_lints(const char *sql, size_t n, format_token *ts, size_t count, sequel_dialect_t dialect,
-                           sequel_analysis_t *out) {
+static void analysis_policy_diagnostics(const char *sql, size_t n, format_token *ts, size_t count,
+                                        sequel_dialect_t dialect, sequel_analysis_t *out) {
   (void)sql;
   if (out->statement_count > 1)
     analysis_add_diagnostic(out, SEQUEL_DIAG_MULTIPLE_STATEMENTS, out->statements[1].offset,
@@ -1906,7 +1906,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       out->status = "ok";
       out->omission_reason = o.omit_query_text ? "policy" : !safe.n ? "empty" : "";
       if (o.include_lints) {
-        analysis_lints(sql, n, tokens, count, o.dialect, out);
+        analysis_policy_diagnostics(sql, n, tokens, count, o.dialect, out);
         analysis_positions(sql, out);
       }
       if (o.omit_query_text)
