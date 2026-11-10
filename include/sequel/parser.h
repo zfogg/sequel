@@ -91,6 +91,9 @@ void sequel_lexed_document_free(sequel_lexed_document_t *document);
 /** Return the source retained by a lexical document. */
 sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document);
 
+/** Return the owned source object retained by a lexical document. */
+const sequel_source_t *sequel_lexed_source_object(const sequel_lexed_document_t *document);
+
 /** Return the immutable lexical token array. */
 const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count);
 sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);

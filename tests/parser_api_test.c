@@ -55,6 +55,10 @@ int main(void) {
     return 1;
   if (!check(tokens[0].kind == SEQUEL_TOKEN_KEYWORD && tokens[0].keyword_id != 0, "keyword token"))
     return 1;
+  if (!check(sequel_lexed_source_object(lexed) != NULL &&
+                 sequel_source_dialect(sequel_lexed_source_object(lexed)) == SEQUEL_POSTGRESQL,
+             "lexed source ownership"))
+    return 1;
   int found_string = 0;
   for (size_t i = 0; i < token_count; ++i)
     found_string |= tokens[i].kind == SEQUEL_TOKEN_STRING;

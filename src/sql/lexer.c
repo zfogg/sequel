@@ -13,6 +13,7 @@ struct sequel_lexed_document {
   char *source;
   size_t length;
   sequel_dialect_t dialect;
+  sequel_source_t *source_object;
   sequel_token_t *tokens;
   size_t token_count;
 };
@@ -106,6 +107,13 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
   document->source[source->length] = 0;
   document->length = source->length;
   document->dialect = settings->dialect;
+  sequel_source_options_t source_options = {
+      .view = {document->source, document->length}, .storage = SEQUEL_SOURCE_BORROWED, .dialect = document->dialect};
+  if (sequel_source_create(&source_options.view, &source_options, &document->source_object) != SEQUEL_OK) {
+    free(document->source);
+    free(document);
+    return SEQUEL_ERR_NOMEM;
+  }
   size_t limit = settings->max_tokens ? settings->max_tokens : (size_t)-1;
   size_t i = 0;
   while (i < source->length) {
@@ -271,12 +279,17 @@ void sequel_lexed_document_free(sequel_lexed_document_t *document) {
   if (!document)
     return;
   free(document->tokens);
+  sequel_source_free(document->source_object);
   free(document->source);
   free(document);
 }
 
 sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document) {
   return document ? (sequel_source_view_t){document->source, document->length} : (sequel_source_view_t){0};
+}
+
+const sequel_source_t *sequel_lexed_source_object(const sequel_lexed_document_t *document) {
+  return document ? document->source_object : NULL;
 }
 
 const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count) {
