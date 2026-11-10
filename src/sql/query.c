@@ -51,8 +51,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   size_t max_nodes = options && options->max_nodes ? options->max_nodes : (size_t)-1;
   for (size_t i = 0; i < node_count && document->statement_count < max_nodes; ++i) {
+    sequel_syntax_kind_t kind = nodes[i].kind;
+    if (kind < SEQUEL_SYNTAX_SELECT_STATEMENT || kind > SEQUEL_SYNTAX_UNKNOWN_STATEMENT)
+      continue;
     sequel_statement_info_t statement = {.range = nodes[i].range,
-                                         .operation = operation((sequel_syntax_kind_t)nodes[i].production_id),
+                                         .operation = operation(kind),
                                          .syntax_node = i,
                                          .query_body = SIZE_MAX};
     if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {

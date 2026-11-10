@@ -16,6 +16,13 @@ int main(void) {
   sequel_parse_options_init(&options);
   options.dialect = SEQUEL_POSTGRESQL;
 
+  sequel_source_view_t positioned = {"α\r\nβ", 6};
+  sequel_position_t position;
+  if (!check(sequel_source_position(&positioned, 5, &position) == SEQUEL_OK && position.line == 2 &&
+                 position.column == 2,
+             "source position"))
+    return 1;
+
   sequel_lexed_document_t *lexed = NULL;
   if (!check(sequel_lex(&source, &options, NULL, &lexed) == SEQUEL_OK, "lex succeeds"))
     return 1;

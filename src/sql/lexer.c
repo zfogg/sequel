@@ -201,3 +201,14 @@ const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *documen
     *count = document ? document->token_count : 0;
   return document ? document->tokens : NULL;
 }
+
+sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
+                                  size_t *length) {
+  if (!source || !token || !data || !length)
+    return SEQUEL_ERR_NULL;
+  if (!sequel_source_range_valid(token->range, source->length))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  *data = source->data + token->range.start;
+  *length = token->range.end - token->range.start;
+  return SEQUEL_OK;
+}

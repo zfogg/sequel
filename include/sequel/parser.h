@@ -51,6 +51,9 @@ sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document
 /** Return the immutable lexical token array. */
 const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count);
 
+sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
+                                  size_t *length);
+
 /** Parse a lexical document into a recovered syntax document. */
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
                              const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
