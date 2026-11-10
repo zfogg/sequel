@@ -99,6 +99,14 @@ int main(void) {
   sequel_syntax_document_t *syntax = NULL;
   if (!check(sequel_parse_sql(&source, &options, NULL, &syntax) == SEQUEL_OK, "parse succeeds"))
     return 1;
+  sequel_format_options_t format_options;
+  sequel_format_options_init(&format_options);
+  sequel_text_result_t formatted = {0};
+  if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK &&
+                 formatted.length == source.length && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE,
+             "syntax formatter result"))
+    return 1;
+  sequel_text_result_free(&formatted);
   size_t node_count = 0;
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   if (!check(node_count >= 2, "statement and clause nodes"))
