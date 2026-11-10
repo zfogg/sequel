@@ -24,6 +24,13 @@ typedef struct {
   size_t replacement_length;
 } sequel_text_edit_t;
 
+typedef struct {
+  sequel_source_range_t old_range;
+  sequel_source_range_t new_range;
+  size_t preserved_prefix;
+  size_t preserved_suffix;
+} sequel_reparse_impact_t;
+
 typedef enum {
   SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE = 1,
   SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP,
@@ -68,6 +75,7 @@ typedef struct {
   size_t max_diagnostics;
   size_t max_memory_bytes;
   size_t max_work_units;
+  bool enable_incremental_metadata;
 } sequel_parse_options_t;
 
 /** Initialize parser options with the library defaults. */
@@ -127,3 +135,7 @@ sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const seque
 sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
                                const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
                                sequel_syntax_document_t **out);
+
+/** Compute the byte regions affected by an edit without reparsing. */
+sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit,
+                                      sequel_reparse_impact_t *impact);

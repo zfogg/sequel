@@ -78,7 +78,8 @@ void sequel_parse_options_init(sequel_parse_options_t *options) {
                                       .max_tokens = 0,
                                       .max_nodes = 0,
                                       .max_nesting = 64,
-                                      .max_diagnostics = 64};
+                                      .max_diagnostics = 64,
+                                      .enable_incremental_metadata = true};
 }
 
 sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options,

@@ -181,6 +181,11 @@ int main(void) {
   sequel_syntax_document_t *updated = NULL;
   if (!check(sequel_reparse(syntax, &edit, &options, NULL, &updated) == SEQUEL_OK, "incremental reparse"))
     return 1;
+  sequel_reparse_impact_t impact;
+  if (!check(sequel_reparse_impact(strlen(sql), &edit, &impact) == SEQUEL_OK && impact.preserved_prefix == 7 &&
+                 impact.preserved_suffix == strlen(sql) - 9 && impact.new_range.end == 11,
+             "incremental impact"))
+    return 1;
   if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2, "edited source length"))
     return 1;
   sequel_syntax_document_free(updated);
