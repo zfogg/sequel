@@ -460,6 +460,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           --condition_end;
         if (condition_end > condition_start)
           okay =
+              append_text(&text, &length, &capacity, " ") &&
               append_bytes(&text, &length, &capacity, source.data + condition_start, condition_end - condition_start);
       }
       if (okay)
@@ -490,7 +491,37 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!append_text(&text, &length, &capacity, label) ||
         !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
-  } else if (settings->include_predicates && statement_count) {
+    const char *exists = strstr(source.data, "EXISTS (");
+    if (exists) {
+      const char *subquery = strstr(exists, "SELECT ");
+      const char *from = subquery ? strstr(subquery, " FROM ") : NULL;
+      const char *where = from ? strstr(from, " WHERE ") : NULL;
+      if (subquery && from && where) {
+        const char *table = from + 6;
+        while (*table && isspace((unsigned char)*table))
+          ++table;
+        const char *table_end = table;
+        while (*table_end && !isspace((unsigned char)*table_end))
+          ++table_end;
+        const char *alias = table_end;
+        while (*alias && isspace((unsigned char)*alias))
+          ++alias;
+        const char *alias_end = alias;
+        while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
+          ++alias_end;
+        if (!append_text(&text, &length, &capacity, " EXISTS (SELECT ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !append_text(&text, &length, &capacity, " FROM ") ||
+            !append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+            !append_text(&text, &length, &capacity, " AS ") ||
+            !append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
+            !append_text(&text, &length, &capacity, " WHERE ") ||
+            !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !append_text(&text, &length, &capacity, ")"))
+          goto no_memory;
+      }
+    }
+  } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE) {
     for (size_t i = 0; i < source.length; ++i)
       if (summary_word(source.data, source.length, i, "WHERE")) {
         if (!append_text(&text, &length, &capacity, " WHERE ") ||
