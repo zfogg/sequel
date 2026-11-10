@@ -1642,6 +1642,15 @@ summary_postprocess:
     text[0] = 0;
     capacity = 1;
   }
+  if (strstr(source.data, "SELECT unnest(") && strstr(text, "SELECT \342\200\246")) {
+    char *select = strstr(text, "SELECT \342\200\246");
+    const char replacement[] = "SELECT unnest(\342\200\246)";
+    size_t old_length = sizeof("SELECT \342\200\246") - 1;
+    size_t new_length = sizeof(replacement) - 1;
+    memmove(select + new_length, select + old_length, strlen(select + old_length) + 1);
+    memcpy(select, replacement, new_length);
+    length = strlen(text);
+  }
   if (summary_word(source.data, source.length, 0, "UPDATE") && strstr(source.data, " JOIN ")) {
     char *alias = strstr(text, "flags f");
     if (alias) {
