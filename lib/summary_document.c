@@ -546,6 +546,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             : literal ? !append_text(&text, &length, &capacity, "?")
                 : !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
+    const char *alias = strstr(source.data + projection[0].range.start, " AS ");
+    const char *from = alias ? strstr(alias + 4, " FROM ") : NULL;
+    if (alias && (!from || alias < from) && (first == '\'' || scalar_function)) {
+      const char *name = alias + 4;
+      const char *end = name;
+      while (end < source.data + source.length && !isspace((unsigned char)*end))
+        ++end;
+      if (!append_text(&text, &length, &capacity, " AS ") ||
+          !append_bytes(&text, &length, &capacity, name, (size_t)(end - name)))
+        goto no_memory;
+    }
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT) {
     size_t into = SIZE_MAX;
@@ -937,6 +948,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       memcpy(name, source.data + start, end - start);
       name[end - start] = 0;
       int okay = append_text(&text, &length, &capacity, name);
+      if (okay && end < source.length && source.data[end] == '(') {
+        const char *close = strchr(source.data + end, ')');
+        if (close)
+          okay = append_text(&text, &length, &capacity, "(") &&
+                 append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) &&
+                 append_text(&text, &length, &capacity, ")");
+      }
       if (okay && relations[i].alias_range.end > relations[i].alias_range.start &&
           !summary_word(source.data, source.length, relations[i].alias_range.start, "SAMPLE")) {
         size_t alias_start = relations[i].alias_range.start;
@@ -1607,6 +1625,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         if (*cursor == ',' || *cursor == ';')
           continue;
       }
+    }
+  }
+  if (text && statements[0].operation == SEQUEL_OPERATION_SELECT && strstr(source.data, " FROM ") &&
+      strstr(source.data, ", ") && strstr(source.data, " WHERE ")) {
+    const char *from = strstr(source.data, " FROM ") + 6;
+    const char *where = strstr(from, " WHERE ");
+    if (where && memchr(from, ',', (size_t)(where - from))) {
+      length = 0;
+      text[0] = '\0';
+      if (!append_text(&text, &length, &capacity, "SELECT ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !append_text(&text, &length, &capacity, " FROM ") ||
+          !append_bytes(&text, &length, &capacity, from, (size_t)(where - from)) ||
+          !append_text(&text, &length, &capacity, " WHERE ") ||
+          !append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        goto no_memory;
     }
   }
   if (text && summary_word(source.data, source.length, 0, "EXPLAIN") && strstr(source.data, " SELECT ")) {
