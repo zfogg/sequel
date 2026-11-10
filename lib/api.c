@@ -229,7 +229,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   if (status != SEQUEL_OK)
     goto done;
   size_t issue_count = sequel_syntax_issue_count(syntax);
-  if (issue_count) {
+  if (issue_count && !parse_options.recover_errors) {
     status = SEQUEL_ERR_INVALID_ARGUMENT;
     goto done;
   }
