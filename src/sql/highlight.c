@@ -261,6 +261,45 @@ static sequel_highlight_color_t highlight_kind(format_token *ts, size_t count, s
   return strchr("~!#%^&|+-*/<>=", c) ? SEQUEL_COLOR_OPERATOR : SEQUEL_COLOR_PUNCTUATION;
 }
 
+static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *tokens, size_t count, size_t index,
+                                                     const sequel_source_view_t *source, sequel_dialect_t dialect) {
+  const sequel_token_t *token = &tokens[index];
+  const char *text = source->data + token->range.start;
+  size_t length = token->range.end - token->range.start;
+  if (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+    return SEQUEL_COLOR_COMMENT;
+  if (token->kind == SEQUEL_TOKEN_STRING)
+    return SEQUEL_COLOR_STRING;
+  if (token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER)
+    return SEQUEL_COLOR_IDENTIFIER;
+  if (token->kind == SEQUEL_TOKEN_NUMBER)
+    return SEQUEL_COLOR_NUMBER;
+  if (token->kind == SEQUEL_TOKEN_BOOLEAN)
+    return SEQUEL_COLOR_BOOLEAN;
+  if (token->kind == SEQUEL_TOKEN_NULL)
+    return SEQUEL_COLOR_NULL;
+  if (token->kind == SEQUEL_TOKEN_PARAMETER)
+    return SEQUEL_COLOR_VARIABLE;
+  if (token->kind == SEQUEL_TOKEN_OPERATOR)
+    return SEQUEL_COLOR_OPERATOR;
+  if (token->kind == SEQUEL_TOKEN_KEYWORD) {
+    if (highlight_word_in(((token){text, length}), "TRUE FALSE"))
+      return SEQUEL_COLOR_BOOLEAN;
+    if (highlight_word_in(((token){text, length}), "NULL"))
+      return SEQUEL_COLOR_NULL;
+    if (highlight_word_in(((token){text, length}),
+                          "BIGINT INTEGER INT DATE DATETIME DECIMAL DOUBLE FLOAT JSON NUMERIC REAL TEXT TIME TIMESTAMP "
+                          "UUID VARCHAR"))
+      return SEQUEL_COLOR_TYPE;
+    return SEQUEL_COLOR_KEYWORD;
+  }
+  if (token->kind == SEQUEL_TOKEN_IDENTIFIER && index + 1 < count &&
+      tokens[index + 1].kind == SEQUEL_TOKEN_PUNCTUATION && source->data[tokens[index + 1].range.start] == '(')
+    return SEQUEL_COLOR_FUNCTION;
+  (void)dialect;
+  return token->kind == SEQUEL_TOKEN_PUNCTUATION ? SEQUEL_COLOR_PUNCTUATION : SEQUEL_COLOR_IDENTIFIER;
+}
+
 typedef struct {
   char *out;
   size_t n, capacity;
@@ -346,14 +385,27 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_status_t status = diagnostic_input(sql, n, options->dialect, diagnostic);
   if (status != SEQUEL_OK)
     return status;
-  format_token *ts = NULL;
-  size_t count = format_scan_ex(sql, n, options->dialect, &ts, options->tolerant, diagnostic);
-  if (count == SIZE_MAX) {
-    free(ts);
-    return diagnostic->code == SEQUEL_DIAG_OUT_OF_MEMORY   ? SEQUEL_ERR_NOMEM
-           : diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW
-                                                           : SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_parse_options_t parse_options;
+  sequel_parse_options_init(&parse_options);
+  parse_options.dialect = options->dialect;
+  parse_options.retain_comments = true;
+  parse_options.retain_whitespace = true;
+  parse_options.tolerant = options->tolerant;
+  sequel_source_view_t source = {sql, n};
+  sequel_syntax_document_t *document = NULL;
+  status = sequel_parse_sql(&source, &parse_options, NULL, &document);
+  if (status != SEQUEL_OK)
+    return status;
+  size_t issue_count = 0;
+  sequel_syntax_issues(document, &issue_count);
+  if (issue_count && !options->tolerant) {
+    (void)sequel_syntax_diagnostic(document, 0, diagnostic);
+    sequel_syntax_document_free(document);
+    return diagnostic->code == SEQUEL_DIAG_NESTING_LIMIT ? SEQUEL_ERR_OVERFLOW : SEQUEL_ERR_INVALID_ARGUMENT;
   }
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(document);
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   highlight_output b = {out, 0, capacity};
   if (options->mode == SEQUEL_HTML) {
     char wrapper[128];
@@ -365,23 +417,13 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     highlight_ansi(&b, options->colors[SEQUEL_COLOR_BACKGROUND], true);
   }
   const char *cursor = sql;
-  for (size_t i = 0; (sequel_work_tick(1), i < count); ++i) {
-    token t = ts[i].t;
-    highlight_source(&b, cursor, (size_t)(t.p - cursor), options->mode);
-    sequel_highlight_color_t kind = highlight_kind(ts, count, i, options->dialect);
-    /* Driver %s markers and MySQL @@system variables span lexer tokens. */
-    if (i + 1 < count && ts[i + 1].t.p == t.p + t.n &&
-        ((sym(t, '%') && kw(ts[i + 1].t, "s")) || (equal(t.p, t.n, "@@") && ts[i + 1].kind == 1))) {
-      t.n += ts[++i].t.n;
-      kind = SEQUEL_COLOR_VARIABLE;
-    } else if (sym(t, '?') && i + 1 < count && ts[i + 1].t.p == t.p + t.n &&
-               (sym(ts[i + 1].t, '|') || sym(ts[i + 1].t, '&'))) {
-      t.n += ts[++i].t.n;
-      kind = SEQUEL_COLOR_OPERATOR;
-    } else if (sym(t, '.') && i + 1 < count && ts[i + 1].t.p == t.p + 1 && isdigit((unsigned char)*ts[i + 1].t.p)) {
-      t.n += ts[++i].t.n;
-      kind = SEQUEL_COLOR_NUMBER;
-    }
+  for (size_t i = 0; (sequel_work_tick(1), i < token_count); ++i) {
+    const sequel_token_t *token = &tokens[i];
+    if (token->kind == SEQUEL_TOKEN_EOF)
+      continue;
+    highlight_source(&b, cursor, token->range.start - (size_t)(cursor - sql), options->mode);
+    size_t token_length = token->range.end - token->range.start;
+    sequel_highlight_color_t kind = highlight_token_kind(tokens, token_count, i, &source, options->dialect);
     if (options->mode == SEQUEL_HTML) {
       char span[128];
       snprintf(span, sizeof(span), "<span class=\"sequel-%s\" style=\"color:#%06x\">", highlight_color_names[kind],
@@ -389,16 +431,16 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
       highlight_text(&b, span);
     } else
       highlight_ansi(&b, options->colors[kind], false);
-    highlight_source(&b, t.p, t.n, options->mode);
+    highlight_source(&b, source.data + token->range.start, token_length, options->mode);
     if (options->mode == SEQUEL_HTML)
       highlight_text(&b, "</span>");
     else
       highlight_ansi(&b, options->colors[SEQUEL_COLOR_FOREGROUND], false);
-    cursor = t.p + t.n;
+    cursor = source.data + token->range.end;
   }
   highlight_source(&b, cursor, n - (size_t)(cursor - sql), options->mode);
   highlight_text(&b, options->mode == SEQUEL_HTML ? "</code></pre>" : "\033[0m");
-  free(ts);
+  sequel_syntax_document_free(document);
   *length = b.n;
   if (out) {
     if (capacity <= b.n) {
