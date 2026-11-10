@@ -258,6 +258,7 @@ sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, seque
       ++n;
   return sequel_diagnose_n(sql, n, dialect, out);
 }
+
 sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length,
                                  sequel_diagnostic_t *diagnostic) {
   sequel_diagnostic_t local;
