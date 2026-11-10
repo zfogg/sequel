@@ -182,30 +182,6 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_status_t status = diagnostic_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
-  size_t nesting = 0;
-  for (size_t i = 0; i < n; ++i) {
-    if (sql[i] == '(' && ++nesting > 64) {
-      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 1);
-      return SEQUEL_ERR_OVERFLOW;
-    }
-    if (sql[i] == ')' && nesting)
-      --nesting;
-  }
-  size_t comment_depth = 0;
-  for (size_t i = 0; i + 1 < n; ++i) {
-    if (sql[i] == '/' && sql[i + 1] == '*') {
-      if (++comment_depth > 64) {
-        diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 2);
-        return SEQUEL_ERR_OVERFLOW;
-      }
-      ++i;
-      continue;
-    }
-    if (sql[i] == '*' && sql[i + 1] == '/' && comment_depth) {
-      --comment_depth;
-      ++i;
-    }
-  }
   if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
     const char *format = strstr(sql, " FORMAT ") + 1;
     diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
@@ -221,13 +197,38 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   if (status != SEQUEL_OK)
     return status;
   size_t issue_count = 0;
-  sequel_syntax_issues(document, &issue_count);
+  const sequel_parse_issue_t *issues = sequel_syntax_issues(document, &issue_count);
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(document);
+  sequel_diagnostic_list_t lexical_diagnostics = {0};
+  status = sequel_collect_lexical_diagnostics(lexed, &lexical_diagnostics);
+  if (status != SEQUEL_OK) {
+    sequel_syntax_document_free(document);
+    return status;
+  }
+  for (size_t i = 0; i < lexical_diagnostics.count; ++i) {
+    const sequel_diagnostic_record_t *record = &lexical_diagnostics.records[i];
+    if (record->code == SEQUEL_DIAG_NESTING_LIMIT) {
+      diagnostic_report(sql, n, out, record->code, record->range.start, record->range.end);
+      sequel_diagnostic_list_free(&lexical_diagnostics);
+      sequel_syntax_document_free(document);
+      return SEQUEL_ERR_OVERFLOW;
+    }
+    diagnostic_report(sql, n, out, record->code, record->range.start, record->range.end);
+    sequel_diagnostic_list_free(&lexical_diagnostics);
+    sequel_syntax_document_free(document);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  sequel_diagnostic_list_free(&lexical_diagnostics);
   if (issue_count) {
+    if (issues[0].recovery == SEQUEL_RECOVERY_OPAQUE_REGION) {
+      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, issues[0].range.start, issues[0].range.end);
+      sequel_syntax_document_free(document);
+      return SEQUEL_ERR_OVERFLOW;
+    }
     status = sequel_syntax_diagnostic(document, 0, out);
     sequel_syntax_document_free(document);
     return status == SEQUEL_OK ? SEQUEL_ERR_INVALID_ARGUMENT : status;
   }
-  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(document);
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   for (size_t i = token_count; i > 0; --i) {

@@ -1,6 +1,92 @@
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
-#include <sequel/diagnostics.h>
+#include <sequel.h>
+
+static void diagnostic_position_at(const char *sql, size_t length, size_t offset, size_t *line, size_t *column) {
+  *line = 1;
+  *column = 1;
+  if (offset > length)
+    offset = length;
+  for (size_t i = 0; i < offset; ++i) {
+    unsigned char c = (unsigned char)sql[i];
+    if (c == '\r') {
+      ++*line;
+      *column = 1;
+      if (i + 1 < offset && sql[i + 1] == '\n')
+        ++i;
+    } else if (c == '\n') {
+      ++*line;
+      *column = 1;
+    } else if ((c & 0xc0) != 0x80) {
+      ++*column;
+    }
+  }
+}
+
+sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
+                                         sequel_diagnostic_t *diagnostic) {
+  if (!document || !diagnostic)
+    return SEQUEL_ERR_NULL;
+  size_t issue_count = 0;
+  const sequel_parse_issue_t *issues = sequel_syntax_issues(document, &issue_count);
+  if (issue_index >= issue_count)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(document));
+  const sequel_parse_issue_t *issue = &issues[issue_index];
+  sequel_diagnostic_code_t code = issue->code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE  ? SEQUEL_DIAG_UNMATCHED_CLOSE
+                                  : issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ? SEQUEL_DIAG_UNCLOSED_GROUP
+                                                                                     : SEQUEL_DIAG_INVALID_ARGUMENT;
+  if (issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN) {
+    size_t token_count = 0;
+    const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(document), &token_count);
+    code = SEQUEL_DIAG_UNTERMINATED_STRING;
+    for (size_t i = 0; i < token_count; ++i) {
+      if (tokens[i].range.start != issue->range.start)
+        continue;
+      if (tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER)
+        code = SEQUEL_DIAG_UNTERMINATED_IDENTIFIER;
+      else if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+        code = SEQUEL_DIAG_UNTERMINATED_COMMENT;
+      else if (tokens[i].kind == SEQUEL_TOKEN_PARAMETER)
+        code = SEQUEL_DIAG_UNTERMINATED_PARAMETER;
+      break;
+    }
+  }
+  if (issue->code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN) {
+    size_t token_count = 0;
+    const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(document), &token_count);
+    for (size_t i = 0; i < token_count; ++i) {
+      if (tokens[i].range.start != issue->range.start)
+        continue;
+      if (tokens[i].kind == SEQUEL_TOKEN_PARAMETER)
+        code = SEQUEL_DIAG_INVALID_PARAMETER;
+      else if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION)
+        code = SEQUEL_DIAG_UNMATCHED_CLOSE;
+    }
+  }
+  memset(diagnostic, 0, sizeof(*diagnostic));
+  diagnostic->code = code;
+  diagnostic->severity = issue->code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
+                                 issue->code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN ||
+                                 issue->recovery == SEQUEL_RECOVERY_NONE
+                             ? SEQUEL_ERROR
+                             : SEQUEL_WARNING;
+  diagnostic->offset = issue->range.start;
+  diagnostic->end_offset = issue->range.end;
+  diagnostic->incomplete =
+      issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP || issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN;
+  diagnostic_position_at(source.data, source.length, diagnostic->offset, &diagnostic->line, &diagnostic->column);
+  diagnostic_position_at(source.data, source.length, diagnostic->end_offset, &diagnostic->end_line,
+                         &diagnostic->end_column);
+  const char *name = sequel_diagnostic_code_name(code);
+  snprintf(diagnostic->message, sizeof(diagnostic->message), "%s", name ? name : "SQL parse issue");
+  snprintf(diagnostic->explanation, sizeof(diagnostic->explanation),
+           "The SQL parser recovered from a structural issue.");
+  snprintf(diagnostic->hint, sizeof(diagnostic->hint), "Review the highlighted delimiter or token.");
+  return SEQUEL_OK;
+}
 
 static int append_record(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
   if (diagnostics->count == diagnostics->capacity) {
@@ -25,6 +111,8 @@ void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics) {
 }
 
 static sequel_diagnostic_code_t lexical_code(const sequel_token_t *token) {
+  if (token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && (token->flags & SEQUEL_TOKEN_FLAG_RECOVERED))
+    return SEQUEL_DIAG_NESTING_LIMIT;
   if (token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
     return SEQUEL_DIAG_UNTERMINATED_COMMENT;
   if (token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER)
@@ -85,10 +173,8 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = projections[i].range,
                                          .statement_index = projections[i].statement_index,
                                          .syntax_node = projections[i].expression_node};
-    if (!append_record(diagnostics, record)) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
-    }
+    if (!append_record(diagnostics, record))
+      goto no_memory;
   }
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
@@ -99,10 +185,8 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = statements[1].range,
                                          .statement_index = 1,
                                          .syntax_node = statements[1].syntax_node};
-    if (!append_record(diagnostics, record)) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
-    }
+    if (!append_record(diagnostics, record))
+      goto no_memory;
   }
   for (size_t i = 0; i < statement_count; ++i) {
     if (statements[i].operation == SEQUEL_OPERATION_UNKNOWN) {
@@ -112,23 +196,19 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                            .range = statements[i].range,
                                            .statement_index = i,
                                            .syntax_node = statements[i].syntax_node};
-      if (!append_record(diagnostics, record)) {
-        sequel_diagnostic_list_free(diagnostics);
-        return SEQUEL_ERR_NOMEM;
-      }
+      if (!append_record(diagnostics, record))
+        goto no_memory;
     }
-    if ((statements[i].operation != SEQUEL_OPERATION_UPDATE && statements[i].operation != SEQUEL_OPERATION_DELETE) ||
-        query_has_predicate(query, i))
-      continue;
-    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
-                                         .code = SEQUEL_DIAG_UNBOUNDED_WRITE,
-                                         .severity = SEQUEL_ERROR,
-                                         .range = statements[i].range,
-                                         .statement_index = i,
-                                         .syntax_node = statements[i].syntax_node};
-    if (!append_record(diagnostics, record)) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
+    if ((statements[i].operation == SEQUEL_OPERATION_UPDATE || statements[i].operation == SEQUEL_OPERATION_DELETE) &&
+        !query_has_predicate(query, i)) {
+      sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
+                                           .code = SEQUEL_DIAG_UNBOUNDED_WRITE,
+                                           .severity = SEQUEL_ERROR,
+                                           .range = statements[i].range,
+                                           .statement_index = i,
+                                           .syntax_node = statements[i].syntax_node};
+      if (!append_record(diagnostics, record))
+        goto no_memory;
     }
   }
   size_t relation_count = sequel_query_relation_count(query);
@@ -146,14 +226,11 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                            .range = statements[i].range,
                                            .statement_index = i,
                                            .syntax_node = statements[i].syntax_node};
-      if (!append_record(diagnostics, record)) {
-        sequel_diagnostic_list_free(diagnostics);
-        return SEQUEL_ERR_NOMEM;
-      }
+      if (!append_record(diagnostics, record))
+        goto no_memory;
     }
   }
-  size_t join_count = sequel_query_join_count(query);
-  if (join_count > 8) {
+  if (sequel_query_join_count(query) > 8) {
     const sequel_join_info_t *joins = sequel_query_joins(query);
     sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
                                          .code = SEQUEL_DIAG_EXCESSIVE_JOINS,
@@ -161,12 +238,13 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .range = joins[8].range,
                                          .statement_index = SIZE_MAX,
                                          .syntax_node = joins[8].condition_node};
-    if (!append_record(diagnostics, record)) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
-    }
+    if (!append_record(diagnostics, record))
+      goto no_memory;
   }
   return SEQUEL_OK;
+no_memory:
+  sequel_diagnostic_list_free(diagnostics);
+  return SEQUEL_ERR_NOMEM;
 }
 
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
@@ -192,10 +270,11 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
         .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
                       issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
         .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
-    if (!append_record(diagnostics, record)) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
-    }
+    if (!append_record(diagnostics, record))
+      goto no_memory;
   }
   return SEQUEL_OK;
+no_memory:
+  sequel_diagnostic_list_free(diagnostics);
+  return SEQUEL_ERR_NOMEM;
 }

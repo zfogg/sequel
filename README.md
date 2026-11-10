@@ -51,7 +51,7 @@ With no selection flags, `sanitize` applies both transformations. Use
 comments, or both flags for both. Retained values or comments may contain secrets.
 The equivalent library API is `sequel_sanitize_with_flags`, Go's
 `SanitizeSelective`, or Python's `sanitize(remove_comments=..., replace_literals=...)`.
-Formatting does not sanitize or execute SQL. See [CLI details](src/binary/README.md)
+Formatting does not sanitize or execute SQL. See [CLI details](src/README.md)
 for embedded source formatting and conservative file editing.
 
 ## Unified analysis

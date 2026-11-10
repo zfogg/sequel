@@ -1,4 +1,4 @@
-static int legacy_token_kind(sequel_token_kind_t kind) {
+static int shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:
     return 3;
@@ -18,7 +18,7 @@ static int legacy_token_kind(sequel_token_kind_t kind) {
   }
 }
 
-static sequel_status_t legacy_adapt_lexed(const sequel_lexed_document_t *lexed, format_token **out, size_t *count) {
+static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count) {
   if (!lexed || !out || !count)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -51,7 +51,7 @@ static sequel_status_t legacy_adapt_lexed(const sequel_lexed_document_t *lexed, 
     bool newline = false;
     for (size_t offset = previous_end; offset < token->range.start; ++offset)
       newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
-    int kind = legacy_token_kind(token->kind);
+    int kind = shared_token_kind(token->kind);
     (*out)[(*count)++] = (format_token){
         .t = {.p = source.data + token->range.start,
               .n = token->range.end - token->range.start,
@@ -86,7 +86,7 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
-static bool legacy_requires_compat_scan(const char *sql, size_t length) {
+static bool requires_template_scan(const char *sql, size_t length) {
   for (size_t i = 0; i < length; ++i) {
     if (sql[i] == '%' && i + 1 < length && (sql[i + 1] == 's' || sql[i + 1] == '('))
       return true;

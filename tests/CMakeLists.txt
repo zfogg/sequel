@@ -50,14 +50,14 @@ target_link_libraries(sequel-limits-test PRIVATE sequel::sequel)
 add_test(NAME sequel-limits COMMAND sequel-limits-test)
 # Exercise exact boundaries with the same engine and small test-only constants.
 set(SEQUEL_PARSER_SOURCES
-  ../src/sql/source.c
-  ../src/sql/dialect.c
-  ../src/sql/lexer.c
-  ../src/sql/parser.c
-  ../src/sql/query.c
-  ../src/sql/diagnostics.c)
+  ../lib/source.c
+  ../lib/dialect.c
+  ../lib/lexer.c
+  ../lib/parser.c
+  ../lib/query.c
+  ../lib/diagnostics.c)
 
-add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/engine.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
+add_executable(sequel-limit-boundary-test limit_boundary_test.c ../lib/engine.c ../lib/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-limit-boundary-test PRIVATE ../include)
 target_link_libraries(sequel-limit-boundary-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 target_compile_definitions(sequel-limit-boundary-test PRIVATE
@@ -74,7 +74,7 @@ target_link_libraries(sequel-analysis-test PRIVATE sequel::sequel)
 add_test(NAME sequel-analysis-api COMMAND sequel-analysis-test)
 
 # Test the private streaming digest against standard vectors without exposing it.
-add_executable(sequel-sha256-test sha256_api_test.c ../src/utf8.c ${SEQUEL_PARSER_SOURCES})
+add_executable(sequel-sha256-test sha256_api_test.c ../lib/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-sha256-test PRIVATE ../include)
 target_link_libraries(sequel-sha256-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 add_test(NAME sequel-sha256-api COMMAND sequel-sha256-test)

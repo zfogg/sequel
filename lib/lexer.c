@@ -159,6 +159,8 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       i = terminated ? i : source->length;
       kind = SEQUEL_TOKEN_BLOCK_COMMENT;
       flags = SEQUEL_TOKEN_FLAG_COMMENT;
+      if (depth > 64)
+        flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
       if (!terminated)
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       if (!settings->retain_comments)
@@ -246,6 +248,28 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
               (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       if (terminated && !memchr(source->data + start, ':', i - start))
         flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
+    } else if (source->data[i] == '%' && settings->dialect == SEQUEL_MYSQL && i + 1 < source->length &&
+               (source->data[i + 1] == 's' || source->data[i + 1] == '(')) {
+      i += 1;
+      if (source->data[i] == 's') {
+        ++i;
+      } else {
+        ++i;
+        size_t name_start = i;
+        while (i < source->length && source->data[i] != ')')
+          ++i;
+        if (i < source->length && i + 1 < source->length && source->data[i + 1] == 's') {
+          ++i;
+          ++i;
+        } else {
+          i = source->length;
+          flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
+        }
+        if (i == name_start)
+          flags |= SEQUEL_TOKEN_FLAG_RECOVERED;
+      }
+      kind = SEQUEL_TOKEN_PARAMETER;
+      flags |= SEQUEL_TOKEN_FLAG_BIND | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
     } else if (source->data[i] == '?' || source->data[i] == ':' || source->data[i] == '$' ||
                (source->data[i] == '@' &&
                 (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1])))) {

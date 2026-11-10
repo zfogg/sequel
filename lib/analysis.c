@@ -902,21 +902,26 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       sequel_syntax_issues(syntax, &parse_issue_count);
       if (!parse_issue_count && sequel_build_query_document(syntax, &parse_options, &query) != SEQUEL_OK) {
         valid = SEQUEL_ERR_NOMEM;
+        analysis_add_diagnostic(out, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
       }
     } else {
       valid = parse_status;
+      analysis_add_diagnostic(out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT
+                                                                     : SEQUEL_DIAG_INVALID_ARGUMENT,
+                              0, n ? 1 : 0);
     }
     format_token *tokens = NULL;
     size_t scanned = 0;
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;
-    if (syntax && !parse_issue_count && !o.format && !o.max_query_text_bytes && !o.keep_in_lists &&
-        !legacy_requires_compat_scan(sql, n))
-      adapter_status = legacy_adapt_lexed(sequel_syntax_lexed(syntax), &tokens, &scanned);
+    if (syntax)
+      adapter_status = adapt_lexed_tokens(sequel_syntax_lexed(syntax), &tokens, &scanned);
     if (adapter_status == SEQUEL_OK)
       count = scanned;
-    else
-      count = format_scan_recover(sql, n, o.dialect, &tokens, false, &first, &scanned);
+    else {
+      count = SIZE_MAX;
+      scanned = 0;
+    }
     if (call->ambiguous_literal) {
       diagnostic_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
                         call->ambiguous_offset + 2);
@@ -930,10 +935,13 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         analysis_add_statement(out, first.offset, n);
       analysis_add_diagnostic(out, first.code, first.offset, first.end_offset);
       valid = SEQUEL_ERR_INVALID_ARGUMENT;
-    } else if (!out->diagnostic_count && syntax && sequel_syntax_issue_count(syntax)) {
-      sequel_diagnostic_t parser_diagnostic;
-      if (sequel_syntax_diagnostic(syntax, 0, &parser_diagnostic) == SEQUEL_OK)
-        analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset, parser_diagnostic.end_offset);
+    } else if (syntax && parse_issue_count) {
+      for (size_t issue_index = 0; issue_index < parse_issue_count; ++issue_index) {
+        sequel_diagnostic_t parser_diagnostic;
+        if (sequel_syntax_diagnostic(syntax, issue_index, &parser_diagnostic) == SEQUEL_OK)
+          analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
+                                  parser_diagnostic.end_offset);
+      }
     }
     if (out->diagnostic_count) {
       analysis_positions(sql, out);

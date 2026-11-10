@@ -28,33 +28,26 @@ fn main() {
         }
         return;
     }
-    for directory in [
-        "src/sql",
-        "src/utf8.c",
-        "src/utf8.h",
-        "include",
-        "third_party",
-    ] {
+    for directory in ["lib", "lib/utf8.c", "lib/utf8.h", "include", "third_party"] {
         println!("cargo:rerun-if-changed={directory}");
     }
     let mut build = cc::Build::new();
     build
         .files([
-            "src/sql/engine.c",
-            "src/sql/source.c",
-            "src/sql/dialect.c",
-            "src/sql/lexer.c",
-            "src/sql/parser.c",
-            "src/sql/query.c",
-            "src/sql/analysis_document.c",
-            "src/sql/serialization.c",
-            "src/sql/diagnostic.c",
-            "src/sql/formatter.c",
-            "src/sql/fingerprint.c",
-            "src/sql/summary_document.c",
-            "src/sql/sanitizer.c",
-            "src/sql/diagnostics.c",
-            "src/utf8.c",
+            "lib/engine.c",
+            "lib/source.c",
+            "lib/dialect.c",
+            "lib/lexer.c",
+            "lib/parser.c",
+            "lib/query.c",
+            "lib/analysis_document.c",
+            "lib/serialization.c",
+            "lib/formatter.c",
+            "lib/fingerprint.c",
+            "lib/summary_document.c",
+            "lib/sanitizer.c",
+            "lib/diagnostics.c",
+            "lib/utf8.c",
             "third_party/utf8proc.c",
         ])
         .includes(["include", "third_party"])

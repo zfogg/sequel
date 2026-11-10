@@ -9,9 +9,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--check", action="store_true")
 args = parser.parse_args()
 digest = hashlib.sha256()
-sources = sorted(p for p in (root / "src/sql").iterdir() if p.suffix in (".c", ".h")) + [
-    root / "src/utf8.c",
-    root / "src/utf8.h",
+sources = sorted(p for p in (root / "lib").iterdir() if p.suffix in (".c", ".h")) + [
     root / "include/sequel.h",
 ]
 sources += sorted(p for p in (root / "third_party").rglob("*") if p.suffix in (".c", ".h"))
@@ -19,7 +17,7 @@ for path in sources:
     digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes().replace(b"\r\n", b"\n"))
 data = (
     f"/* C engine SHA256: {digest.hexdigest()} */\n"
-    '#include "../src/sql/main.c"\n#include "../src/utf8.c"\n'
+    '#include "../lib/engine.c"\n#include "../lib/utf8.c"\n'
     '#include "../third_party/utf8proc.c"\n'
 )
 target = root / "go/native.c"

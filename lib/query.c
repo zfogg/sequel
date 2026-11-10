@@ -92,6 +92,8 @@ static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *n
   }
   if (text[0] == ':' || text[0] == '@')
     return length > 1 ? SEQUEL_BIND_NAMED : SEQUEL_BIND_UNKNOWN;
+  if (text[0] == '%')
+    return length >= 2 && (text[1] == 's' || text[1] == '(') ? SEQUEL_BIND_FORMAT : SEQUEL_BIND_UNKNOWN;
   return SEQUEL_BIND_UNKNOWN;
 }
 
@@ -162,8 +164,15 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (style == SEQUEL_BIND_UNKNOWN)
       continue;
     ++ordinal;
-    sequel_source_range_t name_range = {tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1),
-                                        tokens[i].range.end};
+    size_t name_start = tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1);
+    size_t name_end = tokens[i].range.end;
+    if (style == SEQUEL_BIND_FORMAT && text[1] == '(') {
+      name_start = tokens[i].range.start + 2;
+      name_end = tokens[i].range.end >= 2 && source.data[tokens[i].range.end - 2] == ')'
+                     ? tokens[i].range.end - 2
+                     : tokens[i].range.end;
+    }
+    sequel_source_range_t name_range = {name_start, name_end};
     uint64_t identity = explicit_number ? explicit_number : ordinal;
     if (!explicit_number && (style == SEQUEL_BIND_NAMED || style == SEQUEL_BIND_TYPED || style == SEQUEL_BIND_FORMAT)) {
       for (size_t previous = 0; previous < document->parameter_count; ++previous) {

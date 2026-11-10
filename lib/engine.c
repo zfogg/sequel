@@ -1,4 +1,4 @@
-#include "../utf8.h"
+#include "utf8.h"
 #include <ctype.h>
 #include <sequel.h>
 #include "diagnostics.h"
@@ -21,21 +21,21 @@ typedef struct {
   bool overflow, charge_output;
 } output;
 
-#include "legacy_tokens.h"
+#include "tokens.h"
 
 // clang-format off
-#include "legacy_common.c"
-#include "legacy_scanner.c"
-#include "legacy_summary.c"
-#include "legacy_formatter.c"
-#include "legacy_token_adapter.c"
-#include "legacy_diagnostics.c"
-#include "legacy_api.c"
-#include "legacy_compact.c"
-#include "legacy_highlight.c"
-#include "legacy_contracts.c"
-#include "legacy_sha256.c"
-#include "legacy_analysis.c"
+#include "common.c"
+#include "scanner.c"
+#include "summary.c"
+#include "layout.c"
+#include "token_adapter.c"
+#include "diagnostic_api.c"
+#include "api.c"
+#include "compact.c"
+#include "highlight.c"
+#include "contracts.c"
+#include "sha256.c"
+#include "analysis.c"
 // clang-format on
 
 #undef malloc

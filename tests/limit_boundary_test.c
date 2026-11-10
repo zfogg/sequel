@@ -1,5 +1,5 @@
 #include <sequel.h>
-#include "../src/binary/input.h"
+#include "../src/input.h"
 #include <stdio.h>
 #include <string.h>
 #define CHECK(x)                                                                                                       \
