@@ -59,6 +59,20 @@ static sequel_operation_t operation(sequel_syntax_kind_t kind) {
   }
 }
 
+static sequel_operation_t operation_from_word(const char *word, size_t length) {
+  if (length == 6 && !memcmp(word, "SELECT", 6))
+    return SEQUEL_OPERATION_SELECT;
+  if (length == 6 && !memcmp(word, "INSERT", 6))
+    return SEQUEL_OPERATION_INSERT;
+  if (length == 6 && !memcmp(word, "UPDATE", 6))
+    return SEQUEL_OPERATION_UPDATE;
+  if (length == 6 && !memcmp(word, "DELETE", 6))
+    return SEQUEL_OPERATION_DELETE;
+  if (length == 5 && !memcmp(word, "MERGE", 5))
+    return SEQUEL_OPERATION_MERGE;
+  return SEQUEL_OPERATION_UNKNOWN;
+}
+
 static size_t statement_for_range(const sequel_query_document_t *document, sequel_source_range_t range) {
   for (size_t i = 0; i < document->statement_count; ++i)
     if (sequel_source_range_contains(document->statements[i].range, range))
@@ -178,6 +192,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   size_t node_count = 0;
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   size_t max_nodes = options && options->max_nodes ? options->max_nodes : (size_t)-1;
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
   for (size_t i = 0; i < node_count && document->statement_count < max_nodes; ++i) {
     sequel_syntax_kind_t kind = nodes[i].kind;
     if (kind < SEQUEL_SYNTAX_SELECT_STATEMENT || kind > SEQUEL_SYNTAX_UNKNOWN_STATEMENT)
@@ -189,10 +207,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
-  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
-  size_t token_count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
-  sequel_source_view_t source = sequel_lexed_source(lexed);
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
       continue;
@@ -280,6 +294,34 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       ++cursor;
     }
     break;
+  }
+  if (document->cte_count && document->statement_count) {
+    size_t kept = 0;
+    for (size_t i = 0; i < document->statement_count; ++i) {
+      bool nested = false;
+      for (size_t cte = 0; cte < document->cte_count; ++cte) {
+        if (document->statements[i].range.start >= document->ctes[cte].body_range.start &&
+            document->statements[i].range.end <= document->ctes[cte].body_range.end) {
+          nested = true;
+          break;
+        }
+      }
+      if (!nested)
+        document->statements[kept++] = document->statements[i];
+    }
+    document->statement_count = kept;
+    size_t outer = document->ctes[document->cte_count - 1].range.end;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
+        continue;
+      sequel_operation_t outer_operation =
+          operation_from_word(source.data + tokens[token].range.start,
+                              tokens[token].range.end - tokens[token].range.start);
+      if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = outer_operation;
+        break;
+      }
+    }
   }
   size_t ordinal = 0;
   for (size_t i = 0; i < token_count; ++i) {
