@@ -182,6 +182,15 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_status_t status = diagnostic_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
+  size_t nesting = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (sql[i] == '(' && ++nesting > 64) {
+      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, i, i + 1);
+      return SEQUEL_ERR_OVERFLOW;
+    }
+    if (sql[i] == ')' && nesting)
+      --nesting;
+  }
   if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
     const char *format = strstr(sql, " FORMAT ") + 1;
     diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
