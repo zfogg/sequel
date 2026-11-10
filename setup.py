@@ -22,6 +22,7 @@ setup(
                 "lib/summary/buffer.c",
                 "lib/summary/options.c",
                 "lib/summary/lexical.c",
+                "lib/summary/operation.c",
                 "lib/sanitizer.c",
                 "lib/util/utf8.c",
                 "third_party/utf8proc/utf8proc.c",
