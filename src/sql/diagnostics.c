@@ -182,6 +182,11 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_status_t status = diagnostic_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
+  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, " FORMAT ")) {
+    const char *format = strstr(sql, " FORMAT ") + 1;
+    diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_parse_options_t options;
   sequel_parse_options_init(&options);
   options.dialect = dialect;
