@@ -23,7 +23,7 @@ typedef struct {
   bool overflow, charge_output;
 } output;
 
-/* Internal rendering view retained only by the legacy analysis formatter. */
+/* Private rendering view shared by the formatter and analysis consumers. */
 typedef struct {
   token t;
   bool gap;

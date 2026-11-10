@@ -69,7 +69,7 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
                                         .gap = gap,
                                         .newline = newline || pending_newline,
                                         .kind = kind,
-                                        .matching = SIZE_MAX,
+                                        .matching = 0,
                                         .multiline = newline,
                                         .flat_width = (*count ? (*out)[*count - 1].flat_width : 0) +
                                                       token->range.end - token->range.start + 1,
@@ -78,20 +78,6 @@ static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, 
     previous_end = token->range.end;
     gap = false;
     pending_newline = false;
-  }
-  size_t delimiter_stack[64];
-  size_t delimiter_depth = 0;
-  for (size_t i = 0; i < *count; ++i) {
-    if (sym((*out)[i].t, '(') || sym((*out)[i].t, '[') || sym((*out)[i].t, '{')) {
-      if (delimiter_depth < sizeof(delimiter_stack) / sizeof(delimiter_stack[0]))
-        delimiter_stack[delimiter_depth++] = i;
-    } else if (sym((*out)[i].t, ')') || sym((*out)[i].t, ']') || sym((*out)[i].t, '}')) {
-      if (delimiter_depth) {
-        size_t opening = delimiter_stack[--delimiter_depth];
-        (*out)[opening].matching = i;
-        (*out)[i].matching = opening;
-      }
-    }
   }
   return SEQUEL_OK;
 invalid:
