@@ -157,7 +157,7 @@ int main(void) {
   sequel_query_analysis_options_t analysis_options;
   sequel_query_analysis_options_init(&analysis_options);
   sequel_query_analysis_t *document_analysis = NULL;
-  if (!check(sequel_analyze_document(syntax, &analysis_options, &document_analysis) == SEQUEL_OK &&
+  if (!check(sequel_analyze_document(syntax, query, &analysis_options, NULL, &document_analysis) == SEQUEL_OK &&
                  sequel_query_analysis_query(document_analysis) != NULL,
              "document analysis"))
     return 1;

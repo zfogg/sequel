@@ -4,7 +4,7 @@
 #include <sequel/analysis.h>
 
 struct sequel_query_analysis {
-  sequel_query_document_t *query;
+  const sequel_query_document_t *query;
   sequel_query_analysis_options_t options;
   sequel_diagnostic_list_t diagnostics;
 };
@@ -34,12 +34,20 @@ void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options
                                                .include_relations = true,
                                                .include_projections = true,
                                                .include_predicates = true,
-                                               .include_lints = true};
+                                               .include_lints = true,
+                                               .include_portability = false,
+                                               .include_summary = true,
+                                               .include_fingerprint = true,
+                                               .include_sanitized_sql = false,
+                                               .include_formatted_sql = false,
+                                               .include_source_maps = false,
+                                               .target_dialect = SEQUEL_GENERIC};
 }
 
-sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax,
-                                        const sequel_query_analysis_options_t *options, sequel_query_analysis_t **out) {
-  if (!syntax || !out)
+sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
+                                        const sequel_query_analysis_options_t *options,
+                                        const sequel_cancellation_t *cancellation, sequel_query_analysis_t **out) {
+  if (!syntax || !query || !out)
     return SEQUEL_ERR_NULL;
   *out = NULL;
   sequel_query_analysis_t *analysis = calloc(1, sizeof(*analysis));
@@ -48,13 +56,12 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax,
   sequel_query_analysis_options_init(&analysis->options);
   if (options)
     analysis->options = *options;
-  sequel_parse_options_t parse_options;
-  sequel_parse_options_init(&parse_options);
-  sequel_status_t status = sequel_build_query_document(syntax, &parse_options, &analysis->query);
-  if (status != SEQUEL_OK) {
+  analysis->query = query;
+  if (cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata)) {
     free(analysis);
-    return status;
+    return SEQUEL_ERR_CANCELLED;
   }
+  sequel_status_t status = SEQUEL_OK;
   sequel_diagnostic_list_t syntax_diagnostics = {0};
   sequel_diagnostic_list_t query_diagnostics = {0};
   status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
@@ -77,7 +84,6 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax,
 void sequel_query_analysis_free(sequel_query_analysis_t *analysis) {
   if (!analysis)
     return;
-  sequel_query_document_free(analysis->query);
   sequel_diagnostic_list_free(&analysis->diagnostics);
   free(analysis);
 }

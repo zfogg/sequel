@@ -13,14 +13,24 @@ typedef struct {
   bool include_projections;
   bool include_predicates;
   bool include_lints;
+  bool include_portability;
+  bool include_summary;
+  bool include_fingerprint;
+  bool include_sanitized_sql;
+  bool include_formatted_sql;
+  bool include_source_maps;
+  sequel_dialect_t target_dialect;
+  const sequel_dialect_t *portability_targets;
+  size_t portability_target_count;
 } sequel_query_analysis_options_t;
 
 /** Initialize document-analysis options with all semantic collections enabled. */
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options);
 
 /** Build an owned semantic analysis object from an immutable syntax document. */
-sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax,
-                                        const sequel_query_analysis_options_t *options, sequel_query_analysis_t **out);
+sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
+                                        const sequel_query_analysis_options_t *options,
+                                        const sequel_cancellation_t *cancellation, sequel_query_analysis_t **out);
 
 /** Release a document analysis object. NULL is permitted. */
 void sequel_query_analysis_free(sequel_query_analysis_t *analysis);
