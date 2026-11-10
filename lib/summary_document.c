@@ -263,6 +263,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  size_t cte_prefix_end = 0;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && strstr(source.data, "WITH RECURSIVE") == source.data;
@@ -282,6 +283,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
     if (!append_text(&text, &length, &capacity, " "))
       goto no_memory;
+    cte_prefix_end = length;
   }
   if (statement_count > 1 && settings->redact_literals) {
     sequel_text_result_t sanitized = {0};
@@ -728,9 +730,36 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (!okay)
         goto no_memory;
     }
+    if (sequel_query_cte_count(query) && statement_count &&
+        (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
+      size_t outer = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
+      const char *from = strstr(source.data + outer, " FROM ");
+      if (from) {
+        const char *table = from + 6;
+        while (*table && isspace((unsigned char)*table))
+          ++table;
+        const char *end = table;
+        while (*end && !isspace((unsigned char)*end) && *end != ';' && *end != ')')
+          ++end;
+        if ((!text || !strstr(text + cte_prefix_end, " FROM ")) &&
+            (!append_text(&text, &length, &capacity, " FROM ") ||
+             !append_bytes(&text, &length, &capacity, table, (size_t)(end - table))))
+          goto no_memory;
+      }
+    }
   }
   size_t outer_start =
       sequel_query_cte_count(query) ? sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end : 0;
+  if (statement_count && (strstr(source.data, " DELETE FROM") || strstr(source.data, "UPDATE ")) &&
+      strstr(source.data, " USING ") && !strstr(text ? text : "", " USING ")) {
+    const char *using = strstr(source.data, " USING ") + 7;
+    const char *end = using;
+    while (*end && !isspace((unsigned char)*end))
+      ++end;
+    if (!append_text(&text, &length, &capacity, " USING ") ||
+        !append_bytes(&text, &length, &capacity, using, (size_t)(end - using)))
+      goto no_memory;
+  }
   while (outer_start < source.length &&
          (isspace((unsigned char)source.data[outer_start]) || source.data[outer_start] == ')'))
     ++outer_start;
@@ -739,7 +768,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       (statements[0].operation == SEQUEL_OPERATION_DELETE || statements[0].operation == SEQUEL_OPERATION_UPDATE ||
        (sequel_query_cte_count(query) && (summary_word(source.data, source.length, outer_start, "DELETE") ||
                                           summary_word(source.data, source.length, outer_start, "UPDATE"))));
-  if (settings->include_tables && statement_count && outer_write) {
+  if (settings->include_tables && statement_count && outer_write && !strstr(text ? text : "", "DELETE FROM") &&
+      !strstr(text ? text : "", "UPDATE ")) {
     size_t search = outer_start;
     size_t from = search;
     while (from < source.length && !summary_word(source.data, source.length, from, "FROM"))
