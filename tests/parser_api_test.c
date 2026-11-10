@@ -74,8 +74,8 @@ int main(void) {
   const char *token_text = NULL;
   size_t token_text_length = 0;
   sequel_source_view_t token_source_view = sequel_lexed_source(lexed);
-  if (!check(sequel_token_text(&token_source_view, &tokens[0], &token_text, &token_text_length) ==
-                 SEQUEL_OK && token_text_length > 0,
+  if (!check(sequel_token_text(&token_source_view, &tokens[0], &token_text, &token_text_length) == SEQUEL_OK &&
+                 token_text_length > 0,
              "token text accessor"))
     return 1;
   int found_string = 0;
@@ -154,8 +154,8 @@ int main(void) {
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
   sequel_text_result_t formatted = {0};
-  if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK &&
-                 formatted.data != NULL && formatted.length > 0 && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE &&
+  if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK && formatted.data != NULL &&
+                 formatted.length > 0 && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE &&
                  formatted.data[formatted.length] == 0,
              "syntax formatter result"))
     return 1;
@@ -165,14 +165,19 @@ int main(void) {
   if (!check(node_count >= 2, "statement and clause nodes"))
     return 1;
   int found_binary = 0;
+  int found_in_list = 0;
   size_t binary_count = 0;
-  for (size_t i = 0; i < node_count; ++i)
+  for (size_t i = 0; i < node_count; ++i) {
     if (nodes[i].kind == SEQUEL_SYNTAX_BINARY_EXPRESSION) {
       found_binary = 1;
       ++binary_count;
     }
-  if (!check(found_binary && binary_count >= 3, "keyword and comparison precedence nodes"))
+    found_in_list |= nodes[i].kind == SEQUEL_SYNTAX_IN_LIST;
+  }
+  if (!check(found_binary && binary_count >= 2 && found_in_list, "keyword and comparison precedence nodes")) {
+    fprintf(stderr, "binary=%zu in=%d nodes=%zu\\n", binary_count, found_in_list, node_count);
     return 1;
+  }
   int found_call = 0;
   int found_group = 0;
   for (size_t i = 0; i < node_count; ++i) {
@@ -287,8 +292,10 @@ int main(void) {
     return 1;
   size_t relation_count = 0, projection_count = 0, predicate_count = 0, parameter_count = 0;
   if (!check(sequel_query_analysis_relations(document_analysis, &relation_count) != NULL && relation_count == 1 &&
-                 sequel_query_analysis_projections(document_analysis, &projection_count) != NULL && projection_count >= 2 &&
-                 sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL && predicate_count == 1 &&
+                 sequel_query_analysis_projections(document_analysis, &projection_count) != NULL &&
+                 projection_count >= 2 &&
+                 sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL &&
+                 predicate_count == 1 &&
                  sequel_query_analysis_parameters(document_analysis, &parameter_count) != NULL && parameter_count == 1,
              "analysis semantic collections"))
     return 1;
@@ -296,10 +303,11 @@ int main(void) {
   selective_analysis_options.include_bindings = false;
   selective_analysis_options.include_relations = false;
   sequel_query_analysis_t *selective_analysis = NULL;
-  if (!check(sequel_analyze_document(syntax, query, &selective_analysis_options, NULL, &selective_analysis) == SEQUEL_OK &&
-                 sequel_query_analysis_parameters(selective_analysis, &parameter_count) == NULL && parameter_count == 0 &&
-                 sequel_query_analysis_relations(selective_analysis, &relation_count) == NULL && relation_count == 0,
-             "analysis collection options"))
+  if (!check(
+          sequel_analyze_document(syntax, query, &selective_analysis_options, NULL, &selective_analysis) == SEQUEL_OK &&
+              sequel_query_analysis_parameters(selective_analysis, &parameter_count) == NULL && parameter_count == 0 &&
+              sequel_query_analysis_relations(selective_analysis, &relation_count) == NULL && relation_count == 0,
+          "analysis collection options"))
     return 1;
   sequel_query_analysis_free(selective_analysis);
   const sequel_text_result_t *analysis_summary = sequel_query_analysis_summary(document_analysis);
@@ -372,7 +380,8 @@ int main(void) {
              "recoverable lexical query"))
     return 1;
   sequel_query_analysis_t *broken_analysis = NULL;
-  if (!check(sequel_analyze_document(broken_syntax, broken_query, &analysis_options, NULL, &broken_analysis) == SEQUEL_OK &&
+  if (!check(sequel_analyze_document(broken_syntax, broken_query, &analysis_options, NULL, &broken_analysis) ==
+                     SEQUEL_OK &&
                  sequel_query_analysis_diagnostics(broken_analysis)->count > 0,
              "analysis includes lexical diagnostics"))
     return 1;
@@ -440,6 +449,35 @@ int main(void) {
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
     return 1;
+  const char expression_sql[] =
+      "SELECT CASE WHEN id IN (1, 2) THEN CAST(value AS INTEGER) ELSE EXISTS (SELECT 1) END FROM t";
+  sequel_source_view_t expression_source = {expression_sql, strlen(expression_sql)};
+  sequel_syntax_document_t *expression_syntax = NULL;
+  if (!check(sequel_parse_sql(&expression_source, &options, NULL, &expression_syntax) == SEQUEL_OK,
+             "expression family parse"))
+    return 1;
+  size_t expression_nodes = 0;
+  const sequel_syntax_node_t *expression_node_list = sequel_syntax_nodes(expression_syntax, &expression_nodes);
+  bool saw_case = false, saw_cast = false, saw_exists = false, saw_in = false;
+  for (size_t i = 0; i < expression_nodes; ++i) {
+    saw_case |= expression_node_list[i].kind == SEQUEL_SYNTAX_CASE;
+    saw_cast |= expression_node_list[i].kind == SEQUEL_SYNTAX_CAST;
+    saw_exists |= expression_node_list[i].kind == SEQUEL_SYNTAX_EXISTS;
+    saw_in |= expression_node_list[i].kind == SEQUEL_SYNTAX_IN_LIST;
+  }
+  const char exists_sql[] = "SELECT EXISTS (SELECT 1)";
+  sequel_source_view_t exists_source = {exists_sql, strlen(exists_sql)};
+  sequel_syntax_document_t *exists_syntax = NULL;
+  if (!check(sequel_parse_sql(&exists_source, &options, NULL, &exists_syntax) == SEQUEL_OK, "exists expression parse"))
+    return 1;
+  size_t exists_nodes = 0;
+  const sequel_syntax_node_t *exists_node_list = sequel_syntax_nodes(exists_syntax, &exists_nodes);
+  for (size_t i = 0; i < exists_nodes; ++i)
+    saw_exists |= exists_node_list[i].kind == SEQUEL_SYNTAX_EXISTS;
+  sequel_syntax_document_free(exists_syntax);
+  if (!check(saw_case && saw_cast && saw_exists && saw_in, "expression family nodes"))
+    return 1;
+  sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
   sequel_syntax_document_t *malformed_syntax = NULL;

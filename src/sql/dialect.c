@@ -10,7 +10,9 @@ static const sequel_keyword_definition_t keywords[] = {
     {"FALSE", 20},   {"NULL", 21},    {"EXPLAIN", 22},  {"CREATE", 23},    {"ALTER", 24},  {"DROP", 25},
     {"BEGIN", 26},   {"COMMIT", 27},  {"ROLLBACK", 28}, {"SET", 29},       {"INTO", 30},   {"USING", 31},
     {"WINDOW", 32},  {"QUALIFY", 33}, {"MERGE", 34},    {"AND", 35},       {"OR", 36},     {"IN", 37},
-    {"BETWEEN", 38}, {"LIKE", 39},    {"IS", 40},       {"NOT", 41},
+    {"BETWEEN", 38}, {"LIKE", 39},    {"IS", 40},       {"NOT", 41},       {"CASE", 42},   {"WHEN", 43},
+    {"THEN", 44},    {"ELSE", 45},    {"END", 46},      {"CAST", 47},      {"EXISTS", 48}, {"OVER", 49},
+    {"AS", 50},
 };
 
 static const sequel_dialect_definition_t definitions[] = {
