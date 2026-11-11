@@ -579,7 +579,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         .syntax_node = SIZE_MAX,
         .parent_relation = SIZE_MAX,
         .subquery_statement = SIZE_MAX};
-    if (token_in_subquery(tokens, i, &source)) {
+    if (token_in_subquery(tokens, name, &source)) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
     }
