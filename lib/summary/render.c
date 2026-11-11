@@ -177,53 +177,6 @@ static int render_scalar_projection_summary(char **text, size_t *length, size_t 
   return sequel_summary_append_text(text, length, capacity, " WHERE …") ? 1 : -1;
 }
 
-static int render_json_aggregate_summary(char **text, size_t *length, size_t *capacity,
-                                         const sequel_query_document_t *query, sequel_source_view_t source,
-                                         const sequel_statement_info_t *statement) {
-  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT ||
-      !sequel_summary_find_text(source.data, "jsonb_build_object") ||
-      !sequel_summary_find_text(source.data, "portfolio_contexts c JOIN portfolio_context_results cr"))
-    return 0;
-  if (!sequel_summary_append_text(
-          text, length, capacity,
-          "SELECT … (SELECT … FROM portfolio_contexts AS c JOIN portfolio_context_results AS cr ON "
-          "cr.context_id=c.id WHERE …) FROM portfolio_research_runs AS r WHERE …"))
-    return -1;
-  if (sequel_summary_find_text(source.data, " LIMIT ") &&
-      (!sequel_summary_append_text(text, length, capacity, " ORDER BY … LIMIT ?")))
-    return -1;
-  (void)query;
-  return 1;
-}
-
-static int render_parity_claim_summary(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
-  if (!sequel_summary_find_text(source.data, "WITH next_batch AS") ||
-      !sequel_summary_find_text(source.data, "ready AS"))
-    return 0;
-  if (!sequel_summary_append_text(
-          text, length, capacity,
-          "WITH next_batch AS (SELECT … FROM tradebot_parity_verification_jobs WHERE … ORDER BY … FOR UPDATE "
-          "SKIP LOCKED LIMIT 1), ready AS (SELECT … FROM tradebot_parity_verification_jobs AS j CROSS JOIN "
-          "next_batch AS b WHERE … ORDER BY … FOR UPDATE SKIP LOCKED LIMIT ?) UPDATE "
-          "tradebot_parity_verification_jobs AS j SET … FROM ready WHERE … RETURNING …"))
-    return -1;
-  return 1;
-}
-
-static int render_watchlist_summary(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
-  if (!sequel_summary_find_text(source.data, "WITH scoped AS") || !sequel_summary_find_text(source.data, "latest AS") ||
-      !sequel_summary_find_text(source.data, "regime AS") || !sequel_summary_find_text(source.data, "sec_tickers"))
-    return 0;
-  if (!sequel_summary_append_text(
-          text, length, capacity,
-          "WITH scoped AS (SELECT … FROM ticker_backtest_results AS r WHERE … (SELECT … FROM "
-          "ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1)), latest AS (SELECT DISTINCT ON (…) … "
-          "FROM scoped AS r ORDER BY …), regime AS (SELECT … FROM scoped AS r GROUP BY …) SELECT … FROM "
-          "latest AS r JOIN regime AS g USING (ticker) LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker ORDER BY …"))
-    return -1;
-  return 1;
-}
-
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -299,31 +252,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (scalar_summary < 0)
     goto no_memory;
   if (scalar_summary > 0) {
-    *out = (sequel_text_result_t){
-        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-    return SEQUEL_OK;
-  }
-  int json_summary =
-      render_json_aggregate_summary(&text, &length, &capacity, query, source, statement_count ? &statements[0] : NULL);
-  if (json_summary < 0)
-    goto no_memory;
-  if (json_summary > 0) {
-    *out = (sequel_text_result_t){
-        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-    return SEQUEL_OK;
-  }
-  int parity_summary = render_parity_claim_summary(&text, &length, &capacity, source);
-  if (parity_summary < 0)
-    goto no_memory;
-  if (parity_summary > 0) {
-    *out = (sequel_text_result_t){
-        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-    return SEQUEL_OK;
-  }
-  int watchlist_summary = render_watchlist_summary(&text, &length, &capacity, source);
-  if (watchlist_summary < 0)
-    goto no_memory;
-  if (watchlist_summary > 0) {
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
