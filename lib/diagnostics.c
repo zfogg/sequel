@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <sequel.h>
 #include "util/text.h"
+#include "util/utf8.h"
 
 sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
                                          sequel_diagnostic_t *diagnostic) {
@@ -399,7 +401,7 @@ static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t
     return;
   if (offset > n)
     offset = n;
-  for (size_t i = 0; (sequel_work_tick(1), i < offset); ++i) {
+  for (size_t i = 0; i < offset; ++i) {
     unsigned char c = (unsigned char)sql[i];
     if (c == '\r') {
       ++*line;
@@ -414,8 +416,8 @@ static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t
   }
 }
 
-static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code,
-                              size_t start, size_t end) {
+void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code, size_t start,
+                       size_t end) {
   if (!out)
     return;
   memset(out, 0, sizeof(*out));
@@ -437,7 +439,7 @@ static void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *ou
   }
 }
 
-static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
+sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   diagnostic_report(sql, 0, out, SEQUEL_DIAG_NONE, 0, 0);
   if (!sql) {
     diagnostic_report(NULL, 0, out, SEQUEL_DIAG_NULL_INPUT, 0, 0);
@@ -451,7 +453,7 @@ static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialec
     diagnostic_report(sql, SEQUEL_INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, SEQUEL_INPUT_MAX, SEQUEL_INPUT_MAX);
     return SEQUEL_ERR_OVERFLOW;
   }
-  for (size_t i = 0; (sequel_work_tick(1), i < n);) {
+  for (size_t i = 0; i < n;) {
     unsigned char c = (unsigned char)sql[i];
     size_t width = c < 0x80                 ? 1
                    : c >= 0xc2 && c <= 0xdf ? 2
@@ -471,6 +473,8 @@ static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialec
   }
   return SEQUEL_OK;
 }
+
+size_t sequel_diagnostic_catalog_count(void) { return sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0]); }
 
 sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   if (!out)

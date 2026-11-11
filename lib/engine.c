@@ -783,7 +783,6 @@ done:
 #include "api.c"
 #include "compact.c"
 #include "highlight.c"
-#include "contracts.c"
 #include "sha256.c"
 #include "analysis.c"
 // clang-format on

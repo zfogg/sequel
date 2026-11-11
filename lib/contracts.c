@@ -1,5 +1,8 @@
-/* Public transport contracts. Included by engine.c after diagnostic definitions. */
-size_t sequel_diagnostic_catalog_count(void) { return sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0]); }
+/* Public transport contracts. */
+#include <string.h>
+#include <sequel.h>
+#include "diagnostics.h"
+#include "util/utf8.h"
 
 sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out) {
   if (!out)
