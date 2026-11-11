@@ -1128,7 +1128,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
     if (operation == SEQUEL_OPERATION_INSERT && sequel_summary_find_text(source.data, " ON CONFLICT") &&
-        !sequel_summary_find_text(text ? text : "", " ON CONFLICT")) {
+        !sequel_summary_find_text(text ? text : "", " ON CONFLICT") &&
+        (!sequel_summary_find_text(source.data, "DO NOTHING") ||
+         sequel_summary_find_text(source.data, " RETURNING "))) {
       const char *conflict = sequel_summary_find_text(source.data, "DO NOTHING") ? " ON CONFLICT DO NOTHING"
                                                                                  : " ON CONFLICT DO UPDATE SET ";
       if (!sequel_summary_append_text(&text, &length, &capacity, conflict) ||
