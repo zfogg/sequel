@@ -98,7 +98,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
     const char *text = source.data + token->range.start;
     size_t text_length = token->range.end - token->range.start;
-    if (literal && !settings->preserve_literals) {
+    if (literal && !(token->flags & SEQUEL_TOKEN_FLAG_BIND) && !settings->preserve_literals) {
       text = "?";
       text_length = 1;
     }

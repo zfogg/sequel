@@ -34,6 +34,25 @@ int main(void) {
   if (!check(sequel_dialect_clause(SEQUEL_POSTGRESQL, SEQUEL_KEYWORD_ORDER) != NULL, "dialect resolves clauses"))
     return 1;
 
+  sequel_parse_options_t formatter_options;
+  sequel_parse_options_init(&formatter_options);
+  formatter_options.dialect = SEQUEL_POSTGRESQL;
+  const char formatter_sql[] = "SELECT :name, $1 FROM records";
+  sequel_source_view_t formatter_source = {formatter_sql, strlen(formatter_sql)};
+  sequel_syntax_document_t *formatter_syntax = NULL;
+  if (!check(sequel_parse_sql(&formatter_source, &formatter_options, NULL, &formatter_syntax) == SEQUEL_OK,
+             "parse formatter input"))
+    return 1;
+  sequel_format_options_t formatter_settings;
+  sequel_format_options_init(&formatter_settings);
+  sequel_text_result_t formatter_result = {0};
+  if (!check(sequel_format_syntax(formatter_syntax, &formatter_settings, &formatter_result) == SEQUEL_OK &&
+                 strstr(formatter_result.data, ":name") && strstr(formatter_result.data, "$1"),
+             "formatter preserves parameter spelling"))
+    return 1;
+  sequel_text_result_free(&formatter_result);
+  sequel_syntax_document_free(formatter_syntax);
+
   {
     const char named_sql[] = "SELECT @token";
     sequel_source_view_t named_source = {named_sql, strlen(named_sql)};
