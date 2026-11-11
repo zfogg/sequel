@@ -1103,6 +1103,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *table = from + 6;
           while (*table && isspace((unsigned char)*table))
             ++table;
+          if (*table == '(') {
+            const char *nested_from = sequel_summary_find_text(table, " FROM ");
+            if (nested_from)
+              table = nested_from + 6;
+            while (*table && isspace((unsigned char)*table))
+              ++table;
+          }
           const char *table_end = table;
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
@@ -1136,6 +1143,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *table = from + 6;
           while (*table && isspace((unsigned char)*table))
             ++table;
+          if (*table == '(') {
+            const char *nested_from = sequel_summary_find_text(table, " FROM ");
+            if (nested_from)
+              table = nested_from + 6;
+            while (*table && isspace((unsigned char)*table))
+              ++table;
+          }
           const char *table_end = table;
           while (*table_end && !isspace((unsigned char)*table_end))
             ++table_end;
