@@ -125,6 +125,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      sequel_query_relation_count(query) == 0 && sequel_query_parameter_count(query) != 0) {
+    const char *projection = sequel_query_parameter_count(query) == 1 ? "?" : summary_ellipsis;
+    size_t projection_length = sequel_query_parameter_count(query) == 1 ? 1 : sizeof(summary_ellipsis) - 1;
+    if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+        !sequel_summary_append_bytes(&text, &length, &capacity, projection, projection_length))
+      goto no_memory;
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
   bool dollar_recovery = sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
                          sequel_summary_find_text(source.data, "$");
   if (dollar_recovery) {
