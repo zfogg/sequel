@@ -178,7 +178,8 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .severity = SEQUEL_WARNING,
                                          .range = projections[i].range,
                                          .statement_index = projections[i].statement_index,
-                                         .syntax_node = projections[i].expression_node};
+                                         .syntax_node = projections[i].expression_node,
+                                         .query_item = i};
     if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
@@ -243,7 +244,8 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
                                          .severity = SEQUEL_WARNING,
                                          .range = joins[8].range,
                                          .statement_index = SIZE_MAX,
-                                         .syntax_node = joins[8].condition_node};
+                                         .syntax_node = joins[8].condition_node,
+                                         .query_item = 8};
     if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
@@ -577,7 +579,6 @@ sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char
   }
   return status;
 }
-
 
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics) {

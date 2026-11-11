@@ -1878,67 +1878,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     memcpy(using_with_space, normalized_with_space, normalized_length);
     length += extra;
   }
-  /* Nested relation extraction intentionally omits child-scope relations from
-   * the top-level relation list.  Preserve a USING join in the nested body
-   * when the body summarizer has already retained its left relation. */
-  if (sequel_summary_find_text(source.data, "JOIN d USING(id)") && text &&
-      !sequel_summary_find_text(text, "JOIN d USING")) {
-    char *limit = sequel_summary_find_text(text, " FROM c LIMIT");
-    if (limit) {
-      const char join_text[] = " JOIN d USING (id)";
-      size_t offset = (size_t)(limit + strlen(" FROM c") - text);
-      size_t extra = sizeof(join_text) - 1;
-      if (capacity < length + extra + 1) {
-        char *grown = realloc(text, length + extra + 1);
-        if (!grown)
-          goto no_memory;
-        text = grown;
-        capacity = length + extra + 1;
-      }
-      memmove(text + offset + extra, text + offset, length - offset + 1);
-      memcpy(text + offset, join_text, extra);
-      length += extra;
-    }
-  }
-  if (sequel_summary_find_text(source.data, "JOIN d USING(id)") && text) {
-    char *nested_select = sequel_summary_find_text(text, "SELECT id FROM c");
-    if (nested_select) {
-      const char replacement[] = "SELECT …";
-      size_t old_length = strlen("SELECT id");
-      size_t new_length = sizeof(replacement) - 1;
-      size_t offset = (size_t)(nested_select - text);
-      size_t extra = new_length - old_length;
-      if (capacity < length + extra + 1) {
-        char *grown = realloc(text, length + extra + 1);
-        if (!grown)
-          goto no_memory;
-        text = grown;
-        capacity = length + extra + 1;
-        nested_select = text + offset;
-      }
-      memmove(nested_select + new_length, nested_select + old_length, length - offset - old_length + 1);
-      memcpy(nested_select, replacement, new_length);
-      length += extra;
-    }
-  }
-  if (text && sequel_summary_find_text(text, " FROM a UNION ALL") && !sequel_summary_find_text(text, "JOIN LATERAL")) {
-    char *union_marker = sequel_summary_find_text(text, " FROM a UNION ALL");
-    if (union_marker) {
-      const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
-      size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
-      size_t extra = sizeof(lateral_text) - 1;
-      if (capacity < length + extra + 1) {
-        char *grown = realloc(text, length + extra + 1);
-        if (!grown)
-          goto no_memory;
-        text = grown;
-        capacity = length + extra + 1;
-      }
-      memmove(text + offset + extra, text + offset, length - offset + 1);
-      memcpy(text + offset, lateral_text, extra);
-      length += extra;
-    }
-  }
   for (size_t i = 0; i + 2 < length; ++i) {
     if (text[i] != '[' || !isdigit((unsigned char)text[i + 1]))
       continue;
@@ -2144,44 +2083,6 @@ summary_postprocess:
       if (!sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
         goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "JOIN d USING(id)") &&
-        !sequel_summary_find_text(text, "JOIN d USING")) {
-      char *table = sequel_summary_find_text(text, " FROM c");
-      if (table) {
-        const char join_text[] = " JOIN d USING (id)";
-        size_t offset = (size_t)(table + strlen(" FROM c") - text);
-        size_t extra = sizeof(join_text) - 1;
-        if (capacity < length + extra + 1) {
-          char *grown = realloc(text, length + extra + 1);
-          if (!grown)
-            goto no_memory;
-          text = grown;
-          capacity = length + extra + 1;
-        }
-        memmove(text + offset + extra, text + offset, length - offset + 1);
-        memcpy(text + offset, join_text, extra);
-        length += extra;
-      }
-    }
-    if (text && sequel_summary_find_text(source.data, "JOIN LATERAL") &&
-        !sequel_summary_find_text(text, "JOIN LATERAL")) {
-      char *union_marker = sequel_summary_find_text(text, " FROM a UNION ALL");
-      if (union_marker) {
-        const char lateral_text[] = " JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ?";
-        size_t offset = (size_t)(union_marker + strlen(" FROM a") - text);
-        size_t extra = sizeof(lateral_text) - 1;
-        if (capacity < length + extra + 1) {
-          char *grown = realloc(text, length + extra + 1);
-          if (!grown)
-            goto no_memory;
-          text = grown;
-          capacity = length + extra + 1;
-        }
-        memmove(text + offset + extra, text + offset, length - offset + 1);
-        memcpy(text + offset, lateral_text, extra);
-        length += extra;
-      }
     }
     if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
         statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_summary_find_text(source.data, " OVER (") &&
@@ -2442,9 +2343,7 @@ summary_postprocess:
       if (limit) {
         length = (size_t)(limit - text);
         text[length] = '\0';
-        if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ? (SELECT ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM settings LIMIT 1)"))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
           goto no_memory;
       }
     }
