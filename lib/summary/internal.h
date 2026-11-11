@@ -63,11 +63,11 @@ const char *sequel_summary_matching_close(const char *open, const char *end);
 int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity,
                                          const sequel_query_document_t *query, size_t start, size_t end);
 int sequel_summary_normalize_nested_subqueries(char **text, size_t *length, size_t *capacity);
-int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source, size_t source_length,
-                                    const char *keyword, const char *replacement);
+int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source,
+                                    size_t source_length, const char *keyword, const char *replacement);
 int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capacity,
-                                        const sequel_query_document_t *query, sequel_source_view_t source,
-                                        size_t statement_count, const sequel_statement_info_t *statements);
+                                       const sequel_query_document_t *query, sequel_source_view_t source,
+                                       size_t statement_count, const sequel_statement_info_t *statements);
 int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out);
 int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *capacity);
 
@@ -75,6 +75,11 @@ int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,
                                            size_t statement_count, const sequel_statement_info_t *statements);
+
+int sequel_summary_try_special_paths(char **text, size_t *length, size_t *capacity,
+                                     const sequel_query_document_t *query, const sequel_summary_options_t *settings,
+                                     sequel_source_view_t source, size_t statement_count,
+                                     const sequel_statement_info_t *statements, sequel_text_result_t *out);
 
 sequel_status_t sequel_summary_render(const sequel_query_document_t *query, const sequel_summary_options_t *options,
                                       sequel_text_result_t *out);

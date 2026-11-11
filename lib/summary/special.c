@@ -2,6 +2,35 @@
 
 #include "internal.h"
 
+int sequel_summary_try_special_paths(char **text, size_t *length, size_t *capacity,
+                                     const sequel_query_document_t *query, const sequel_summary_options_t *settings,
+                                     sequel_source_view_t source, size_t statement_count,
+                                     const sequel_statement_info_t *statements, sequel_text_result_t *out) {
+  const sequel_statement_info_t *statement = statement_count ? &statements[0] : NULL;
+  int result = sequel_summary_render_scalar_projection_summary(text, length, capacity, query, source, statement);
+  if (result != 0)
+    goto finish;
+  result = sequel_summary_append_parameter_only(text, length, capacity, query, statement);
+  if (result != 0)
+    goto finish;
+  result = sequel_summary_append_clickhouse_dollar_projection(text, length, capacity, query, source, statement);
+  if (result != 0)
+    goto finish;
+  result = sequel_summary_append_cte_shape(text, length, capacity, query, source, statement);
+  if (result != 0)
+    goto finish;
+  result = sequel_summary_append_clickhouse_create_shape(text, length, capacity, query, source, statement);
+  if (result != 0)
+    goto finish;
+  result = sequel_summary_append_dialect_recovery(text, length, capacity, query, settings, source, statement_count,
+                                                  statements);
+finish:
+  if (result <= 0 || !out)
+    return result;
+  out->mode = result == 2 ? SEQUEL_FORMAT_RECOVERED : SEQUEL_FORMAT_SYNTAX_AWARE;
+  return result;
+}
+
 static const char summary_ellipsis[] = "\342\200\246";
 
 int sequel_summary_append_parameter_only(char **text, size_t *length, size_t *capacity,
