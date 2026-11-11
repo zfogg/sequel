@@ -66,12 +66,8 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   if (sequel_query_projection_count(query) > 1) {
     bool scalar_list = false;
     for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
-      for (size_t offset = projection[i].range.start; offset < projection[i].range.end; ++offset) {
-        if (sequel_summary_word(source.data, source.length, offset, "SELECT")) {
-          scalar_list = true;
-          break;
-        }
-      }
+      const char *nested_select = sequel_summary_find_text(source.data + projection[i].range.start, "(SELECT");
+      scalar_list = nested_select && (size_t)(nested_select - source.data) < projection[i].range.end;
       if (scalar_list)
         break;
     }
