@@ -4,9 +4,9 @@
 #include <string.h>
 
 #include <sequel.h>
+#include <sequel/parser.h>
 #include "util/text.h"
 #include "util/utf8.h"
-#include "scan.h"
 
 static void utf8_cut(char *s, size_t limit) {
   size_t n = strlen(s);
@@ -83,81 +83,92 @@ static void trim_sanitized_prefix(sequel_text_result_t *result) {
   result->length -= prefix;
 }
 
-static void collapse_in(char *s, sequel_dialect_t dialect) {
-  size_t n = strlen(s);
-  for (size_t i = 0; i + 2 < n; ++i) {
-    /* Retained comments and quoted identifiers are opaque to IN collapsing. */
-    unsigned char c = (unsigned char)s[i];
-    if (dialect == SEQUEL_CLICKHOUSE && sequel_scan_clickhouse_quote(s, n, i)) {
-      size_t end = sequel_scan_clickhouse_quoted_end(s, n, i);
-      if (end) {
-        i = end - 1;
-        continue;
-      }
-    }
-    if (c == '"' || c == '`' || (c == '[' && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))) {
-      size_t end = sequel_scan_quoted(s, n, i, c == '[' ? ']' : (char)c, dialect == SEQUEL_CLICKHOUSE);
-      if (end) {
-        i = end - 1;
-        continue;
-      }
-    }
-    if ((c == '-' && s[i + 1] == '-') || (dialect == SEQUEL_CLICKHOUSE && c == '/' && s[i + 1] == '/') ||
-        ((dialect == SEQUEL_MYSQL || dialect == SEQUEL_CLICKHOUSE) && c == '#')) {
-      while (i < n && s[i] != '\n')
-        ++i;
-      continue;
-    }
-    if (c == '/' && s[i + 1] == '*') {
-      unsigned depth = 1;
-      i += 2;
-      while (i + 1 < n && depth) {
-        if (s[i] == '/' && s[i + 1] == '*') {
-          ++depth;
-          i += 2;
-        } else if (s[i] == '*' && s[i + 1] == '/') {
-          --depth;
-          i += 2;
-        } else
-          ++i;
-      }
-      --i;
-      continue;
-    }
+static size_t next_significant_token(const sequel_token_t *tokens, size_t count, size_t index) {
+  while (index < count &&
+         (tokens[index].kind == SEQUEL_TOKEN_WHITESPACE || tokens[index].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+          tokens[index].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    ++index;
+  return index;
+}
 
-    if (!sequel_scan_equal(s + i, 2, "IN") || (i && sequel_scan_part((unsigned char)s[i - 1])) ||
-        (i + 2 < n && sequel_scan_part((unsigned char)s[i + 2])))
+static bool token_is_symbol(const sequel_source_view_t *source, const sequel_token_t *token, char symbol) {
+  return token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1 &&
+         source->data[token->range.start] == symbol;
+}
+
+static bool token_is_question(const sequel_source_view_t *source, const sequel_token_t *token) {
+  return (token->kind == SEQUEL_TOKEN_PARAMETER || token->kind == SEQUEL_TOKEN_OPERATOR) &&
+         token->range.end == token->range.start + 1 && source->data[token->range.start] == '?';
+}
+
+static sequel_status_t collapse_in_result(sequel_text_result_t *result, sequel_dialect_t dialect) {
+  if (!result || !result->data || !result->length)
+    return SEQUEL_OK;
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = dialect;
+  options.retain_comments = true;
+  options.retain_whitespace = true;
+  sequel_source_view_t source = {result->data, result->length};
+  sequel_lexed_document_t *lexed = NULL;
+  sequel_status_t status = sequel_lex(&source, &options, NULL, &lexed);
+  if (status != SEQUEL_OK)
+    return status;
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  size_t *starts = NULL, *ends = NULL, replacements = 0, capacity = 0;
+  for (size_t i = 0; i < count; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_IN)
       continue;
-    size_t j = i + 2;
-    while (j < n && isspace((unsigned char)s[j]))
-      ++j;
-    if (j == n || s[j] != '(')
+    size_t open = next_significant_token(tokens, count, i + 1);
+    if (open >= count || !token_is_symbol(&source, &tokens[open], '('))
       continue;
-    size_t k = j + 1, count = 0;
-    bool comma = false;
-    for (;;) {
-      while (k < n && isspace((unsigned char)s[k]))
-        ++k;
-      if (k == n || s[k] != '?')
+    size_t cursor = next_significant_token(tokens, count, open + 1), values = 0;
+    while (cursor < count && token_is_question(&source, &tokens[cursor])) {
+      ++values;
+      cursor = next_significant_token(tokens, count, cursor + 1);
+      if (cursor < count && token_is_symbol(&source, &tokens[cursor], ','))
+        cursor = next_significant_token(tokens, count, cursor + 1);
+      else
         break;
-      ++count;
-      ++k;
-      while (k < n && isspace((unsigned char)s[k]))
-        ++k;
-      if (k < n && s[k] == ',') {
-        comma = true;
-        ++k;
-        continue;
+    }
+    if (values < 2 || cursor >= count || !token_is_symbol(&source, &tokens[cursor], ')'))
+      continue;
+    if (replacements == capacity) {
+      size_t next = capacity ? capacity * 2 : 8;
+      size_t *new_starts = malloc(next * sizeof(*starts));
+      size_t *new_ends = malloc(next * sizeof(*ends));
+      if (!new_starts || !new_ends) {
+        free(new_starts);
+        free(new_ends);
+        free(starts);
+        free(ends);
+        sequel_lexed_document_free(lexed);
+        return SEQUEL_ERR_NOMEM;
       }
-      comma = false;
-      break;
+      if (replacements) {
+        memcpy(new_starts, starts, replacements * sizeof(*starts));
+        memcpy(new_ends, ends, replacements * sizeof(*ends));
+      }
+      free(starts);
+      free(ends);
+      starts = new_starts;
+      ends = new_ends;
+      capacity = next;
     }
-    if (count > 1 && !comma && k < n && s[k] == ')') {
-      memmove(s + j + 3, s + k + 1, n - k);
-      memcpy(s + j, "(?)", 3);
-      n = strlen(s);
-    }
+    starts[replacements] = tokens[open].range.start;
+    ends[replacements++] = tokens[cursor].range.end;
   }
+  for (size_t i = replacements; i > 0; --i) {
+    size_t start = starts[i - 1], end = ends[i - 1];
+    memmove(result->data + start + 3, result->data + end, result->length - end + 1);
+    memcpy(result->data + start, "(?)", 3);
+    result->length -= end - start - 3;
+  }
+  free(starts);
+  free(ends);
+  sequel_lexed_document_free(lexed);
+  return SEQUEL_OK;
 }
 
 sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
@@ -205,8 +216,13 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   sequel_lexed_document_free(lexed);
   if (status != SEQUEL_OK)
     return status;
-  if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS))
-    collapse_in(result.data, dialect);
+  if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS)) {
+    status = collapse_in_result(&result, dialect);
+    if (status != SEQUEL_OK) {
+      sequel_text_result_free(&result);
+      return status;
+    }
+  }
   if (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS)
     normalize_sanitized_text(result.data);
   *truncated = result.length > limit;
@@ -269,7 +285,9 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
     goto done;
   trim_sanitized_prefix(&sanitized);
   if (options && !options->keep_in_lists)
-    collapse_in(sanitized.data, parse_options.dialect);
+    status = collapse_in_result(&sanitized, parse_options.dialect);
+  if (status != SEQUEL_OK)
+    goto done;
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
   summary_options.max_length = 0;
