@@ -1,7 +1,12 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <setjmp.h>
-#include <sequel.h>
+
+#include <sequel/status.h>
+
+typedef bool (*sequel_runtime_cancel_fn)(void *userdata);
 
 #if defined(__MINGW64__) && defined(_WIN64) && !defined(__aarch64__)
 #define sequel_checkpoint(context) _setjmp((context)->escape, NULL)
@@ -37,7 +42,7 @@ typedef struct {
   size_t poll;
   size_t output_bytes;
   size_t output_limit;
-  sequel_cancel_fn cancelled;
+  sequel_runtime_cancel_fn cancelled;
   void *userdata;
   sequel_status_t failure;
 } sequel_call;

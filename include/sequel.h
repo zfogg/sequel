@@ -123,19 +123,6 @@ sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t 
 sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input,
                                                sequel_diagnostic_t *out);
 
-/** Bind syntax classification; descriptors never contain names, types or values. */
-/** Ordinal is one-based occurrence order; slot is one-based identity within a
- * zero-based statement_index. Repeated markers share a slot; anonymous markers
- * allocate a new slot. offset/end_offset refer to original UTF-8 bytes. */
-typedef struct {
-  size_t ordinal;            /**< One-based occurrence order across the document. */
-  size_t slot;               /**< One-based driver slot, including explicit numbered gaps. */
-  size_t statement_index;    /**< Zero-based index into analysis statements. */
-  size_t offset;             /**< Inclusive original UTF-8 byte. */
-  size_t end_offset;         /**< Exclusive original UTF-8 byte. */
-  sequel_bind_style_t style; /**< Marker syntax only; never its name or value. */
-} sequel_bind_descriptor_t;
-
 /** Check supplied arity for one statement without reading values. Arity equals
  * the maximum driver slot, so $3 requires 3 supplied slots even if used once. */
 sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement_index,

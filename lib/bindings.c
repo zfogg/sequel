@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <sequel/query.h>
+#include <sequel/binds.h>
 
 #include "model.h"
 #include "runtime.h"
