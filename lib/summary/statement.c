@@ -65,7 +65,11 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   const sequel_projection_info_t *projection = sequel_query_projections(query);
   if (sequel_query_projection_count(query) > 1) {
     bool scalar_list = false;
-    for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
+    /* Scalar-subquery detection is intentionally bounded.  Each projection
+     * range may end at the statement boundary, so searching from every item
+     * can turn a wide projection list into quadratic work. */
+    size_t detection_limit = sequel_query_projection_count(query) > 1024 ? 0 : sequel_query_projection_count(query);
+    for (size_t i = 0; i < detection_limit; ++i) {
       const char *nested_select = sequel_summary_find_text(source.data + projection[i].range.start, "(SELECT");
       bool scoped_relation = false;
       const sequel_relation_info_t *relations = sequel_query_relations(query);

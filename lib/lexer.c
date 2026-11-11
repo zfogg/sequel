@@ -13,6 +13,7 @@ struct sequel_lexed_document {
   sequel_source_t *source_object;
   sequel_token_t *tokens;
   size_t token_count;
+  size_t token_capacity;
 };
 
 static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
@@ -28,10 +29,24 @@ static int append_token(sequel_lexed_document_t *document, sequel_token_t token,
   if (document->token_count >= limit)
     return 0;
   size_t count = document->token_count + 1;
-  sequel_token_t *tokens = realloc(document->tokens, count * sizeof(*tokens));
-  if (!tokens)
-    return 0;
-  document->tokens = tokens;
+  if (count > document->token_capacity) {
+    size_t capacity = document->token_capacity ? document->token_capacity : 64;
+    while (capacity < count) {
+      if (capacity > SIZE_MAX / 2)
+        capacity = count;
+      else
+        capacity *= 2;
+    }
+    if (capacity > limit)
+      capacity = limit;
+    if (capacity > SIZE_MAX / sizeof(*document->tokens))
+      return 0;
+    sequel_token_t *tokens = realloc(document->tokens, capacity * sizeof(*tokens));
+    if (!tokens)
+      return 0;
+    document->tokens = tokens;
+    document->token_capacity = capacity;
+  }
   document->tokens[document->token_count++] = token;
   return 1;
 }

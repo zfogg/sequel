@@ -7,14 +7,14 @@
 void sequel_query_document_free(sequel_query_document_t *document) {
   if (!document)
     return;
-  free(document->statements);
-  free(document->relations);
-  free(document->ctes);
-  free(document->parameters);
-  free(document->joins);
-  free(document->projections);
-  free(document->predicates);
-  free(document->clauses);
+  sequel_query_array_free(document->statements);
+  sequel_query_array_free(document->relations);
+  sequel_query_array_free(document->ctes);
+  sequel_query_array_free(document->parameters);
+  sequel_query_array_free(document->joins);
+  sequel_query_array_free(document->projections);
+  sequel_query_array_free(document->predicates);
+  sequel_query_array_free(document->clauses);
   free(document);
 }
 

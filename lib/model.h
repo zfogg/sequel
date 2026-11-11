@@ -1,6 +1,17 @@
 #pragma once
 
+#include <stdlib.h>
+
 #include <sequel/query.h>
+
+typedef struct {
+  size_t capacity;
+} query_array_header;
+
+static inline void sequel_query_array_free(void *array) {
+  if (array)
+    free((query_array_header *)array - 1);
+}
 
 struct sequel_query_document {
   const sequel_syntax_document_t *syntax;
