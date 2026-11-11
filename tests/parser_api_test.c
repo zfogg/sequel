@@ -157,6 +157,22 @@ int main(void) {
                  position.column == 2,
              "source position"))
     return 1;
+  sequel_source_t *positioned_source = NULL;
+  sequel_source_options_t positioned_options = {.storage = SEQUEL_SOURCE_COPIED, .dialect = SEQUEL_GENERIC};
+  if (!check(sequel_source_create(&positioned, &positioned_options, &positioned_source) == SEQUEL_OK,
+             "positioned source object"))
+    return 1;
+  if (!check(sequel_source_object_position(positioned_source, 5, &position) == SEQUEL_OK && position.line == 2 &&
+                 position.column == 2,
+             "source object position"))
+    return 1;
+  sequel_location_t location;
+  if (!check(sequel_source_object_range_position(positioned_source, (sequel_source_range_t){0, 5}, &location) ==
+                     SEQUEL_OK &&
+                 location.start.line == 1 && location.end.line == 2,
+             "source object range position"))
+    return 1;
+  sequel_source_free(positioned_source);
 
   sequel_lexed_document_t *lexed = NULL;
   if (!check(sequel_lex(&source, &options, NULL, &lexed) == SEQUEL_OK, "lex succeeds"))
@@ -425,14 +441,13 @@ int main(void) {
                  sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK &&
                  sequel_summarize_query(lowercase_query, &lowercase_summary_options, &lowercase_summary) == SEQUEL_OK &&
                  lowercase_summary.data && lowercase_summary.length >= strlen("SELECT") &&
-                     !strncmp(lowercase_summary.data, "SELECT", strlen("SELECT")),
+                 !strncmp(lowercase_summary.data, "SELECT", strlen("SELECT")),
              "lowercase keyword summary"))
     return 1;
   sequel_text_result_free(&lowercase_summary);
   sequel_query_document_free(lowercase_query);
   sequel_syntax_document_free(lowercase_syntax);
-  const char quoted_join_sql[] =
-      "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true";
+  const char quoted_join_sql[] = "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true";
   sequel_source_view_t quoted_join_source = {quoted_join_sql, strlen(quoted_join_sql)};
   sequel_syntax_document_t *quoted_join_syntax = NULL;
   sequel_query_document_t *quoted_join_query = NULL;

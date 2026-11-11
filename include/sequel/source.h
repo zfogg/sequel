@@ -59,4 +59,12 @@ sequel_status_t sequel_source_position(const sequel_source_view_t *source, size_
 sequel_status_t sequel_source_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
                                              sequel_location_t *location);
 
+/** Convert a byte offset using an owned source object. */
+sequel_status_t sequel_source_object_position(const sequel_source_t *source, size_t byte_offset,
+                                              sequel_position_t *position);
+
+/** Convert a byte range using an owned source object. */
+sequel_status_t sequel_source_object_range_position(const sequel_source_t *source, sequel_source_range_t range,
+                                                   sequel_location_t *location);
+
 SEQUEL_EXTERN_C_END

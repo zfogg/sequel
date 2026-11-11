@@ -111,3 +111,17 @@ sequel_status_t sequel_source_range_position(const sequel_source_view_t *source,
   position_at(source->data, source->length, range.end, &location->end);
   return SEQUEL_OK;
 }
+
+sequel_status_t sequel_source_object_position(const sequel_source_t *source, size_t byte_offset,
+                                              sequel_position_t *position) {
+  if (!source)
+    return SEQUEL_ERR_NULL;
+  return sequel_source_position(&source->view, byte_offset, position);
+}
+
+sequel_status_t sequel_source_object_range_position(const sequel_source_t *source, sequel_source_range_t range,
+                                                    sequel_location_t *location) {
+  if (!source)
+    return SEQUEL_ERR_NULL;
+  return sequel_source_range_position(&source->view, range, location);
+}
