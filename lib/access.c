@@ -64,6 +64,10 @@ const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_docume
   return document ? document->parameters : NULL;
 }
 
+const sequel_parameter_info_t *sequel_query_parameter(const sequel_query_document_t *document, size_t index) {
+  return document && index < document->parameter_count ? &document->parameters[index] : NULL;
+}
+
 size_t sequel_query_join_count(const sequel_query_document_t *document) { return document ? document->join_count : 0; }
 
 const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document) {
@@ -82,12 +86,20 @@ const sequel_projection_info_t *sequel_query_projections(const sequel_query_docu
   return document ? document->projections : NULL;
 }
 
+const sequel_projection_info_t *sequel_query_projection(const sequel_query_document_t *document, size_t index) {
+  return document && index < document->projection_count ? &document->projections[index] : NULL;
+}
+
 size_t sequel_query_predicate_count(const sequel_query_document_t *document) {
   return document ? document->predicate_count : 0;
 }
 
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document) {
   return document ? document->predicates : NULL;
+}
+
+const sequel_predicate_info_t *sequel_query_predicate(const sequel_query_document_t *document, size_t index) {
+  return document && index < document->predicate_count ? &document->predicates[index] : NULL;
 }
 
 size_t sequel_query_clause_count(const sequel_query_document_t *document) {
