@@ -1,10 +1,5 @@
 /* SHA-256 (FIPS 180-4), streaming so canonical SQL is never retained. */
-typedef struct {
-  uint32_t h[8];
-  uint64_t bytes;
-  unsigned char block[64];
-  size_t used;
-} sequel_sha256;
+#include "sha256.h"
 
 static uint32_t sha_rotr(uint32_t v, unsigned n) { return (v >> n) | (v << (32 - n)); }
 
@@ -50,12 +45,12 @@ static void sha_block(sequel_sha256 *s) {
   s->h[7] += h;
 }
 
-static void sha_init(sequel_sha256 *s) {
+void sha_init(sequel_sha256 *s) {
   *s = (sequel_sha256){
       {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19}, 0, {0}, 0};
 }
 
-static void sha_update(sequel_sha256 *s, const void *data, size_t n) {
+void sha_update(sequel_sha256 *s, const void *data, size_t n) {
   const unsigned char *p = data;
   s->bytes += n;
   for (size_t i = 0; (sequel_work_tick(1), i < n); i++) {
@@ -67,14 +62,14 @@ static void sha_update(sequel_sha256 *s, const void *data, size_t n) {
   }
 }
 
-static void sha_u64(sequel_sha256 *s, uint64_t value) {
+void sha_u64(sequel_sha256 *s, uint64_t value) {
   unsigned char b[8];
   for (size_t i = 0; (sequel_work_tick(1), i < 8); i++)
     b[7 - i] = (unsigned char)(value >> (i * 8));
   sha_update(s, b, 8);
 }
 
-static void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_t n, bool fold) {
+void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_t n, bool fold) {
   sha_update(s, &kind, 1);
   sha_u64(s, n);
   if (!fold)
@@ -88,7 +83,7 @@ static void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_
     }
 }
 
-static void sha_final(sequel_sha256 *s, char out[65]) {
+void sha_final(sequel_sha256 *s, char out[65]) {
   uint64_t bits = s->bytes * 8;
   unsigned char pad = 0x80, zero = 0;
   sha_update(s, &pad, 1);

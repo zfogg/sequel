@@ -1,5 +1,6 @@
 /* Unified analysis uses the existing dialect lexer. It hashes framed token
  * classes and produces numeric provenance while values are replaced. */
+#include "sha256.h"
 
 static int shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {

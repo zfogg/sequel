@@ -9,6 +9,7 @@
 
 #include "resources.h"
 #include "util/text.h"
+#include "sha256.h"
 
 typedef struct {
   const char *p;
