@@ -2489,7 +2489,11 @@ summary_postprocess:
       capacity = replacement_length + 1;
     }
   }
-  if (text && sequel_summary_find_text(source.data, "LIMIT sqlc.arg(") && !sequel_summary_find_text(text, " LIMIT ")) {
+  size_t outer_query_start = sequel_query_outer_range(query).start;
+  const char *outer_limit = sequel_summary_find_word(source.data, source.length, outer_query_start, "LIMIT");
+  size_t rendered_tail_start = text && length > 32 ? length - 32 : 0;
+  if (text && sequel_query_cte_count(query) && outer_limit &&
+      !sequel_summary_find_text(text + rendered_tail_start, "LIMIT")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
       goto no_memory;
   }
