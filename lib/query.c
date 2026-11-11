@@ -564,6 +564,16 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     const sequel_statement_info_t *statement = &document->statements[s];
     size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
     size_t end = first + (statement->syntax_node < node_count ? nodes[statement->syntax_node].token_count : 0);
+    size_t range_first = 0;
+    while (range_first < token_count && tokens[range_first].range.end <= statement->range.start)
+      ++range_first;
+    size_t range_end = range_first;
+    while (range_end < token_count && tokens[range_end].range.start < statement->range.end)
+      ++range_end;
+    if (range_first < range_end) {
+      first = range_first;
+      end = range_end;
+    }
     size_t select = first;
     while (select < end &&
            !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == SEQUEL_KEYWORD_SELECT))
