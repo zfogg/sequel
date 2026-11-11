@@ -215,7 +215,10 @@ int main(void) {
   if (!check(sequel_lex(&lexical_source, &options, NULL, &lexical_document) == SEQUEL_OK, "lexical recovery parse"))
     return 1;
   sequel_diagnostic_list_t lexical_diagnostics = {0};
-  if (!check(sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK &&
+  const sequel_diagnostic_record_t *retained_lexical_diagnostics = sequel_lexed_diagnostics(lexical_document);
+  if (!check(sequel_lexed_diagnostic_count(lexical_document) == 1 && retained_lexical_diagnostics &&
+                 retained_lexical_diagnostics[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
+                 sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK &&
                  lexical_diagnostics.count == 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL &&
                  lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING,
              "lexical diagnostic collection"))

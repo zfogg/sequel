@@ -13,6 +13,7 @@ SEQUEL_EXTERN_C_BEGIN
 
 typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
+typedef struct sequel_diagnostic_record sequel_diagnostic_record_t;
 
 typedef struct {
   bool (*enter_node)(const sequel_syntax_document_t *document, size_t node_index, void *userdata);
@@ -103,6 +104,10 @@ const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *documen
 /** Return the immutable token count in a lexical document. */
 size_t sequel_lexed_token_count(const sequel_lexed_document_t *document);
 sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);
+
+/** Return lexical diagnostics retained by the document. The array is borrowed. */
+size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document);
+const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document);
 
 sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
                                   size_t *length);

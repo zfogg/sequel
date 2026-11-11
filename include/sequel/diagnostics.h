@@ -86,7 +86,7 @@ typedef enum {
 } sequel_diagnostic_origin_t;
 
 /** A collected parser/analysis issue with stable source ownership semantics. */
-typedef struct {
+typedef struct sequel_diagnostic_record {
   sequel_diagnostic_origin_t origin;
   sequel_diagnostic_code_t code;
   sequel_severity_t severity;

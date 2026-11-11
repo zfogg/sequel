@@ -4,6 +4,7 @@
 
 #include <sequel/parser.h>
 #include <sequel/dialect.h>
+#include <sequel/diagnostics.h>
 
 struct sequel_lexed_document {
   char *source;
@@ -13,6 +14,9 @@ struct sequel_lexed_document {
   sequel_token_t *tokens;
   size_t token_count;
   size_t token_capacity;
+  sequel_diagnostic_record_t *diagnostics;
+  size_t diagnostic_count;
+  size_t diagnostic_capacity;
 };
 
 static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
@@ -47,6 +51,35 @@ static int append_token(sequel_lexed_document_t *document, sequel_token_t token,
     document->token_capacity = capacity;
   }
   document->tokens[document->token_count++] = token;
+  return 1;
+}
+
+static int append_lexical_diagnostic(sequel_lexed_document_t *document, sequel_diagnostic_code_t code,
+                                     sequel_source_range_t range, size_t limit) {
+  if (document->diagnostic_count >= limit)
+    return 1;
+  if (document->diagnostic_count == document->diagnostic_capacity) {
+    size_t capacity = document->diagnostic_capacity ? document->diagnostic_capacity * 2 : 8;
+    if (capacity < document->diagnostic_count + 1 || capacity > SIZE_MAX / sizeof(*document->diagnostics))
+      return 0;
+    sequel_diagnostic_record_t *records = realloc(document->diagnostics, capacity * sizeof(*records));
+    if (!records)
+      return 0;
+    document->diagnostics = records;
+    document->diagnostic_capacity = capacity;
+  }
+  document->diagnostics[document->diagnostic_count++] =
+      (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_LEXICAL,
+                                   .code = code,
+                                   .severity = SEQUEL_ERROR,
+                                   .range = range,
+                                   .related_range = {0, 0},
+                                   .statement_index = SIZE_MAX,
+                                   .syntax_node = SIZE_MAX,
+                                   .query_item = SIZE_MAX,
+                                   .incomplete = 1,
+                                   .recovered = 1,
+                                   .statement_complete = 0};
   return 1;
 }
 
@@ -131,6 +164,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     return SEQUEL_ERR_NOMEM;
   }
   size_t limit = settings->max_tokens ? settings->max_tokens : (size_t)-1;
+  size_t diagnostic_limit = settings->max_diagnostics ? settings->max_diagnostics : (size_t)-1;
   size_t i = 0;
   while (i < source->length) {
     if (cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata)) {
@@ -507,6 +541,20 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                                     ? sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start)
                                     : 0,
                             .dialect_id = (uint32_t)settings->dialect};
+    if ((flags & SEQUEL_TOKEN_FLAG_UNTERMINATED) &&
+        !append_lexical_diagnostic(document,
+                                   kind == SEQUEL_TOKEN_BLOCK_COMMENT       ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                                   : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                                                                            : SEQUEL_DIAG_UNTERMINATED_STRING,
+                                   token.range, diagnostic_limit)) {
+      sequel_lexed_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
+    if (kind == SEQUEL_TOKEN_ERROR &&
+        !append_lexical_diagnostic(document, SEQUEL_DIAG_INVALID_ARGUMENT, token.range, diagnostic_limit)) {
+      sequel_lexed_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
     if (!append_token(document, token, limit)) {
       sequel_lexed_document_free(document);
       return SEQUEL_ERR_LIMIT;
@@ -525,6 +573,7 @@ void sequel_lexed_document_free(sequel_lexed_document_t *document) {
   if (!document)
     return;
   free(document->tokens);
+  free(document->diagnostics);
   sequel_source_free(document->source_object);
   free(document->source);
   free(document);
@@ -550,6 +599,14 @@ size_t sequel_lexed_token_count(const sequel_lexed_document_t *document) {
 
 sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document) {
   return document ? document->dialect : SEQUEL_GENERIC;
+}
+
+size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document) {
+  return document ? document->diagnostic_count : 0;
+}
+
+const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document) {
+  return document ? document->diagnostics : NULL;
 }
 
 sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
