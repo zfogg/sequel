@@ -78,7 +78,8 @@ static int is_clause(uint32_t keyword) {
   return keyword == SEQUEL_KEYWORD_FROM || keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_GROUP ||
          keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_ORDER || keyword == SEQUEL_KEYWORD_LIMIT ||
          keyword == SEQUEL_KEYWORD_OFFSET || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_VALUES ||
-         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_UNION;
+         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_UNION || keyword == SEQUEL_KEYWORD_JOIN ||
+         keyword == SEQUEL_KEYWORD_ON;
 }
 
 static int is_list_clause(uint32_t keyword) {
@@ -115,6 +116,25 @@ static int is_by_keyword(const sequel_source_view_t source, const sequel_token_t
   return length == 2 && toupper((unsigned char)text[0]) == 'B' && toupper((unsigned char)text[1]) == 'Y';
 }
 
+static int is_join_modifier(const sequel_source_view_t source, const sequel_token_t *token) {
+  size_t length = 0;
+  const char *text = token_text(source, token, &length);
+  if (length == 4)
+    return (toupper((unsigned char)text[0]) == 'L' && toupper((unsigned char)text[1]) == 'E') ||
+           (toupper((unsigned char)text[0]) == 'R' && toupper((unsigned char)text[1]) == 'I') ||
+           (toupper((unsigned char)text[0]) == 'F' && toupper((unsigned char)text[1]) == 'U') ||
+           (toupper((unsigned char)text[0]) == 'C' && toupper((unsigned char)text[1]) == 'R');
+  return (length == 5 && toupper((unsigned char)text[0]) == 'O' && toupper((unsigned char)text[1]) == 'U') ||
+         (length == 5 && toupper((unsigned char)text[0]) == 'I' && toupper((unsigned char)text[1]) == 'N');
+}
+
+static int is_join_lead(const sequel_source_view_t source, const sequel_token_t *token) {
+  size_t length = 0;
+  const char *text = token_text(source, token, &length);
+  return (is_join_modifier(source, token) && length == 4) ||
+         (length == 5 && toupper((unsigned char)text[0]) == 'I' && toupper((unsigned char)text[1]) == 'N');
+}
+
 static int is_condition_operator(const sequel_token_t *token, size_t paren_depth) {
   return token->kind == SEQUEL_TOKEN_KEYWORD && paren_depth == 0 &&
          (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR);
@@ -130,12 +150,21 @@ static int is_literal_replacement(const sequel_token_t *token, const sequel_form
 
 static int no_space_before_punctuation(const char *text, size_t length, int punctuation) {
   return punctuation && length == 1 &&
-         (text[0] == '(' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' || text[0] == ';');
+         (text[0] == '(' || text[0] == '[' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' ||
+          text[0] == ';');
 }
 
 static int no_space_after_punctuation(sequel_token_kind_t previous, const char *data, size_t length) {
   return previous == SEQUEL_TOKEN_PUNCTUATION && length &&
-         (data[length - 1] == '(' || data[length - 1] == '.' || data[length - 1] == ':');
+         (data[length - 1] == '(' || data[length - 1] == '[' || data[length - 1] == '.' || data[length - 1] == ':');
+}
+
+static int compact_json_operator(const sequel_token_t *token, sequel_source_view_t source, const char *data,
+                                 size_t length) {
+  size_t text_length = 0;
+  const char *text = token_text(source, token, &text_length);
+  return is_operator_token(token) &&
+         ((text_length && (text[0] == '#' || text[0] == '?' || text[0] == '@')) || (length && data[length - 1] == '#'));
 }
 
 static int is_as_before_open_paren(const char *data, size_t length, const char *text, size_t text_length) {
@@ -243,6 +272,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   size_t bracket_depth = 0;
   size_t query_paren_depth = 0;
   size_t cte_paren_depth = 0;
+  bool nested_query = false;
+  size_t case_depth = 0;
   bool list_clause = false;
   bool pending_clause_body = false;
   for (size_t i = 0; i < token_count; ++i) {
@@ -263,21 +294,37 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       continue;
     }
     bool keyword = is_keyword_token(token);
-    bool clause_start = keyword && is_clause(token->keyword_id);
+    bool join_modifier = is_join_lead(source, token);
+    bool clause_start =
+        keyword && is_clause(token->keyword_id) &&
+        !(token->keyword_id == SEQUEL_KEYWORD_JOIN && previous_token && is_join_modifier(source, previous_token));
     bool condition_operator = is_condition_operator(token, paren_depth);
     bool select_start = keyword && token->keyword_id == SEQUEL_KEYWORD_SELECT;
+    bool nested_case_start = keyword && token->keyword_id == SEQUEL_KEYWORD_CASE && previous_token &&
+                             previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
+                             previous_token->keyword_id == SEQUEL_KEYWORD_THEN;
     if (select_start && paren_depth)
       query_paren_depth = paren_depth;
+    if (select_start && paren_depth)
+      nested_query = true;
     bool case_boundary = keyword && is_case_boundary(token->keyword_id);
     if (pending_clause_body && !is_by_keyword(source, token)) {
       if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
       pending_clause_body = false;
     }
-    if (select_start || clause_start || condition_operator || case_boundary) {
+    if (select_start || clause_start || condition_operator || case_boundary || nested_case_start || join_modifier) {
       size_t indent = (select_start || clause_start) ? paren_depth : paren_depth + 1;
-      if (is_case_boundary(token->keyword_id))
-        indent = 1;
+      if (token->keyword_id == SEQUEL_KEYWORD_ON)
+        indent = paren_depth + 1;
+      if (join_modifier)
+        indent = paren_depth;
+      if (nested_case_start)
+        indent = paren_depth + case_depth * 2 + 1;
+      else if (token->keyword_id == SEQUEL_KEYWORD_WHEN || token->keyword_id == SEQUEL_KEYWORD_ELSE)
+        indent = paren_depth + case_depth * 2;
+      else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
+        indent = paren_depth + case_depth * 2 - 1;
       if (!append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
       if (select_start || is_clause_header(token->keyword_id))
@@ -293,14 +340,17 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         ++bracket_depth;
       else if (symbol == ']' && bracket_depth)
         --bracket_depth;
-      if (is_close_paren(source, token) && length && data[length - 1] != '\n' && paren_depth &&
-          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth + 1) &&
-          !append_line_start(&data, &length, &capacity, paren_depth - 1))
+      if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
+          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth + 1 ||
+           (nested_query && paren_depth == 0)) &&
+          !append_line_start(&data, &length, &capacity, paren_depth ? paren_depth - 1 : 0))
         goto no_memory;
       if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
       if (is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
         cte_paren_depth = 0;
+      if (is_close_paren(source, token) && nested_query && paren_depth == 0)
+        nested_query = false;
     }
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
     size_t text_length = 0;
@@ -310,6 +360,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       text_length = 1;
     }
     bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
+    if (text_length == 1 && text[0] == '(' && previous == SEQUEL_TOKEN_KEYWORD)
+      no_space_before = false;
     if (is_as_before_open_paren(data, length, text, text_length))
       no_space_before = false;
     bool cast_operator = is_operator_token(token) && is_cast_operator(text, text_length);
@@ -325,6 +377,16 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool no_space_after_previous =
         no_space_after_punctuation(previous, data, length) &&
         !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+    if (previous_token && is_operator_token(previous_token) &&
+        previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '#')
+      no_space_after_previous = true;
+    if (previous_token && previous_token->range.end == token->range.start &&
+        (is_operator_token(previous_token) || is_single_char_punctuation(previous_token)))
+      no_space_after_previous = true;
+    if (is_operator_token(token) && !no_space_after_previous && !compact_json_operator(token, source, data, length) &&
+        !cast_operator && !range_colon && length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
+        !append_space(&data, &length, &capacity))
+      goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
         !no_space_after_previous &&
         (is_word_token(previous) || is_word_token(token->kind) ||
@@ -333,8 +395,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
     if (!append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;
-    if (is_comma(source, token) && list_clause) {
-      size_t indent = length && data[length - 1] == ')' ? 0 : paren_depth + 1;
+    if (is_comma(source, token) && bracket_depth == 0 && (list_clause || (length >= 2 && data[length - 2] == ')'))) {
+      size_t indent = length >= 2 && data[length - 2] == ')' ? 0 : paren_depth + 1;
       if (!append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
     }
@@ -344,6 +406,10 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     previous_token = token;
     if (select_start || clause_start)
       clause = token->keyword_id;
+    if (token->keyword_id == SEQUEL_KEYWORD_CASE)
+      ++case_depth;
+    else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
+      --case_depth;
     list_clause = is_list_clause(clause);
   }
   if (!data) {

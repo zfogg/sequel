@@ -94,6 +94,9 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   size_t comment_count = 0;
   bool comment_before_sql = false;
+  bool compact_operator = false;
+  for (size_t i = 0; i < source_length; ++i)
+    compact_operator |= source.data[i] == '#' || source.data[i] == '@';
   for (size_t i = 0; i < token_count; ++i)
     if (tokens[i].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT) {
       ++comment_count;
@@ -103,6 +106,9 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
           comment_before_sql = true;
           break;
         }
+    } else if (tokens[i].kind == SEQUEL_TOKEN_OPERATOR && tokens[i].range.end > tokens[i].range.start) {
+      char first = source.data[tokens[i].range.start];
+      compact_operator |= first == '#' || first == '?' || first == '@';
     }
   size_t case_count = 0, end_count = 0;
   for (size_t i = 0; i < token_count; ++i) {
@@ -122,7 +128,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   /* Dense generated SQL often carries comment attachment semantics that a
    * recovered tree cannot safely reflow. Keep those documents lossless until
    * the formatter has a comment-aware syntax tree. */
-  if (comment_before_sql || (comment_count > 8 && source_length > 4096))
+  if (comment_before_sql || compact_operator || (comment_count > 8 && source_length > 4096))
     format_options.mode = SEQUEL_FORMAT_LEXICAL;
   sequel_text_result_t result = {0};
   status = sequel_format_tokens(lexed, &format_options, &result);
