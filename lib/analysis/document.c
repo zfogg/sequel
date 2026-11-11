@@ -5,6 +5,8 @@
 #include <sequel/sanitizer.h>
 #include <sequel/summary.h>
 
+#include "../tokens.h"
+
 struct sequel_query_analysis {
   const sequel_query_document_t *query;
   sequel_query_analysis_options_t options;
@@ -78,15 +80,13 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if (token->range.end > source.length || token->range.start > token->range.end)
+    if (!sequel_token_has_range(token, source.length))
       return SEQUEL_ERR_INVALID_ARGUMENT;
     if (segment_count == SIZE_MAX / sizeof(**owned_segments))
       return SEQUEL_ERR_OVERFLOW;
     ++segment_count;
-    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
-                      (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT))
-                         ? 0
-                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL)
+    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) ? 0
+                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token)
                          ? 1
                          : token->range.end - token->range.start;
   }
@@ -100,9 +100,8 @@ static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed,
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
     size_t source_length = token->range.end - token->range.start;
-    bool removed = (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
-                   (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT);
-    bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && (token->flags & SEQUEL_TOKEN_FLAG_LITERAL);
+    bool removed = (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token);
+    bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token);
     size_t result_length = removed ? 0 : replaced ? 1 : source_length;
     segments[segment++] = (sequel_analysis_map_segment_t){token->range.start, token->range.end, output_offset,
                                                           output_offset + result_length,

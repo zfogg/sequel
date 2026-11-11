@@ -3,6 +3,8 @@
 
 #include <sequel/sanitizer.h>
 
+#include "tokens.h"
+
 static int sanitizer_append_bytes(char **data, size_t *length, size_t *capacity, const char *bytes, size_t amount) {
   if (amount > SIZE_MAX - *length)
     return 0;
@@ -39,13 +41,12 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if (token->range.end > source.length || token->range.start > token->range.end)
+    if (!sequel_token_has_range(token, source.length))
       goto invalid;
     if (token->flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED)) {
       goto invalid;
     }
-    if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) &&
-        (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)) {
+    if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) {
       bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count &&
                             tokens[i + 1].range.start == token->range.end;
       if (adjacent_block && length && data[length - 1] != ' ' && data[length - 1] != '\n')
@@ -54,7 +55,7 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       continue;
     }
     if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && !(token->flags & SEQUEL_TOKEN_FLAG_COMMENT) &&
-        ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
+        (sequel_token_is_literal(token) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
       if (token->kind == SEQUEL_TOKEN_PARAMETER) {
