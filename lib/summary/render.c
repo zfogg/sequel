@@ -2496,7 +2496,7 @@ summary_postprocess:
     }
   }
   size_t rendered_tail_start = text && length > 32 ? length - 32 : 0;
-  if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query) &&
+  if (text && sequel_query_outer_limit(query) &&
       !sequel_summary_find_text(text + rendered_tail_start, "LIMIT")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
       goto no_memory;

@@ -429,6 +429,28 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
   }
+  if (!document->cte_count && document->statement_count) {
+    size_t outer = document->statements[0].range.start;
+    document->outer_range = (sequel_source_range_t){outer, source.length};
+    unsigned outer_depth = 0;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.end <= outer || is_trivia(&tokens[token]))
+        continue;
+      char punctuation = source.data[tokens[token].range.start];
+      if (punctuation == '(' || punctuation == ')') {
+        if (punctuation == '(')
+          ++outer_depth;
+        else if (outer_depth)
+          --outer_depth;
+        continue;
+      }
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
+          word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+        document->outer_limit = true;
+        break;
+      }
+    }
+  }
   /* ClickHouse also permits scalar WITH bindings without a parenthesized CTE:
    * WITH expr AS name SELECT ... . The syntax node is intentionally retained
    * as WITH, but the normalized statement operation is the executable body. */
