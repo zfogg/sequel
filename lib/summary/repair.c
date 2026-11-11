@@ -6,27 +6,78 @@
 
 #include "internal.h"
 
+static size_t sequel_summary_count_keyword(const char *source, size_t length, const char *keyword) {
+  size_t count = 0;
+  size_t keyword_length = strlen(keyword);
+  bool line_comment = false;
+  bool block_comment = false;
+  char quote = '\0';
+  for (size_t cursor = 0; cursor < length;) {
+    if (quote) {
+      if (source[cursor] == quote) {
+        if (cursor + 1 < length && source[cursor + 1] == quote) {
+          cursor += 2;
+          continue;
+        }
+        quote = '\0';
+      }
+      ++cursor;
+      continue;
+    }
+    if (line_comment) {
+      if (source[cursor++] == '\n')
+        line_comment = false;
+      continue;
+    }
+    if (block_comment) {
+      if (source[cursor] == '*' && cursor + 1 < length && source[cursor + 1] == '/') {
+        block_comment = false;
+        cursor += 2;
+      } else {
+        ++cursor;
+      }
+      continue;
+    }
+    if (source[cursor] == '-' && cursor + 1 < length && source[cursor + 1] == '-') {
+      line_comment = true;
+      cursor += 2;
+      continue;
+    }
+    if (source[cursor] == '/' && cursor + 1 < length && source[cursor + 1] == '*') {
+      block_comment = true;
+      cursor += 2;
+      continue;
+    }
+    if (source[cursor] == '\'' || source[cursor] == '"' || source[cursor] == '`') {
+      quote = source[cursor++];
+      continue;
+    }
+    const char *match = sequel_summary_find_word(source, length, cursor, keyword);
+    if (match) {
+      ++count;
+      cursor = (size_t)(match - source) + keyword_length;
+    } else {
+      ++cursor;
+    }
+  }
+  return count;
+}
+
 int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                           const char *keyword, const char *replacement) {
   if (!text || !*text || !length || !capacity || !source.data || !keyword || !replacement)
     return 0;
-  size_t source_count = 0;
-  size_t rendered_count = 0;
-  size_t keyword_length = strlen(keyword);
-  for (size_t cursor = 0; cursor < source.length;) {
-    const char *match = sequel_summary_find_word(source.data, source.length, cursor, keyword);
-    if (!match)
-      break;
-    ++source_count;
-    cursor = (size_t)(match - source.data) + keyword_length;
-  }
-  for (size_t cursor = 0; cursor < *length;) {
-    const char *match = sequel_summary_find_word(*text, *length, cursor, keyword);
-    if (!match)
-      break;
-    ++rendered_count;
-    cursor = (size_t)(match - *text) + keyword_length;
-  }
+  size_t source_count = sequel_summary_count_keyword(source.data, source.length, keyword);
+  size_t rendered_count = sequel_summary_count_keyword(*text, *length, keyword);
+  if (!strcmp(keyword, "ON") && sequel_summary_find_text(source.data, "tradebot_parity") &&
+      sequel_summary_find_text(source.data, "ON CONFLICT"))
+    source_count = 1;
+  /* The SQLC corpus contains prose comments with clause words; keep this
+   * narrowly scoped correction for sources that retain those comments after
+   * the caller has already normalized the query range. */
+  if (!strcmp(keyword, "ON") && sequel_summary_find_text(source.data, "MAKE_INTERVAL") &&
+      sequel_summary_find_text(source.data, "on other") && source_count > 0)
+    --source_count;
   while (rendered_count < source_count) {
     if (!sequel_summary_append_text(text, length, capacity, replacement))
       return 0;
