@@ -24,6 +24,8 @@ struct sequel_query_document {
   size_t projection_count;
   sequel_predicate_info_t *predicates;
   size_t predicate_count;
+  sequel_clause_info_t *clauses;
+  size_t clause_count;
 };
 
 static int append(void **array, size_t *count, size_t size, const void *value) {
@@ -864,6 +866,32 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
   }
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || !is_clause_keyword(&tokens[i]))
+      continue;
+    size_t statement_index = SIZE_MAX;
+    for (size_t s = 0; s < document->statement_count; ++s)
+      if (sequel_source_range_contains(document->statements[s].range, tokens[i].range)) {
+        statement_index = s;
+        break;
+      }
+    if (statement_index == SIZE_MAX)
+      continue;
+    size_t end = document->statements[statement_index].range.end;
+    for (size_t j = i + 1; j < token_count; ++j) {
+      if (tokens[j].range.start >= end)
+        break;
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[j])) {
+        end = tokens[j].range.start;
+        break;
+      }
+    }
+    sequel_clause_info_t clause = {{tokens[i].range.start, end}, statement_index, tokens[i].keyword_id};
+    if (!append((void **)&document->clauses, &document->clause_count, sizeof(clause), &clause)) {
+      sequel_query_document_free(document);
+      return SEQUEL_ERR_NOMEM;
+    }
+  }
   *out = document;
   return SEQUEL_OK;
 }
@@ -878,6 +906,7 @@ void sequel_query_document_free(sequel_query_document_t *document) {
   free(document->joins);
   free(document->projections);
   free(document->predicates);
+  free(document->clauses);
   free(document);
 }
 
@@ -943,6 +972,14 @@ size_t sequel_query_predicate_count(const sequel_query_document_t *document) {
 
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document) {
   return document ? document->predicates : NULL;
+}
+
+size_t sequel_query_clause_count(const sequel_query_document_t *document) {
+  return document ? document->clause_count : 0;
+}
+
+const sequel_clause_info_t *sequel_query_clauses(const sequel_query_document_t *document) {
+  return document ? document->clauses : NULL;
 }
 
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document) {

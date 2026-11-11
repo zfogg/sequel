@@ -37,6 +37,13 @@ typedef struct {
   uint32_t flags;
 } sequel_statement_info_t;
 
+/** A clause boundary retained from the parsed token stream. */
+typedef struct {
+  sequel_source_range_t range;
+  size_t statement_index;
+  uint32_t keyword_id;
+} sequel_clause_info_t;
+
 typedef enum {
   SEQUEL_RELATION_TABLE = 0,
   SEQUEL_RELATION_SUBQUERY,
@@ -146,6 +153,8 @@ size_t sequel_query_projection_count(const sequel_query_document_t *document);
 const sequel_projection_info_t *sequel_query_projections(const sequel_query_document_t *document);
 size_t sequel_query_predicate_count(const sequel_query_document_t *document);
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document);
+size_t sequel_query_clause_count(const sequel_query_document_t *document);
+const sequel_clause_info_t *sequel_query_clauses(const sequel_query_document_t *document);
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document);
 
 /** Return the dialect retained by the query document. */
