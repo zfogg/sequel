@@ -1125,9 +1125,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                                      (size_t)(close + 1 - source.data)) ||
               !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !sequel_summary_append_text(&text, &length, &capacity,
-                                          sequel_summary_find_text(source.data, "a.id=b.id") ? " ON a.id=b.id"
-                                                                                             : " ON ?") ||
+              !sequel_summary_append_text(&text, &length, &capacity, " ON ?") ||
               (sequel_summary_find_text(close + 1, " LIMIT ") &&
                !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
@@ -1190,11 +1188,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              (omit_cross_condition
-                   ? 0
-                   : !sequel_summary_append_text(&text, &length, &capacity,
-                                                 sequel_summary_find_text(source.data, "a.id=b.id") ? " ON a.id=b.id"
-                                                                                                    : " ON ?")) ||
+              (omit_cross_condition ? 0 : !sequel_summary_append_text(&text, &length, &capacity, " ON ?")) ||
               (outer_limit && (!next_join || outer_limit < next_join) &&
                !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
@@ -1630,10 +1624,23 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!sequel_summary_append_text(&text, &length, &capacity, " SAMPLE"))
       goto no_memory;
   }
-  if (settings->include_predicates && sequel_summary_find_text(source.data, "GLOBAL IN (SELECT") &&
-      !sequel_summary_find_text(text ? text : "", " FROM users WHERE")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " FROM users WHERE"))
-      goto no_memory;
+  if (settings->include_predicates && text) {
+    const sequel_relation_info_t *relations = sequel_query_relations(query);
+    for (size_t i = 0; i < sequel_query_relation_count(query); ++i) {
+      if (!(relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) ||
+          relations[i].name_range.end <= relations[i].name_range.start)
+        continue;
+      const char *name = source.data + relations[i].name_range.start;
+      size_t name_length = relations[i].name_range.end - relations[i].name_range.start;
+      if (!sequel_summary_find_text(source.data + relations[i].range.start, " WHERE "))
+        continue;
+      if (text && sequel_summary_find_text(text, name))
+        continue;
+      if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+          !sequel_summary_append_bytes(&text, &length, &capacity, name, name_length) ||
+          !sequel_summary_append_text(&text, &length, &capacity, " WHERE"))
+        goto no_memory;
+    }
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
       statements[0].operation == SEQUEL_OPERATION_SELECT && !sequel_summary_find_text(source.data, "QUALIFY")) {
@@ -1945,45 +1952,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !sequel_summary_append_bytes(&text, &length, &capacity, source.data + table, end - table))
       goto no_memory;
   }
-  if (sequel_summary_word(source.data, source.length, 0, "MERGE")) {
-    const char *merge_fragments[] = {"MERGE INTO inventory", "USING incoming", "ON i.sku=n.sku", "WHEN MATCHED"};
-    for (size_t i = 0; i < sizeof(merge_fragments) / sizeof(merge_fragments[0]); ++i)
-      if (!sequel_summary_find_text(text, merge_fragments[i]) &&
-          !sequel_summary_append_text(&text, &length, &capacity, " "))
-        goto no_memory;
-    if (!sequel_summary_find_text(text, "MERGE INTO inventory") &&
-        !sequel_summary_append_text(&text, &length, &capacity, "MERGE INTO inventory"))
-      goto no_memory;
-    if (!sequel_summary_find_text(text, "USING incoming") &&
-        !sequel_summary_append_text(&text, &length, &capacity, " USING incoming"))
-      goto no_memory;
-    if (!sequel_summary_find_text(text, "ON i.sku=n.sku") &&
-        !sequel_summary_append_text(&text, &length, &capacity, " ON i.sku=n.sku"))
-      goto no_memory;
-    if (!sequel_summary_find_text(text, "WHEN MATCHED") &&
-        !sequel_summary_append_text(&text, &length, &capacity, " WHEN MATCHED"))
-      goto no_memory;
-  }
-  if (sequel_summary_word(source.data, source.length, 0, "EXPLAIN") &&
-      sequel_summary_find_text(source.data, "SELECT * FROM users") && !sequel_summary_find_text(text, "SELECT ")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-        !sequel_summary_append_text(&text, &length, &capacity, " FROM users WHERE ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-      goto no_memory;
-  }
-  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
-      !sequel_summary_find_text(text, "SELECT DISTINCT ON")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT DISTINCT ON") ||
-        !sequel_summary_append_text(&text, &length, &capacity, " FROM events ORDER BY ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-      goto no_memory;
-  }
-  if (sequel_summary_find_text(source.data, "GLOBAL ANY LEFT JOIN") &&
-      !sequel_summary_find_text(text, "GLOBAL ANY LEFT JOIN")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " GLOBAL ANY LEFT JOIN projects"))
-      goto no_memory;
-  }
   if (sequel_query_cte_count(query) && text && statements[0].operation == SEQUEL_OPERATION_DELETE) {
     char *delete_using = sequel_summary_find_text(text, "DELETE USING ");
     if (delete_using) {
@@ -2012,11 +1980,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-  }
-  if (sequel_query_cte_count(query) && text && sequel_summary_find_text(source.data, " JOIN accounts USING") &&
-      !sequel_summary_find_text(text, "JOIN accounts")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN accounts USING (id)"))
-      goto no_memory;
   }
   if (text) {
     char *first_nested = sequel_summary_find_text(text, "SELECT \342\200\246 FROM (WITH");
@@ -2277,19 +2240,6 @@ summary_postprocess:
         memcpy(alias, new_alias, new_length);
         length = strlen(text);
       }
-    }
-    if (text && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
-        sequel_summary_find_text(source.data, "(SELECT ") &&
-        sequel_summary_find_text(source.data, " FROM users WHERE ")) {
-      length = 0;
-      text[0] = '\0';
-      if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE accounts SET ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " (SELECT ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " FROM ledger) FROM users WHERE ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-        goto no_memory;
     }
     if (text && statements[0].operation == SEQUEL_OPERATION_MERGE &&
         sequel_summary_word(source.data, source.length, 0, "MERGE")) {
