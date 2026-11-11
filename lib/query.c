@@ -381,6 +381,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     document->statement_count = kept;
     size_t outer = document->ctes[document->cte_count - 1].range.end;
+    if (document->statement_count && document->statements[0].range.start >= outer)
+      outer = document->statements[0].range.start;
     document->outer_range = (sequel_source_range_t){outer, source.length};
     document->outer_distinct_on = false;
     for (size_t token = 0; token < token_count; ++token) {

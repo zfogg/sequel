@@ -621,6 +621,17 @@ int main(void) {
     return 1;
   sequel_query_document_free(cte_query);
   sequel_syntax_document_free(cte_syntax);
+  const char distinct_cte_sql[] = "WITH recent AS (SELECT id FROM events)\nSELECT DISTINCT ON (id) id FROM recent";
+  sequel_source_view_t distinct_cte_source = {distinct_cte_sql, strlen(distinct_cte_sql)};
+  sequel_syntax_document_t *distinct_cte_syntax = NULL;
+  sequel_query_document_t *distinct_cte_query = NULL;
+  if (!check(sequel_parse_sql(&distinct_cte_source, &options, NULL, &distinct_cte_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(distinct_cte_syntax, &options, &distinct_cte_query) == SEQUEL_OK &&
+                 sequel_query_outer_distinct_on(distinct_cte_query),
+             "cte outer distinct metadata"))
+    return 1;
+  sequel_query_document_free(distinct_cte_query);
+  sequel_syntax_document_free(distinct_cte_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
