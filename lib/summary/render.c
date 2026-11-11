@@ -2657,6 +2657,29 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
+    size_t source_joins = 0;
+    size_t rendered_joins = 0;
+    for (size_t cursor = 0; cursor < source.length;) {
+      const char *join = sequel_summary_find_word(source.data, source.length, cursor, "JOIN");
+      if (!join)
+        break;
+      ++source_joins;
+      cursor = (size_t)(join - source.data) + 4;
+    }
+    for (size_t cursor = 0; cursor < length;) {
+      const char *join = sequel_summary_find_word(text, length, cursor, "JOIN");
+      if (!join)
+        break;
+      ++rendered_joins;
+      cursor = (size_t)(join - text) + 4;
+    }
+    while (rendered_joins < source_joins) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
+        goto no_memory;
+      ++rendered_joins;
+    }
+  }
   if (text && sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(text, "LATERAL")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
       goto no_memory;
