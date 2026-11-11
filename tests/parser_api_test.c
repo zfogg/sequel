@@ -598,7 +598,8 @@ int main(void) {
   sequel_buffer_view_t serialized_view = {serialized.data, serialized.length};
   sequel_document_bundle_t *bundle = NULL;
   if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_OK &&
-                 sequel_document_bundle_syntax(bundle) != NULL && sequel_document_bundle_query(bundle) != NULL,
+                 sequel_document_bundle_syntax(bundle) != NULL && sequel_document_bundle_query(bundle) != NULL &&
+                 sequel_query_clause_count(sequel_document_bundle_query(bundle)) == sequel_query_clause_count(query),
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
