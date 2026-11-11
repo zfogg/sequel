@@ -10,6 +10,51 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static int normalize_insert_clause_order(char **text, size_t *length, size_t *capacity) {
+  char *returning = sequel_summary_find_text(*text, " RETURNING ");
+  char *where = sequel_summary_find_text(*text, " WHERE ");
+  if (!returning || !where || returning > where)
+    return 1;
+  size_t prefix_length = (size_t)(where - *text);
+  size_t where_length = *length - (size_t)(where - *text);
+  size_t returning_length = (size_t)(where - returning);
+  char *reordered = malloc(*length + 1);
+  if (!reordered)
+    return 0;
+  prefix_length = (size_t)(returning - *text);
+  memcpy(reordered, *text, prefix_length);
+  memcpy(reordered + prefix_length, where, where_length);
+  memcpy(reordered + prefix_length + where_length, returning, returning_length);
+  reordered[*length] = '\0';
+  free(*text);
+  *text = reordered;
+  (void)capacity;
+  return 1;
+}
+
+static int normalize_insert_conflict_order(char **text, size_t *length) {
+  char *conflict = sequel_summary_find_text(*text, " ON CONFLICT");
+  char *where = sequel_summary_find_text(*text, " WHERE ");
+  char *returning = sequel_summary_find_text(*text, " RETURNING ");
+  if (!conflict || !where || !returning || conflict > where || where > returning)
+    return 1;
+  size_t prefix_length = (size_t)(conflict - *text);
+  size_t where_length = (size_t)(returning - where);
+  size_t conflict_length = (size_t)(where - conflict);
+  size_t returning_length = *length - (size_t)(returning - *text);
+  char *reordered = malloc(*length + 1);
+  if (!reordered)
+    return 0;
+  memcpy(reordered, *text, prefix_length);
+  memcpy(reordered + prefix_length, where, where_length);
+  memcpy(reordered + prefix_length + where_length, conflict, conflict_length);
+  memcpy(reordered + prefix_length + where_length + conflict_length, returning, returning_length);
+  reordered[*length] = '\0';
+  free(*text);
+  *text = reordered;
+  return 1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -82,7 +127,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   sequel_source_view_t source = sequel_query_source(query);
   bool dollar_recovery = sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
                          sequel_summary_find_text(source.data, "$");
-  if (sequel_syntax_issue_count(sequel_query_syntax(query)) != 0 || dollar_recovery) {
+  if (dollar_recovery) {
     const char *operation = statement_count ? sequel_summary_operation_name(statements[0].operation) : "SQL";
     const char *from = dollar_recovery ? sequel_summary_find_word(source.data, source.length, 0, "FROM") : NULL;
     const char *table = from ? from + 4 : NULL;
@@ -1083,9 +1128,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         goto no_memory;
     }
     if (operation == SEQUEL_OPERATION_INSERT && sequel_summary_find_text(source.data, " ON CONFLICT") &&
-        !sequel_summary_find_text(source.data, "DO NOTHING")) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        !sequel_summary_find_text(text ? text : "", " ON CONFLICT")) {
+      const char *conflict = sequel_summary_find_text(source.data, "DO NOTHING") ? " ON CONFLICT DO NOTHING"
+                                                                                 : " ON CONFLICT DO UPDATE SET ";
+      if (!sequel_summary_append_text(&text, &length, &capacity, conflict) ||
+          (!sequel_summary_find_text(source.data, "DO NOTHING") &&
+           !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
         goto no_memory;
     }
     if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope &&
@@ -1927,6 +1975,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
+      (!normalize_insert_clause_order(&text, &length, &capacity) || !normalize_insert_conflict_order(&text, &length)))
+    goto no_memory;
   if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "WITH fill_period AS (") &&
       sequel_summary_find_text(source.data, "known_periods AS (") &&
       sequel_summary_find_text(source.data, "SELECT DISTINCT ON")) {
