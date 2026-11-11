@@ -1511,7 +1511,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     }
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && !sequel_summary_find_text(source.data, "QUALIFY")) {
+      statements[0].operation == SEQUEL_OPERATION_SELECT) {
     for (size_t i = outer_start; i < source.length; ++i) {
       if (sequel_summary_word(source.data, source.length, i, "ORDER") &&
           sequel_summary_word(source.data, source.length, sequel_summary_skip_space(source.data, source.length, i + 5),
