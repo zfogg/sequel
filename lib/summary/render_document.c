@@ -1712,8 +1712,17 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       goto no_memory;
   }
   if (sequel_summary_find_text(source.data, "QUALIFY") && !sequel_summary_find_text(text, " QUALIFY")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " QUALIFY ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    const char *qualify_text = " QUALIFY …";
+    char *order = sequel_summary_find_text(text, " ORDER BY ");
+    size_t qualify_length = strlen(qualify_text);
+    if (order) {
+      size_t offset = (size_t)(order - text);
+      size_t old_length = length;
+      if (!sequel_summary_append_text(&text, &length, &capacity, qualify_text))
+        goto no_memory;
+      memmove(text + offset + qualify_length, text + offset, old_length - offset + 1);
+      memcpy(text + offset, qualify_text, qualify_length);
+    } else if (!sequel_summary_append_text(&text, &length, &capacity, qualify_text))
       goto no_memory;
   }
   if (sequel_summary_word(source.data, source.length, 0, "PIVOT") && !sequel_summary_find_text(text, "PIVOT sales")) {
