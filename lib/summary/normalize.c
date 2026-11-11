@@ -114,12 +114,13 @@ int sequel_summary_render_scalar_projection_summary(char **text, size_t *length,
                                                     const sequel_query_document_t *query, sequel_source_view_t source,
                                                     const sequel_statement_info_t *statement) {
   if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || sequel_query_projection_count(query) < 2 ||
-      sequel_query_relation_count(query) == 0)
+      sequel_query_relation_count(query) == 0 || sequel_summary_find_text(source.data, " JOIN ") ||
+      sequel_summary_find_text(source.data, " LATERAL "))
     return 0;
   const sequel_projection_info_t *projections = sequel_query_projections(query);
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   for (size_t i = 0; i < sequel_query_projection_count(query); ++i)
-    if (!sequel_summary_find_text(source.data + projections[i].range.start, "COALESCE((SELECT"))
+    if (!sequel_summary_find_text(source.data + projections[i].range.start, "(SELECT"))
       return 0;
   size_t outer = SIZE_MAX;
   for (size_t i = 0; i < sequel_query_relation_count(query); ++i)

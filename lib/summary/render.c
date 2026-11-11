@@ -789,7 +789,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         grouped_relation = true;
       }
     }
-    for (size_t relation_pass = 0; relation_pass < 2; ++relation_pass)
+    size_t relation_passes = sequel_query_join_count(query) ? 2 : 1;
+    for (size_t relation_pass = 0; relation_pass < relation_passes; ++relation_pass)
       for (size_t i = 0; i < relation_count; ++i) {
         if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
             !sequel_summary_find_text(source.data, " LATERAL "))
@@ -819,7 +820,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             join_index = j;
             break;
           }
-        if ((relation_pass == 0) == (join_index != SIZE_MAX))
+        if (relation_passes == 2 && (relation_pass == 0) == (join_index != SIZE_MAX))
           continue;
         for (size_t p = 0;
              (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && p < sequel_query_predicate_count(query); ++p) {
