@@ -65,7 +65,6 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   sanitized.length = strlen(sanitized.data);
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
-  summary_options.max_length = 0;
   summary_options.include_bind_count = false;
   summary_options.redact_relations = true;
   status = sequel_summarize_query(query, &summary_options, &summary);
