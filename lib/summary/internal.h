@@ -63,6 +63,8 @@ const char *sequel_summary_matching_close(const char *open, const char *end);
 int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity,
                                          const sequel_query_document_t *query, size_t start, size_t end);
 int sequel_summary_normalize_nested_subqueries(char **text, size_t *length, size_t *capacity);
+int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source, size_t source_length,
+                                    const char *keyword, const char *replacement);
 
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,

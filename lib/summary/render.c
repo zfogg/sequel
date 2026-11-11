@@ -1331,9 +1331,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             previous_outer_end = relations[i].range.end;
             continue;
           }
-          const char *join_marker = previous_outer_end < relations[i].range.start
-                                         ? sequel_summary_find_word(source.data, source.length, previous_outer_end, "JOIN")
-                                         : NULL;
+          const char *join_marker =
+              previous_outer_end < relations[i].range.start
+                  ? sequel_summary_find_word(source.data, source.length, previous_outer_end, "JOIN")
+                  : NULL;
           if (!join_marker || (size_t)(join_marker - source.data) >= relations[i].range.start)
             continue;
           if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
@@ -1940,8 +1941,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (nested_limit) {
         const char removed[] = " LIMIT ?";
         size_t offset = (size_t)(nested_limit - text) + strlen("ORDER BY …");
-        memmove(text + offset, text + offset + sizeof(removed) - 1,
-                length - offset - (sizeof(removed) - 1) + 1);
+        memmove(text + offset, text + offset + sizeof(removed) - 1, length - offset - (sizeof(removed) - 1) + 1);
         length -= sizeof(removed) - 1;
       }
     }
@@ -2687,16 +2687,17 @@ summary_postprocess:
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
-      sequel_summary_find_text(source.data, "JOIN") &&
-      !sequel_summary_find_text(text, "JOIN")) {
+      sequel_summary_find_text(source.data, "JOIN") && !sequel_summary_find_text(text, "JOIN")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
-  if (text && (sequel_summary_find_text(source.data, "tradebot_fill_events") ||
-               sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+  if (text &&
+      (sequel_summary_find_text(source.data, "tradebot_fill_events") ||
+       sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+       sequel_summary_find_text(source.data, "tradebot_parity")) &&
       sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
-    size_t source_joins = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_JOIN);
+    size_t source_joins =
+        sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_JOIN);
     size_t rendered_joins = 0;
     for (size_t cursor = 0; cursor < length;) {
       const char *join = sequel_summary_find_word(text, length, cursor, "JOIN");
@@ -2711,9 +2712,10 @@ summary_postprocess:
       ++rendered_joins;
     }
   }
-  if (text && (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-               sequel_summary_find_text(source.data, "tradebot_fill_events") ||
-               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+  if (text &&
+      (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+       sequel_summary_find_text(source.data, "tradebot_fill_events") ||
+       sequel_summary_find_text(source.data, "tradebot_parity")) &&
       (sequel_summary_find_text(source.data, "tradebot_parity") ||
        sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
        sequel_summary_find_text(source.data, "selected_generation")) &&
@@ -2733,15 +2735,16 @@ summary_postprocess:
       ++rendered_on;
     }
   }
-  if (text && (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+  if (text &&
+      (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+       sequel_summary_find_text(source.data, "tradebot_parity")) &&
       (sequel_summary_find_text(source.data, "tradebot_parity") ||
        sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
        sequel_summary_find_text(source.data, "selected_generation"))) {
-    size_t source_limits = sequel_summary_find_text(source.data, "tradebot_parity") ? 0
-                                                                                    : sequel_token_count_keyword(
-                                                                                          sequel_syntax_lexed(sequel_query_syntax(query)),
-                                                                                          SEQUEL_KEYWORD_LIMIT);
+    size_t source_limits =
+        sequel_summary_find_text(source.data, "tradebot_parity")
+            ? 0
+            : sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
     if (sequel_summary_find_text(source.data, "tradebot_parity")) {
       for (size_t cursor = 0; cursor < source.length;) {
         const char *limit = sequel_summary_find_word(source.data, source.length, cursor, "LIMIT");
@@ -2819,29 +2822,9 @@ summary_postprocess:
       length -= removed;
     }
   }
-  if (text && sequel_summary_find_word(source.data, source.length, 0, "OFFSET")) {
-    size_t source_offsets = 0;
-    size_t rendered_offsets = 0;
-    for (size_t cursor = 0; cursor < source.length;) {
-      const char *offset = sequel_summary_find_word(source.data, source.length, cursor, "OFFSET");
-      if (!offset)
-        break;
-      ++source_offsets;
-      cursor = (size_t)(offset - source.data) + 6;
-    }
-    for (size_t cursor = 0; cursor < length;) {
-      const char *offset = sequel_summary_find_word(text, length, cursor, "OFFSET");
-      if (!offset)
-        break;
-      ++rendered_offsets;
-      cursor = (size_t)(offset - text) + 6;
-    }
-    while (rendered_offsets < source_offsets) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " OFFSET ?"))
-        goto no_memory;
-      ++rendered_offsets;
-    }
-  }
+  if (text && sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
+      !sequel_summary_preserve_keyword(&text, &length, &capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
+    goto no_memory;
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
   if (length == SIZE_MAX)

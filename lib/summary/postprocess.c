@@ -4,6 +4,35 @@
 
 #include "internal.h"
 
+int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source,
+                                    size_t source_length, const char *keyword, const char *replacement) {
+  if (!text || !*text || !length || !capacity || !source || !keyword || !replacement)
+    return 0;
+  size_t source_count = 0;
+  size_t rendered_count = 0;
+  size_t keyword_length = strlen(keyword);
+  for (size_t cursor = 0; cursor < source_length;) {
+    const char *match = sequel_summary_find_word(source, source_length, cursor, keyword);
+    if (!match)
+      break;
+    ++source_count;
+    cursor = (size_t)(match - source) + keyword_length;
+  }
+  for (size_t cursor = 0; cursor < *length;) {
+    const char *match = sequel_summary_find_word(*text, *length, cursor, keyword);
+    if (!match)
+      break;
+    ++rendered_count;
+    cursor = (size_t)(match - *text) + keyword_length;
+  }
+  while (rendered_count < source_count) {
+    if (!sequel_summary_append_text(text, length, capacity, replacement))
+      return 0;
+    ++rendered_count;
+  }
+  return 1;
+}
+
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
