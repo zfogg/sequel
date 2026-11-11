@@ -556,14 +556,35 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
               tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
         ++alias;
     }
+    size_t name_end = end;
     sequel_source_range_t alias_range = {end, end};
     if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
         !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
+    if (alias_range.end > alias_range.start) {
+      size_t column_list = alias + 1;
+      while (column_list < token_count && sequel_token_is_trivia(&tokens[column_list]))
+        ++column_list;
+      if (column_list < token_count && sequel_token_is_symbol(source, &tokens[column_list], '(')) {
+        size_t close = column_list;
+        unsigned depth = 0;
+        for (; close < token_count; ++close) {
+          if (!sequel_token_is_single_punctuation(&tokens[close]))
+            continue;
+          char punctuation = source.data[tokens[close].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')' && depth && --depth == 0)
+            break;
+        }
+        if (close < token_count)
+          end = tokens[close].range.end;
+      }
+    }
     sequel_relation_info_t relation = {
         .kind = SEQUEL_RELATION_TABLE,
         .range = {tokens[name].range.start, alias_range.end > end ? alias_range.end : end},
-        .name_range = {tokens[name].range.start, end},
+        .name_range = {tokens[name].range.start, name_end},
         .alias_range = alias_range,
         .statement_index = statement,
         .syntax_node = SIZE_MAX,
