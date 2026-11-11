@@ -138,6 +138,14 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   bool multiple =
       sequel_query_projection_count(query) > 1 ||
       memchr(source.data + projection[0].range.start, ',', projection_end - projection[0].range.start) != NULL;
+  bool array_projection =
+      projection[0].range.start + 5 <= source.length && !memcmp(source.data + projection[0].range.start, "ARRAY", 5);
+  if (multiple && array_projection) {
+    if (!sequel_summary_append_text(text, length, capacity, " ") ||
+        !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
+      return 0;
+    return 1;
+  }
   bool scalar = false;
   unsigned projection_depth = 0;
   for (size_t offset = projection[0].range.start; offset < projection_end; ++offset) {
