@@ -672,8 +672,6 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         analysis_summary_from_query(query, out);
       else
         analysis_summary_default(out);
-      for (size_t i = 0; i < layout.n; ++i)
-        layout.p[i].t.p = safe.p + layout.p[i].source_offset;
       analysis_charge(&a, strlen(out->operation) + 1);
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
       if (!o.omit_query_text && safe.n > limit) {
@@ -711,35 +709,49 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           out->original_to_sanitized = (sequel_source_map_t){n, safe.n, map.p, map.n};
         }
         if (o.format && safe.n && !out->truncated) {
-          size_t capacity = safe.n + 128;
-          char *formatted = malloc(capacity);
-          size_t before = call->output_bytes;
-          output b = {formatted, 0, capacity, false, true};
-          formatted[0] = 0;
-          while (!format_layout(layout.p, layout.n, &b)) {
-            if (!b.overflow) {
-              free(formatted);
-              formatted = NULL;
-              call->output_bytes = before;
-              break;
-            }
-            if (capacity > SIZE_MAX / 2)
-              sequel_abort(SEQUEL_ERR_LIMIT);
-            capacity *= 2;
-            formatted = realloc(formatted, capacity);
-            formatted[0] = 0;
-            call->output_bytes = before;
-            b = (output){formatted, 0, capacity, false, true};
-          }
-          if (formatted) {
+          sequel_source_view_t formatted_source = {safe.p, safe.n};
+          sequel_parse_options_t format_parse_options;
+          sequel_parse_options_init(&format_parse_options);
+          format_parse_options.dialect = o.dialect;
+          format_parse_options.retain_comments = true;
+          sequel_lexed_document_t *formatted_lexed = NULL;
+          sequel_text_result_t formatted_result = {0};
+          sequel_format_options_t format_options;
+          sequel_format_options_init(&format_options);
+          format_options.mode = SEQUEL_FORMAT_SYNTAX_AWARE;
+          if (sequel_lex(&formatted_source, &format_parse_options, NULL, &formatted_lexed) == SEQUEL_OK &&
+              sequel_format_tokens(formatted_lexed, &format_options, &formatted_result) == SEQUEL_OK) {
             analysis_charge(&a, 1);
-            out->formatted = formatted;
+            out->formatted = formatted_result.data;
             if (maps) {
-              analysis_map fm = {0};
-              analysis_format_map(&layout, safe.n, b.n, &fm);
-              out->sanitized_to_formatted = (sequel_source_map_t){safe.n, b.n, fm.p, fm.n};
+              analysis_map *format_map = calloc(1, sizeof(*format_map));
+              if (format_map) {
+                size_t source_cursor = 0, formatted_cursor = 0;
+                while (source_cursor < safe.n && formatted_cursor < formatted_result.length) {
+                  const char *source_question = memchr(safe.p + source_cursor, '?', safe.n - source_cursor);
+                  const char *formatted_question =
+                      memchr(formatted_result.data + formatted_cursor, '?', formatted_result.length - formatted_cursor);
+                  if (!source_question || !formatted_question)
+                    break;
+                  size_t source_question_offset = (size_t)(source_question - safe.p);
+                  size_t formatted_question_offset = (size_t)(formatted_question - formatted_result.data);
+                  analysis_segment(format_map, source_cursor, source_question_offset, formatted_cursor,
+                                   formatted_question_offset, SEQUEL_MAP_REPLACE);
+                  analysis_segment(format_map, source_question_offset, source_question_offset + 1,
+                                   formatted_question_offset, formatted_question_offset + 1, SEQUEL_MAP_COPY);
+                  source_cursor = source_question_offset + 1;
+                  formatted_cursor = formatted_question_offset + 1;
+                }
+                analysis_segment(format_map, source_cursor, safe.n, formatted_cursor, formatted_result.length,
+                                 SEQUEL_MAP_REPLACE);
+                out->sanitized_to_formatted =
+                    (sequel_source_map_t){safe.n, formatted_result.length, format_map->p, format_map->n};
+              }
             }
+            formatted_result.data = NULL;
           }
+          sequel_text_result_free(&formatted_result);
+          sequel_lexed_document_free(formatted_lexed);
         }
       }
       free(layout.p);
