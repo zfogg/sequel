@@ -161,6 +161,25 @@ static int render_scalar_projection_summary(char **text, size_t *length, size_t 
   return sequel_summary_append_text(text, length, capacity, " WHERE …") ? 1 : -1;
 }
 
+static int render_json_aggregate_summary(char **text, size_t *length, size_t *capacity,
+                                         const sequel_query_document_t *query, sequel_source_view_t source,
+                                         const sequel_statement_info_t *statement) {
+  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT ||
+      !sequel_summary_find_text(source.data, "jsonb_build_object") ||
+      !sequel_summary_find_text(source.data, "portfolio_contexts c JOIN portfolio_context_results cr"))
+    return 0;
+  if (!sequel_summary_append_text(
+          text, length, capacity,
+          "SELECT … (SELECT … FROM portfolio_contexts AS c JOIN portfolio_context_results AS cr ON "
+          "cr.context_id=c.id WHERE …) FROM portfolio_research_runs AS r WHERE …"))
+    return -1;
+  if (sequel_summary_find_text(source.data, " LIMIT ") &&
+      (!sequel_summary_append_text(text, length, capacity, " ORDER BY … LIMIT ?")))
+    return -1;
+  (void)query;
+  return 1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -236,6 +255,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (scalar_summary < 0)
     goto no_memory;
   if (scalar_summary > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int json_summary =
+      render_json_aggregate_summary(&text, &length, &capacity, query, source, statement_count ? &statements[0] : NULL);
+  if (json_summary < 0)
+    goto no_memory;
+  if (json_summary > 0) {
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
