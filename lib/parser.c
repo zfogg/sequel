@@ -31,27 +31,27 @@ static sequel_syntax_kind_t statement_kind(const sequel_lexed_document_t *lexed,
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return SEQUEL_SYNTAX_UNKNOWN_STATEMENT;
   switch (token->keyword_id) {
-  case 1:
+  case SEQUEL_KEYWORD_SELECT:
     return SEQUEL_SYNTAX_SELECT_STATEMENT;
-  case 2:
+  case SEQUEL_KEYWORD_INSERT:
     return SEQUEL_SYNTAX_INSERT_STATEMENT;
-  case 3:
+  case SEQUEL_KEYWORD_UPDATE:
     return SEQUEL_SYNTAX_UPDATE_STATEMENT;
-  case 4:
+  case SEQUEL_KEYWORD_DELETE:
     return SEQUEL_SYNTAX_DELETE_STATEMENT;
-  case 22:
+  case SEQUEL_KEYWORD_EXPLAIN:
     return SEQUEL_SYNTAX_EXPLAIN_STATEMENT;
-  case 23:
+  case SEQUEL_KEYWORD_CREATE:
     return SEQUEL_SYNTAX_CREATE_STATEMENT;
-  case 24:
+  case SEQUEL_KEYWORD_ALTER:
     return SEQUEL_SYNTAX_ALTER_STATEMENT;
-  case 25:
+  case SEQUEL_KEYWORD_DROP:
     return SEQUEL_SYNTAX_DROP_STATEMENT;
-  case 26:
-  case 27:
-  case 28:
+  case SEQUEL_KEYWORD_BEGIN:
+  case SEQUEL_KEYWORD_COMMIT:
+  case SEQUEL_KEYWORD_ROLLBACK:
     return SEQUEL_SYNTAX_TRANSACTION_STATEMENT;
-  case 34:
+  case SEQUEL_KEYWORD_MERGE:
     return SEQUEL_SYNTAX_MERGE_STATEMENT;
   default:
     return SEQUEL_SYNTAX_UNKNOWN_STATEMENT;
@@ -74,35 +74,35 @@ static sequel_syntax_kind_t clause_kind(const sequel_token_t *token) {
   switch (token->keyword_id) {
   case SEQUEL_KEYWORD_SELECT:
     return SEQUEL_SYNTAX_SELECT_LIST;
-  case 6:
+  case SEQUEL_KEYWORD_FROM:
     return SEQUEL_SYNTAX_FROM_CLAUSE;
-  case 7:
+  case SEQUEL_KEYWORD_WHERE:
     return SEQUEL_SYNTAX_WHERE_CLAUSE;
   case SEQUEL_KEYWORD_PREWHERE:
     return SEQUEL_SYNTAX_WHERE_CLAUSE;
-  case 8:
+  case SEQUEL_KEYWORD_GROUP:
     return SEQUEL_SYNTAX_GROUP_BY_CLAUSE;
-  case 9:
+  case SEQUEL_KEYWORD_ORDER:
     return SEQUEL_SYNTAX_ORDER_BY_CLAUSE;
-  case 11:
+  case SEQUEL_KEYWORD_LIMIT:
     return SEQUEL_SYNTAX_LIMIT_CLAUSE;
-  case 12:
+  case SEQUEL_KEYWORD_OFFSET:
     return SEQUEL_SYNTAX_OFFSET_CLAUSE;
-  case 16:
+  case SEQUEL_KEYWORD_HAVING:
     return SEQUEL_SYNTAX_HAVING_CLAUSE;
-  case 17:
+  case SEQUEL_KEYWORD_RETURNING:
     return SEQUEL_SYNTAX_RETURNING_CLAUSE;
-  case 18:
+  case SEQUEL_KEYWORD_VALUES:
     return SEQUEL_SYNTAX_VALUES_CLAUSE;
-  case 29:
+  case SEQUEL_KEYWORD_SET:
     return SEQUEL_SYNTAX_SET_CLAUSE;
-  case 30:
+  case SEQUEL_KEYWORD_INTO:
     return SEQUEL_SYNTAX_INTO_CLAUSE;
-  case 31:
+  case SEQUEL_KEYWORD_USING:
     return SEQUEL_SYNTAX_USING_CLAUSE;
-  case 32:
+  case SEQUEL_KEYWORD_WINDOW:
     return SEQUEL_SYNTAX_WINDOW_CLAUSE;
-  case 33:
+  case SEQUEL_KEYWORD_QUALIFY:
     return SEQUEL_SYNTAX_QUALIFY_CLAUSE;
   default:
     return SEQUEL_SYNTAX_ERROR;
