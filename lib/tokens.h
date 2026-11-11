@@ -28,5 +28,5 @@ int sequel_token_is_question(sequel_source_view_t source, const sequel_token_t *
 sequel_status_t sequel_tokens_collapse_in_lists(sequel_text_result_t *result, sequel_dialect_t dialect);
 
 int sequel_keyword_is_clause(uint32_t keyword);
-int sequel_keyword_starts_list(uint32_t keyword);
-int sequel_keyword_is_case_boundary(uint32_t keyword);
+int sequel_keyword_is_list_clause(uint32_t keyword);
+int sequel_keyword_ends_case_branch(uint32_t keyword);
