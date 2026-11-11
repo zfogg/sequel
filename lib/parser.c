@@ -370,7 +370,7 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
       --depth;
       continue;
     }
-    if (!depth && (tokens[i].kind == SEQUEL_TOKEN_OPERATOR || tokens[i].kind == SEQUEL_TOKEN_KEYWORD)) {
+    if (!depth && i != start && (tokens[i].kind == SEQUEL_TOKEN_OPERATOR || tokens[i].kind == SEQUEL_TOKEN_KEYWORD)) {
       int candidate =
           tokens[i].kind == SEQUEL_TOKEN_KEYWORD ? expression_keyword_precedence(&tokens[i]) : expression_precedence(c);
       if (candidate && candidate <= precedence) {
@@ -396,7 +396,10 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
       break;
     }
   }
-  if (split == SIZE_MAX && tokens[start].kind == SEQUEL_TOKEN_OPERATOR)
+  bool unary = split == SIZE_MAX &&
+               (tokens[start].kind == SEQUEL_TOKEN_OPERATOR ||
+                (tokens[start].kind == SEQUEL_TOKEN_KEYWORD && tokens[start].keyword_id == SEQUEL_KEYWORD_NOT));
+  if (unary)
     kind = SEQUEL_SYNTAX_UNARY_EXPRESSION;
   sequel_syntax_node_t node = {.kind = kind,
                                .range = {tokens[start].range.start, tokens[end - 1].range.end},
@@ -412,6 +415,12 @@ static int append_expression(sequel_syntax_document_t *document, const sequel_to
     if (append_expression(document, tokens, source, start, split, &left) < 0 ||
         append_expression(document, tokens, source, split + 1, end, &right) < 0 ||
         !append_child(document, index, left) || !append_child(document, index, right))
+      return -1;
+  } else if (unary) {
+    size_t operand = next_expression_token(tokens, start + 1, end);
+    size_t child = 0;
+    if (operand < end && (append_expression(document, tokens, source, operand, end, &child) < 0 ||
+                          !append_child(document, index, child)))
       return -1;
   }
   *out_index = index;
