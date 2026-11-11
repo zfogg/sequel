@@ -2525,6 +2525,27 @@ summary_postprocess:
   const char *source_last_limit = NULL;
   for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
     source_last_limit = cursor;
+  if (source_last_limit && isdigit((unsigned char)source_last_limit[6])) {
+    const char *expression = source_last_limit + 6;
+    while (isdigit((unsigned char)*expression))
+      ++expression;
+    while (isspace((unsigned char)*expression))
+      ++expression;
+    if (*expression == '+' || *expression == '-' || *expression == '*' || *expression == '/') {
+      char *rendered_limit = sequel_summary_find_text(text, "LIMIT ");
+      if (rendered_limit) {
+        char *value = rendered_limit + 6;
+        while (isdigit((unsigned char)*value))
+          ++value;
+        if (value > rendered_limit + 6) {
+          size_t offset = (size_t)(value - text);
+          memmove(rendered_limit + 7, value, length - offset + 1);
+          rendered_limit[6] = '?';
+          length -= (size_t)(value - (rendered_limit + 7));
+        }
+      }
+    }
+  }
   if (sequel_query_outer_limit(query) && source_last_limit && source_last_limit[6] == '$') {
     char *last_limit = NULL;
     for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
