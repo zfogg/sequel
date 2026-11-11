@@ -2014,15 +2014,7 @@ sequel_status_t sequel_summary_render(const sequel_query_document_t *query, cons
     }
   }
 summary_postprocess:
-  if (!sequel_summary_normalize_projection_shape(&text, &length, &capacity, query))
-    goto no_memory;
-  if (sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(text, " LIMIT ")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
-      goto no_memory;
-  }
-  if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
-      (!sequel_summary_normalize_insert_clause_order(&text, &length, &capacity) ||
-       !sequel_summary_normalize_insert_conflict_order(&text, &length)))
+  if (!sequel_summary_prepare_postprocess(&text, &length, &capacity, query, source, statement_count, statements))
     goto no_memory;
   {
     if (text && !sequel_summary_find_text(text, " USING ")) {

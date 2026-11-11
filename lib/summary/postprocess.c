@@ -33,6 +33,23 @@ int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacit
   return 1;
 }
 
+int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capacity,
+                                       const sequel_query_document_t *query, sequel_source_view_t source,
+                                       size_t statement_count, const sequel_statement_info_t *statements) {
+  if (!text || !length || !capacity || !query || !statements)
+    return 0;
+  if (!sequel_summary_normalize_projection_shape(text, length, capacity, query))
+    return 0;
+  if (sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(*text, " LIMIT ") &&
+      !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
+    return 0;
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
+      (!sequel_summary_normalize_insert_clause_order(text, length, capacity) ||
+       !sequel_summary_normalize_insert_conflict_order(text, length)))
+    return 0;
+  return 1;
+}
+
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
