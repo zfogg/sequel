@@ -762,9 +762,7 @@ done:
 #undef calloc
 #undef realloc
 #undef free
-#define SEQUEL_DIAGNOSTICS_ENGINE 1
 #include "diagnostics.c"
-#undef SEQUEL_DIAGNOSTICS_ENGINE
 #define malloc sequel_alloc
 #define calloc sequel_calloc
 #define realloc sequel_realloc

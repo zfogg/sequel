@@ -289,7 +289,6 @@ sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t 
 /* The scalar diagnostic API shares this canonical collection implementation.
  * It is compiled only in the engine because it uses the engine's resource
  * limits and work accounting. */
-#ifdef SEQUEL_DIAGNOSTICS_ENGINE
 static const struct {
   const char *name, *message, *explanation, *hint;
 } diagnostic_messages[] = {
@@ -579,7 +578,6 @@ sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char
   return status;
 }
 
-#endif
 
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics) {
