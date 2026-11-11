@@ -63,6 +63,15 @@ static bool summary_has_clause(const sequel_query_document_t *query, uint32_t ke
   return false;
 }
 
+static bool summary_has_token(const sequel_query_document_t *query, uint32_t keyword_id) {
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), &count);
+  for (size_t i = 0; i < count; ++i)
+    if (tokens[i].keyword_id == keyword_id)
+      return true;
+  return false;
+}
+
 static int normalize_projection_shape(char **text, size_t *length, size_t *capacity,
                                       const sequel_query_document_t *query) {
   if (sequel_query_projection_count(query) <= 1 || !*text || !sequel_summary_find_text(*text, "SELECT ? FROM "))
@@ -458,7 +467,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_query_relation_count(query) == 0 && summary_has_clause(query, SEQUEL_KEYWORD_FROM)) {
+      sequel_query_relation_count(query) == 0 &&
+      (summary_has_clause(query, SEQUEL_KEYWORD_FROM) || summary_has_token(query, SEQUEL_KEYWORD_FROM))) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
         !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
