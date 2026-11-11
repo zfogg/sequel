@@ -17,6 +17,16 @@ int sequel_token_is_literal(const sequel_token_t *token) { return (token->flags 
 
 int sequel_token_is_bind(const sequel_token_t *token) { return (token->flags & SEQUEL_TOKEN_FLAG_BIND) != 0; }
 
+size_t sequel_token_count_keyword(const sequel_lexed_document_t *lexed, uint32_t keyword) {
+  size_t count = 0;
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  for (size_t i = 0; i < token_count; ++i)
+    if (tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == keyword)
+      ++count;
+  return count;
+}
+
 int sequel_token_has_range(const sequel_token_t *token, size_t source_length) {
   return token->range.start <= token->range.end && token->range.end <= source_length;
 }

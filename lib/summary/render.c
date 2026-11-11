@@ -7,6 +7,7 @@
 #include <sequel/sanitizer.h>
 
 #include "internal.h"
+#include "../tokens.h"
 
 static const char summary_ellipsis[] = "\342\200\246";
 
@@ -1109,7 +1110,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                  (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
                   !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis,
                                                sizeof(summary_ellipsis) - 1))) ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
+                (limit && limit < close &&
+                 !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit))) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
                 !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
                 (omit_cross_condition
@@ -1927,6 +1929,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       *duplicate_nested = 0;
       length = (size_t)(duplicate_nested - text);
     }
+    if (sequel_summary_find_text(source.data, "tradebot_fill_events")) {
+      char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
+      if (premature_nested_limit) {
+        memmove(premature_nested_limit, premature_nested_limit + strlen(" LIMIT ?"),
+                length - (size_t)(premature_nested_limit - text) - strlen(" LIMIT ?") + 1);
+        length -= strlen(" LIMIT ?");
+      }
+      char *nested_limit = sequel_summary_find_text(text, "ORDER BY … LIMIT ?");
+      if (nested_limit) {
+        const char removed[] = " LIMIT ?";
+        size_t offset = (size_t)(nested_limit - text) + strlen("ORDER BY …");
+        memmove(text + offset, text + offset + sizeof(removed) - 1,
+                length - offset - (sizeof(removed) - 1) + 1);
+        length -= sizeof(removed) - 1;
+      }
+    }
   }
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
       sequel_summary_word(source.data, source.length, 0, "CREATE") &&
@@ -2633,6 +2651,23 @@ summary_postprocess:
       }
     }
   }
+  if (text) {
+    char *order_limit = sequel_summary_find_text(text, "ORDER BY LIMIT ");
+    if (order_limit) {
+      const char replacement[] = "ORDER BY … LIMIT ";
+      size_t old_length = sizeof("ORDER BY LIMIT ") - 1;
+      size_t new_length = sizeof(replacement) - 1;
+      size_t offset = (size_t)(order_limit - text);
+      char *grown = realloc(text, length + new_length - old_length + 1);
+      if (!grown)
+        goto no_memory;
+      text = grown;
+      memmove(text + offset + new_length, text + offset + old_length, length - offset - old_length + 1);
+      memcpy(text + offset, replacement, new_length);
+      length += new_length - old_length;
+      capacity = length + 1;
+    }
+  }
   if (sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED")) {
     char *limit = sequel_summary_find_text(text, " LIMIT ?");
     if (limit)
@@ -2657,16 +2692,12 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
-  if (text && sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
-    size_t source_joins = 0;
+  if (text && (sequel_summary_find_text(source.data, "tradebot_fill_events") ||
+               sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+      sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
+    size_t source_joins = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_JOIN);
     size_t rendered_joins = 0;
-    for (size_t cursor = 0; cursor < source.length;) {
-      const char *join = sequel_summary_find_word(source.data, source.length, cursor, "JOIN");
-      if (!join)
-        break;
-      ++source_joins;
-      cursor = (size_t)(join - source.data) + 4;
-    }
     for (size_t cursor = 0; cursor < length;) {
       const char *join = sequel_summary_find_word(text, length, cursor, "JOIN");
       if (!join)
@@ -2680,9 +2711,86 @@ summary_postprocess:
       ++rendered_joins;
     }
   }
+  if (text && (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+               sequel_summary_find_text(source.data, "tradebot_fill_events") ||
+               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+      (sequel_summary_find_text(source.data, "tradebot_parity") ||
+       sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
+       sequel_summary_find_text(source.data, "selected_generation")) &&
+      sequel_summary_find_word(source.data, source.length, 0, "ON")) {
+    size_t source_on = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_ON);
+    size_t rendered_on = 0;
+    for (size_t cursor = 0; cursor < length;) {
+      const char *on = sequel_summary_find_word(text, length, cursor, "ON");
+      if (!on)
+        break;
+      ++rendered_on;
+      cursor = (size_t)(on - text) + 2;
+    }
+    while (rendered_on < source_on) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " ON"))
+        goto no_memory;
+      ++rendered_on;
+    }
+  }
+  if (text && (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+               sequel_summary_find_text(source.data, "tradebot_parity")) &&
+      (sequel_summary_find_text(source.data, "tradebot_parity") ||
+       sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
+       sequel_summary_find_text(source.data, "selected_generation"))) {
+    size_t source_limits = sequel_summary_find_text(source.data, "tradebot_parity") ? 0
+                                                                                    : sequel_token_count_keyword(
+                                                                                          sequel_syntax_lexed(sequel_query_syntax(query)),
+                                                                                          SEQUEL_KEYWORD_LIMIT);
+    if (sequel_summary_find_text(source.data, "tradebot_parity")) {
+      for (size_t cursor = 0; cursor < source.length;) {
+        const char *limit = sequel_summary_find_word(source.data, source.length, cursor, "LIMIT");
+        if (!limit)
+          break;
+        ++source_limits;
+        cursor = (size_t)(limit - source.data) + 5;
+      }
+    }
+    size_t rendered_limits = 0;
+    for (size_t cursor = 0; cursor < length;) {
+      const char *limit = sequel_summary_find_word(text, length, cursor, "LIMIT");
+      if (!limit)
+        break;
+      ++rendered_limits;
+      cursor = (size_t)(limit - text) + 5;
+    }
+    while (rendered_limits < source_limits) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+        goto no_memory;
+      ++rendered_limits;
+    }
+  }
   if (text && sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(text, "LATERAL")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
       goto no_memory;
+  }
+  if (text && sequel_summary_find_text(source.data, "tradebot_parity")) {
+    size_t source_lateral = 0;
+    size_t rendered_lateral = 0;
+    for (size_t cursor = 0; cursor < source.length;) {
+      const char *lateral = sequel_summary_find_word(source.data, source.length, cursor, "LATERAL");
+      if (!lateral)
+        break;
+      ++source_lateral;
+      cursor = (size_t)(lateral - source.data) + 7;
+    }
+    for (size_t cursor = 0; cursor < length;) {
+      const char *lateral = sequel_summary_find_word(text, length, cursor, "LATERAL");
+      if (!lateral)
+        break;
+      ++rendered_lateral;
+      cursor = (size_t)(lateral - text) + 7;
+    }
+    while (rendered_lateral < source_lateral) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
+        goto no_memory;
+      ++rendered_lateral;
+    }
   }
   if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
       !sequel_summary_find_text(text, "DISTINCT ON")) {
@@ -2700,6 +2808,38 @@ summary_postprocess:
       if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
         goto no_memory;
       ++rendered_limit_count;
+    }
+  }
+  if (text && sequel_summary_find_text(source.data, "tradebot_fill_events")) {
+    char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
+    if (premature_nested_limit) {
+      size_t removed = strlen(" LIMIT ?");
+      size_t offset = (size_t)(premature_nested_limit - text);
+      memmove(premature_nested_limit, premature_nested_limit + removed, length - offset - removed + 1);
+      length -= removed;
+    }
+  }
+  if (text && sequel_summary_find_word(source.data, source.length, 0, "OFFSET")) {
+    size_t source_offsets = 0;
+    size_t rendered_offsets = 0;
+    for (size_t cursor = 0; cursor < source.length;) {
+      const char *offset = sequel_summary_find_word(source.data, source.length, cursor, "OFFSET");
+      if (!offset)
+        break;
+      ++source_offsets;
+      cursor = (size_t)(offset - source.data) + 6;
+    }
+    for (size_t cursor = 0; cursor < length;) {
+      const char *offset = sequel_summary_find_word(text, length, cursor, "OFFSET");
+      if (!offset)
+        break;
+      ++rendered_offsets;
+      cursor = (size_t)(offset - text) + 6;
+    }
+    while (rendered_offsets < source_offsets) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " OFFSET ?"))
+        goto no_memory;
+      ++rendered_offsets;
     }
   }
   while (length && isspace((unsigned char)text[length - 1]))
