@@ -10,6 +10,21 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static bool summary_has_projection_scope(const sequel_query_document_t *query) {
+  const sequel_relation_info_t *relations = sequel_query_relations(query);
+  const sequel_join_info_t *joins = sequel_query_joins(query);
+  for (size_t i = 0; i < sequel_query_relation_count(query); ++i) {
+    bool joined = false;
+    for (size_t j = 0; j < sequel_query_join_count(query); ++j)
+      if (joins[j].right_relation == i)
+        joined = true;
+    if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) ||
+        ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && !joined))
+      return true;
+  }
+  return false;
+}
+
 static const char *summary_matching_close(const char *open, const char *end) {
   size_t depth = 0;
   for (const char *cursor = open; cursor < end; ++cursor) {
@@ -2223,7 +2238,7 @@ summary_postprocess:
     if (text && !sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
         sequel_summary_find_text(source.data, " FROM ") && sequel_summary_find_text(source.data, ", ") &&
         sequel_summary_find_text(source.data, " WHERE ") &&
-        !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")) {
+        !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") && !summary_has_projection_scope(query)) {
       const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
       const char *where = sequel_summary_find_text(from, " WHERE ");
       if (where && memchr(from, ',', (size_t)(where - from))) {
