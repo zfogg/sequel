@@ -740,6 +740,17 @@ int main(void) {
   sequel_text_result_free(&lateral_summary);
   sequel_query_document_free(lateral_query);
   sequel_syntax_document_free(lateral_syntax);
+  const char nested_limit_sql[] = "SELECT * FROM accounts WHERE id IN (SELECT id FROM archive LIMIT 1)";
+  sequel_source_view_t nested_limit_source = {nested_limit_sql, strlen(nested_limit_sql)};
+  sequel_syntax_document_t *nested_limit_syntax = NULL;
+  sequel_query_document_t *nested_limit_query = NULL;
+  if (!check(sequel_parse_sql(&nested_limit_source, &options, NULL, &nested_limit_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK &&
+                 !sequel_query_outer_limit(nested_limit_query),
+             "nested limit scope"))
+    return 1;
+  sequel_query_document_free(nested_limit_query);
+  sequel_syntax_document_free(nested_limit_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
