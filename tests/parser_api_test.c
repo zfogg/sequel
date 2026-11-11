@@ -643,6 +643,22 @@ int main(void) {
     return 1;
   sequel_query_document_free(limited_cte_query);
   sequel_syntax_document_free(limited_cte_syntax);
+  const char lateral_sql[] =
+      "SELECT s.id FROM signals s JOIN LATERAL (SELECT * FROM bars WHERE symbol=s.symbol LIMIT 1) b ON true";
+  sequel_source_view_t lateral_source = {lateral_sql, strlen(lateral_sql)};
+  sequel_syntax_document_t *lateral_syntax = NULL;
+  sequel_query_document_t *lateral_query = NULL;
+  sequel_text_result_t lateral_summary = {0};
+  if (!check(sequel_parse_sql(&lateral_source, &options, NULL, &lateral_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(lateral_syntax, &options, &lateral_query) == SEQUEL_OK &&
+                 sequel_query_relation_count(lateral_query) >= 2 && sequel_query_join_count(lateral_query) >= 1 &&
+                 sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
+                 strstr(lateral_summary.data, "JOIN LATERAL") != NULL && strstr(lateral_summary.data, " ON ?") != NULL,
+             "lateral relation summary"))
+    return 1;
+  sequel_text_result_free(&lateral_summary);
+  sequel_query_document_free(lateral_query);
+  sequel_syntax_document_free(lateral_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
