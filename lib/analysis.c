@@ -121,12 +121,14 @@ no_memory:
 static bool boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH",  "FOR",
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
-  if (t.clickhouse && (kw(t, "PREWHERE") || kw(t, "SETTINGS") || kw(t, "FORMAT") || kw(t, "SAMPLE") || kw(t, "VALUES")))
+  if (t.clickhouse && (sequel_runtime_keyword(t, "PREWHERE") || sequel_runtime_keyword(t, "SETTINGS") ||
+                       sequel_runtime_keyword(t, "FORMAT") || sequel_runtime_keyword(t, "SAMPLE") ||
+                       sequel_runtime_keyword(t, "VALUES")))
     return true;
   for (size_t i = 0; (sequel_work_tick(1), i < sizeof(words) / sizeof(*words)); ++i)
-    if (kw(t, words[i]))
+    if (sequel_runtime_keyword(t, words[i]))
       return true;
-  return sym(t, ';') || sym(t, ')');
+  return sequel_runtime_symbol(t, ';') || sequel_runtime_symbol(t, ')');
 }
 
 typedef struct {
@@ -545,7 +547,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
                 t.t.p, t.t.n,
                 t.kind == 1 && ((a->options.dialect != SEQUEL_MYSQL && a->options.dialect != SEQUEL_CLICKHOUSE) ||
                                 isupper((unsigned char)t.t.p[0])));
-    if (t.kind == 0 && sym(t.t, ';')) {
+    if (t.kind == 0 && sequel_runtime_symbol(t.t, ';')) {
       fingerprint_next = 0;
       analysis_dictionary_clear(&dictionary);
       analysis_dictionary_clear(&slot_dictionary);
@@ -557,18 +559,18 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
       continue;
     }
 
-    if (!a->options.keep_in_lists && t.kind == 1 && kw(t.t, "IN")) {
+    if (!a->options.keep_in_lists && t.kind == 1 && sequel_runtime_keyword(t.t, "IN")) {
       size_t open = i + 1;
       while (open < count && ts[open].kind >= 3)
         open++;
-      if (open < count && sym(ts[open].t, '(')) {
+      if (open < count && sequel_runtime_symbol(ts[open].t, '(')) {
         size_t k = open + 1, items = 0;
         bool expecting = true, valid = true;
         for (; k < count; k++) {
           sequel_work_tick(1);
           if (ts[k].kind >= 3)
             continue;
-          if (sym(ts[k].t, ')'))
+          if (sequel_runtime_symbol(ts[k].t, ')'))
             break;
           if (expecting) {
             const char *bk;
@@ -582,7 +584,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
             }
             items++;
             expecting = false;
-          } else if (sym(ts[k].t, ','))
+          } else if (sequel_runtime_symbol(ts[k].t, ','))
             expecting = true;
           else {
             valid = false;
@@ -604,7 +606,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
     bool token_gap = gap;
     gap = false;
     size_t before = safe->n;
-    if (t.kind == 0 && sym(t.t, '(') && t.matching > i) {
+    if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i) {
       analysis_append(safe, "(?", 2);
       if (map) {
         analysis_segment(map, start, end, before, before + 1, SEQUEL_MAP_COPY);
@@ -872,7 +874,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     if (syntax)
       analysis_recovered_statement_ranges(sequel_syntax_lexed(syntax), out);
     if (count == SIZE_MAX) {
-      if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
+      if (out->statement_count && scanned &&
+          !(tokens[scanned - 1].kind == 0 && sequel_runtime_symbol(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
       else if (first.offset < n)
         analysis_add_statement(out, first.offset, n);
