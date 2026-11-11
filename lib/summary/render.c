@@ -845,9 +845,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         if (rendered_relations && join_index != SIZE_MAX) {
           prefix = " JOIN ";
           if (joins[join_index].flags & SEQUEL_JOIN_FLAG_SEMI)
-            prefix = " LEFT SEMI JOIN ";
+            prefix = sequel_query_dialect(query) == SEQUEL_CLICKHOUSE ? " LEFT SEMI JOIN " : " SEMI JOIN ";
           else if (joins[join_index].flags & SEQUEL_JOIN_FLAG_ANTI)
-            prefix = " LEFT ANTI JOIN ";
+            prefix = sequel_query_dialect(query) == SEQUEL_CLICKHOUSE ? " LEFT ANTI JOIN " : " ANTI JOIN ";
           if (!(joins[join_index].flags & (SEQUEL_JOIN_FLAG_SEMI | SEQUEL_JOIN_FLAG_ANTI))) {
             size_t context_start = i ? relations[i - 1].range.end : 0;
             for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor) {
