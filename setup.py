@@ -17,6 +17,7 @@ setup(
                 "lib/api.c",
                 "lib/scan.c",
                 "lib/analysis/analysis.c",
+                "lib/analysis/layout.c",
                 "lib/analysis/analysis_literal.c",
                 "lib/analysis/analysis_binding_token.c",
                 "lib/analysis/analysis_text.c",
