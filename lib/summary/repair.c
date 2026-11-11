@@ -137,3 +137,24 @@ int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capa
     return 0;
   return 1;
 }
+
+int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_source_view_t source,
+                                         const sequel_query_document_t *query) {
+  if (!text || !*text || !length || !source.data || !query)
+    return 0;
+  if (sequel_query_dialect(query) != SEQUEL_CLICKHOUSE || !sequel_query_cte_count(query) ||
+      strncmp(*text, "WITH ", 5) != 0)
+    return 1;
+  char *select = sequel_summary_find_text(*text, " SELECT ");
+  if (!select)
+    return 1;
+  const char replacement[] = "WITH … SELECT";
+  size_t prefix_length = (size_t)(select - *text) + strlen(" SELECT ");
+  size_t replacement_length = sizeof(replacement) - 1;
+  if (replacement_length > prefix_length)
+    return 1;
+  memmove(*text + replacement_length, *text + prefix_length, *length - prefix_length + 1);
+  memcpy(*text, replacement, replacement_length);
+  *length -= prefix_length - replacement_length;
+  return 1;
+}

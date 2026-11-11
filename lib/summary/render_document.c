@@ -1844,20 +1844,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (!sequel_summary_repair_create_order(&text, &length, &capacity, source, query, statements, statement_count,
                                           settings->include_predicates))
     goto no_memory;
-  if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
-      sequel_query_cte_count(query) && text && !strncmp(text, "WITH ", 5)) {
-    char *select = sequel_summary_find_text(text, " SELECT ");
-    if (select) {
-      const char replacement[] = "WITH \342\200\246 SELECT";
-      size_t prefix_length = (size_t)(select - text) + strlen(" SELECT ");
-      size_t replacement_length = sizeof(replacement) - 1;
-      if (replacement_length <= prefix_length) {
-        memmove(text + replacement_length, text + prefix_length, length - prefix_length + 1);
-        memcpy(text, replacement, replacement_length);
-        length -= prefix_length - replacement_length;
-      }
-    }
-  }
+  if (!sequel_summary_repair_clickhouse_cte(&text, &length, source, query))
+    goto no_memory;
   if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
 summary_postprocess:
