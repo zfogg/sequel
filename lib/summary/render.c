@@ -2638,7 +2638,12 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
-  if (text && sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "FOR UPDATE")) {
+  if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
+      !sequel_summary_find_text(text, "DISTINCT ON")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " DISTINCT ON"))
+      goto no_memory;
+  }
+  if (text && sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "LIMIT ")) {
     size_t source_limit_count = 0;
     size_t rendered_limit_count = 0;
     for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
