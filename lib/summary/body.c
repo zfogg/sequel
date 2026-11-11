@@ -318,7 +318,7 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
 
       /* A lateral relation is part of the body range, so its closing alias
        * and join predicate must survive the limit normalization. */
-      if (table < range.end && source[table] == '(' && sequel_summary_find_text(source + table, "JOIN LATERAL")) {
+      if (table < range.end && sequel_summary_find_text(source + table, "JOIN LATERAL")) {
         size_t close = value_end;
         while (close < range.end && source[close] != ')')
           ++close;
