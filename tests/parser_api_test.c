@@ -770,6 +770,26 @@ int main(void) {
   sequel_syntax_document_free(lateral_syntax);
 
   {
+    const char nested_join_sql[] = "SELECT * FROM a JOIN b ON b.id IN (SELECT id FROM c JOIN d USING(id) LIMIT 1) AND "
+                                   "b.ts >= now() - interval 'secret'";
+    sequel_source_view_t nested_join_source = {nested_join_sql, strlen(nested_join_sql)};
+    sequel_syntax_document_t *nested_join_syntax = NULL;
+    sequel_query_document_t *nested_join_query = NULL;
+    if (!check(sequel_parse_sql(&nested_join_source, &options, NULL, &nested_join_syntax) == SEQUEL_OK &&
+                   sequel_build_query_document(nested_join_syntax, &options, &nested_join_query) == SEQUEL_OK &&
+                   sequel_query_join_count(nested_join_query) >= 1,
+               "nested join query model"))
+      return 1;
+    const char *interval = strstr(nested_join_sql, "interval");
+    const sequel_join_info_t *nested_join = sequel_query_joins(nested_join_query);
+    if (!check(nested_join[0].condition_range.end > (size_t)(interval - nested_join_sql),
+               "nested join condition preserves nested scope"))
+      return 1;
+    sequel_query_document_free(nested_join_query);
+    sequel_syntax_document_free(nested_join_syntax);
+  }
+
+  {
     const char modifiers_sql[] = "SELECT * FROM a LEFT OUTER JOIN b USING (id)";
     sequel_source_view_t modifiers_source = {modifiers_sql, strlen(modifiers_sql)};
     sequel_syntax_document_t *modifiers_syntax = NULL;

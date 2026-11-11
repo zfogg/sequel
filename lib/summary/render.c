@@ -781,7 +781,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           break;
         }
       }
-      if (nested && join_index == SIZE_MAX && i != 0)
+      if (!nested)
+        for (size_t j = 0; j < sequel_query_join_count(query); ++j)
+          if (joins[j].has_condition && joins[j].right_relation != i &&
+              sequel_source_range_contains(joins[j].condition_range, relations[i].range)) {
+            nested = true;
+            break;
+          }
+      if (nested && i != 0)
         continue;
       if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX)
         continue;
@@ -1000,7 +1007,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       int okay = sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]);
-      if (okay && join_index != SIZE_MAX) {
+      if (okay && join_index != SIZE_MAX && joins[join_index].has_condition &&
+          joins[join_index].condition_range.end > joins[join_index].condition_range.start)
+        okay = sequel_summary_append_text(&text, &length, &capacity, " ON ") &&
+               sequel_summary_append_redacted_range(&text, &length, &capacity, query,
+                                                    joins[join_index].condition_range.start,
+                                                    joins[join_index].condition_range.end);
+      if (okay && join_index != SIZE_MAX && !joins[join_index].has_condition) {
         size_t condition_start = relations[i].alias_range.end > relations[i].range.end ? relations[i].alias_range.end
                                                                                        : relations[i].range.end;
         while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))

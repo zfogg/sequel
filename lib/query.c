@@ -969,8 +969,17 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         while (condition_start < token_count && is_trivia(&tokens[condition_start]))
           ++condition_start;
         size_t condition_end = condition_start;
+        size_t nesting = 0;
         while (condition_end < token_count && tokens[condition_end].range.start < join_end) {
-          if (condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
+          if (tokens[condition_end].kind == SEQUEL_TOKEN_PUNCTUATION &&
+              tokens[condition_end].range.end == tokens[condition_end].range.start + 1) {
+            char punctuation = source.data[tokens[condition_end].range.start];
+            if (punctuation == '(')
+              ++nesting;
+            else if (punctuation == ')' && nesting)
+              --nesting;
+          }
+          if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
               is_clause_keyword(&tokens[condition_end]))
             break;
           ++condition_end;
