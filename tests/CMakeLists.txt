@@ -93,6 +93,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c
+  ../lib/summary/routes.c
   ../lib/summary/entry.c
   ../lib/summary/special.c
   ../lib/summary/recovery.c
