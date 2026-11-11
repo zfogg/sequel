@@ -4460,7 +4460,7 @@
     "dialect": 2,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT … FROM … WHERE …",
     "operation": "SELECT"
   },
   {
@@ -4468,7 +4468,7 @@
     "dialect": 3,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT … FROM … WHERE …",
     "operation": "SELECT"
   },
   {
@@ -4476,7 +4476,7 @@
     "dialect": 4,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT … FROM … WHERE …",
     "operation": "SELECT"
   },
   {
@@ -4500,7 +4500,7 @@
     "dialect": 2,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT … FROM … WHERE …",
     "operation": "SELECT"
   },
   {
@@ -4508,7 +4508,7 @@
     "dialect": 3,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT … FROM … WHERE …",
     "operation": "SELECT"
   },
   {
@@ -4516,7 +4516,7 @@
     "dialect": 4,
     "safe": true,
     "text": "SELECT [private column] FROM [a table] WHERE [id]=?",
-    "summary": "SELECT … FROM [ AS a WHERE …",
+    "summary": "SELECT ?",
     "operation": "SELECT"
   },
   {
@@ -4644,7 +4644,7 @@
     "dialect": 0,
     "safe": true,
     "text": "SELECT id, name FROM widgets WHERE tenant_id = ? AND status IN (?) ORDER BY created_at DESC LIMIT ?",
-    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT 25",
+    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT ?",
     "operation": "SELECT"
   },
   {
@@ -4652,7 +4652,7 @@
     "dialect": 1,
     "safe": true,
     "text": "SELECT id, name FROM widgets WHERE tenant_id = ? AND status IN (?) ORDER BY created_at DESC LIMIT ?",
-    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT 25",
+    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT ?",
     "operation": "SELECT"
   },
   {
@@ -4660,7 +4660,7 @@
     "dialect": 2,
     "safe": true,
     "text": "SELECT id, name FROM widgets WHERE tenant_id = ? AND status IN (?) ORDER BY created_at DESC LIMIT ?",
-    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT 25",
+    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT ?",
     "operation": "SELECT"
   },
   {
@@ -4668,7 +4668,7 @@
     "dialect": 3,
     "safe": true,
     "text": "SELECT id, name FROM widgets WHERE tenant_id = ? AND status IN (?) ORDER BY created_at DESC LIMIT ?",
-    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT 25",
+    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT ?",
     "operation": "SELECT"
   },
   {
@@ -4676,7 +4676,7 @@
     "dialect": 4,
     "safe": true,
     "text": "SELECT id, name FROM widgets WHERE tenant_id = ? AND status IN (?) ORDER BY created_at DESC LIMIT ?",
-    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT 25",
+    "summary": "SELECT … FROM widgets WHERE … ORDER BY … LIMIT ?",
     "operation": "SELECT"
   },
   {
