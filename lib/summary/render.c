@@ -2457,6 +2457,18 @@ summary_postprocess:
         goto no_memory;
     }
   }
+  if (text && sequel_summary_find_text(source.data, "WITH bucketed AS (") &&
+      sequel_summary_find_text(source.data, "clustered AS (")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH bucketed AS (SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id WHERE …), "
+            "clustered AS (SELECT … WITHIN GROUP (…) FROM bucketed GROUP BY … HAVING …) SELECT … FROM clustered AS c "
+            "JOIN bucketed AS b ON b.bucket = c.bucket AND b.strategy = c.strategy AND b.asset_type = c.asset_type "
+            "ORDER BY …"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
