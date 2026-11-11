@@ -2657,6 +2657,10 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(text, "LATERAL")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
+      goto no_memory;
+  }
   if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
       !sequel_summary_find_text(text, "DISTINCT ON")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " DISTINCT ON"))
