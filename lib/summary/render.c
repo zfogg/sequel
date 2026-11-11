@@ -779,6 +779,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (nested && join_index == SIZE_MAX && i != 0)
         continue;
+      if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX)
+        continue;
       if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX && i != 0)
         continue;
       if (operation != SEQUEL_OPERATION_CREATE) {
