@@ -1437,6 +1437,18 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             "(SELECT … FROM tradebot_configurations WHERE …)"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "FROM portfolio_symbol_forecasts") &&
+      sequel_summary_find_text(source.data, "JOIN portfolio_symbol_results")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "SELECT … FROM portfolio_symbol_forecasts AS f LEFT JOIN LATERAL (SELECT … FROM sec_tickers WHERE … "
+            "ORDER BY … LIMIT 1) AS t ON ? LEFT JOIN portfolio_contexts AS c ON c.run_id = f.run_id LEFT JOIN "
+            "portfolio_symbol_results AS s ON s.context_id = c.id AND s.ticker = f.ticker WHERE … GROUP BY … "
+            "ORDER BY … LIMIT ?"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
