@@ -37,7 +37,8 @@ sequel_status_t sequel_query_build_statements(sequel_query_document_t *document,
       const sequel_token_t *first_token = &tokens[first];
       document->statements[document->statement_count - 1].operation = sequel_query_operation_from_word(
           source->data + first_token->range.start, first_token->range.end - first_token->range.start);
-      if (document->statements[document->statement_count - 1].operation == SEQUEL_OPERATION_UNKNOWN) {
+      if (document->statements[document->statement_count - 1].operation == SEQUEL_OPERATION_UNKNOWN &&
+          first_token->kind == SEQUEL_TOKEN_KEYWORD && first_token->keyword_id == SEQUEL_KEYWORD_WITH) {
         for (size_t candidate = first + 1; candidate < nodes[i].first_token + nodes[i].token_count; ++candidate) {
           if (is_trivia(&tokens[candidate]))
             continue;
