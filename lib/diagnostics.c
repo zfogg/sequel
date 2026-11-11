@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include <sequel.h>
+#include "util/text.h"
 
 static void diagnostic_position_at(const char *sql, size_t length, size_t offset, size_t *line, size_t *column) {
   *line = 1;
@@ -500,8 +501,8 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   }
   if (only_trivia)
     return SEQUEL_OK;
-  if (dialect == SEQUEL_CLICKHOUSE && strstr(sql, "INSERT") && strstr(sql, " FORMAT ")) {
-    const char *format = strstr(sql, " FORMAT ") + 1;
+  if (dialect == SEQUEL_CLICKHOUSE && sequel_text_find(sql, n, "INSERT") && sequel_text_find(sql, n, " FORMAT ")) {
+    const char *format = sequel_text_find(sql, n, " FORMAT ") + 1;
     diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }

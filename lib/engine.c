@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "resources.h"
+#include "util/text.h"
 
 #define INPUT_MAX SEQUEL_INPUT_MAX
 
@@ -665,9 +666,9 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   if (dialect < SEQUEL_GENERIC || dialect > SEQUEL_CLICKHOUSE || (!out && capacity) || (out && !capacity))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n])
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
-  if (n > INPUT_MAX)
+  if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -678,9 +679,10 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   /* Preserve vendor join modifiers until the syntax-aware formatter has a
    * structured representation for them; rewriting them is not lossless. */
   if (dialect == SEQUEL_CLICKHOUSE &&
-      (strstr(sql, "WITH ") == sql || strstr(sql, "GLOBAL ANY") ||
-       strstr(sql, " LEFT SEMI ") || strstr(sql, " LEFT ANTI ") ||
-       strstr(sql, " ASOF ") || strstr(sql, " ARRAY JOIN ") || strstr(sql, " GLOBAL IN "))) {
+      (sequel_text_find(sql, n, "WITH ") == sql || sequel_text_find(sql, n, "GLOBAL ANY") ||
+       sequel_text_find(sql, n, " LEFT SEMI ") || sequel_text_find(sql, n, " LEFT ANTI ") ||
+       sequel_text_find(sql, n, " ASOF ") || sequel_text_find(sql, n, " ARRAY JOIN ") ||
+       sequel_text_find(sql, n, " GLOBAL IN "))) {
     *length = n;
     if (!out)
       return SEQUEL_OK;

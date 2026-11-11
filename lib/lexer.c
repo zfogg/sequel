@@ -299,8 +299,7 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                               (source->data[start] == '0' && i > start + 2 &&
                                (source->data[start + 1] == 'x' || source->data[start + 1] == 'X') &&
                                (source->data[i - 1] == 'p' || source->data[i - 1] == 'P'))) &&
-                             i + 1 < source->length &&
-                             isdigit((unsigned char)source->data[i + 1]);
+                             i + 1 < source->length && isdigit((unsigned char)source->data[i + 1]);
         if (!(isalnum(character) || character == '.' || character == '_' || exponent_sign))
           break;
         ++i;
