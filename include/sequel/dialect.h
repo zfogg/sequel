@@ -93,6 +93,7 @@ typedef struct {
 } sequel_dialect_definition_t;
 
 const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t dialect);
+const char *sequel_dialect_name(sequel_dialect_t dialect);
 unsigned sequel_dialect_keyword_id(sequel_dialect_t dialect, const char *text, size_t length);
 const sequel_operator_definition_t *sequel_dialect_operator(sequel_dialect_t dialect, const char *text, size_t length);
 const sequel_clause_definition_t *sequel_dialect_clause(sequel_dialect_t dialect, unsigned keyword_id);

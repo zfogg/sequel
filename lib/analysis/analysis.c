@@ -39,11 +39,6 @@ typedef struct {
   sequel_analysis_options_t options;
 } analysis_state;
 
-static const char *analysis_dialect_name(sequel_dialect_t d) {
-  static const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};
-  return d >= SEQUEL_GENERIC && d <= SEQUEL_CLICKHOUSE ? names[d] : "invalid";
-}
-
 static void analysis_charge(analysis_state *a, size_t bytes) {
   (void)a;
   sequel_output_tick(bytes);
@@ -660,7 +655,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       sequel_sha256 hash;
       sha_init(&hash);
       sha_frame(&hash, 'V', "sequel-fingerprint-v1", 21, false);
-      sha_frame(&hash, 'D', analysis_dialect_name(o.dialect), strlen(analysis_dialect_name(o.dialect)), false);
+      sha_frame(&hash, 'D', sequel_dialect_name(o.dialect), strlen(sequel_dialect_name(o.dialect)), false);
       bool maps = !o.omit_source_maps && !o.omit_query_text;
       analysis_sanitize(sql, n, tokens, count, &a, &safe, maps ? &map : NULL, &layout, &hash);
       if (o.keep_in_lists)
@@ -668,8 +663,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (out->statement_count) {
         char digest[65];
         sha_final(&hash, digest);
-        snprintf(out->fingerprint, sizeof(out->fingerprint), "sequel:v1:%s:%s", analysis_dialect_name(o.dialect),
-                 digest);
+        snprintf(out->fingerprint, sizeof(out->fingerprint), "sequel:v1:%s:%s", sequel_dialect_name(o.dialect), digest);
         analysis_charge(&a, strlen(out->fingerprint) + 1);
       }
       if (query)

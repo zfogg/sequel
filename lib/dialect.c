@@ -100,6 +100,11 @@ const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t di
   return dialect >= SEQUEL_GENERIC && dialect <= SEQUEL_CLICKHOUSE ? &definitions[dialect] : NULL;
 }
 
+const char *sequel_dialect_name(sequel_dialect_t dialect) {
+  static const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};
+  return dialect >= SEQUEL_GENERIC && dialect <= SEQUEL_CLICKHOUSE ? names[dialect] : "invalid";
+}
+
 const sequel_operator_definition_t *sequel_dialect_operator(sequel_dialect_t dialect, const char *text, size_t length) {
   const sequel_dialect_definition_t *definition = sequel_dialect_definition(dialect);
   if (!definition || !text)
