@@ -341,64 +341,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     sequel_query_document_free(document);
     return parameter_status;
   }
-  /*
-  for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_PARAMETER)
-      continue;
-    const char *text = source.data + tokens[i].range.start;
-    size_t length = tokens[i].range.end - tokens[i].range.start;
-    size_t explicit_number = 0;
-    sequel_bind_style_t style = sequel_query_bind_style(text, length, &explicit_number);
-    if (style == SEQUEL_BIND_UNKNOWN)
-      continue;
-    ++ordinal;
-    size_t name_start = tokens[i].range.start + (style == SEQUEL_BIND_POSITIONAL ? 0 : 1);
-    size_t name_end = tokens[i].range.end;
-    if (style == SEQUEL_BIND_FORMAT && text[1] == '(') {
-      name_start = tokens[i].range.start + 2;
-      name_end = tokens[i].range.end >= 2 && source.data[tokens[i].range.end - 2] == ')' ? tokens[i].range.end - 2
-                                                                                         : tokens[i].range.end;
-    }
-    sequel_source_range_t name_range = {name_start, name_end};
-    uint64_t identity = explicit_number ? explicit_number : ordinal;
-    if (!explicit_number && (style == SEQUEL_BIND_NAMED || style == SEQUEL_BIND_TYPED || style == SEQUEL_BIND_FORMAT)) {
-      for (size_t previous = 0; previous < document->parameter_count; ++previous) {
-        const sequel_parameter_info_t *candidate = &document->parameters[previous];
-        size_t candidate_length = candidate->name_range.end - candidate->name_range.start;
-        size_t name_length = name_range.end - name_range.start;
-        if (candidate->style == style && candidate_length == name_length &&
-            !memcmp(source.data + candidate->name_range.start, source.data + name_range.start, name_length)) {
-          identity = candidate->identity;
-          break;
-        }
-      }
-    }
-    sequel_source_range_t type_range = {tokens[i].range.end, tokens[i].range.end};
-    if (style == SEQUEL_BIND_TYPED) {
-      size_t type_start = tokens[i].range.start;
-      while (type_start + 1 < tokens[i].range.end && source.data[type_start] != ':' &&
-             source.data[type_start + 1] != ':')
-        ++type_start;
-      if (type_start + 1 < tokens[i].range.end) {
-        type_start += 2;
-        type_range = (sequel_source_range_t){type_start, tokens[i].range.end};
-      }
-    }
-    sequel_parameter_info_t parameter = {.range = tokens[i].range,
-                                         .style = style,
-                                         .statement_index = sequel_query_statement_for_range(document, tokens[i].range),
-                                         .ordinal = ordinal,
-                                         .explicit_number = explicit_number,
-                                         .name_range = name_range,
-                                         .type_range = type_range,
-                                         .identity = identity};
-    if (!sequel_query_array_append((void **)&document->parameters, &document->parameter_count, sizeof(parameter),
-                                   &parameter)) {
-      sequel_query_document_free(document);
-      return SEQUEL_ERR_NOMEM;
-    }
-  }
-  */
   for (size_t s = 0; s < document->statement_count; ++s) {
     const sequel_statement_info_t *statement = &document->statements[s];
     size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
