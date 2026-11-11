@@ -288,6 +288,8 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
     status = collapse_in_result(&sanitized, parse_options.dialect);
   if (status != SEQUEL_OK)
     goto done;
+  normalize_sanitized_text(sanitized.data);
+  sanitized.length = strlen(sanitized.data);
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
   summary_options.max_length = 0;
