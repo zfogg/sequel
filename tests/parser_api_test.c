@@ -767,8 +767,8 @@ int main(void) {
   sequel_syntax_document_free(lateral_syntax);
 
   {
-    const char quoted_join_sql[] =
-        "SELECT * FROM a AS \"left\" JOIN b AS \"right\" ON \"left\".\"key\"=\"right\".\"key\"";
+    const char quoted_join_sql[] = "SELECT * FROM a AS \"left\" JOIN b AS \"right\" ON "
+                                   "\"left\".\"key\"=\"right\".\"key\" AND b.v=1.23e45::numeric";
     sequel_source_view_t quoted_join_source = {quoted_join_sql, strlen(quoted_join_sql)};
     sequel_syntax_document_t *quoted_join_syntax = NULL;
     sequel_query_document_t *quoted_join_query = NULL;
