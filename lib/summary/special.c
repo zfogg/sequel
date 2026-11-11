@@ -40,7 +40,8 @@ int sequel_summary_append_clickhouse_dollar_projection(char **text, size_t *leng
 
 int sequel_summary_append_cte_shape(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query,
                                     sequel_source_view_t source, const sequel_statement_info_t *statement) {
-  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || sequel_query_cte_count(query) == 0)
+  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT ||
+      sequel_query_dialect(query) != SEQUEL_CLICKHOUSE || sequel_query_cte_count(query) == 0)
     return 0;
   if (!sequel_summary_append_text(text, length, capacity, "WITH … SELECT …"))
     return -1;
