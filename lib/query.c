@@ -56,82 +56,6 @@ static size_t expression_node_for_range(const sequel_syntax_document_t *syntax, 
   return best;
 }
 
-static sequel_join_kind_t join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index,
-                                    const sequel_source_view_t *source) {
-  size_t previous[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
-  size_t found = 0;
-  for (size_t cursor = join_index; cursor-- > 0 && found < 3;) {
-    if (!is_trivia(&tokens[cursor]))
-      previous[found++] = cursor;
-  }
-  if (join_index + 1 < token_count) {
-    size_t next = join_index + 1;
-    while (next < token_count && is_trivia(&tokens[next]))
-      ++next;
-    if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
-                                                          tokens[next].range.end - tokens[next].range.start, "LATERAL"))
-      return SEQUEL_JOIN_LATERAL;
-  }
-  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
-                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "CROSS"))
-    return SEQUEL_JOIN_CROSS;
-  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
-                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "NATURAL"))
-    return SEQUEL_JOIN_NATURAL;
-  size_t modifier =
-      found > 1 && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
-                                               tokens[previous[0]].range.end - tokens[previous[0]].range.start, "OUTER")
-          ? 1
-          : 0;
-  if (found > modifier && sequel_query_word_equals_ci(
-                              source->data + tokens[previous[modifier]].range.start,
-                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "LEFT"))
-    return SEQUEL_JOIN_LEFT;
-  if (found > modifier && sequel_query_word_equals_ci(
-                              source->data + tokens[previous[modifier]].range.start,
-                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "RIGHT"))
-    return SEQUEL_JOIN_RIGHT;
-  if (found > modifier && sequel_query_word_equals_ci(
-                              source->data + tokens[previous[modifier]].range.start,
-                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "FULL"))
-    return SEQUEL_JOIN_FULL;
-  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
-                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "INNER"))
-    return SEQUEL_JOIN_INNER;
-  return SEQUEL_JOIN_INNER;
-}
-
-static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index,
-                           const sequel_source_view_t *source) {
-  uint32_t flags = 0;
-  size_t begin = join_index > 6 ? join_index - 6 : 0;
-  for (size_t i = begin; i < join_index; ++i) {
-    const char *word = source->data + tokens[i].range.start;
-    size_t length = tokens[i].range.end - tokens[i].range.start;
-    if (sequel_query_word_equals_ci(word, length, "OUTER"))
-      flags |= SEQUEL_JOIN_FLAG_OUTER;
-    if (sequel_query_word_equals_ci(word, length, "NATURAL"))
-      flags |= SEQUEL_JOIN_FLAG_NATURAL;
-    if (sequel_query_word_equals_ci(word, length, "ASOF"))
-      flags |= SEQUEL_JOIN_FLAG_ASOF;
-    if (sequel_query_word_equals_ci(word, length, "GLOBAL"))
-      flags |= SEQUEL_JOIN_FLAG_GLOBAL;
-    if (sequel_query_word_equals_ci(word, length, "ANY"))
-      flags |= SEQUEL_JOIN_FLAG_ANY;
-    if (sequel_query_word_equals_ci(word, length, "SEMI"))
-      flags |= SEQUEL_JOIN_FLAG_SEMI;
-    if (sequel_query_word_equals_ci(word, length, "ANTI"))
-      flags |= SEQUEL_JOIN_FLAG_ANTI;
-  }
-  size_t next = join_index + 1;
-  while (next < token_count && is_trivia(&tokens[next]))
-    ++next;
-  if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
-                                                        tokens[next].range.end - tokens[next].range.start, "LATERAL"))
-    flags |= SEQUEL_JOIN_FLAG_LATERAL;
-  return flags;
-}
-
 static int is_identifier_token(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
 }
@@ -853,8 +777,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (left == SIZE_MAX || right == SIZE_MAX)
       continue;
     size_t statement = sequel_query_statement_for_range(document, tokens[i].range);
-    sequel_join_info_t join = {.kind = join_kind(tokens, token_count, i, &source),
-                               .flags = join_flags(tokens, token_count, i, &source),
+    sequel_join_info_t join = {.kind = sequel_query_join_kind(tokens, token_count, i, &source),
+                               .flags = sequel_query_join_flags(tokens, token_count, i, &source),
                                .range = {tokens[i].range.start, document->relations[right].range.end},
                                .condition_range = {0, 0},
                                .left_relation = left,

@@ -9,6 +9,10 @@ sequel_operation_t sequel_query_operation_from_syntax(sequel_syntax_kind_t kind)
 bool sequel_query_word_equals_ci(const char *word, size_t length, const char *expected);
 sequel_operation_t sequel_query_operation_from_word(const char *word, size_t length);
 size_t sequel_query_statement_for_range(const sequel_query_document_t *document, sequel_source_range_t range);
+sequel_join_kind_t sequel_query_join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index,
+                                          const sequel_source_view_t *source);
+uint32_t sequel_query_join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index,
+                                 const sequel_source_view_t *source);
 
 typedef struct {
   size_t capacity;
