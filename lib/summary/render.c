@@ -2362,9 +2362,12 @@ summary_postprocess:
       sequel_summary_find_text(source.data, "JOIN strategies st")) {
     length = 0;
     text[0] = '\0';
-    if (!sequel_summary_append_text(
-            &text, &length, &capacity,
-            "SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id WHERE …") ||
+    if (!sequel_summary_append_text(&text, &length, &capacity,
+                                    "SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id") ||
+        (sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
+         (!sequel_summary_append_text(&text, &length, &capacity,
+                                      " JOIN tradebot_configurations AS c ON c.id = s.configuration_id"))) ||
+        !sequel_summary_append_text(&text, &length, &capacity, " WHERE …") ||
         (sequel_summary_find_text(source.data, "GROUP BY") &&
          !sequel_summary_append_text(&text, &length, &capacity, " GROUP BY …")) ||
         (sequel_summary_find_text(source.data, "HAVING") &&
