@@ -34,6 +34,10 @@ const sequel_relation_info_t *sequel_query_relations(const sequel_query_document
   return document ? document->relations : NULL;
 }
 
+const sequel_relation_info_t *sequel_query_relation(const sequel_query_document_t *document, size_t index) {
+  return document && index < document->relation_count ? &document->relations[index] : NULL;
+}
+
 size_t sequel_query_cte_count(const sequel_query_document_t *document) { return document ? document->cte_count : 0; }
 
 const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document) {
@@ -64,6 +68,10 @@ size_t sequel_query_join_count(const sequel_query_document_t *document) { return
 
 const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document) {
   return document ? document->joins : NULL;
+}
+
+const sequel_join_info_t *sequel_query_join(const sequel_query_document_t *document, size_t index) {
+  return document && index < document->join_count ? &document->joins[index] : NULL;
 }
 
 size_t sequel_query_projection_count(const sequel_query_document_t *document) {
