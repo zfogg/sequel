@@ -118,37 +118,15 @@ void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics) {
   *diagnostics = (sequel_diagnostic_list_t){0};
 }
 
-static sequel_diagnostic_code_t lexical_code(const sequel_token_t *token) {
-  if (token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && (token->flags & SEQUEL_TOKEN_FLAG_RECOVERED))
-    return SEQUEL_DIAG_NESTING_LIMIT;
-  if (token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
-    return SEQUEL_DIAG_UNTERMINATED_COMMENT;
-  if (token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER)
-    return SEQUEL_DIAG_UNTERMINATED_IDENTIFIER;
-  if (token->kind == SEQUEL_TOKEN_PARAMETER)
-    return SEQUEL_DIAG_UNTERMINATED_PARAMETER;
-  return SEQUEL_DIAG_UNTERMINATED_STRING;
-}
-
 sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed,
                                                    sequel_diagnostic_list_t *diagnostics) {
   if (!lexed || !diagnostics)
     return SEQUEL_ERR_NULL;
   sequel_diagnostic_list_free(diagnostics);
-  size_t count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  size_t count = sequel_lexed_diagnostic_count(lexed);
+  const sequel_diagnostic_record_t *records = sequel_lexed_diagnostics(lexed);
   for (size_t i = 0; i < count; ++i) {
-    if (!(tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED))
-      continue;
-    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_LEXICAL,
-                                         .code = lexical_code(&tokens[i]),
-                                         .severity = SEQUEL_WARNING,
-                                         .range = tokens[i].range,
-                                         .statement_index = SIZE_MAX,
-                                         .syntax_node = SIZE_MAX,
-                                         .incomplete = 1,
-                                         .recovered = 1};
-    if (!sequel_diagnostic_list_append(diagnostics, record)) {
+    if (!sequel_diagnostic_list_append(diagnostics, records[i])) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
     }

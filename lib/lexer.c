@@ -543,8 +543,11 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                             .dialect_id = (uint32_t)settings->dialect};
     if ((flags & SEQUEL_TOKEN_FLAG_UNTERMINATED) &&
         !append_lexical_diagnostic(document,
-                                   kind == SEQUEL_TOKEN_BLOCK_COMMENT       ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                                   kind == SEQUEL_TOKEN_BLOCK_COMMENT && (flags & SEQUEL_TOKEN_FLAG_RECOVERED)
+                                       ? SEQUEL_DIAG_NESTING_LIMIT
+                                   : kind == SEQUEL_TOKEN_BLOCK_COMMENT     ? SEQUEL_DIAG_UNTERMINATED_COMMENT
                                    : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                                   : kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
                                                                             : SEQUEL_DIAG_UNTERMINATED_STRING,
                                    token.range, diagnostic_limit)) {
       sequel_lexed_document_free(document);
