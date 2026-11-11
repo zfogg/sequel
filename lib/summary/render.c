@@ -2633,6 +2633,24 @@ summary_postprocess:
     if (last_limit && !memcmp(last_limit, "LIMIT 1", sizeof("LIMIT 1") - 1))
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
+  if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
+      !sequel_summary_find_text(text, "JOIN")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
+      goto no_memory;
+  }
+  if (text && sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "FOR UPDATE")) {
+    size_t source_limit_count = 0;
+    size_t rendered_limit_count = 0;
+    for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
+      ++source_limit_count;
+    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
+      ++rendered_limit_count;
+    while (rendered_limit_count < source_limit_count) {
+      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+        goto no_memory;
+      ++rendered_limit_count;
+    }
+  }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
   if (length == SIZE_MAX)
