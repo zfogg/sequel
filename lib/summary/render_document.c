@@ -2569,6 +2569,12 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
+  if (text && sequel_query_dialect(query) == SEQUEL_MYSQL &&
+      sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_JOIN) &&
+      !sequel_summary_find_word(text, length, 0, "JOIN")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN … ON ?"))
+      goto no_memory;
+  }
   if (text &&
       (sequel_summary_find_text(source.data, "tradebot_fill_events") ||
        sequel_summary_find_text(source.data, "ticker_backtest_results") ||
