@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "internal.h"
@@ -47,6 +48,27 @@ int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capa
       (!sequel_summary_normalize_insert_clause_order(text, length, capacity) ||
        !sequel_summary_normalize_insert_conflict_order(text, length)))
     return 0;
+  return 1;
+}
+
+int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out) {
+  if (!text || !*text || !length || !capacity || !out)
+    return 0;
+  while (*length && isspace((unsigned char)(*text)[*length - 1]))
+    --*length;
+  if (*length == SIZE_MAX)
+    return 0;
+  if (*capacity <= *length) {
+    char *grown = realloc(*text, *length + 1);
+    if (!grown)
+      return 0;
+    *text = grown;
+    *capacity = *length + 1;
+  }
+  (*text)[*length] = 0;
+  sequel_text_result_free(out);
+  *out = (sequel_text_result_t){
+      .data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
   return 1;
 }
 

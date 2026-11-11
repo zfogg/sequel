@@ -2802,21 +2802,8 @@ summary_postprocess:
   if (text && sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
       !sequel_summary_preserve_keyword(&text, &length, &capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
     goto no_memory;
-  while (length && isspace((unsigned char)text[length - 1]))
-    --length;
-  if (length == SIZE_MAX)
+  if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
     goto no_memory;
-  if (capacity <= length) {
-    char *grown = realloc(text, length + 1);
-    if (!grown)
-      goto no_memory;
-    text = grown;
-    capacity = length + 1;
-  }
-  text[length] = 0;
-  sequel_text_result_free(out);
-  *out =
-      (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
   return SEQUEL_OK;
 invalid:
   free(text);

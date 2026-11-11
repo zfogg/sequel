@@ -68,6 +68,7 @@ int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacit
 int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capacity,
                                         const sequel_query_document_t *query, sequel_source_view_t source,
                                         size_t statement_count, const sequel_statement_info_t *statements);
+int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out);
 
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
