@@ -624,7 +624,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     const char *table = source.data + strlen("UPDATE ");
     const char *set = sequel_summary_find_text(table, " SET ");
     const char *subquery_close = set ? strchr(set, ')') : NULL;
-    const char *from = set ? sequel_summary_find_text(subquery_close ? subquery_close + 1 : set + 5, " FROM ") : NULL;
+    const char *subquery = set ? sequel_summary_find_text(set, "(SELECT ") : NULL;
+    const char *subquery_from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
+    const char *subquery_end = subquery_from ? sequel_summary_find_text(subquery_from + 6, ") FROM ") : NULL;
+    const char *from = NULL;
+    size_t clause_count = sequel_query_clause_count(query);
+    const sequel_clause_info_t *clauses = sequel_query_clauses(query);
+    for (size_t i = 0; i < clause_count; ++i)
+      if (clauses[i].statement_index == 0 && clauses[i].keyword_id == SEQUEL_KEYWORD_FROM &&
+          clauses[i].range.start > (size_t)(set - source.data)) {
+        from = source.data + clauses[i].range.start;
+        break;
+      }
+    if (!from)
+      from = set ? sequel_summary_find_text(
+                       subquery_end ? subquery_end + 1 : (subquery_close ? subquery_close + 1 : set + 5), " FROM ")
+                 : NULL;
     const char *where = from ? sequel_summary_find_text(from + 6, " WHERE ") : NULL;
     if (set && from) {
       const char *table_end = set;
@@ -637,9 +652,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = 0;
       if (text)
         text[0] = '\0';
-      const char *subquery = sequel_summary_find_text(set, "(SELECT ");
-      const char *subquery_from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
-      const char *subquery_end = subquery_from ? strchr(subquery_from + 6, ')') : NULL;
       if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
           !sequel_summary_append_text(&text, &length, &capacity, " SET ") ||
@@ -1280,6 +1292,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   if (settings->include_predicates && sequel_query_predicate_count(query) &&
+      !(statement_count && sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
+        sequel_summary_find_text(source.data, " SET ") && sequel_summary_find_text(source.data, " FROM ")) &&
       !sequel_summary_find_text(source.data, " JOIN LATERAL ") && !sequel_summary_find_text(source.data, " JOIN (")) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
@@ -1368,6 +1382,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE &&
+             !(sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
+               sequel_summary_find_text(source.data, " SET ") && sequel_summary_find_text(source.data, " FROM ")) &&
              !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
              !sequel_summary_find_text(source.data, " JOIN (")) {
   skip_outer_predicates:
@@ -1462,6 +1478,20 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_tables && statement_count) {
     const char *keywords[] = {"SETTINGS", "FORMAT"};
     for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
+      bool clause_present = false;
+      size_t clause_count = sequel_query_clause_count(query);
+      const sequel_clause_info_t *clauses = sequel_query_clauses(query);
+      for (size_t clause = 0; clause < clause_count; ++clause)
+        if (clauses[clause].statement_index == 0 &&
+            sequel_summary_word(source.data, source.length, clauses[clause].range.start, keywords[k])) {
+          clause_present = true;
+          break;
+        }
+      if (!clause_present && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE &&
+          sequel_summary_find_word(source.data, source.length, outer_start, keywords[k]))
+        clause_present = true;
+      if (!clause_present)
+        continue;
       for (size_t i = outer_start; i < source.length; ++i) {
         if (sequel_summary_word(source.data, source.length, i, keywords[k])) {
           if (!sequel_summary_append_text(&text, &length, &capacity, " ") ||
@@ -2129,12 +2159,30 @@ summary_postprocess:
       }
     }
     if (text && sequel_summary_find_text(source.data, " LIMIT (SELECT ")) {
-      char *limit = sequel_summary_find_text(text, " LIMIT ");
-      if (limit) {
-        length = (size_t)(limit - text);
-        text[length] = '\0';
-        if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+      char *limit = sequel_summary_find_text(text, " LIMIT (SELECT ");
+      char *open = limit ? sequel_summary_find_text(limit, "(SELECT ") : NULL;
+      char *from = open ? sequel_summary_find_text(open, " FROM ") : NULL;
+      if (open && from) {
+        size_t insert = (size_t)(open - text);
+        char *grown = realloc(text, length + 3);
+        if (!grown)
           goto no_memory;
+        text = grown;
+        capacity = length + 3;
+        memmove(text + insert + 2, text + insert, length - insert + 1);
+        memcpy(text + insert, "? ", 2);
+        length += 2;
+        open = text + insert + 2;
+        from = sequel_summary_find_text(open, " FROM ");
+        if (from) {
+          char *projection = open + strlen("(SELECT ");
+          size_t projection_length = (size_t)(from - projection);
+          memcpy(projection, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+          if (projection_length > sizeof(summary_ellipsis) - 1) {
+            memmove(projection + sizeof(summary_ellipsis) - 1, from, length - (size_t)(from - text) + 1);
+            length -= projection_length - (sizeof(summary_ellipsis) - 1);
+          }
+        }
       }
     }
     if (text && sequel_summary_find_text(source.data, " LIMIT ") && sequel_summary_find_text(source.data, " + ") &&
