@@ -144,7 +144,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
       projection[0].range.start + 5 <= source.length && !memcmp(source.data + projection[0].range.start, "ARRAY", 5);
   if (multiple && array_projection) {
     const char *cardinality = sequel_summary_find_text(source.data + projection[0].range.start, "cardinality(");
-    if (cardinality) {
+    if (cardinality && sequel_query_dialect(query) >= SEQUEL_POSTGRESQL) {
       if (!sequel_summary_append_text(text, length, capacity, " cardinality(…)"))
         return 0;
       return 1;
