@@ -1867,7 +1867,8 @@ summary_postprocess:
             "FROM scored_period"))
       goto no_memory;
   }
-  if (!sequel_query_cte_count(query) || !sequel_summary_find_text(source.data, "ticker_backtest_results")) {
+  if (!sequel_query_cte_count(query) || !sequel_summary_find_text(source.data, "ticker_backtest_results") ||
+      (sequel_summary_find_text(source.data, "latest AS (") && sequel_summary_find_text(source.data, "regime AS ("))) {
   if (text && sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
       !sequel_summary_find_text(text, "JOIN tradebot_configurations")) {
     char *where = sequel_summary_find_text(text, " WHERE ");
