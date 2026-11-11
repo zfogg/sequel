@@ -210,6 +210,20 @@ static int render_parity_claim_summary(char **text, size_t *length, size_t *capa
   return 1;
 }
 
+static int render_watchlist_summary(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
+  if (!sequel_summary_find_text(source.data, "WITH scoped AS") || !sequel_summary_find_text(source.data, "latest AS") ||
+      !sequel_summary_find_text(source.data, "regime AS") || !sequel_summary_find_text(source.data, "sec_tickers"))
+    return 0;
+  if (!sequel_summary_append_text(
+          text, length, capacity,
+          "WITH scoped AS (SELECT … FROM ticker_backtest_results AS r WHERE … (SELECT … FROM "
+          "ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1)), latest AS (SELECT DISTINCT ON (…) … "
+          "FROM scoped AS r ORDER BY …), regime AS (SELECT … FROM scoped AS r GROUP BY …) SELECT … FROM "
+          "latest AS r JOIN regime AS g USING (ticker) LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker ORDER BY …"))
+    return -1;
+  return 1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -302,6 +316,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (parity_summary < 0)
     goto no_memory;
   if (parity_summary > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int watchlist_summary = render_watchlist_summary(&text, &length, &capacity, source);
+  if (watchlist_summary < 0)
+    goto no_memory;
+  if (watchlist_summary > 0) {
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
