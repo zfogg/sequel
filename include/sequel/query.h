@@ -135,6 +135,7 @@ size_t sequel_query_relation_count(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
 size_t sequel_query_cte_count(const sequel_query_document_t *document);
 const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document);
+bool sequel_query_outer_distinct_on(const sequel_query_document_t *document);
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document);
 size_t sequel_query_join_count(const sequel_query_document_t *document);

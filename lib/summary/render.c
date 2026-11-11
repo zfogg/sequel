@@ -95,7 +95,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       const char *end = table;
       while ((size_t)(end - source.data) < source.length && !isspace((unsigned char)*end) && *end != ';')
         ++end;
-      bool distinct_outer = sequel_summary_find_text(source.data + outer, "SELECT DISTINCT ON") == select;
+      bool distinct_outer = sequel_query_outer_distinct_on(query);
       if (!sequel_summary_append_text(&text, &length, &capacity,
                                       distinct_outer ? "SELECT DISTINCT ON (…) " : "SELECT ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||

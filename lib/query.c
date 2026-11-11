@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include <sequel/query.h>
+#include "util/text.h"
 
 struct sequel_query_document {
   const sequel_syntax_document_t *syntax;
@@ -12,6 +13,7 @@ struct sequel_query_document {
   size_t relation_count;
   sequel_cte_info_t *ctes;
   size_t cte_count;
+  bool outer_distinct_on;
   sequel_parameter_info_t *parameters;
   size_t parameter_count;
   sequel_join_info_t *joins;
@@ -248,6 +250,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   if (!document->statement_count && token_count) {
+    document->outer_distinct_on = sequel_text_find(source.data + outer, source.length - outer, "SELECT DISTINCT ON") != NULL;
     for (size_t token = 0; token < token_count; ++token) {
       if (is_trivia(&tokens[token]))
         continue;
@@ -368,6 +371,17 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     document->statement_count = kept;
     size_t outer = document->ctes[document->cte_count - 1].range.end;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
+        continue;
+      if (tokens[token].range.end - tokens[token].range.start == 6 &&
+          !memcmp(source.data + tokens[token].range.start, "SELECT", 6)) {
+        size_t next = token + 1;
+        while (next < token_count && is_trivia(&tokens[next]))
+          ++next;
+        break;
+      }
+    }
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
         continue;
@@ -741,6 +755,10 @@ size_t sequel_query_cte_count(const sequel_query_document_t *document) { return 
 
 const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document) {
   return document ? document->ctes : NULL;
+}
+
+bool sequel_query_outer_distinct_on(const sequel_query_document_t *document) {
+  return document ? document->outer_distinct_on : false;
 }
 
 size_t sequel_query_parameter_count(const sequel_query_document_t *document) {
