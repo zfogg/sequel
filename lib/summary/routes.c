@@ -128,6 +128,10 @@ int sequel_summary_try_special_routes(char **text, size_t *length, size_t *capac
                                       const sequel_query_document_t *query, const sequel_summary_options_t *settings,
                                       sequel_source_view_t source, size_t statement_count,
                                       const sequel_statement_info_t *statements) {
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      sequel_summary_word(source.data, source.length, 0, "SELECT") && strchr(source.data, '[') &&
+      !strchr(source.data, ']'))
+    return sequel_summary_append_text(text, length, capacity, "SQL") ? 1 : -1;
   const sequel_statement_info_t *first = statement_count ? &statements[0] : NULL;
   int result = sequel_summary_render_scalar_projection_summary(text, length, capacity, query, source, first);
   if (result != 0)
