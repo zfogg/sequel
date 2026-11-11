@@ -1,14 +1,5 @@
 /* Unified analysis uses the existing dialect lexer. It hashes framed token
  * classes and produces numeric provenance while values are replaced. */
-static const char *analysis_find_text(const char *source, size_t length, const char *needle) {
-  size_t needle_length = strlen(needle);
-  if (!needle_length || needle_length > length)
-    return NULL;
-  for (size_t offset = 0; offset + needle_length <= length; ++offset)
-    if (!memcmp(source + offset, needle, needle_length))
-      return source + offset;
-  return NULL;
-}
 
 static int shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
@@ -1704,8 +1695,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     out->omission_reason = "malformed";
   } else {
     const char *ambiguous = NULL;
-    if ((o.dialect == SEQUEL_MYSQL && (ambiguous = analysis_find_text(sql, n, "$$"))) ||
-        (o.dialect == SEQUEL_POSTGRESQL && (ambiguous = analysis_find_text(sql, n, "\\'")))) {
+    if ((o.dialect == SEQUEL_MYSQL && (ambiguous = sequel_text_find(sql, n, "$$"))) ||
+        (o.dialect == SEQUEL_POSTGRESQL && (ambiguous = sequel_text_find(sql, n, "\\'")))) {
       call->ambiguous_literal = true;
       call->ambiguous_offset = (size_t)(ambiguous - sql);
     }
