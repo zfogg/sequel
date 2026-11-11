@@ -1488,9 +1488,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       if (sequel_summary_word(source.data, source.length, i, "ORDER") &&
           sequel_summary_word(source.data, source.length, sequel_summary_skip_space(source.data, source.length, i + 5),
                               "BY")) {
-        if (!sequel_summary_append_text(&text, &length, &capacity,
-                                        sequel_summary_find_text(source.data, "SELECT DISTINCT ON") ? " ORDER BY …"
-                                                                                                    : " ORDER BY"))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY …"))
           goto no_memory;
         break;
       }
