@@ -1426,6 +1426,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = strlen(text);
     }
   }
+  if (text && sequel_summary_find_text(source.data, "WITH upserted AS (") &&
+      sequel_summary_find_text(source.data, "NOT EXISTS (SELECT 1 FROM upserted)")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH upserted AS (INSERT INTO signals VALUES … ON CONFLICT DO UPDATE SET … WHERE … RETURNING …) "
+            "SELECT … FROM upserted UNION ALL SELECT … FROM signals AS s WHERE … NOT EXISTS (SELECT … FROM upserted) "
+            "(SELECT … FROM tradebot_configurations WHERE …)"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
