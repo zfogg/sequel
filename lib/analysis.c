@@ -1,7 +1,6 @@
 /* Unified analysis uses the existing dialect lexer. It hashes framed token
  * classes and produces numeric provenance while values are replaced. */
-#include "sha256.h"
-#include "runtime_types.h"
+#include "analysis_internal.h"
 
 static void utf8_cut(char *text, size_t limit) {
   size_t length = strlen(text);
