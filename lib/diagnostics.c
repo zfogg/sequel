@@ -4,6 +4,7 @@
 #include <ctype.h>
 
 #include <sequel.h>
+#include "resources.h"
 #include "util/text.h"
 #include "util/utf8.h"
 
