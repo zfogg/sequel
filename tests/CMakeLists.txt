@@ -93,6 +93,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/format_buffer.c
   ../lib/format_rules.c
   ../lib/inspection.c
+  ../lib/inspection_text.c
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c
