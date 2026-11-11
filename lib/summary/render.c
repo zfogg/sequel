@@ -820,14 +820,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           join_index = j;
           break;
         }
-      for (size_t p = 0; p < sequel_query_predicate_count(query); ++p) {
+      for (size_t p = 0;
+           (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && p < sequel_query_predicate_count(query); ++p) {
         const sequel_predicate_info_t *predicate = &sequel_query_predicates(query)[p];
         if (sequel_source_range_contains(predicate->range, relations[i].range)) {
           nested = true;
           break;
         }
       }
-      if (!nested)
+      if (!nested && (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE))
         for (size_t j = 0; j < sequel_query_join_count(query); ++j)
           if (joins[j].has_condition && joins[j].right_relation != i &&
               sequel_source_range_contains(joins[j].condition_range, relations[i].range)) {
@@ -838,7 +839,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         continue;
       if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX)
         continue;
-      if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX && i != 0)
+      if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && join_index == SIZE_MAX)
         continue;
       if (operation != SEQUEL_OPERATION_CREATE) {
         const char *prefix = rendered_relations == 0 ? " FROM " : ",";
