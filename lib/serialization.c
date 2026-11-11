@@ -4,7 +4,7 @@
 #include <sequel/serialization.h>
 #include <sequel/fingerprint.h>
 
-enum { sequel_document_schema_major = 1u, sequel_document_schema_minor = 2u };
+enum { sequel_document_schema_major = 1u, sequel_document_schema_minor = 3u };
 
 struct sequel_document_bundle {
   sequel_syntax_document_t *syntax;
@@ -123,6 +123,7 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
                        query ? sequel_query_join_count(query) : 0,
                        query ? sequel_query_projection_count(query) : 0,
                        query ? sequel_query_predicate_count(query) : 0,
+                       query ? sequel_query_clause_count(query) : 0,
                        9};
   if (!append_bytes(out, header, sizeof(header)))
     return SEQUEL_ERR_NOMEM;
@@ -214,6 +215,12 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
           !append_u64(out, predicates[i].expression_node) || !append_u64(out, predicates[i].normalized_hash) ||
           !append_u64(out, predicates[i].depth))
         return SEQUEL_ERR_NOMEM;
+    count = sequel_query_clause_count(query);
+    const sequel_clause_info_t *clauses = sequel_query_clauses(query);
+    for (size_t i = 0; i < count; ++i)
+      if (!append_range(out, clauses[i].range) || !append_u64(out, clauses[i].statement_index) ||
+          !append_u64(out, clauses[i].keyword_id))
+        return SEQUEL_ERR_NOMEM;
   }
   char fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   if (sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, fingerprint) != SEQUEL_OK)
@@ -239,7 +246,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   *out = NULL;
   const uint8_t *cursor = serialized->data;
   size_t remaining = serialized->length;
-  uint64_t header[16];
+  uint64_t header[17];
   for (size_t i = 0; i < 16; ++i)
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -358,9 +365,18 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
         !serialized_index_valid(values[2], header[9]) || !serialized_index_valid(values[3], header[6]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
-  if (header[15] != 9)
-    return SEQUEL_ERR_INVALID_ARGUMENT;
   for (uint64_t i = 0; i < header[15]; ++i) {
+    uint64_t values[4];
+    for (size_t j = 0; j < 4; ++j)
+      if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
+        return SEQUEL_ERR_INVALID_ARGUMENT;
+    if (!serialized_range_valid(values[0], values[1], source->length) ||
+        !serialized_index_valid(values[2], header[9]) || values[3] > SEQUEL_KEYWORD_PREWHERE)
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
+  if (header[16] != 9)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  for (uint64_t i = 0; i < header[16]; ++i) {
     if (!read_u64(&validation_cursor, &validation_remaining, &serialized_fingerprint[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
