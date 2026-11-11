@@ -1624,24 +1624,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!sequel_summary_append_text(&text, &length, &capacity, " SAMPLE"))
       goto no_memory;
   }
-  if (settings->include_predicates && text) {
-    const sequel_relation_info_t *relations = sequel_query_relations(query);
-    for (size_t i = 0; i < sequel_query_relation_count(query); ++i) {
-      if (relations[i].kind != SEQUEL_RELATION_SUBQUERY || !(relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) ||
-          relations[i].name_range.end <= relations[i].name_range.start)
-        continue;
-      const char *name = source.data + relations[i].name_range.start;
-      size_t name_length = relations[i].name_range.end - relations[i].name_range.start;
-      if (!sequel_summary_find_text(source.data + relations[i].range.start, " WHERE "))
-        continue;
-      if (text && sequel_summary_find_text(text, name))
-        continue;
-      if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, name, name_length) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " WHERE"))
-        goto no_memory;
-    }
-  }
   if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
       statements[0].operation == SEQUEL_OPERATION_SELECT && !sequel_summary_find_text(source.data, "QUALIFY")) {
     for (size_t i = outer_start; i < source.length; ++i) {
