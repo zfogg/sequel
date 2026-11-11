@@ -1180,29 +1180,27 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               goto no_memory;
             continue;
           }
+          if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
+              !sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
+            goto no_memory;
+          const sequel_join_info_t *model_joins = sequel_query_joins(query);
+          size_t model_join_index = SIZE_MAX;
+          for (size_t candidate = 0; candidate < sequel_query_join_count(query); ++candidate)
+            if (model_joins[candidate].right_relation == i) {
+              model_join_index = candidate;
+              break;
+            }
+          if (model_join_index != SIZE_MAX && model_joins[model_join_index].has_condition &&
+              model_joins[model_join_index].condition_range.end > model_joins[model_join_index].condition_range.start &&
+              (!sequel_summary_append_text(&text, &length, &capacity, " ON ") ||
+               !sequel_summary_append_redacted_range(&text, &length, &capacity, query,
+                                                     model_joins[model_join_index].condition_range.start,
+                                                     model_joins[model_join_index].condition_range.end)))
+            goto no_memory;
           size_t condition_start = relations[i].alias_range.end > relations[i].range.end ? relations[i].alias_range.end
                                                                                          : relations[i].range.end;
           while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
             ++condition_start;
-          if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
-              !sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
-            goto no_memory;
-          if (condition_start < source.length &&
-              sequel_summary_word(source.data, source.length, condition_start, "ON")) {
-            size_t condition_end = source.length;
-            const char *where = sequel_summary_find_word(source.data, source.length, condition_start, "WHERE");
-            const char *order = sequel_summary_find_word(source.data, source.length, condition_start, "ORDER");
-            const char *next_join = sequel_summary_find_word(source.data, source.length, condition_start, "JOIN");
-            if (where)
-              condition_end = (size_t)(where - source.data);
-            if (order && (size_t)(order - source.data) < condition_end)
-              condition_end = (size_t)(order - source.data);
-            if (next_join && (size_t)(next_join - source.data) < condition_end)
-              condition_end = (size_t)(next_join - source.data);
-            if (!sequel_summary_append_text(&text, &length, &capacity, " ") ||
-                !sequel_summary_append_redacted_range(&text, &length, &capacity, query, condition_start, condition_end))
-              goto no_memory;
-          }
           const char *using = sequel_summary_find_word(source.data, source.length, condition_start, "USING");
           const char *open = using ? strchr(using, '(') : NULL;
           const char *close = open ? strchr(open, ')') : NULL;
