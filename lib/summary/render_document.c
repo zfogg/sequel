@@ -51,32 +51,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && sequel_summary_find_text(source.data, "WITH RECURSIVE") == source.data;
-    if (!sequel_summary_append_text(&text, &length, &capacity, recursive ? "WITH RECURSIVE " : "WITH "))
+    if (!sequel_summary_append_cte_definitions(&text, &length, &capacity, source, ctes, sequel_query_cte_count(query),
+                                               recursive, &cte_prefix_end))
       goto no_memory;
-    for (size_t i = 0; i < sequel_query_cte_count(query); ++i) {
-      if (i && !sequel_summary_append_text(&text, &length, &capacity, ", "))
-        goto no_memory;
-      if (!sequel_summary_append_bytes(&text, &length, &capacity, source.data + ctes[i].name_range.start,
-                                       ctes[i].name_range.end - ctes[i].name_range.start) ||
-          !sequel_summary_append_text(&text, &length, &capacity,
-                                      sequel_summary_find_text(source.data + ctes[i].name_range.end, "MATERIALIZED")
-                                          ? " AS MATERIALIZED ("
-                                          : " AS ("))
-        goto no_memory;
-      bool preserve_limit = false;
-      for (size_t cursor = ctes[i].name_range.end; cursor < ctes[i].body_range.start; ++cursor)
-        if (cursor + 12 <= source.length && !memcmp(source.data + cursor, "MATERIALIZED", 12)) {
-          preserve_limit = true;
-          break;
-        }
-      if (!sequel_summary_append_body_summary(&text, &length, &capacity, source.data, ctes[i].body_range,
-                                              preserve_limit) ||
-          !sequel_summary_append_text(&text, &length, &capacity, ")"))
-        goto no_memory;
-    }
-    if (!sequel_summary_append_text(&text, &length, &capacity, " "))
-      goto no_memory;
-    cte_prefix_end = length;
     if (sequel_query_outer_distinct_on(query) &&
         (!sequel_summary_append_text(&text, &length, &capacity, "SELECT DISTINCT ON (…) …")))
       goto no_memory;

@@ -101,5 +101,9 @@ int sequel_summary_append_nested_cte_projection(char **text, size_t *length, siz
 int sequel_summary_append_cte_insert_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                            const sequel_cte_info_t *ctes, size_t cte_count, bool *cte_insert_scope);
 
+int sequel_summary_append_cte_definitions(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                          const sequel_cte_info_t *ctes, size_t cte_count, bool recursive,
+                                          size_t *cte_prefix_end);
+
 sequel_status_t sequel_summary_render(const sequel_query_document_t *query, const sequel_summary_options_t *options,
                                       sequel_text_result_t *out);
