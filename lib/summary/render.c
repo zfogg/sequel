@@ -2492,6 +2492,18 @@ summary_postprocess:
             "tax_history_reconciliation AS h ON h.account_id=a.account_id WHERE … ORDER BY …"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "WITH filtered AS (") &&
+      sequel_summary_find_text(source.data, "tax_shared_summary") &&
+      sequel_summary_find_text(source.data, "LATERAL unnest(")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH filtered AS (SELECT … FROM tax_liability_events AS e WHERE … IN (SELECT … FROM "
+            "tax_shared_summary AS s WHERE …)), missing AS (SELECT … FROM filtered, LATERAL unnest(…) AS item) "
+            "SELECT … (SELECT … FROM missing) FROM filtered"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
