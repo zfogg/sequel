@@ -2469,6 +2469,16 @@ summary_postprocess:
             "ORDER BY …"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "FROM strategies st") &&
+      sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "SELECT … FROM strategies AS st CROSS JOIN LATERAL (SELECT … FROM signals WHERE … ORDER BY … LIMIT 1) "
+            "AS s WHERE … ORDER BY … LIMIT 1"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
