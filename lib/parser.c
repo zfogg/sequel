@@ -597,6 +597,43 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
           return SEQUEL_ERR_NOMEM;
         }
       }
+      for (size_t candidate = first; candidate + 1 < last; ++candidate) {
+        if (tokens[candidate].kind != SEQUEL_TOKEN_PUNCTUATION || source.data[tokens[candidate].range.start] != '(')
+          continue;
+        size_t inner = candidate + 1;
+        while (inner < last &&
+               (tokens[inner].kind == SEQUEL_TOKEN_WHITESPACE || tokens[inner].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+                tokens[inner].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+          ++inner;
+        if (inner >= last || tokens[inner].kind != SEQUEL_TOKEN_KEYWORD ||
+            (tokens[inner].keyword_id != SEQUEL_KEYWORD_SELECT && tokens[inner].keyword_id != SEQUEL_KEYWORD_WITH))
+          continue;
+        size_t depth = 0, closing = last;
+        for (size_t scan = candidate; scan < last; ++scan) {
+          if (tokens[scan].kind != SEQUEL_TOKEN_PUNCTUATION)
+            continue;
+          char punctuation = source.data[tokens[scan].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')' && depth && --depth == 0) {
+            closing = scan;
+            break;
+          }
+        }
+        if (closing == last)
+          continue;
+        sequel_syntax_node_t subquery = {.kind = SEQUEL_SYNTAX_SUBQUERY,
+                                         .range = {tokens[candidate].range.start, tokens[closing].range.end},
+                                         .header_range = tokens[inner].range,
+                                         .first_token = candidate,
+                                         .token_count = closing + 1 - candidate,
+                                         .production_id = SEQUEL_SYNTAX_SUBQUERY};
+        if (!sequel_parser_append_node(document, subquery) ||
+            !sequel_parser_append_child(document, parent, document->node_count - 1)) {
+          sequel_syntax_document_free(document);
+          return SEQUEL_ERR_NOMEM;
+        }
+      }
     }
     if (i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF)
       break;

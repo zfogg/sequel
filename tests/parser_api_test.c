@@ -762,6 +762,19 @@ int main(void) {
   if (!check(saw_window, "window expression node"))
     return 1;
   sequel_syntax_document_free(window_syntax);
+  const char subquery_sql[] = "SELECT * FROM (SELECT id FROM accounts WHERE active = true) AS a";
+  sequel_source_view_t subquery_source = {subquery_sql, strlen(subquery_sql)};
+  sequel_syntax_document_t *subquery_syntax = NULL;
+  if (!check(sequel_parse_sql(&subquery_source, &options, NULL, &subquery_syntax) == SEQUEL_OK, "subquery parse"))
+    return 1;
+  size_t subquery_nodes = 0;
+  const sequel_syntax_node_t *subquery_node_list = sequel_syntax_nodes(subquery_syntax, &subquery_nodes);
+  bool saw_subquery = false;
+  for (size_t i = 0; i < subquery_nodes; ++i)
+    saw_subquery |= subquery_node_list[i].kind == SEQUEL_SYNTAX_SUBQUERY;
+  if (!check(saw_subquery, "subquery node"))
+    return 1;
+  sequel_syntax_document_free(subquery_syntax);
   const char prewhere_sql[] = "SELECT * FROM builds PREWHERE id = 1";
   sequel_source_view_t prewhere_source = {prewhere_sql, strlen(prewhere_sql)};
   sequel_syntax_document_t *prewhere_syntax = NULL;
