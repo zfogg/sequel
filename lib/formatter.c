@@ -158,8 +158,9 @@ static int has_case_before_matching_close(sequel_source_view_t source, const seq
   return 0;
 }
 
-static int is_condition_operator(const sequel_token_t *token, size_t paren_depth) {
-  return token->kind == SEQUEL_TOKEN_KEYWORD && paren_depth == 0 &&
+static int is_condition_operator(const sequel_token_t *token, size_t paren_depth, size_t cte_paren_depth) {
+  return token->kind == SEQUEL_TOKEN_KEYWORD &&
+         (paren_depth == 0 || (cte_paren_depth && paren_depth == cte_paren_depth)) &&
          (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR);
 }
 
@@ -339,7 +340,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           token_is_word(source, previous_token, "DISTINCT")) &&
         !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
-    bool condition_operator = is_condition_operator(token, paren_depth) && !between_pending;
+    bool condition_operator = is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
     if (keyword && token->keyword_id == SEQUEL_KEYWORD_BETWEEN)
       between_pending = true;
     else if (keyword && token->keyword_id == SEQUEL_KEYWORD_AND && between_pending)
@@ -398,8 +399,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (is_open_paren(source, token) && previous_token && is_comma(source, previous_token) &&
           clause != SEQUEL_KEYWORD_VALUES)
         projection_subquery = true;
-      if (is_open_paren(source, token) && previous_token && previous_token->range.end >= 2 &&
-          source.data[previous_token->range.end - 2] == 'A' && source.data[previous_token->range.end - 1] == 'S')
+      if (is_open_paren(source, token) && previous_token && token_is_word(source, previous_token, "AS"))
         cte_paren_depth = paren_depth + 1;
       update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
