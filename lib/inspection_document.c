@@ -9,6 +9,21 @@
 #include "tokens.h"
 #include "util/utf8.h"
 
+static void normalize_summary_parameters(sequel_text_result_t *summary) {
+  if (!summary || !summary->data)
+    return;
+  for (size_t i = 0; i + 1 < summary->length; ++i) {
+    if (summary->data[i] != '$' || summary->data[i + 1] < '0' || summary->data[i + 1] > '9')
+      continue;
+    size_t end = i + 2;
+    while (end < summary->length && summary->data[end] >= '0' && summary->data[end] <= '9')
+      ++end;
+    summary->data[i] = '?';
+    memmove(summary->data + i + 1, summary->data + end, summary->length - end + 1);
+    summary->length -= end - i - 1;
+  }
+}
+
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
   sequel_parse_options_t parse_options;
@@ -56,6 +71,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
+  normalize_summary_parameters(&summary);
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
     memcpy(summary.data + limit, "…", 3);
