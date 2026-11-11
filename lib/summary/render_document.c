@@ -1511,12 +1511,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (!sequel_summary_repair_format_clauses(&text, &length, &capacity, source, query, outer_start,
                                             settings->include_tables, statement_count))
     goto no_memory;
-  if (settings->include_bind_count) {
-    char binds[32];
-    snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));
-    if (!sequel_summary_append_text(&text, &length, &capacity, binds))
-      goto no_memory;
-  }
+  if (!sequel_summary_append_bind_count(&text, &length, &capacity, query, settings->include_bind_count))
+    goto no_memory;
   if (!sequel_summary_repair_cte_insert(&text, &length, source, cte_insert_scope))
     goto no_memory;
   if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query)) {

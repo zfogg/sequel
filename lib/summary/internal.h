@@ -98,6 +98,9 @@ int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *ca
 
 int sequel_summary_repair_cte_insert(char **text, size_t *length, sequel_source_view_t source, bool cte_insert_scope);
 
+int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capacity,
+                                     const sequel_query_document_t *query, bool include_bind_count);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,

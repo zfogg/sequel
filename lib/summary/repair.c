@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "internal.h"
@@ -260,4 +261,15 @@ int sequel_summary_repair_cte_insert(char **text, size_t *length, sequel_source_
     *length = strlen(*text);
   }
   return 1;
+}
+
+int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capacity,
+                                     const sequel_query_document_t *query, bool include_bind_count) {
+  if (!text || !*text || !length || !capacity || !query)
+    return 0;
+  if (!include_bind_count)
+    return 1;
+  char binds[32];
+  snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));
+  return sequel_summary_append_text(text, length, capacity, binds);
 }
