@@ -1,5 +1,5 @@
 /* Policy diagnostics consume the shared token view; they do not rescan SQL text. */
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis_token_t *ts, size_t count,
                                              sequel_dialect_t dialect, sequel_analysis_t *out) {

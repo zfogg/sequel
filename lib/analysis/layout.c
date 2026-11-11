@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 /* Clause boundaries used by the shared layout pass. */
 bool sequel_analysis_is_layout_boundary(token t) {

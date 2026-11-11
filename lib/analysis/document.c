@@ -5,7 +5,7 @@
 #include <sequel/sanitizer.h>
 #include <sequel/summary.h>
 
-#include "analysis_internal.h"
+#include "internal.h"
 
 struct sequel_query_analysis {
   const sequel_query_document_t *query;

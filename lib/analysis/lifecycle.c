@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};

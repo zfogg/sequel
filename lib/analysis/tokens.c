@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "analysis_internal.h"
+#include "internal.h"
 
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {

@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
   size_t count = out->statement_count;

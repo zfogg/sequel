@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "analysis/analysis_internal.h"
+#include "analysis/internal.h"
 
 int sequel_token_is_comment(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;

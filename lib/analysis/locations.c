@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_positions(const char *sql, sequel_analysis_t *out) {
   if (!sql || !out)

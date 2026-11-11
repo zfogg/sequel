@@ -1,5 +1,5 @@
 /* Normalize list punctuation after the shared sanitizer has emitted text. */
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_compact_list_text(analysis_text *text) {
   size_t read = 0, write = 0;

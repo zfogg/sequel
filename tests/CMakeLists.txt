@@ -62,7 +62,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/compact.c
   ../lib/api.c
   ../lib/inspection_document.c
-  ../lib/analysis/analysis.c
+  ../lib/analysis/core.c
   ../lib/analysis/maps.c
   ../lib/analysis/statements.c
   ../lib/analysis/format.c
@@ -77,10 +77,10 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/statements.c
   ../lib/joins.c
   ../lib/expressions.c
-  ../lib/analysis/analysis_literal.c
-  ../lib/analysis/analysis_binding_token.c
-  ../lib/analysis/analysis_text.c
-  ../lib/analysis/analysis_policy.c
+  ../lib/analysis/literal.c
+  ../lib/analysis/binding_token.c
+  ../lib/analysis/text.c
+  ../lib/analysis/policy.c
   ../lib/source.c
   ../lib/dialect.c
   ../lib/lexer.c

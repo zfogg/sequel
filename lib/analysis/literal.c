@@ -1,5 +1,5 @@
 /* Identify values that sanitization and fingerprinting must redact. */
-#include "analysis_internal.h"
+#include "internal.h"
 
 static unsigned char clickhouse_quote_kind(const char *text, size_t length) {
   if (length < 3 || (unsigned char)text[0] != 0xe2 || (unsigned char)text[1] != 0x80)

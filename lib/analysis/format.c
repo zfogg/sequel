@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
                                                  sequel_text_result_t *out) {

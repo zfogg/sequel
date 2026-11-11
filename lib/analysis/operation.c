@@ -1,4 +1,4 @@
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   if (!query || !out || !sequel_query_statement_count(query))

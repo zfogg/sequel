@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "analysis_internal.h"
+#include "internal.h"
 
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   sequel_summary_options_t options;

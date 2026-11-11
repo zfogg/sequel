@@ -1,5 +1,5 @@
 /* Classify one source token as a canonical binding marker. */
-#include "analysis_internal.h"
+#include "internal.h"
 
 bool sequel_analysis_bind_token(analysis_token_t t, sequel_dialect_t d, const char **key, size_t *length,
                                 size_t *number, sequel_bind_style_t *style) {
