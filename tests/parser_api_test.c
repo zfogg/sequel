@@ -983,5 +983,28 @@ int main(void) {
     sequel_query_document_free(comma_query);
     sequel_syntax_document_free(comma_syntax);
   }
+  {
+    const char *quoted_sql = "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true";
+    sequel_source_view_t quoted_source = {quoted_sql, strlen(quoted_sql)};
+    sequel_syntax_document_t *quoted_syntax = NULL;
+    sequel_query_document_t *quoted_query = NULL;
+    sequel_parse_options_t quoted_options;
+    sequel_parse_options_init(&quoted_options);
+    if (!check(sequel_parse_sql(&quoted_source, &quoted_options, NULL, &quoted_syntax) == SEQUEL_OK,
+               "quoted relation parse") ||
+        !check(sequel_build_query_document(quoted_syntax, &quoted_options, &quoted_query) == SEQUEL_OK,
+               "quoted relation query")) {
+      sequel_syntax_document_free(quoted_syntax);
+      return 1;
+    }
+    if (!check(sequel_query_relation_count(quoted_query) == 2 && sequel_query_join_count(quoted_query) == 1,
+               "quoted relations retained")) {
+      sequel_query_document_free(quoted_query);
+      sequel_syntax_document_free(quoted_syntax);
+      return 1;
+    }
+    sequel_query_document_free(quoted_query);
+    sequel_syntax_document_free(quoted_syntax);
+  }
   return 0;
 }
