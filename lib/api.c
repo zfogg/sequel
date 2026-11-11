@@ -10,16 +10,6 @@
 #include "util/text.h"
 #include "util/utf8.h"
 
-static void utf8_cut(char *s, size_t limit) {
-  size_t n = strlen(s);
-  if (n <= limit)
-    return;
-  limit = sequel_utf8_prefix(s, n, limit);
-  s[limit] = 0;
-  while (limit && isspace((unsigned char)s[limit - 1]))
-    s[--limit] = 0;
-}
-
 static size_t next_significant_token(const sequel_token_t *tokens, size_t count, size_t index) {
   while (index < count &&
          (tokens[index].kind == SEQUEL_TOKEN_WHITESPACE || tokens[index].kind == SEQUEL_TOKEN_LINE_COMMENT ||
@@ -163,7 +153,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   if (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS)
     sequel_inspection_normalize_text(result.data);
   *truncated = result.length > limit;
-  utf8_cut(result.data, limit);
+  sequel_inspection_cut_utf8(result.data, limit);
   result.length = strlen(result.data);
   if (result.length >= capacity) {
     sequel_text_result_free(&result);
@@ -261,7 +251,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
       text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX);
   if (out->truncated) {
     size_t limit = options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX;
-    utf8_cut((char *)out->text, limit);
+    sequel_inspection_cut_utf8((char *)out->text, limit);
   }
   status = SEQUEL_OK;
 done:

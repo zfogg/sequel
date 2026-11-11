@@ -2,6 +2,17 @@
 #include <string.h>
 
 #include "inspection_text.h"
+#include "util/utf8.h"
+
+void sequel_inspection_cut_utf8(char *text, size_t limit) {
+  size_t length = strlen(text);
+  if (length <= limit)
+    return;
+  limit = sequel_utf8_prefix(text, length, limit);
+  text[limit] = 0;
+  while (limit && isspace((unsigned char)text[limit - 1]))
+    text[--limit] = 0;
+}
 
 void sequel_inspection_normalize_text(char *text) {
   size_t read = 0, write = 0;
