@@ -816,6 +816,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         continue;
       if (operation != SEQUEL_OPERATION_CREATE) {
         const char *prefix = rendered_relations == 0 ? " FROM " : ",";
+        if (rendered_relations && join_index == SIZE_MAX)
+          prefix = ", ";
         if (rendered_relations && join_index != SIZE_MAX) {
           prefix = " JOIN ";
           size_t context_start = i ? relations[i - 1].range.end : 0;

@@ -937,14 +937,14 @@ int main(void) {
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   {
-    const char *join_sql = "SELECT * FROM a NATURAL LEFT JOIN b JOIN c USING(id,tenant_id) FULL OUTER JOIN d ON d.id=c.id";
+    const char *join_sql =
+        "SELECT * FROM a NATURAL LEFT JOIN b JOIN c USING(id,tenant_id) FULL OUTER JOIN d ON d.id=c.id";
     sequel_source_view_t join_source = {join_sql, strlen(join_sql)};
     sequel_syntax_document_t *join_syntax = NULL;
     sequel_query_document_t *join_query = NULL;
     sequel_parse_options_t join_options;
     sequel_parse_options_init(&join_options);
-    if (!check(sequel_parse_sql(&join_source, &join_options, NULL, &join_syntax) == SEQUEL_OK,
-               "chained join parse") ||
+    if (!check(sequel_parse_sql(&join_source, &join_options, NULL, &join_syntax) == SEQUEL_OK, "chained join parse") ||
         !check(sequel_build_query_document(join_syntax, &join_options, &join_query) == SEQUEL_OK,
                "chained join query")) {
       sequel_syntax_document_free(join_syntax);
@@ -960,6 +960,28 @@ int main(void) {
     }
     sequel_query_document_free(join_query);
     sequel_syntax_document_free(join_syntax);
+  }
+  {
+    const char *comma_sql = "SELECT * FROM a,b,c,d";
+    sequel_source_view_t comma_source = {comma_sql, strlen(comma_sql)};
+    sequel_syntax_document_t *comma_syntax = NULL;
+    sequel_query_document_t *comma_query = NULL;
+    sequel_parse_options_t comma_options;
+    sequel_parse_options_init(&comma_options);
+    if (!check(sequel_parse_sql(&comma_source, &comma_options, NULL, &comma_syntax) == SEQUEL_OK,
+               "comma relation parse") ||
+        !check(sequel_build_query_document(comma_syntax, &comma_options, &comma_query) == SEQUEL_OK,
+               "comma relation query")) {
+      sequel_syntax_document_free(comma_syntax);
+      return 1;
+    }
+    if (!check(sequel_query_relation_count(comma_query) == 4, "comma relations retained")) {
+      sequel_query_document_free(comma_query);
+      sequel_syntax_document_free(comma_syntax);
+      return 1;
+    }
+    sequel_query_document_free(comma_query);
+    sequel_syntax_document_free(comma_syntax);
   }
   return 0;
 }

@@ -354,9 +354,24 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
-        (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN &&
-         tokens[i].keyword_id != SEQUEL_KEYWORD_ON))
+    bool comma_relation = false;
+    if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i].range.start] == ',') {
+      for (size_t previous = i; previous > 0;) {
+        --previous;
+        if (is_trivia(&tokens[previous]))
+          continue;
+        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && (tokens[previous].keyword_id == SEQUEL_KEYWORD_FROM ||
+                                                              tokens[previous].keyword_id == SEQUEL_KEYWORD_JOIN)) {
+          comma_relation = true;
+          break;
+        }
+        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[previous]))
+          break;
+      }
+    }
+    if (!comma_relation && (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
+                            (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM &&
+                             tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN && tokens[i].keyword_id != SEQUEL_KEYWORD_ON)))
       continue;
     bool expression_from = false;
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_FROM) {
