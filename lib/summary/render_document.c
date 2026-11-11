@@ -80,34 +80,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     if (sequel_query_outer_distinct_on(query) &&
         (!sequel_summary_append_text(&text, &length, &capacity, "SELECT DISTINCT ON (…) …")))
       goto no_memory;
-    if (sequel_summary_find_text(source.data, " FROM (WITH ")) {
-      const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
-      if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " FROM "))
-        goto no_memory;
-      const char *cursor = nested + 6;
-      while (*cursor) {
-        if (*cursor == '*') {
-          if (!sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
-            goto no_memory;
-          ++cursor;
-        } else if (!strncmp(cursor, "true", 4)) {
-          if (!sequel_summary_append_text(&text, &length, &capacity, "?"))
-            goto no_memory;
-          cursor += 4;
-        } else if (!strncmp(cursor, ") q", 3)) {
-          if (!sequel_summary_append_text(&text, &length, &capacity, ") AS q"))
-            goto no_memory;
-          cursor += 3;
-        } else {
-          if (!sequel_summary_append_bytes(&text, &length, &capacity, cursor, 1))
-            goto no_memory;
-          ++cursor;
-        }
-      }
-      nested_cte_scope = true;
-    }
+    if (!sequel_summary_append_nested_cte_projection(&text, &length, &capacity, source, &nested_cte_scope))
+      goto no_memory;
     const char *outer_insert =
         sequel_summary_find_text(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
     if (outer_insert)

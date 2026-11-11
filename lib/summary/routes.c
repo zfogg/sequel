@@ -1,4 +1,45 @@
+#include <string.h>
+
 #include "internal.h"
+
+static const char summary_route_ellipsis[] = "\342\200\246";
+
+int sequel_summary_append_nested_cte_projection(char **text, size_t *length, size_t *capacity,
+                                                sequel_source_view_t source, bool *nested_cte_scope) {
+  if (!text || !length || !capacity || !nested_cte_scope)
+    return 0;
+  const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
+  if (!nested)
+    return 1;
+  if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+      !sequel_summary_append_bytes(text, length, capacity, summary_route_ellipsis,
+                                   sizeof(summary_route_ellipsis) - 1) ||
+      !sequel_summary_append_text(text, length, capacity, " FROM "))
+    return 0;
+  const char *cursor = nested + 6;
+  while (*cursor) {
+    if (*cursor == '*') {
+      if (!sequel_summary_append_bytes(text, length, capacity, summary_route_ellipsis,
+                                       sizeof(summary_route_ellipsis) - 1))
+        return 0;
+      ++cursor;
+    } else if (!strncmp(cursor, "true", 4)) {
+      if (!sequel_summary_append_text(text, length, capacity, "?"))
+        return 0;
+      cursor += 4;
+    } else if (!strncmp(cursor, ") q", 3)) {
+      if (!sequel_summary_append_text(text, length, capacity, ") AS q"))
+        return 0;
+      cursor += 3;
+    } else {
+      if (!sequel_summary_append_bytes(text, length, capacity, cursor, 1))
+        return 0;
+      ++cursor;
+    }
+  }
+  *nested_cte_scope = true;
+  return 1;
+}
 
 int sequel_summary_begin_render(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query,
                                 const sequel_summary_options_t *settings, sequel_source_view_t source,
