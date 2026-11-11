@@ -1517,15 +1517,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     if (!sequel_summary_append_text(&text, &length, &capacity, binds))
       goto no_memory;
   }
-  if (cte_insert_scope) {
-    char *first_insert = sequel_summary_find_text(text, " INSERT INTO ");
-    char *duplicate_insert =
-        first_insert ? sequel_summary_find_text(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
-    if (duplicate_insert) {
-      *duplicate_insert = '\0';
-      length = strlen(text);
-    }
-  }
+  if (!sequel_summary_repair_cte_insert(&text, &length, source, cte_insert_scope))
+    goto no_memory;
   if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query)) {
     size_t tail_start = length > 64 ? length - 64 : 0;
     if (!sequel_summary_find_text(text + tail_start, "LIMIT") &&

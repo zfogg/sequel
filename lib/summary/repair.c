@@ -246,3 +246,18 @@ int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *ca
   }
   return 1;
 }
+
+int sequel_summary_repair_cte_insert(char **text, size_t *length, sequel_source_view_t source, bool cte_insert_scope) {
+  if (!text || !*text || !length || !source.data)
+    return 0;
+  if (!cte_insert_scope)
+    return 1;
+  char *first_insert = sequel_summary_find_text(*text, " INSERT INTO ");
+  char *duplicate_insert =
+      first_insert ? sequel_summary_find_text(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
+  if (duplicate_insert) {
+    *duplicate_insert = '\0';
+    *length = strlen(*text);
+  }
+  return 1;
+}
