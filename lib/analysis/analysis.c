@@ -39,7 +39,7 @@ static void analysis_charge(analysis_state *a, size_t bytes) {
   sequel_output_tick(bytes);
 }
 
-static void *analysis_array(void *pointer, size_t count, size_t element) {
+void *analysis_array(void *pointer, size_t count, size_t element) {
   if (count > SIZE_MAX / element)
     sequel_abort(SEQUEL_ERR_LIMIT);
   size_t bytes = count * element,
@@ -213,40 +213,6 @@ static void analysis_sort_diagnostics(sequel_analysis_t *out) {
     }
     diagnostics[j] = value;
   }
-}
-
-static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
-  size_t count = out->statement_count;
-  sequel_output_tick(sizeof(sequel_range_t));
-  sequel_range_t *rs = analysis_array((void *)out->statements, count + 1, sizeof(*rs));
-  rs[count] = (sequel_range_t){start, end};
-  out->statements = rs;
-  out->statement_count++;
-}
-
-/* Recover statement spans only when syntax recovery prevents query construction. */
-static void analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
-  size_t count = 0, start = SIZE_MAX, last = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
-  sequel_source_view_t source = sequel_lexed_source(lexed);
-  for (size_t i = 0; i < count; ++i) {
-    const sequel_token_t *token = &tokens[i];
-    if (token->kind == SEQUEL_TOKEN_EOF)
-      break;
-    if (token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
-        token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
-      continue;
-    if (start == SIZE_MAX)
-      start = token->range.start;
-    last = token->range.end;
-    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1 &&
-        source.data[token->range.start] == ';') {
-      analysis_add_statement(out, start, last);
-      start = SIZE_MAX;
-    }
-  }
-  if (start != SIZE_MAX)
-    analysis_add_statement(out, start, last);
 }
 
 bool analysis_word(analysis_token_t t, const char *word) {

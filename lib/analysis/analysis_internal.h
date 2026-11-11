@@ -32,6 +32,8 @@ typedef struct {
   size_t n, capacity;
 } analysis_text;
 
+void *analysis_array(void *pointer, size_t count, size_t element);
+
 bool analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
 bool analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
                          size_t *number, sequel_bind_style_t *style);
@@ -44,6 +46,8 @@ void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
 sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
                               sequel_diagnostic_code_t code);
 void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
+void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
+void analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
 bool analysis_word(analysis_token_t token, const char *word);
 void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void analysis_summary_default(sequel_analysis_t *out);
