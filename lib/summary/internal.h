@@ -92,6 +92,10 @@ int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *cap
                                         const sequel_query_document_t *query, const sequel_statement_info_t *statements,
                                         size_t statement_count, bool include_predicates);
 
+int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                         const sequel_query_document_t *query, size_t outer_start, bool include_tables,
+                                         size_t statement_count);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,

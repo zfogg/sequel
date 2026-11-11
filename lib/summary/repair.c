@@ -210,3 +210,39 @@ int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *cap
   }
   return 1;
 }
+
+int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                         const sequel_query_document_t *query, size_t outer_start, bool include_tables,
+                                         size_t statement_count) {
+  if (!text || !*text || !length || !capacity || !query)
+    return 0;
+  if (!include_tables || !statement_count)
+    return 1;
+  const char *keywords[] = {"SETTINGS", "FORMAT"};
+  size_t clause_count = sequel_query_clause_count(query);
+  const sequel_clause_info_t *clauses = sequel_query_clauses(query);
+  for (size_t keyword = 0; keyword < sizeof(keywords) / sizeof(keywords[0]); ++keyword) {
+    bool present = false;
+    for (size_t clause = 0; clause < clause_count; ++clause) {
+      if (clauses[clause].statement_index == 0 &&
+          sequel_summary_word(source.data, source.length, clauses[clause].range.start, keywords[keyword])) {
+        present = true;
+        break;
+      }
+    }
+    if (!present && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE &&
+        sequel_summary_find_word(source.data, source.length, outer_start, keywords[keyword]))
+      present = true;
+    if (!present)
+      continue;
+    for (size_t offset = outer_start; offset < source.length; ++offset) {
+      if (sequel_summary_word(source.data, source.length, offset, keywords[keyword])) {
+        if (!sequel_summary_append_text(text, length, capacity, " ") ||
+            !sequel_summary_append_text(text, length, capacity, keywords[keyword]))
+          return 0;
+        break;
+      }
+    }
+  }
+  return 1;
+}

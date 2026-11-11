@@ -1508,33 +1508,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (!sequel_summary_repair_set_operators(&text, &length, &capacity, source, query, statements, statement_count,
                                            settings->include_predicates))
     goto no_memory;
-  if (settings->include_tables && statement_count) {
-    const char *keywords[] = {"SETTINGS", "FORMAT"};
-    for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
-      bool clause_present = false;
-      size_t clause_count = sequel_query_clause_count(query);
-      const sequel_clause_info_t *clauses = sequel_query_clauses(query);
-      for (size_t clause = 0; clause < clause_count; ++clause)
-        if (clauses[clause].statement_index == 0 &&
-            sequel_summary_word(source.data, source.length, clauses[clause].range.start, keywords[k])) {
-          clause_present = true;
-          break;
-        }
-      if (!clause_present && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE &&
-          sequel_summary_find_word(source.data, source.length, outer_start, keywords[k]))
-        clause_present = true;
-      if (!clause_present)
-        continue;
-      for (size_t i = outer_start; i < source.length; ++i) {
-        if (sequel_summary_word(source.data, source.length, i, keywords[k])) {
-          if (!sequel_summary_append_text(&text, &length, &capacity, " ") ||
-              !sequel_summary_append_text(&text, &length, &capacity, keywords[k]))
-            goto no_memory;
-          break;
-        }
-      }
-    }
-  }
+  if (!sequel_summary_repair_format_clauses(&text, &length, &capacity, source, query, outer_start,
+                                            settings->include_tables, statement_count))
+    goto no_memory;
   if (settings->include_bind_count) {
     char binds[32];
     snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));
