@@ -1038,6 +1038,31 @@ static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t 
   out->statement_count++;
 }
 
+/* Recover statement spans only when syntax recovery prevents query construction. */
+static void analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
+  size_t count = 0, start = SIZE_MAX, last = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
+  for (size_t i = 0; i < count; ++i) {
+    const sequel_token_t *token = &tokens[i];
+    if (token->kind == SEQUEL_TOKEN_EOF)
+      break;
+    if (token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
+        token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+      continue;
+    if (start == SIZE_MAX)
+      start = token->range.start;
+    last = token->range.end;
+    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1 &&
+        source.data[token->range.start] == ';') {
+      analysis_add_statement(out, start, last);
+      start = SIZE_MAX;
+    }
+  }
+  if (start != SIZE_MAX)
+    analysis_add_statement(out, start, last);
+}
+
 static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   if (!sql || !out)
     return;
@@ -1054,8 +1079,6 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
     diagnostic->end_column = location.end.column;
   }
 }
-
-#include "analysis_structure.c"
 
 #include "analysis_text.c"
 
@@ -1511,7 +1534,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       count = SIZE_MAX;
     }
     if (syntax)
-      analysis_structure_from_lexed(sequel_syntax_lexed(syntax), out);
+      analysis_recovered_statement_ranges(sequel_syntax_lexed(syntax), out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
