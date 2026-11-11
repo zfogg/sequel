@@ -10,31 +10,7 @@
 #include "resources.h"
 #include "util/text.h"
 #include "sha256.h"
-
-typedef struct {
-  const char *p;
-  size_t n;
-  bool word, space, clickhouse;
-} token;
-
-typedef struct {
-  char *p;
-  size_t n, cap;
-  bool overflow, charge_output;
-} output;
-
-/* Private rendering view shared by the formatter and analysis consumers. */
-typedef struct {
-  token t;
-  bool gap;
-  bool newline;
-  int kind;
-  size_t matching;
-  bool multiline;
-  size_t flat_width;
-  size_t source_offset;
-  size_t rendered_offset;
-} format_token;
+#include "runtime_types.h"
 
 /* Token arrays grow with parsed tokens, rather than the maximum input size. */
 static void *grow_tokens(void *tokens, size_t *capacity, size_t element_size) {
