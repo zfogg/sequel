@@ -65,7 +65,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
-  if (sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
+  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
       sequel_summary_find_text(source.data, "JOIN signal_outcomes") &&
       sequel_summary_find_text(source.data, "r.generation = (SELECT generation")) {
     if (!sequel_summary_append_text(&text, &length, &capacity,
@@ -1725,7 +1725,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !sequel_summary_append_text(&text, &length, &capacity, " LIMIT 1"))
       goto no_memory;
   }
-  if (sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
+  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
       !sequel_summary_find_text(text, "SELECT DISTINCT ON")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT DISTINCT ON") ||
         !sequel_summary_append_text(&text, &length, &capacity, " FROM events ORDER BY ") ||
@@ -1848,6 +1848,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (!sequel_query_cte_count(query) || !sequel_summary_find_text(source.data, "ticker_backtest_results")) {
   if (text && sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
       !sequel_summary_find_text(text, "JOIN tradebot_configurations")) {
     char *where = sequel_summary_find_text(text, " WHERE ");
@@ -2531,7 +2532,7 @@ summary_postprocess:
             "WHERE …)"))
       goto no_memory;
   }
-  if (text && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
+  if (!sequel_query_cte_count(query) && text && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
       sequel_summary_find_text(source.data, "GROUP BY generation")) {
     length = 0;
     text[0] = 0;
@@ -2567,6 +2568,7 @@ summary_postprocess:
             "LEFT JOIN ticker_backtest_contexts AS pc ON pc.id = r.portfolio_context_id WHERE … (SELECT … FROM "
             "ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1) ORDER BY …"))
       goto no_memory;
+  }
   }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
