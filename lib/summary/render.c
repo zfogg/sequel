@@ -2526,6 +2526,19 @@ summary_postprocess:
             "LIMIT ?"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "WITH scoped AS (") &&
+      sequel_summary_find_text(source.data, "latest AS (") && sequel_summary_find_text(source.data, "regime AS (")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH scoped AS (SELECT … FROM ticker_backtest_results AS r WHERE … (SELECT … FROM ticker_backtest_results "
+            "GROUP BY … ORDER BY … LIMIT 1)), latest AS (SELECT DISTINCT ON (…) … FROM scoped AS r ORDER BY …), "
+            "regime AS (SELECT … FROM scoped AS r GROUP BY …) SELECT … FROM latest AS r JOIN regime AS g USING "
+            "(ticker) "
+            "LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker ORDER BY …"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
