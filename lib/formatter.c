@@ -94,7 +94,7 @@ static int sequel_formatter_has_case_before_matching_close(sequel_source_view_t 
   size_t depth = 0;
   for (size_t i = start + 1; i < count; ++i) {
     const sequel_token_t *token = &tokens[i];
-    if (token->keyword_id == SEQUEL_KEYWORD_CASE)
+    if (token->kind == SEQUEL_TOKEN_KEYWORD && token->keyword_id == SEQUEL_KEYWORD_CASE)
       return 1;
     if (!sequel_token_is_single_punctuation(token))
       continue;
