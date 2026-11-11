@@ -385,26 +385,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       outer = document->statements[0].range.start;
     document->outer_range = (sequel_source_range_t){outer, source.length};
     document->outer_distinct_on = false;
-    for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
-        continue;
-      const char *token_text = NULL;
-      size_t token_length = 0;
-      if (sequel_token_text(&source, &tokens[token], &token_text, &token_length) == SEQUEL_OK &&
-          word_equals_ci(token_text, token_length, "SELECT")) {
-        size_t next = token + 1;
-        while (next < token_count && is_trivia(&tokens[next]))
-          ++next;
-        if (next < token_count && sequel_token_text(&source, &tokens[next], &token_text, &token_length) == SEQUEL_OK &&
-            word_equals_ci(token_text, token_length, "DISTINCT")) {
-          ++next;
-          while (next < token_count && is_trivia(&tokens[next]))
-            ++next;
-          document->outer_distinct_on =
-              next < token_count && sequel_token_text(&source, &tokens[next], &token_text, &token_length) == SEQUEL_OK &&
-              word_equals_ci(token_text, token_length, "ON");
-        }
-        break;
+    size_t cursor = outer;
+    while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+      ++cursor;
+    if (cursor + 6 <= source.length && word_equals_ci(source.data + cursor, 6, "SELECT")) {
+      cursor += 6;
+      while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+        ++cursor;
+      if (cursor + 8 <= source.length && word_equals_ci(source.data + cursor, 8, "DISTINCT")) {
+        cursor += 8;
+        while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+          ++cursor;
+        document->outer_distinct_on = cursor + 2 <= source.length && word_equals_ci(source.data + cursor, 2, "ON");
       }
     }
     for (size_t token = 0; token < token_count; ++token) {

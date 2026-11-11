@@ -116,6 +116,11 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       start = (size_t)(first - source);
   }
   if (sequel_summary_word(source, range.end, start, "SELECT")) {
+    size_t distinct = sequel_summary_skip_space(source, range.end, start + 6);
+    bool distinct_on = sequel_summary_word(source, range.end, distinct, "DISTINCT") &&
+                       sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, distinct + 8),
+                                           "ON");
+    const char *select_prefix = distinct_on ? "SELECT DISTINCT ON (…) " : "SELECT ";
     size_t from = start;
     while (from < range.end && !sequel_summary_word(source, range.end, from, "FROM"))
       ++from;
@@ -156,12 +161,12 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       const char *open = strchr(source + expression, '(');
       const char *close = open ? strchr(open, ')') : NULL;
       if (!open || !close || close >= source + range.end) {
-        if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+        if (!sequel_summary_append_text(text, length, capacity, select_prefix) ||
             !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
           return 0;
         return 1;
       }
-      if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+      if (!sequel_summary_append_text(text, length, capacity, select_prefix) ||
           !sequel_summary_append_bytes(text, length, capacity, source + expression,
                                        (size_t)(open - (source + expression))) ||
           !sequel_summary_append_text(text, length, capacity, "(") ||
@@ -170,7 +175,7 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
         return 0;
       return 1;
     }
-    if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+    if (!sequel_summary_append_text(text, length, capacity, select_prefix) ||
         !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
         !sequel_summary_append_text(text, length, capacity, " FROM "))
       return 0;
