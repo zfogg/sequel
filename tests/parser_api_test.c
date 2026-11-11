@@ -9,6 +9,17 @@ static int check(int condition, const char *message) {
   return condition;
 }
 
+static int contains_text(const char *text, const char *needle) {
+  size_t length = strlen(text);
+  size_t needle_length = strlen(needle);
+  if (needle_length > length)
+    return 0;
+  for (size_t i = 0; i + needle_length <= length; ++i)
+    if (!strncmp(text + i, needle, needle_length))
+      return 1;
+  return 0;
+}
+
 static bool saw_from(const sequel_syntax_document_t *document, size_t node_index, void *userdata) {
   (void)document;
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(document, NULL);
@@ -420,6 +431,24 @@ int main(void) {
   sequel_text_result_free(&lowercase_summary);
   sequel_query_document_free(lowercase_query);
   sequel_syntax_document_free(lowercase_syntax);
+  const char quoted_join_sql[] =
+      "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true";
+  sequel_source_view_t quoted_join_source = {quoted_join_sql, strlen(quoted_join_sql)};
+  sequel_syntax_document_t *quoted_join_syntax = NULL;
+  sequel_query_document_t *quoted_join_query = NULL;
+  if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
+                 sequel_query_relation_count(quoted_join_query) == 2 && sequel_query_join_count(quoted_join_query) == 1,
+             "quoted keyword join metadata"))
+    return 1;
+  sequel_text_result_t quoted_join_summary = {0};
+  if (!check(sequel_summarize_query(quoted_join_query, &lowercase_summary_options, &quoted_join_summary) == SEQUEL_OK &&
+                 quoted_join_summary.data && contains_text(quoted_join_summary.data, "JOIN"),
+             "quoted keyword join summary"))
+    return 1;
+  sequel_text_result_free(&quoted_join_summary);
+  sequel_query_document_free(quoted_join_query);
+  sequel_syntax_document_free(quoted_join_syntax);
   sequel_diagnostic_list_t semantic_diagnostics = {0}, policy_diagnostics = {0};
   if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK &&
                  sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,
