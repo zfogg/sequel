@@ -3,6 +3,7 @@
 #include <sequel/analysis.h>
 #include <sequel/sanitizer.h>
 
+#include "../resources.h"
 #include "../tokens.h"
 
 sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
