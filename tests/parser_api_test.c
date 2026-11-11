@@ -542,6 +542,13 @@ int main(void) {
                    (sequel_query_relations(scalar_query)[2].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) == 0,
                "scalar projection relation ownership"))
       return 1;
+    sequel_text_result_t scalar_summary = {0};
+    if (!check(sequel_summarize_query(scalar_query, &summary_options, &scalar_summary) == SEQUEL_OK &&
+                   strstr(scalar_summary.data, "FROM revisions AS r") != NULL &&
+                   strstr(scalar_summary.data, "LIMIT 1") != NULL,
+               "scalar projection summary"))
+      return 1;
+    sequel_text_result_free(&scalar_summary);
     sequel_query_document_free(scalar_query);
     sequel_syntax_document_free(scalar_syntax);
   }
