@@ -2686,8 +2686,11 @@ summary_postprocess:
         (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
       goto no_memory;
   }
-  if (text && sequel_query_statement_count(query) == 1 && !sequel_summary_find_text(source.data, " UNION ") &&
-      !sequel_summary_find_text(source.data, " INTERSECT ") && !sequel_summary_find_text(source.data, " EXCEPT ")) {
+  if (text && sequel_query_statement_count(query) == 1 &&
+      !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") &&
+      !sequel_summary_find_text(source.data, "LEFT JOIN LATERAL") &&
+      !sequel_summary_find_text(source.data, " UNION ") && !sequel_summary_find_text(source.data, " INTERSECT ") &&
+      !sequel_summary_find_text(source.data, " EXCEPT ")) {
     char *premature_limit = sequel_summary_find_text(text, " LIMIT ");
     char *order = premature_limit ? sequel_summary_find_text(premature_limit, " ORDER BY ") : NULL;
     if (premature_limit && order) {
