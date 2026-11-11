@@ -5,7 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <sequel.h>
+#include <sequel/analysis.h>
+#include <sequel/binds.h>
+#include <sequel/diagnostics.h>
+#include <sequel/dialect.h>
+#include <sequel/fingerprint.h>
+#include <sequel/formatter.h>
+#include <sequel/parser.h>
+#include <sequel/query.h>
+#include <sequel/source.h>
+#include <sequel/status.h>
+#include <sequel/summary.h>
 
 #include "../runtime.h"
 #include "../runtime_types.h"
