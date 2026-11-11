@@ -744,8 +744,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN &&
-        !word_equals_ci(source.data + tokens[name].range.start,
-                        tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
+        !word_equals_ci(source.data + tokens[name].range.start, tokens[name].range.end - tokens[name].range.start,
+                        "LATERAL")) {
       size_t opening = cursor;
       while (opening < token_count && is_trivia(&tokens[opening]))
         ++opening;
@@ -808,6 +808,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (lateral_subquery) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
+      relation.name_range.end = tokens[name].range.end;
     }
     if (function_relation)
       relation.kind = SEQUEL_RELATION_FUNCTION;
