@@ -5,10 +5,6 @@
 #include <sequel/parser.h>
 #include <sequel/dialect.h>
 
-#ifndef SEQUEL_INPUT_MAX
-#define SEQUEL_INPUT_MAX ((size_t)1024 * 1024 * 1024)
-#endif
-
 struct sequel_lexed_document {
   char *source;
   size_t length;
