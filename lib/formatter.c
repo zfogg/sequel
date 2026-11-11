@@ -275,7 +275,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
                            previous_token->range.end > previous_token->range.start &&
                            source.data[previous_token->range.start] == '=';
     bool clause_start =
-        keyword && sequel_keyword_is_clause(token->keyword_id) &&
+        sequel_token_is_clause_keyword(token) &&
         !(token->keyword_id == SEQUEL_KEYWORD_JOIN && previous_token &&
           sequel_formatter_is_join_modifier(source, previous_token)) &&
         !(token->keyword_id == SEQUEL_KEYWORD_ON && previous_token &&
