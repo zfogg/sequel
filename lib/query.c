@@ -335,7 +335,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
   }
-  size_t ordinal = 0;
+  /* Parameter identity and type ranges are normalized by the binding layer. */
+  sequel_status_t parameter_status = sequel_query_build_parameters(document, tokens, token_count, &source);
+  if (parameter_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return parameter_status;
+  }
+  /*
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_PARAMETER)
       continue;
@@ -392,6 +398,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
+  */
   for (size_t s = 0; s < document->statement_count; ++s) {
     const sequel_statement_info_t *statement = &document->statements[s];
     size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
