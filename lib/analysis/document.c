@@ -21,31 +21,6 @@ struct sequel_query_analysis {
   sequel_analysis_map_segment_t formatted_segment;
 };
 
-sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
-                                                       sequel_diagnostic_list_t *diagnostics) {
-  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
-  if (sequel_lexed_dialect(lexed) == target)
-    return SEQUEL_OK;
-  size_t count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
-  for (size_t i = 0; i < count; ++i) {
-    if (!(tokens[i].flags & SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC))
-      continue;
-    if (!sequel_diagnostic_list_append(diagnostics,
-                                       (sequel_diagnostic_record_t){.origin = SEQUEL_DIAGNOSTIC_PORTABILITY,
-                                                                    .code = SEQUEL_DIAG_DIALECT_PORTABILITY,
-                                                                    .severity = SEQUEL_WARNING,
-                                                                    .range = tokens[i].range,
-                                                                    .statement_index = SIZE_MAX,
-                                                                    .syntax_node = SIZE_MAX,
-                                                                    .recovered = 0})) {
-      sequel_diagnostic_list_free(diagnostics);
-      return SEQUEL_ERR_NOMEM;
-    }
-  }
-  return SEQUEL_OK;
-}
-
 static int analysis_cancelled(const sequel_cancellation_t *cancellation) {
   return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata);
 }

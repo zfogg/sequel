@@ -282,6 +282,8 @@ sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_docum
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
   if (!lexed)
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (sequel_lexed_dialect(lexed) == target)
+    return SEQUEL_OK;
   const sequel_dialect_definition_t *definition = sequel_dialect_definition(target);
   if (!definition)
     return SEQUEL_ERR_INVALID_ARGUMENT;
