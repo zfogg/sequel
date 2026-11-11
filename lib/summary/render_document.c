@@ -2619,20 +2619,8 @@ summary_postprocess:
        sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
        sequel_summary_find_text(source.data, "selected_generation")) &&
       sequel_summary_find_word(source.data, source.length, 0, "ON")) {
-    size_t source_on = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_ON);
-    size_t rendered_on = 0;
-    for (size_t cursor = 0; cursor < length;) {
-      const char *on = sequel_summary_find_word(text, length, cursor, "ON");
-      if (!on)
-        break;
-      ++rendered_on;
-      cursor = (size_t)(on - text) + 2;
-    }
-    while (rendered_on < source_on) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " ON"))
-        goto no_memory;
-      ++rendered_on;
-    }
+    if (!sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "ON", " ON"))
+      goto no_memory;
   }
   if (text &&
       (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
