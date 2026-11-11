@@ -72,6 +72,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/lexer.c
   ../lib/parser.c
   ../lib/query.c
+  ../lib/access.c
   ../lib/analysis/document.c
   ../lib/serialization.c
   ../lib/formatter.c

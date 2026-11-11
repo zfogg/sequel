@@ -39,6 +39,7 @@ else()
 endif()
 add_library(sequel lib/engine.c lib/runtime.c lib/diagnostics.c lib/contracts.c lib/sha256.c lib/highlight.c lib/compact.c lib/api.c lib/scan.c lib/analysis/analysis.c lib/analysis/analysis_literal.c lib/analysis/analysis_binding_token.c lib/analysis/analysis_text.c lib/analysis/analysis_policy.c lib/source.c lib/dialect.c lib/lexer.c lib/parser.c lib/query.c lib/analysis/document.c lib/serialization.c lib/formatter.c lib/fingerprint.c lib/summary/render.c lib/summary/recovery.c lib/summary/normalize.c lib/summary/buffer.c lib/summary/options.c lib/summary/lexical.c lib/summary/operation.c lib/summary/clause.c lib/summary/body.c lib/summary/relation.c lib/summary/postprocess.c lib/summary/statement.c lib/summary/subquery.c lib/sanitizer.c lib/util/utf8.c)
 add_library(sequel::sequel ALIAS sequel)
+target_sources(sequel PRIVATE lib/access.c)
 target_compile_features(sequel PUBLIC c_std_23)
 target_include_directories(sequel PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
