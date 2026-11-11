@@ -174,8 +174,6 @@ static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, siz
   uint32_t flags = 0;
   size_t begin = join_index > 6 ? join_index - 6 : 0;
   for (size_t i = begin; i < join_index; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD)
-      continue;
     const char *word = source->data + tokens[i].range.start;
     size_t length = tokens[i].range.end - tokens[i].range.start;
     if (word_equals_ci(word, length, "OUTER"))
@@ -196,9 +194,8 @@ static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, siz
   size_t next = join_index + 1;
   while (next < token_count && is_trivia(&tokens[next]))
     ++next;
-  if (next < token_count && tokens[next].kind == SEQUEL_TOKEN_KEYWORD &&
-      word_equals_ci(source->data + tokens[next].range.start, tokens[next].range.end - tokens[next].range.start,
-                     "LATERAL"))
+  if (next < token_count && word_equals_ci(source->data + tokens[next].range.start,
+                                           tokens[next].range.end - tokens[next].range.start, "LATERAL"))
     flags |= SEQUEL_JOIN_FLAG_LATERAL;
   return flags;
 }
