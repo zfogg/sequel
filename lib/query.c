@@ -14,6 +14,7 @@ struct sequel_query_document {
   sequel_cte_info_t *ctes;
   size_t cte_count;
   bool outer_distinct_on;
+  bool outer_limit;
   sequel_source_range_t outer_range;
   sequel_parameter_info_t *parameters;
   size_t parameter_count;
@@ -384,6 +385,24 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (document->statement_count && document->statements[0].range.start >= outer)
       outer = document->statements[0].range.start;
     document->outer_range = (sequel_source_range_t){outer, source.length};
+    unsigned outer_depth = 0;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.end <= outer || is_trivia(&tokens[token]))
+        continue;
+      if (tokens[token].kind == SEQUEL_TOKEN_PUNCTUATION) {
+        char punctuation = source.data[tokens[token].range.start];
+        if (punctuation == '(')
+          ++outer_depth;
+        else if (punctuation == ')' && outer_depth)
+          --outer_depth;
+        continue;
+      }
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
+          word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+        document->outer_limit = true;
+        break;
+      }
+    }
     document->outer_distinct_on = false;
     size_t cursor = outer;
     while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
@@ -776,6 +795,10 @@ const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *docume
 
 bool sequel_query_outer_distinct_on(const sequel_query_document_t *document) {
   return document ? document->outer_distinct_on : false;
+}
+
+bool sequel_query_outer_limit(const sequel_query_document_t *document) {
+  return document ? document->outer_limit : false;
 }
 
 sequel_source_range_t sequel_query_outer_range(const sequel_query_document_t *document) {

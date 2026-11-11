@@ -632,6 +632,17 @@ int main(void) {
     return 1;
   sequel_query_document_free(distinct_cte_query);
   sequel_syntax_document_free(distinct_cte_syntax);
+  const char limited_cte_sql[] = "WITH recent AS (SELECT id FROM events) SELECT id FROM recent LIMIT 10";
+  sequel_source_view_t limited_cte_source = {limited_cte_sql, strlen(limited_cte_sql)};
+  sequel_syntax_document_t *limited_cte_syntax = NULL;
+  sequel_query_document_t *limited_cte_query = NULL;
+  if (!check(sequel_parse_sql(&limited_cte_source, &options, NULL, &limited_cte_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(limited_cte_syntax, &options, &limited_cte_query) == SEQUEL_OK &&
+                 sequel_query_outer_limit(limited_cte_query),
+             "cte outer limit metadata"))
+    return 1;
+  sequel_query_document_free(limited_cte_query);
+  sequel_syntax_document_free(limited_cte_syntax);
   sequel_syntax_document_free(expression_syntax);
   const char malformed[] = "SELECT (id";
   sequel_source_view_t malformed_source = {malformed, strlen(malformed)};
