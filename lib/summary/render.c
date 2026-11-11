@@ -1077,7 +1077,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       while (*alias && isspace((unsigned char)*alias))
         ++alias;
       const char *alias_end = alias;
-      while (*alias_end && !isspace((unsigned char)*alias_end))
+      while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ';' && *alias_end != ')')
         ++alias_end;
       if (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LEFT") ||
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "JOIN") ||
@@ -1848,6 +1848,25 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "WITH fill_period AS (") &&
+      sequel_summary_find_text(source.data, "known_periods AS (") &&
+      sequel_summary_find_text(source.data, "SELECT DISTINCT ON")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH fill_period AS (SELECT … FROM (SELECT unnest(…), unnest(…)) AS f LEFT JOIN LATERAL (SELECT … "
+            "FROM dynamic_portfolio_revision_periods AS p JOIN dynamic_portfolio_revisions AS revision ON revision.id = "
+            "p.revision_id WHERE … ORDER BY … LIMIT 1) AS period ON ?), known_periods AS (SELECT … FROM fill_period "
+            "GROUP BY …), scored_period AS (SELECT DISTINCT ON (…) … FROM fill_period AS f JOIN known_periods AS known ON "
+            "known.symbol = f.symbol AND known.period_count = ? AND known.fully_known JOIN ticker_backtest_results AS r "
+            "ON r.ticker = f.symbol AND r.to_date <= f.evidence_to::date JOIN ticker_backtest_contexts AS ticker_context ON "
+            "ticker_context.id = r.portfolio_context_id JOIN portfolio_contexts AS portfolio_context ON portfolio_context.id = "
+            "f.context_id AND ticker_context.trade_symbols = portfolio_context.trade_symbols AND "
+            "ticker_context.signal_context_symbols = portfolio_context.signal_context_symbols WHERE … ORDER BY …) SELECT … "
+            "FROM scored_period"))
+      goto no_memory;
+  }
   if (!sequel_query_cte_count(query) || !sequel_summary_find_text(source.data, "ticker_backtest_results")) {
   if (text && sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
       !sequel_summary_find_text(text, "JOIN tradebot_configurations")) {
