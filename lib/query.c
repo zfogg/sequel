@@ -428,9 +428,9 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (alias < token_count && is_identifier_token(&tokens[alias]))
         alias_range = tokens[alias].range;
       sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_SUBQUERY,
-                                         .range = {tokens[i].range.start, alias_range.end > tokens[close].range.end
-                                                                              ? alias_range.end
-                                                                              : tokens[close].range.end},
+                                         .range = {tokens[name].range.start, alias_range.end > tokens[close].range.end
+                                                                                 ? alias_range.end
+                                                                                 : tokens[close].range.end},
                                          .name_range = {tokens[name].range.start, tokens[close].range.end},
                                          .alias_range = alias_range,
                                          .statement_index = statement,
@@ -445,7 +445,9 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
       continue;
     }
-    if (!is_identifier_token(&tokens[name]))
+    bool lateral_name = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
+                                                    tokens[name].range.end - tokens[name].range.start, "LATERAL");
+    if (!is_identifier_token(&tokens[name]) && !lateral_name)
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
@@ -568,14 +570,15 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
         !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
-    sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
-                                       .range = {tokens[i].range.start, alias_range.end > end ? alias_range.end : end},
-                                       .name_range = {tokens[name].range.start, end},
-                                       .alias_range = alias_range,
-                                       .statement_index = statement,
-                                       .syntax_node = SIZE_MAX,
-                                       .parent_relation = SIZE_MAX,
-                                       .subquery_statement = SIZE_MAX};
+    sequel_relation_info_t relation = {
+        .kind = SEQUEL_RELATION_TABLE,
+        .range = {tokens[name].range.start, alias_range.end > end ? alias_range.end : end},
+        .name_range = {tokens[name].range.start, end},
+        .alias_range = alias_range,
+        .statement_index = statement,
+        .syntax_node = SIZE_MAX,
+        .parent_relation = SIZE_MAX,
+        .subquery_statement = SIZE_MAX};
     if (token_in_subquery(tokens, i, &source)) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
