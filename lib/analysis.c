@@ -1181,8 +1181,16 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
 static void analysis_structure_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   size_t count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
-  for (size_t i = 0; i < count; ++i)
-    analysis_add_statement(out, statements[i].range.start, statements[i].range.end);
+  sequel_source_view_t source = sequel_query_source(query);
+  for (size_t i = 0; i < count; ++i) {
+    size_t start = statements[i].range.start;
+    size_t end = statements[i].range.end;
+    while (start < end && isspace((unsigned char)source.data[start]))
+      ++start;
+    while (end > start && isspace((unsigned char)source.data[end - 1]))
+      --end;
+    analysis_add_statement(out, start, end);
+  }
 }
 
 static void analysis_compact_list_text(analysis_text *text) {
