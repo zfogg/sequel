@@ -314,7 +314,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       goto invalid;
     if (token->kind == SEQUEL_TOKEN_WHITESPACE)
       continue;
-    if (cte_just_closed && !is_comma(source, token))
+    bool follows_closed_cte = cte_just_closed && !is_comma(source, token);
+    if (follows_closed_cte)
       cte_just_closed = false;
     if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT) &&
         !settings->preserve_comments)
@@ -408,14 +409,14 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       else if (symbol == ']' && bracket_depth)
         --bracket_depth;
       if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
-          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth + 1 ||
-           (nested_query && paren_depth == 0) || (projection_subquery && paren_depth == 0)) &&
+          (query_paren_depth == paren_depth + 1 || (nested_query && paren_depth == 0) ||
+           (projection_subquery && paren_depth == 0)) &&
           !append_line_start(&data, &length, &capacity, projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
         goto no_memory;
       if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
       if (is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
-        cte_paren_depth = 0, cte_just_closed = true;
+        cte_paren_depth = 0, cte_just_closed = true, pending_clause_body = false;
       if (is_close_paren(source, token) && nested_query && paren_depth == 0)
         nested_query = false;
       if (is_close_paren(source, token) && projection_subquery && paren_depth == 0)
@@ -482,9 +483,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         !append_space(&data, &length, &capacity))
       goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
-        !no_space_after_previous &&
-        (is_word_token(previous) || is_word_token(token->kind) ||
-         (previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ',')))
+        !no_space_after_previous && (is_word_token(previous) || is_word_token(token->kind)) &&
+        !(follows_closed_cte && previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ','))
       if (!append_space(&data, &length, &capacity))
         goto no_memory;
     if (!append_text(&data, &length, &capacity, text, text_length))
