@@ -2325,10 +2325,6 @@ summary_postprocess:
                                                  sizeof(summary_ellipsis) - 1))
                  : !sequel_summary_append_bytes(&text, &length, &capacity, when, source.data + source.length - when)))
           goto no_memory;
-        for (char *cursor = text; *cursor; ++cursor) {
-          if (*cursor == ',' || *cursor == ';')
-            continue;
-        }
       }
     }
     if (text && !sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
