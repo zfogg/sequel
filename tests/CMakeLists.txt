@@ -64,6 +64,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/scan.c
   ../lib/analysis/analysis.c
   ../lib/analysis/layout.c
+  ../lib/analysis/locations.c
   ../lib/analysis/analysis_literal.c
   ../lib/analysis/analysis_binding_token.c
   ../lib/analysis/analysis_text.c
