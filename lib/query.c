@@ -62,20 +62,30 @@ static sequel_operation_t operation(sequel_syntax_kind_t kind) {
   }
 }
 
+static bool word_equals_ci(const char *word, size_t length, const char *expected) {
+  size_t expected_length = strlen(expected);
+  if (length != expected_length)
+    return false;
+  for (size_t i = 0; i < length; ++i)
+    if (toupper((unsigned char)word[i]) != (unsigned char)expected[i])
+      return false;
+  return true;
+}
+
 static sequel_operation_t operation_from_word(const char *word, size_t length) {
-  if (length == 6 && !memcmp(word, "SELECT", 6))
+  if (word_equals_ci(word, length, "SELECT"))
     return SEQUEL_OPERATION_SELECT;
-  if (length == 6 && !memcmp(word, "INSERT", 6))
+  if (word_equals_ci(word, length, "INSERT"))
     return SEQUEL_OPERATION_INSERT;
-  if (length == 6 && !memcmp(word, "UPDATE", 6))
+  if (word_equals_ci(word, length, "UPDATE"))
     return SEQUEL_OPERATION_UPDATE;
-  if (length == 6 && !memcmp(word, "DELETE", 6))
+  if (word_equals_ci(word, length, "DELETE"))
     return SEQUEL_OPERATION_DELETE;
-  if (length == 5 && !memcmp(word, "MERGE", 5))
+  if (word_equals_ci(word, length, "MERGE"))
     return SEQUEL_OPERATION_MERGE;
-  if (length == 8 && !memcmp(word, "OPTIMIZE", 8))
+  if (word_equals_ci(word, length, "OPTIMIZE"))
     return SEQUEL_OPERATION_OPTIMIZE;
-  if (length == 8 && !memcmp(word, "TRUNCATE", 8))
+  if (word_equals_ci(word, length, "TRUNCATE"))
     return SEQUEL_OPERATION_TRUNCATE;
   return SEQUEL_OPERATION_UNKNOWN;
 }
