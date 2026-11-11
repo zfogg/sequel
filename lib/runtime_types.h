@@ -3,8 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <ctype.h>
-
-#include "scan.h"
+#include <string.h>
 
 typedef struct {
   const char *p;
@@ -27,7 +26,12 @@ typedef struct {
 } analysis_token_t;
 
 static inline bool sequel_runtime_keyword(token value, const char *word) {
-  return value.word && value.p && sequel_scan_equal(value.p, value.n, word);
+  if (!value.word || !value.p || !word || strlen(word) != value.n)
+    return false;
+  for (size_t i = 0; i < value.n; ++i)
+    if (toupper((unsigned char)value.p[i]) != toupper((unsigned char)word[i]))
+      return false;
+  return true;
 }
 
 static inline bool sequel_runtime_symbol(token value, char character) {
