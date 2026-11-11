@@ -4,7 +4,7 @@
 #include <sequel/query.h>
 #include <sequel/status.h>
 
-#define SEQUEL_FINGERPRINT_LENGTH 65
+enum { SEQUEL_FINGERPRINT_LENGTH = 65 };
 
 typedef enum {
   SEQUEL_FINGERPRINT_TOKENS = 0,
