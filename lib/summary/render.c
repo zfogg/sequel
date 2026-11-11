@@ -929,6 +929,26 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (join_index != SIZE_MAX && relations[i].name_range.start < source.length &&
           (lateral_relation || parenthesized_relation)) {
+        if (lateral_relation && sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") &&
+            sequel_summary_find_text(source.data, "unnest(")) {
+          const char *open = source.data + relations[i].name_range.end;
+          while (open < source.data + source.length && *open != '(')
+            ++open;
+          const char *close = open < source.data + source.length
+                                  ? sequel_summary_matching_close(open, source.data + source.length)
+                                  : NULL;
+          if (!close ||
+              !sequel_summary_append_redacted_range(&text, &length, &capacity, query, (size_t)(open - source.data),
+                                                    (size_t)(close + 1 - source.data)))
+            goto no_memory;
+          if (relations[i].alias_range.end > relations[i].alias_range.start &&
+              (!sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+               !sequel_summary_append_bytes(&text, &length, &capacity, source.data + relations[i].alias_range.start,
+                                            relations[i].alias_range.end - relations[i].alias_range.start)))
+            goto no_memory;
+          ++rendered_relations;
+          continue;
+        }
         const char *subquery = sequel_summary_find_text(source.data + relations[i].name_range.start, "SELECT");
         const char *from = subquery ? sequel_summary_find_text(subquery, " FROM ") : NULL;
         const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
