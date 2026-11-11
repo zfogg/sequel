@@ -35,6 +35,11 @@ int main(void) {
   sequel_diagnostic_list_t portability_diagnostics = {0};
   CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK);
   CHECK(portability_diagnostics.count == 0);
+  CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_POSTGRESQL, &portability_diagnostics) == SEQUEL_OK);
+  for (size_t i = 0; i < portability_diagnostics.count; ++i)
+    CHECK(portability_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_PORTABILITY &&
+          portability_diagnostics.records[i].message[0] && portability_diagnostics.records[i].explanation[0] &&
+          portability_diagnostics.records[i].hint[0]);
   sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_syntax_document_free(syntax);
   const char nul[] = {'x', 0, 'y'};

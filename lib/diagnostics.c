@@ -299,6 +299,11 @@ sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_docum
                                          .statement_index = SIZE_MAX,
                                          .syntax_node = SIZE_MAX};
     snprintf(record.message, sizeof(record.message), "syntax may not be portable to %s", definition->name);
+    snprintf(record.explanation, sizeof(record.explanation),
+             "The source uses syntax marked as specific to the input dialect, which may not be accepted by %s.",
+             definition->name);
+    snprintf(record.hint, sizeof(record.hint),
+             "Rewrite the construct using syntax supported by %s or keep the target dialect.", definition->name);
     if (!sequel_diagnostic_list_append(diagnostics, record)) {
       sequel_diagnostic_list_free(diagnostics);
       return SEQUEL_ERR_NOMEM;
