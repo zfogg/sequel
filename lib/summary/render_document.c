@@ -53,14 +53,12 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   bool cte_insert_scope = false;
   bool scalar_with_scope =
       sequel_summary_word(source.data, source.length, 0, "WITH") && sequel_query_cte_count(query) == 0;
-  if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      !sequel_summary_find_word(source.data, source.length, 0, "UNION")) {
-    int parenthesized = sequel_summary_append_parenthesized_subquery(&text, &length, &capacity, source);
-    if (!parenthesized)
-      goto no_memory;
-    if (parenthesized == 2)
-      goto summary_postprocess;
-  }
+  int table_prefix =
+      sequel_summary_append_table_prefix(&text, &length, &capacity, query, settings, source, statement_count);
+  if (!table_prefix)
+    goto no_memory;
+  if (table_prefix == 2)
+    goto summary_postprocess;
   if (settings->include_operation && sequel_query_cte_count(query)) {
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     bool recursive = source.length >= 13 && sequel_summary_find_text(source.data, "WITH RECURSIVE") == source.data;
