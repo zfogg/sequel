@@ -576,11 +576,24 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
   size_t count = 0;
   const sequel_parse_issue_t *issues = sequel_syntax_issues(syntax, &count);
   for (size_t i = 0; i < count; ++i) {
+    sequel_diagnostic_code_t code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
+    switch (issues[i].code) {
+    case SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE:
+      code = SEQUEL_DIAG_UNMATCHED_CLOSE;
+      break;
+    case SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP:
+      code = SEQUEL_DIAG_UNCLOSED_GROUP;
+      break;
+    case SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN:
+      code = SEQUEL_DIAG_UNTERMINATED_STRING;
+      break;
+    case SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN:
+      code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
+      break;
+    }
     sequel_diagnostic_record_t record = {
         .origin = SEQUEL_DIAGNOSTIC_SYNTAX,
-        .code = issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE  ? SEQUEL_DIAG_UNMATCHED_CLOSE
-                : issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ? SEQUEL_DIAG_UNCLOSED_GROUP
-                                                                      : SEQUEL_DIAG_INVALID_ARGUMENT,
+        .code = code,
         .severity = issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
                             issues[i].code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN
                         ? SEQUEL_ERROR
@@ -591,6 +604,7 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
         .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
                       issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
         .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
+    snprintf(record.message, sizeof(record.message), "%s", sequel_diagnostic_code_name(code));
     if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
   }
