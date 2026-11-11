@@ -74,8 +74,22 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     --projection_end;
   bool multiple =
       memchr(source.data + projection[0].range.start, ',', projection_end - projection[0].range.start) != NULL;
-  bool scalar =
-      !sequel_summary_find_text(source.data, " FROM ") && strchr(source.data + projection[0].range.start, '(') != NULL;
+  bool scalar = false;
+  unsigned projection_depth = 0;
+  for (size_t offset = projection[0].range.start; offset < projection_end; ++offset) {
+    char character = source.data[offset];
+    if (character == '(') {
+      ++projection_depth;
+    } else if (character == ')' && projection_depth) {
+      --projection_depth;
+    } else if (projection_depth && sequel_summary_word(source.data, source.length, offset, "SELECT")) {
+      scalar = true;
+      break;
+    }
+  }
+  if (!scalar && !sequel_summary_find_text(source.data, " FROM ") &&
+      strchr(source.data + projection[0].range.start, '(') != NULL)
+    scalar = true;
   const char *open = scalar ? strchr(source.data + projection[0].range.start, '(') : NULL;
   if (!sequel_summary_append_text(text, length, capacity, " "))
     return 0;
