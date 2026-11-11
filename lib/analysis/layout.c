@@ -1,7 +1,7 @@
 #include "analysis_internal.h"
 
 /* Clause boundaries used by the shared layout pass. */
-bool boundary(token t) {
+bool sequel_analysis_is_layout_boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH",  "FOR",
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
   if (t.clickhouse && (sequel_runtime_keyword(t, "PREWHERE") || sequel_runtime_keyword(t, "SETTINGS") ||

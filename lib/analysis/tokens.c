@@ -3,7 +3,7 @@
 
 #include "analysis_internal.h"
 
-static int shared_token_kind(sequel_token_kind_t kind) {
+static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:
     return 3;
@@ -23,7 +23,8 @@ static int shared_token_kind(sequel_token_kind_t kind) {
   }
 }
 
-sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out, size_t *count) {
+sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out,
+                                                   size_t *count) {
   if (!lexed || !out || !count)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -62,7 +63,7 @@ sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysi
     bool newline = false;
     for (size_t j = previous_end; j < token->range.start; ++j)
       newline |= source.data[j] == '\r' || source.data[j] == '\n';
-    int kind = shared_token_kind(token->kind);
+    int kind = sequel_analysis_shared_token_kind(token->kind);
     bool opening =
         kind == 0 && token->range.end == token->range.start + 1 && strchr("([{", source.data[token->range.start]);
     bool previous_open =

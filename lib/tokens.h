@@ -5,7 +5,8 @@
 
 #include "runtime_types.h"
 
-sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out, size_t *count);
+sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out,
+                                                   size_t *count);
 
 int sequel_token_is_comment(const sequel_token_t *token);
 int sequel_token_is_trivia(const sequel_token_t *token);

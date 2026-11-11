@@ -531,7 +531,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;
     if (syntax)
-      adapter_status = adapt_lexed_tokens(sequel_syntax_lexed(syntax), &tokens, &scanned);
+      adapter_status = sequel_analysis_adapt_lexed_tokens(sequel_syntax_lexed(syntax), &tokens, &scanned);
     if (adapter_status == SEQUEL_OK)
       count = scanned;
     else {
