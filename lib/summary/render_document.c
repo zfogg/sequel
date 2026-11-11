@@ -1450,9 +1450,22 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
           ++end;
         while (end > start && isspace((unsigned char)source.data[end - 1]))
           --end;
-        if (end > start && (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
-                            !sequel_summary_append_bytes(&text, &length, &capacity, source.data + start, end - start)))
-          goto no_memory;
+        if (end > start) {
+          bool limit_has_parameter = false;
+          const sequel_parameter_info_t *parameters = sequel_query_parameters(query);
+          size_t parameter_count = sequel_query_parameter_count(query);
+          for (size_t parameter = 0; parameter < parameter_count; ++parameter)
+            if (parameters[parameter].range.start < end && parameters[parameter].range.end > start) {
+              limit_has_parameter = true;
+              break;
+            }
+          bool preserve_limit = !limit_has_parameter || memchr(source.data + start, ',', end - start) != NULL;
+          if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
+              (preserve_limit &&
+               !sequel_summary_append_bytes(&text, &length, &capacity, source.data + start, end - start)) ||
+              (!preserve_limit && !sequel_summary_append_text(&text, &length, &capacity, "?")))
+            goto no_memory;
+        }
         break;
       }
   }
