@@ -1038,59 +1038,21 @@ static void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t 
   out->statement_count++;
 }
 
-typedef struct {
-  size_t offset, index;
-  bool ending;
-} analysis_position_event;
-
-static int analysis_event_compare(const void *a, const void *b) {
-  sequel_work_tick(1);
-  const analysis_position_event *x = a, *y = b;
-  return x->offset < y->offset ? -1 : x->offset > y->offset ? 1 : 0;
-}
-
 static void analysis_positions(const char *sql, sequel_analysis_t *out) {
-  size_t n = out->diagnostic_count;
-  if (!n)
+  if (!sql || !out)
     return;
-  analysis_position_event *events = malloc(n * 2 * sizeof(*events));
-  for (size_t i = 0; i < n; i++) {
-    sequel_work_tick(1);
-    events[i * 2] = (analysis_position_event){out->diagnostics[i].offset, i, false};
-    events[i * 2 + 1] = (analysis_position_event){out->diagnostics[i].end_offset, i, true};
+  sequel_source_view_t source = {sql, out->original_length};
+  for (size_t i = 0; i < out->diagnostic_count; ++i) {
+    sequel_diagnostic_t *diagnostic = (sequel_diagnostic_t *)out->diagnostics + i;
+    sequel_location_t location;
+    if (sequel_source_range_position(&source, (sequel_source_range_t){diagnostic->offset, diagnostic->end_offset},
+                                     &location) != SEQUEL_OK)
+      continue;
+    diagnostic->line = location.start.line;
+    diagnostic->column = location.start.column;
+    diagnostic->end_line = location.end.line;
+    diagnostic->end_column = location.end.column;
   }
-  qsort(events, n * 2, sizeof(*events), analysis_event_compare);
-  size_t position = 0, line = 1, column = 1;
-  bool cr = false;
-  for (size_t i = 0; i < n * 2; i++) {
-    sequel_work_tick(1);
-    while (position < events[i].offset) {
-      unsigned char c = (unsigned char)sql[position++];
-      if (c == '\r') {
-        line++;
-        column = 1;
-        cr = true;
-      } else if (c == '\n') {
-        if (!cr)
-          line++;
-        column = 1;
-        cr = false;
-      } else {
-        if ((c & 0xc0) != 0x80)
-          column++;
-        cr = false;
-      }
-    }
-    sequel_diagnostic_t *d = (sequel_diagnostic_t *)out->diagnostics + events[i].index;
-    if (events[i].ending) {
-      d->end_line = line;
-      d->end_column = column;
-    } else {
-      d->line = line;
-      d->column = column;
-    }
-  }
-  free(events);
 }
 
 #include "analysis_structure.c"
