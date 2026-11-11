@@ -713,6 +713,35 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
+    bool lateral_subquery = word_equals_ci(source.data + tokens[name].range.start,
+                                           tokens[name].range.end - tokens[name].range.start, "LATERAL");
+    if (lateral_subquery) {
+      while (cursor < token_count && is_trivia(&tokens[cursor]))
+        ++cursor;
+      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
+          source.data[tokens[cursor].range.start] == '(') {
+        size_t close = cursor;
+        unsigned depth = 0;
+        for (; close < token_count; ++close) {
+          if (tokens[close].kind != SEQUEL_TOKEN_PUNCTUATION)
+            continue;
+          char punctuation = source.data[tokens[close].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')' && depth && --depth == 0)
+            break;
+        }
+        if (close < token_count) {
+          size_t body_start = tokens[cursor].range.end;
+          size_t body_end = tokens[close].range.start;
+          lateral_subquery = sequel_text_find(source.data + body_start, body_end - body_start, " OR ") != NULL;
+          if (lateral_subquery) {
+            end = tokens[close].range.end;
+            cursor = close + 1;
+          }
+        }
+      }
+    }
     while (cursor + 1 < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
            source.data[tokens[cursor].range.start] == '.' && is_identifier_token(&tokens[cursor + 1])) {
       end = tokens[cursor + 1].range.end;
@@ -746,6 +775,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                        .parent_relation = SIZE_MAX,
                                        .subquery_statement = SIZE_MAX};
     if (token_in_subquery(tokens, i, &source)) {
+      relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
+      relation.kind = SEQUEL_RELATION_SUBQUERY;
+    }
+    if (lateral_subquery) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
     }
