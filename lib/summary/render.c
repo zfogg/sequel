@@ -72,6 +72,23 @@ static bool summary_has_token(const sequel_query_document_t *query, uint32_t key
   return false;
 }
 
+static bool summary_starts_function_projection(const sequel_query_document_t *query) {
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), &count);
+  for (size_t i = 0; i + 2 < count; ++i) {
+    if (tokens[i].keyword_id != SEQUEL_KEYWORD_SELECT)
+      continue;
+    size_t next = i + 1;
+    while (next < count &&
+           (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT ||
+            tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+      ++next;
+    return next + 1 < count && tokens[next].kind == SEQUEL_TOKEN_IDENTIFIER &&
+           tokens[next + 1].kind == SEQUEL_TOKEN_PUNCTUATION;
+  }
+  return false;
+}
+
 static int normalize_projection_shape(char **text, size_t *length, size_t *capacity,
                                       const sequel_query_document_t *query) {
   if (sequel_query_projection_count(query) <= 1 || !*text || !sequel_summary_find_text(*text, "SELECT ? FROM "))
@@ -165,7 +182,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_query_relation_count(query) == 0 && sequel_query_parameter_count(query) != 0) {
+      sequel_query_relation_count(query) == 0 && sequel_query_parameter_count(query) != 0 &&
+      !summary_starts_function_projection(query)) {
     const char *projection = sequel_query_parameter_count(query) == 1 ? "?" : summary_ellipsis;
     size_t projection_length = sequel_query_parameter_count(query) == 1 ? 1 : sizeof(summary_ellipsis) - 1;
     if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
