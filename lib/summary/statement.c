@@ -136,6 +136,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   while (projection_end > projection[0].range.start && isspace((unsigned char)source.data[projection_end - 1]))
     --projection_end;
   bool multiple =
+      sequel_query_projection_count(query) > 1 ||
       memchr(source.data + projection[0].range.start, ',', projection_end - projection[0].range.start) != NULL;
   bool scalar = false;
   unsigned projection_depth = 0;
