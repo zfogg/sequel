@@ -31,14 +31,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  if (statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_query_relation_count(query) == 0 && sequel_query_parameter_count(query) != 0 &&
-      !sequel_summary_starts_function_projection(query)) {
-    const char *projection = sequel_query_parameter_count(query) == 1 ? "?" : summary_ellipsis;
-    size_t projection_length = sequel_query_parameter_count(query) == 1 ? 1 : sizeof(summary_ellipsis) - 1;
-    if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, projection, projection_length))
-      goto no_memory;
+  int parameter_only =
+      sequel_summary_append_parameter_only(&text, &length, &capacity, query, statement_count ? &statements[0] : NULL);
+  if (parameter_only < 0)
+    goto no_memory;
+  if (parameter_only > 0) {
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
