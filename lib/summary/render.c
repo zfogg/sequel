@@ -95,7 +95,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       const char *end = table;
       while ((size_t)(end - source.data) < source.length && !isspace((unsigned char)*end) && *end != ';')
         ++end;
-      if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+      bool distinct_outer = sequel_summary_find_text(source.data + outer, "SELECT DISTINCT ON") == select;
+      if (!sequel_summary_append_text(&text, &length, &capacity,
+                                      distinct_outer ? "SELECT DISTINCT ON (…) " : "SELECT ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
           !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
@@ -1062,7 +1064,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->include_tables && sequel_query_cte_count(query) && statement_count &&
       (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
-    size_t outer = outer_start;
+    size_t outer = sequel_query_cte_count(query)
+                       ? sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end
+                       : outer_start;
+    while (outer < source.length &&
+           (isspace((unsigned char)source.data[outer]) || source.data[outer] == ')'))
+      ++outer;
     const char *select = sequel_summary_find_text(source.data + outer, "SELECT ");
     const char *from =
         select ? sequel_summary_find_word(source.data, source.length, (size_t)(select - source.data), "FROM") : NULL;
