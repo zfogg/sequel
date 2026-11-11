@@ -154,20 +154,23 @@ static int is_upsert_on(const sequel_source_view_t source, const sequel_token_t 
   return next < count && token_is_word(source, &tokens[next], "DUPLICATE");
 }
 
-static int has_case_before_close(const sequel_token_t *tokens, size_t start, size_t count) {
+static int has_case_before_matching_close(sequel_source_view_t source, const sequel_token_t *tokens, size_t start,
+                                          size_t count) {
   size_t depth = 0;
   for (size_t i = start + 1; i < count; ++i) {
-    if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1) {
-      if (tokens[i].range.start && tokens[i].range.end)
-        ;
-    }
-    if (tokens[i].keyword_id == SEQUEL_KEYWORD_CASE)
+    const sequel_token_t *token = &tokens[i];
+    if (token->keyword_id == SEQUEL_KEYWORD_CASE)
       return 1;
-    if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end > tokens[i].range.start &&
-        tokens[i].range.end - tokens[i].range.start == 1)
+    if (!is_single_char_punctuation(token))
+      continue;
+    char symbol = source.data[token->range.start];
+    if (symbol == '(')
       ++depth;
-    if (depth > 0 && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end - tokens[i].range.start == 1)
+    else if (symbol == ')') {
+      if (depth == 0)
+        return 0;
       --depth;
+    }
   }
   return 0;
 }
@@ -503,7 +506,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
-    if (punctuation && text_length == 1 && text[0] == '(' && has_case_before_close(tokens, i, token_count)) {
+    if (punctuation && text_length == 1 && text[0] == '(' &&
+        has_case_before_matching_close(source, tokens, i, token_count)) {
       ++case_function_count;
       if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
