@@ -1573,7 +1573,18 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
       out->status = "ok";
       out->omission_reason = o.omit_query_text ? "policy" : !safe.n ? "empty" : "";
-      if (o.include_lints) {
+      if (o.include_lints && query) {
+        sequel_diagnostic_list_t policy = {0};
+        if (sequel_collect_policy_diagnostics(query, &policy) != SEQUEL_OK) {
+          analysis_add_diagnostic(out, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
+        } else {
+          for (size_t i = 0; i < policy.count; ++i)
+            analysis_add_diagnostic(out, policy.records[i].code, policy.records[i].range.start,
+                                    policy.records[i].range.end);
+        }
+        sequel_diagnostic_list_free(&policy);
+        analysis_positions(sql, out);
+      } else if (o.include_lints) {
         analysis_policy_diagnostics_pass(sql, n, tokens, count, o.dialect, out);
         analysis_positions(sql, out);
       }
