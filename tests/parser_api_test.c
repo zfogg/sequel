@@ -36,6 +36,12 @@ int main(void) {
   if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0,
              "dialect exposes operator and clause metadata"))
     return 1;
+  if (!check(!strcmp(sequel_dialect_name(SEQUEL_GENERIC), "generic") &&
+                 !strcmp(sequel_dialect_name(SEQUEL_POSTGRESQL), "postgresql") &&
+                 !strcmp(sequel_dialect_name(SEQUEL_CLICKHOUSE), "clickhouse") &&
+                 !strcmp(sequel_dialect_name((sequel_dialect_t)-1), "invalid"),
+             "dialect names are stable"))
+    return 1;
   if (!check(sequel_dialect_operator(SEQUEL_POSTGRESQL, ">=", 2) != NULL, "dialect resolves operators"))
     return 1;
   if (!check(sequel_dialect_clause(SEQUEL_POSTGRESQL, SEQUEL_KEYWORD_ORDER) != NULL, "dialect resolves clauses"))
