@@ -835,16 +835,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             nested = true;
             break;
           }
-      if (nested && i != 0)
+      if (nested && i != 0) {
         continue;
-      if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX)
+      }
+      if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX) {
         continue;
+      }
       bool nested_relation = (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0;
       bool lateral_relation_name = relations[i].name_range.end - relations[i].name_range.start == 7 &&
                                    !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
-      if (nested_relation && !lateral_relation_name &&
-          (join_index == SIZE_MAX || relations[i].kind == SEQUEL_RELATION_TABLE))
+      bool parenthesized_table_input =
+          relations[i].name_range.start < source.length && source.data[relations[i].name_range.start] == '(' &&
+          sequel_summary_find_text(source.data + relations[i].name_range.start, "SELECT") &&
+          sequel_summary_find_text(source.data + relations[i].name_range.start, "unnest(");
+      if (nested_relation && !lateral_relation_name && !parenthesized_table_input && join_index == SIZE_MAX) {
         continue;
+      }
       if (operation != SEQUEL_OPERATION_CREATE) {
         const char *prefix = rendered_relations == 0 ? " FROM " : ",";
         if (rendered_relations && join_index == SIZE_MAX)
