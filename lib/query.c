@@ -346,9 +346,26 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   for (size_t i = 0; i < token_count; ++i) {
     bool comma_relation = false;
     if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i].range.start] == ',') {
+      unsigned nested_depth = 0;
       for (size_t previous = i; previous > 0;) {
         --previous;
         if (sequel_token_is_trivia(&tokens[previous]))
+          continue;
+        if (sequel_token_is_single_punctuation(&tokens[previous])) {
+          char punctuation = source.data[tokens[previous].range.start];
+          if (punctuation == ')') {
+            ++nested_depth;
+            continue;
+          }
+          if (punctuation == '(') {
+            if (nested_depth)
+              --nested_depth;
+            else
+              break;
+            continue;
+          }
+        }
+        if (nested_depth)
           continue;
         if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && (tokens[previous].keyword_id == SEQUEL_KEYWORD_FROM ||
                                                               tokens[previous].keyword_id == SEQUEL_KEYWORD_JOIN)) {
