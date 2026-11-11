@@ -373,5 +373,7 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (o.dialect != SEQUEL_MYSQL && sequel_text_find(sql, n, "_utf8mb4'"))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   return inspect_document(sql, n, &o, out);
 }
