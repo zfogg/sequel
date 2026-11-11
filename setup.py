@@ -27,7 +27,7 @@ setup(
                 "lib/parser.c",
                 "lib/query.c",
                 "lib/diagnostics.c",
-                "lib/analysis_document.c",
+                "lib/analysis/document.c",
                 "lib/serialization.c",
                 "lib/formatter.c",
                 "lib/fingerprint.c",
