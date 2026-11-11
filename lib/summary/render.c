@@ -49,6 +49,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
+  int cte_shape = sequel_summary_append_cte_shape(&text, &length, &capacity, query, source,
+                                                  statement_count ? &statements[0] : NULL);
+  if (cte_shape < 0)
+    goto no_memory;
+  if (cte_shape > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
   int dialect_recovery = sequel_summary_append_dialect_recovery(&text, &length, &capacity, query, settings, source,
                                                                 statement_count, statements);
   if (dialect_recovery < 0)
