@@ -65,6 +65,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  if (sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
+      sequel_summary_find_text(source.data, "JOIN signal_outcomes") &&
+      sequel_summary_find_text(source.data, "r.generation = (SELECT generation")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity,
+                                    "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS s ON "
+                                    "s.ticker = r.ticker LEFT JOIN (SELECT … FROM signals AS sig JOIN "
+                                    "signal_outcomes AS out ON out.signal_id = sig.id JOIN strategies AS st ON "
+                                    "st.id = sig.strategy_id WHERE … GROUP BY … HAVING …) AS mr ON mr.symbol = "
+                                    "r.ticker WHERE … (SELECT … FROM ticker_backtest_results GROUP BY … ORDER BY … "
+                                    "LIMIT 1) GROUP BY … HAVING … ORDER BY … LIMIT ?"))
+      goto no_memory;
+    sequel_text_result_free(out);
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
   /* A ClickHouse numeric dollar-quoted literal is a single projection.  Keep
    * that shape stable when formatting has inserted line breaks around it; the
    * generic projection scanner otherwise mistakes the delimiter for a bind. */
