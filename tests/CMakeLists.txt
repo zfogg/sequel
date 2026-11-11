@@ -61,6 +61,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/highlight.c
   ../lib/compact.c
   ../lib/api.c
+  ../lib/inspection_document.c
   ../lib/analysis/analysis.c
   ../lib/analysis/maps.c
   ../lib/analysis/statements.c
