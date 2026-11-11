@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <sequel/query.h>
+#include <sequel/diagnostics.h>
 
 typedef struct {
   unsigned major;
@@ -36,3 +37,4 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
 void sequel_document_bundle_free(sequel_document_bundle_t *bundle);
 const sequel_syntax_document_t *sequel_document_bundle_syntax(const sequel_document_bundle_t *bundle);
 const sequel_query_document_t *sequel_document_bundle_query(const sequel_document_bundle_t *bundle);
+const sequel_diagnostic_list_t *sequel_document_bundle_diagnostics(const sequel_document_bundle_t *bundle);

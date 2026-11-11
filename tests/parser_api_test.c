@@ -597,9 +597,11 @@ int main(void) {
     return 1;
   sequel_buffer_view_t serialized_view = {serialized.data, serialized.length};
   sequel_document_bundle_t *bundle = NULL;
-  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_OK &&
-                 sequel_document_bundle_syntax(bundle) != NULL && sequel_document_bundle_query(bundle) != NULL &&
-                 sequel_query_clause_count(sequel_document_bundle_query(bundle)) == sequel_query_clause_count(query),
+  sequel_status_t deserialize_status = sequel_document_deserialize(&source, &serialized_view, NULL, &bundle);
+  if (!check(deserialize_status == SEQUEL_OK && sequel_document_bundle_syntax(bundle) != NULL &&
+                 sequel_document_bundle_query(bundle) != NULL &&
+                 sequel_query_clause_count(sequel_document_bundle_query(bundle)) == sequel_query_clause_count(query) &&
+                 sequel_document_bundle_diagnostics(bundle) != NULL,
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
@@ -611,12 +613,12 @@ int main(void) {
              "deserialize rejects unsupported newer schema"))
     return 1;
   uint64_t corrupt_range = UINT64_MAX;
-  memcpy(serialized.data + 17 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
+  memcpy(serialized.data + 18 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
   if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
              "serialized range validation"))
     return 1;
   uint64_t valid_range = 0;
-  memcpy(serialized.data + 17 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &valid_range, sizeof(valid_range));
+  memcpy(serialized.data + 18 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &valid_range, sizeof(valid_range));
   serialized_view.length -= 1;
   if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
              "truncated document rejection"))
