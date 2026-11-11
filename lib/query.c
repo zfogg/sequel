@@ -235,8 +235,8 @@ static int is_join_modifier(const sequel_source_view_t *source, const sequel_tok
   if (!is_identifier_token(token) || token->range.end > source->length)
     return 0;
   size_t length = token->range.end - token->range.start;
-  const char *modifiers[] = {"NATURAL", "LEFT",    "RIGHT", "FULL", "OUTER", "CROSS",
-                             "INNER",   "LATERAL", "ASOF",  "SEMI", "ANTI",  "POSITIONAL"};
+  const char *modifiers[] = {"NATURAL", "LEFT",  "RIGHT",   "FULL", "OUTER", "CROSS", "GLOBAL",
+                             "ANY",     "INNER", "LATERAL", "ASOF", "SEMI",  "ANTI",  "POSITIONAL"};
   for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); ++i)
     if (length == strlen(modifiers[i]) && !_strnicmp(source->data + token->range.start, modifiers[i], length))
       return 1;

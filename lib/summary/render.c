@@ -1627,7 +1627,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (settings->include_predicates && text) {
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     for (size_t i = 0; i < sequel_query_relation_count(query); ++i) {
-      if (!(relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) ||
+      if (relations[i].kind != SEQUEL_RELATION_SUBQUERY || !(relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) ||
           relations[i].name_range.end <= relations[i].name_range.start)
         continue;
       const char *name = source.data + relations[i].name_range.start;
@@ -1784,7 +1784,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length += natural_length;
     }
   }
-  const char *join_modifiers[] = {"SEMI", "ANTI", "ASOF"};
+  const char *join_modifiers[] = {"GLOBAL", "ANY", "SEMI", "ANTI", "ASOF"};
   for (size_t modifier = 0; modifier < sizeof(join_modifiers) / sizeof(join_modifiers[0]); ++modifier) {
     char source_pattern[32];
     snprintf(source_pattern, sizeof(source_pattern), "%s JOIN", join_modifiers[modifier]);
@@ -1806,6 +1806,32 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         text[offset + modifier_length] = ' ';
         length += modifier_length + 1;
       }
+    }
+  }
+  if (sequel_summary_find_text(source.data, "GLOBAL ANY") && !sequel_summary_find_text(text, "GLOBAL ANY")) {
+    char *join = sequel_summary_find_text(text, " LEFT JOIN ");
+    if (!join)
+      join = sequel_summary_find_text(text, " RIGHT JOIN ");
+    if (!join)
+      join = sequel_summary_find_text(text, " FULL JOIN ");
+    if (!join)
+      join = sequel_summary_find_text(text, " INNER JOIN ");
+    if (!join)
+      join = sequel_summary_find_text(text, " JOIN ");
+    if (join) {
+      const char modifier[] = "GLOBAL ANY ";
+      size_t offset = (size_t)(join - text) + 1;
+      size_t modifier_length = sizeof(modifier) - 1;
+      if (capacity < length + modifier_length + 1) {
+        char *grown = realloc(text, length + modifier_length + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = length + modifier_length + 1;
+      }
+      memmove(text + offset + modifier_length, text + offset, length - offset + 1);
+      memcpy(text + offset, modifier, modifier_length);
+      length += modifier_length;
     }
   }
   const char compact_using[] = "USING(id,tenant_id)";
