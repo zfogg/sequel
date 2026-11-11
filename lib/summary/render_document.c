@@ -78,7 +78,18 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     bool after_first = false;
     size_t statement_index = 0;
     bool compact_tail = false;
+    bool compact_initial_set = false;
     for (size_t i = 0; i < sanitized.length; ++i) {
+      if (!compact_initial_set && i == 0 && sequel_summary_word(sanitized.data, sanitized.length, 0, "SET")) {
+        if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, "SET")) {
+          free(multi);
+          sequel_text_result_free(&sanitized);
+          goto no_memory;
+        }
+        while (i < sanitized.length && sanitized.data[i] != ';')
+          ++i;
+        compact_initial_set = true;
+      }
       if (sanitized.data[i] == ';') {
         after_first = true, ++statement_index;
         compact_tail = false;
