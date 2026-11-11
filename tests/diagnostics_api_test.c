@@ -42,6 +42,17 @@ int main(void) {
           portability_diagnostics.records[i].hint[0]);
   sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_syntax_document_free(syntax);
+  sequel_source_view_t dialect_source = {"SELECT {value:UInt64}", strlen("SELECT {value:UInt64}")};
+  parse_options.dialect = SEQUEL_CLICKHOUSE;
+  syntax = NULL;
+  CHECK(sequel_parse_sql(&dialect_source, &parse_options, NULL, &syntax) == SEQUEL_OK && syntax);
+  CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK);
+  CHECK(portability_diagnostics.count > 0);
+  CHECK(portability_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_PORTABILITY &&
+        portability_diagnostics.records[0].message[0] && portability_diagnostics.records[0].explanation[0] &&
+        portability_diagnostics.records[0].hint[0]);
+  sequel_diagnostic_list_free(&portability_diagnostics);
+  sequel_syntax_document_free(syntax);
   const char nul[] = {'x', 0, 'y'};
   CHECK(sequel_diagnose_n(nul, sizeof(nul), SEQUEL_GENERIC, &d) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(d.code == SEQUEL_DIAG_CONTROL_CHARACTER && d.offset == 1 && d.end_offset == 2);
