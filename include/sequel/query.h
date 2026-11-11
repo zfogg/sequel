@@ -125,6 +125,7 @@ typedef struct {
 
 typedef struct {
   bool (*statement)(const sequel_query_document_t *document, size_t statement_index, void *userdata);
+  bool (*clause)(const sequel_query_document_t *document, size_t clause_index, void *userdata);
   bool (*relation)(const sequel_query_document_t *document, size_t relation_index, void *userdata);
   bool (*parameter)(const sequel_query_document_t *document, size_t parameter_index, void *userdata);
   bool (*join)(const sequel_query_document_t *document, size_t join_index, void *userdata);

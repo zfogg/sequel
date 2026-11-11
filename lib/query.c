@@ -1026,6 +1026,9 @@ sequel_status_t sequel_query_visit(const sequel_query_document_t *document, cons
   for (size_t i = 0; i < document->statement_count; ++i)
     if (visitor->statement && !visitor->statement(document, i, visitor->userdata))
       return SEQUEL_ERR_CANCELLED;
+  for (size_t i = 0; i < document->clause_count; ++i)
+    if (visitor->clause && !visitor->clause(document, i, visitor->userdata))
+      return SEQUEL_ERR_CANCELLED;
   for (size_t i = 0; i < document->relation_count; ++i)
     if (visitor->relation && !visitor->relation(document, i, visitor->userdata))
       return SEQUEL_ERR_CANCELLED;

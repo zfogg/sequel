@@ -24,6 +24,13 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
   return true;
 }
 
+static bool count_clauses(const sequel_query_document_t *document, size_t index, void *userdata) {
+  (void)document;
+  (void)index;
+  ++*(size_t *)userdata;
+  return true;
+}
+
 int main(void) {
   const sequel_dialect_definition_t *postgres = sequel_dialect_definition(SEQUEL_POSTGRESQL);
   if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0,
@@ -362,6 +369,12 @@ int main(void) {
   size_t visited_relations = 0;
   sequel_query_visitor_t query_visitor = {.relation = count_relations, .userdata = &visited_relations};
   if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK && visited_relations == 1, "query visitor"))
+    return 1;
+  size_t visited_clauses = 0;
+  query_visitor = (sequel_query_visitor_t){.clause = count_clauses, .userdata = &visited_clauses};
+  if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK &&
+                 visited_clauses == sequel_query_clause_count(query),
+             "clause visitor"))
     return 1;
   if (!check(sequel_query_relation_count(query) == 1, "relation count"))
     return 1;
