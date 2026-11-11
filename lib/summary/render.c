@@ -112,12 +112,19 @@ static int normalize_projection_shape(char **text, size_t *length, size_t *capac
 }
 
 static void remove_duplicate_raw_relation(char *text, size_t *length) {
-  char *raw = sequel_summary_find_text(text, "\nFROM optimizer_candidate_results r");
-  char *normalized = sequel_summary_find_text(raw ? raw : text, "FROM optimizer_candidate_results AS r");
-  if (!raw || !normalized || normalized <= raw)
+  char *raw = sequel_summary_find_text(text, "\nFROM ");
+  if (!raw)
     return;
-  memmove(raw, normalized, *length - (size_t)(normalized - text) + 1);
-  *length -= (size_t)(normalized - raw);
+  char *normalized = raw + 1;
+  while ((normalized = sequel_summary_find_text(normalized, " FROM ")) != NULL) {
+    char *alias = sequel_summary_find_text(normalized, " AS ");
+    if (alias && alias < normalized + 160) {
+      memmove(raw, normalized, *length - (size_t)(normalized - text) + 1);
+      *length -= (size_t)(normalized - raw);
+      return;
+    }
+    ++normalized;
+  }
 }
 
 static int render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
