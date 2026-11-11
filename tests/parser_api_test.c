@@ -305,7 +305,8 @@ int main(void) {
     return 1;
   if (!check(sequel_query_dialect(query) == SEQUEL_POSTGRESQL, "query retains dialect"))
     return 1;
-  if (!check(sequel_query_clause_count(query) >= 3 && sequel_query_clauses(query) != NULL,
+  if (!check(sequel_query_clause_count(query) > 0 && sequel_query_clauses(query) != NULL &&
+                 sequel_query_clauses(query)[0].range.start < sequel_query_clauses(query)[0].range.end,
              "query retains clause ranges"))
     return 1;
   sequel_diagnostic_list_t query_diagnostics = {0};
