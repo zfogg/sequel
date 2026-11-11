@@ -37,6 +37,7 @@ setup(
                 "lib/query_arrays.c",
                 "lib/cte.c",
                 "lib/analysis/tokens.c",
+                "lib/analysis/summary.c",
                 "lib/access.c",
                 "lib/diagnostics.c",
                 "lib/analysis/document.c",

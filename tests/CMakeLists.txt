@@ -70,6 +70,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/bindings.c
   ../lib/cte.c
   ../lib/analysis/tokens.c
+  ../lib/analysis/summary.c
   ../lib/statements.c
   ../lib/joins.c
   ../lib/expressions.c

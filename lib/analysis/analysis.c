@@ -528,29 +528,6 @@ static void analysis_format_map(analysis_layout *layout, size_t fn, size_t tn, a
                                 : SEQUEL_MAP_REPLACE);
 }
 
-static void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
-  sequel_summary_options_t options;
-  sequel_summary_options_init(&options);
-  options.include_bind_count = false;
-  sequel_text_result_t summary = {0};
-  if (sequel_summarize_query(query, &options, &summary) != SEQUEL_OK)
-    sequel_abort(SEQUEL_ERR_NOMEM);
-  size_t length = summary.length;
-  char *copy = analysis_array(NULL, length + 1, sizeof(*copy));
-  if (length && summary.data)
-    memcpy(copy, summary.data, length);
-  copy[length] = 0;
-  out->summary = copy;
-  sequel_text_result_free(&summary);
-}
-
-static void analysis_summary_default(sequel_analysis_t *out) {
-  const char fallback[] = "SQL";
-  char *summary = analysis_array(NULL, sizeof(fallback), sizeof(*summary));
-  memcpy(summary, fallback, sizeof(fallback));
-  out->summary = summary;
-}
-
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
                                  sequel_analysis_t *out) {
   if (!out)
