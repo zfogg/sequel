@@ -33,9 +33,25 @@ int sequel_summary_word(const char *source, size_t length, size_t offset, const 
 }
 
 const char *sequel_summary_find_word(const char *source, size_t length, size_t offset, const char *word) {
-  for (size_t i = offset; i < length; ++i)
+  for (size_t i = offset; i < length; ++i) {
+    if (source[i] == '\'' || source[i] == '"' || source[i] == '`' || source[i] == '[') {
+      char quote = source[i] == '[' ? ']' : source[i];
+      ++i;
+      while (i < length) {
+        if (source[i] == quote) {
+          if (i + 1 < length && source[i + 1] == quote) {
+            i += 2;
+            continue;
+          }
+          break;
+        }
+        ++i;
+      }
+      continue;
+    }
     if (sequel_summary_word(source, length, i, word))
       return source + i;
+  }
   return NULL;
 }
 
