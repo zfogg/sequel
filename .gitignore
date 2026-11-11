@@ -13,3 +13,5 @@ __pycache__/
 /target/
 *.so
 *.dylib
+build.log
+trace.txt
