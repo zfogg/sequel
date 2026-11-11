@@ -776,7 +776,6 @@ done:
 #undef calloc
 #undef realloc
 #undef free
-#include "diagnostics.c"
 #define malloc sequel_alloc
 #define calloc sequel_calloc
 #define realloc sequel_realloc
