@@ -74,23 +74,6 @@ static int append_line_start(char **data, size_t *length, size_t *capacity, size
   return 1;
 }
 
-static int is_clause(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_FROM || keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_GROUP ||
-         keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_ORDER || keyword == SEQUEL_KEYWORD_LIMIT ||
-         keyword == SEQUEL_KEYWORD_OFFSET || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_VALUES ||
-         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_UNION || keyword == SEQUEL_KEYWORD_JOIN ||
-         keyword == SEQUEL_KEYWORD_ON || keyword == SEQUEL_KEYWORD_QUALIFY;
-}
-
-static int is_list_clause(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_SELECT || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_ORDER ||
-         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
-}
-
-static int is_case_boundary(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_WHEN || keyword == SEQUEL_KEYWORD_ELSE || keyword == SEQUEL_KEYWORD_END;
-}
-
 static int is_word_token(sequel_token_kind_t kind) {
   return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
          kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
@@ -350,7 +333,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         token_is_word(source, token, "VALUES") && previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
         previous_token->range.end > previous_token->range.start && source.data[previous_token->range.start] == '=';
     bool clause_start =
-        keyword && is_clause(token->keyword_id) &&
+        keyword && sequel_keyword_is_clause(token->keyword_id) &&
         !(token->keyword_id == SEQUEL_KEYWORD_JOIN && previous_token && is_join_modifier(source, previous_token)) &&
         !(token->keyword_id == SEQUEL_KEYWORD_ON && previous_token &&
           token_is_word(source, previous_token, "DISTINCT")) &&
@@ -378,7 +361,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       query_paren_depth = paren_depth;
     if (select_start && paren_depth)
       nested_query = true;
-    bool case_boundary = keyword && is_case_boundary(token->keyword_id);
+    bool case_boundary = keyword && sequel_keyword_is_case_boundary(token->keyword_id);
     if (pending_clause_body && !upsert_on && !is_by_keyword(source, token)) {
       if (!append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
         goto no_memory;
@@ -532,7 +515,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       ++case_depth;
     else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
       --case_depth;
-    list_clause = is_list_clause(clause);
+    list_clause = sequel_keyword_is_list_clause(clause);
   }
   if (!data) {
     data = malloc(1);

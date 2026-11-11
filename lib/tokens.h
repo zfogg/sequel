@@ -15,3 +15,7 @@ int sequel_token_is_bind(const sequel_token_t *token);
 int sequel_token_has_range(const sequel_token_t *token, size_t source_length);
 const char *sequel_token_source_text(sequel_source_view_t source, const sequel_token_t *token, size_t *length);
 int sequel_token_is_symbol(sequel_source_view_t source, const sequel_token_t *token, char symbol);
+
+int sequel_keyword_is_clause(uint32_t keyword);
+int sequel_keyword_is_list_clause(uint32_t keyword);
+int sequel_keyword_is_case_boundary(uint32_t keyword);
