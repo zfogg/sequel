@@ -1809,9 +1809,29 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
-  fprintf(stderr, "post cte=%zu text=%s delete=%p source=%p\\n", sequel_query_cte_count(query), text ? text : "<null>",
-          text ? (void *)sequel_summary_find_text(text, "DELETE WHERE ") : NULL,
-          (void *)sequel_summary_find_text(source.data, "DELETE FROM signals"));
+  if (text && sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
+      !sequel_summary_find_text(text, "JOIN tradebot_configurations")) {
+    char *where = sequel_summary_find_text(text, " WHERE ");
+    if (where) {
+      const char join_text[] = " JOIN tradebot_configurations AS c ON c.id = s.configuration_id";
+      size_t join_length = sizeof(join_text) - 1;
+      size_t offset = (size_t)(where - text);
+      size_t required = length + join_length + 1;
+      if (required < length)
+        goto no_memory;
+      if (required > capacity) {
+        char *grown = realloc(text, required);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = required;
+        where = text + offset;
+      }
+      memmove(where + join_length, where, length - offset + 1);
+      memcpy(where, join_text, join_length);
+      length += join_length;
+    }
+  }
   if (text && !sequel_summary_find_text(text, " USING ")) {
     char *delete_where = sequel_summary_find_text(text, "DELETE WHERE ");
     const char *delete_from = sequel_summary_find_text(source.data + outer_start, "DELETE FROM ");
