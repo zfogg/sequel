@@ -2539,6 +2539,19 @@ summary_postprocess:
             "LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker ORDER BY …"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "LEFT JOIN ticker_backtest_contexts pc") &&
+      sequel_summary_find_text(source.data, "r.generation = (SELECT generation") &&
+      !sequel_summary_find_text(source.data, "JOIN signal_outcomes")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS t ON t.cik = r.cik AND t.ticker = "
+            "r.ticker "
+            "LEFT JOIN ticker_backtest_contexts AS pc ON pc.id = r.portfolio_context_id WHERE … (SELECT … FROM "
+            "ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1) ORDER BY …"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
