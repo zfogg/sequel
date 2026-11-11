@@ -35,3 +35,18 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
 
 int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, size_t *capacity,
                                                  sequel_source_view_t source);
+
+int sequel_summary_normalize_insert_clause_order(char **text, size_t *length, size_t *capacity);
+int sequel_summary_normalize_insert_conflict_order(char **text, size_t *length);
+bool sequel_summary_has_clause(const sequel_query_document_t *query, uint32_t keyword_id);
+bool sequel_summary_has_token(const sequel_query_document_t *query, uint32_t keyword_id);
+bool sequel_summary_starts_function_projection(const sequel_query_document_t *query);
+int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_t *capacity,
+                                              const sequel_query_document_t *query);
+int sequel_summary_render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
+                                                    const sequel_query_document_t *query, sequel_source_view_t source,
+                                                    const sequel_statement_info_t *statement);
+bool sequel_summary_has_projection_scope(const sequel_query_document_t *query);
+const char *sequel_summary_matching_close(const char *open, const char *end);
+int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity,
+                                         const sequel_query_document_t *query, size_t start, size_t end);
