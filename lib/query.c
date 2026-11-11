@@ -7,20 +7,6 @@
 #include "util/text.h"
 #include "model.h"
 
-static int sequel_query_token_is_clause_keyword(const sequel_token_t *token) {
-  if (token->kind != SEQUEL_TOKEN_KEYWORD)
-    return 0;
-  return token->keyword_id == SEQUEL_KEYWORD_WHERE || token->keyword_id == SEQUEL_KEYWORD_GROUP ||
-         token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_LIMIT ||
-         token->keyword_id == SEQUEL_KEYWORD_OFFSET || token->keyword_id == SEQUEL_KEYWORD_JOIN ||
-         token->keyword_id == SEQUEL_KEYWORD_ON || token->keyword_id == SEQUEL_KEYWORD_HAVING ||
-         token->keyword_id == SEQUEL_KEYWORD_RETURNING || token->keyword_id == SEQUEL_KEYWORD_VALUES ||
-         token->keyword_id == SEQUEL_KEYWORD_SET || token->keyword_id == SEQUEL_KEYWORD_INTO ||
-         token->keyword_id == SEQUEL_KEYWORD_USING || token->keyword_id == SEQUEL_KEYWORD_WINDOW ||
-         token->keyword_id == SEQUEL_KEYWORD_QUALIFY || token->keyword_id == SEQUEL_KEYWORD_PREWHERE ||
-         token->keyword_id == SEQUEL_KEYWORD_UNION;
-}
-
 static int sequel_query_token_is_reserved_relation_alias(const sequel_source_view_t *source,
                                                          const sequel_token_t *token) {
   size_t length = token->range.end - token->range.start;
@@ -321,7 +307,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         ++predicate_start;
       size_t predicate_end = end;
       for (size_t j = predicate_start; j < end; ++j)
-        if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[j])) {
+        if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_token_is_clause_keyword(&tokens[j])) {
           predicate_end = j;
           break;
         }
@@ -374,7 +360,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           comma_relation = true;
           break;
         }
-        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[previous]))
+        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && sequel_token_is_clause_keyword(&tokens[previous]))
           break;
       }
     }
@@ -578,7 +564,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t name_end = end;
     sequel_source_range_t alias_range = {end, end};
     if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) &&
-        !sequel_query_token_is_clause_keyword(&tokens[alias]) &&
+        !sequel_token_is_clause_keyword(&tokens[alias]) &&
         !sequel_query_token_is_join_modifier(&source, &tokens[alias]) &&
         !sequel_query_token_is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
@@ -691,7 +677,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            * subqueries are protected by the nesting counter above. */
           if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
               (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN ||
-               sequel_query_token_is_clause_keyword(&tokens[condition_end])))
+               sequel_token_is_clause_keyword(&tokens[condition_end])))
             break;
           ++condition_end;
         }
@@ -723,7 +709,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || !sequel_query_token_is_clause_keyword(&tokens[i]))
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || !sequel_token_is_clause_keyword(&tokens[i]))
       continue;
     size_t statement_index = SIZE_MAX;
     for (size_t s = 0; s < document->statement_count; ++s)
@@ -751,7 +737,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t j = i + 1; j < token_count; ++j) {
       if (tokens[j].range.start >= end)
         break;
-      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[j])) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_token_is_clause_keyword(&tokens[j])) {
         size_t nested = 0;
         for (size_t previous = i + 1; previous < j; ++previous) {
           if (tokens[previous].range.end != tokens[previous].range.start + 1)

@@ -152,6 +152,10 @@ int sequel_keyword_is_clause(uint32_t keyword) {
          keyword == SEQUEL_KEYWORD_ON || keyword == SEQUEL_KEYWORD_QUALIFY;
 }
 
+int sequel_token_is_clause_keyword(const sequel_token_t *token) {
+  return token && token->kind == SEQUEL_TOKEN_KEYWORD && sequel_keyword_is_clause(token->keyword_id);
+}
+
 int sequel_keyword_is_list_clause(uint32_t keyword) {
   return keyword == SEQUEL_KEYWORD_SELECT || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_ORDER ||
          keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
