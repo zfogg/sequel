@@ -55,6 +55,14 @@ static int normalize_insert_conflict_order(char **text, size_t *length) {
   return 1;
 }
 
+static bool summary_has_clause(const sequel_query_document_t *query, uint32_t keyword_id) {
+  const sequel_clause_info_t *clauses = sequel_query_clauses(query);
+  for (size_t i = 0; i < sequel_query_clause_count(query); ++i)
+    if (clauses[i].keyword_id == keyword_id)
+      return true;
+  return false;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -425,6 +433,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!sequel_summary_append_text(
             &text, &length, &capacity,
             sequel_summary_find_text(source.data, "SELECT DISTINCT ON") ? "SELECT DISTINCT ON (…) …" : "SELECT …"))
+      goto no_memory;
+  }
+  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      sequel_query_relation_count(query) == 0 && summary_has_clause(query, SEQUEL_KEYWORD_FROM)) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT) {
