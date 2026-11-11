@@ -1,6 +1,14 @@
 /* Presentation only. The shared lexer identifies opaque comments, identifiers,
  * strings and parameters; gaps are emitted directly from the original input. */
+#include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <sequel.h>
+#include "diagnostics.h"
 #include "base16.h"
+#include "util/utf8.h"
 
 static const char *const highlight_color_names[] = {"foreground", "background", "keyword",     "type",      "function",
                                                     "variable",   "string",     "number",      "boolean",   "null",
@@ -15,7 +23,7 @@ const char *sequel_colorscheme_name(size_t index) {
 sequel_status_t sequel_colorscheme(const char *name, sequel_colorscheme_t *out) {
   if (!name || !out)
     return SEQUEL_ERR_NULL;
-  for (size_t i = 0; (sequel_work_tick(1), i < sequel_colorscheme_count()); ++i)
+  for (size_t i = 0; i < sequel_colorscheme_count(); ++i)
     if (!strcmp(name, highlight_schemes[i].name)) {
       *out = highlight_schemes[i].palette;
       return SEQUEL_OK;
@@ -41,7 +49,7 @@ static bool highlight_hex(const char *s, size_t n, uint32_t *color) {
   if (n != 6)
     return false;
   uint32_t value = 0;
-  for (size_t i = 0; (sequel_work_tick(1), i < n); ++i) {
+  for (size_t i = 0; i < n; ++i) {
     int digit = highlight_hex_digit((unsigned char)s[i]);
     if (digit < 0)
       return false;
@@ -63,7 +71,7 @@ sequel_status_t sequel_colorscheme_parse(const char *yaml, sequel_colorscheme_t 
     return SEQUEL_ERR_INVALID_ARGUMENT;
   unsigned seen = 0;
   sequel_colorscheme_t parsed = {{0}};
-  for (size_t start = 0; (sequel_work_tick(1), start < n);) {
+  for (size_t start = 0; start < n;) {
     size_t end = start;
     while (end < n && yaml[end] != '\n')
       ++end;
@@ -112,11 +120,11 @@ sequel_status_t sequel_highlight_set_colorscheme(sequel_highlight_options_t *opt
                                                  const sequel_colorscheme_t *scheme) {
   if (!options || !scheme)
     return SEQUEL_ERR_NULL;
-  for (size_t i = 0; (sequel_work_tick(1), i < 16); ++i)
+  for (size_t i = 0; i < 16; ++i)
     if (scheme->base[i] > 0xffffff)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   static const unsigned slots[] = {5, 0, 14, 10, 13, 8, 11, 9, 9, 9, 3, 5, 5, 5};
-  for (size_t i = 0; (sequel_work_tick(1), i < SEQUEL_COLOR_COUNT); ++i)
+  for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
     options->colors[i] = scheme->base[slots[i]];
   return SEQUEL_OK;
 }
@@ -128,7 +136,7 @@ static unsigned highlight_luminance(uint32_t color) {
 const char *sequel_colorscheme_variant_name(const char *name, sequel_appearance_t appearance) {
   if (!name || appearance < SEQUEL_APPEARANCE_AUTO || appearance > SEQUEL_APPEARANCE_LIGHT)
     return NULL;
-  for (size_t i = 0; (sequel_work_tick(1), i < sequel_colorscheme_count()); ++i)
+  for (size_t i = 0; i < sequel_colorscheme_count(); ++i)
     if (!strcmp(name, highlight_schemes[i].name)) {
       if (appearance == SEQUEL_APPEARANCE_AUTO)
         return highlight_schemes[i].name;
@@ -150,12 +158,12 @@ sequel_status_t sequel_colorscheme_set_appearance(sequel_colorscheme_t *scheme, 
     return SEQUEL_ERR_NULL;
   if (appearance < SEQUEL_APPEARANCE_AUTO || appearance > SEQUEL_APPEARANCE_LIGHT)
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  for (size_t i = 0; (sequel_work_tick(1), i < 16); ++i)
+  for (size_t i = 0; i < 16; ++i)
     if (scheme->base[i] > 0xffffff)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   if (appearance == SEQUEL_APPEARANCE_AUTO)
     return SEQUEL_OK;
-  for (size_t i = 0; (sequel_work_tick(1), i < sequel_colorscheme_count()); ++i)
+  for (size_t i = 0; i < sequel_colorscheme_count(); ++i)
     if (!memcmp(scheme->base, highlight_schemes[i].palette.base, sizeof(scheme->base)))
       return sequel_colorscheme_for_appearance(highlight_schemes[i].name, appearance, scheme);
   bool light = highlight_luminance(scheme->base[0]) > highlight_luminance(scheme->base[5]);
@@ -181,7 +189,7 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
   uint32_t color;
   if (!highlight_hex(hex, strlen(hex), &color))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  for (size_t i = 0; (sequel_work_tick(1), i < SEQUEL_COLOR_COUNT); ++i)
+  for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
     if (!strcmp(type, highlight_color_names[i])) {
       options->colors[i] = color;
       return SEQUEL_OK;
@@ -275,7 +283,7 @@ static void highlight_source(highlight_output *b, const char *s, size_t n, seque
     highlight_put(b, s, n);
     return;
   }
-  for (size_t i = 0; (sequel_work_tick(1), i < n); ++i) {
+  for (size_t i = 0; i < n; ++i) {
     const char *escaped = NULL;
     switch (s[i]) {
     case '&':
@@ -335,7 +343,7 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
-  for (size_t i = 0; (sequel_work_tick(1), i < SEQUEL_COLOR_COUNT); ++i)
+  for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
     if (options->colors[i] > 0xffffff) {
       diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
       return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -400,7 +408,7 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
     highlight_ansi(&b, options->colors[SEQUEL_COLOR_BACKGROUND], true);
   }
   const char *cursor = sql;
-  for (size_t i = 0; (sequel_work_tick(1), i < token_count); ++i) {
+  for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       continue;

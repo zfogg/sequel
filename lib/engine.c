@@ -783,7 +783,6 @@ done:
 #define free sequel_dealloc
 #include "api.c"
 #include "compact.c"
-#include "highlight.c"
 #include "analysis.c"
 // clang-format on
 
