@@ -80,6 +80,28 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  bool dollar_recovery = sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
+                         sequel_summary_find_text(source.data, "$");
+  if (sequel_syntax_issue_count(sequel_query_syntax(query)) != 0 || dollar_recovery) {
+    const char *operation = statement_count ? sequel_summary_operation_name(statements[0].operation) : "SQL";
+    const char *from = dollar_recovery ? sequel_summary_find_word(source.data, source.length, 0, "FROM") : NULL;
+    const char *table = from ? from + 4 : NULL;
+    while (table && (size_t)(table - source.data) < source.length && isspace((unsigned char)*table))
+      ++table;
+    const char *table_end = table;
+    while (table_end && (size_t)(table_end - source.data) < source.length && !isspace((unsigned char)*table_end) &&
+           *table_end != ';')
+      ++table_end;
+    if (!sequel_summary_append_text(&text, &length, &capacity, operation) ||
+        !sequel_summary_append_text(&text, &length, &capacity, " …") ||
+        (dollar_recovery && (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+                             !sequel_summary_append_bytes(&text, &length, &capacity, table ? table : "…",
+                                                          table ? (size_t)(table_end - table) : 3))))
+      goto no_memory;
+    *out =
+        (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_RECOVERED};
+    return SEQUEL_OK;
+  }
   if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
       sequel_summary_find_text(source.data, "JOIN signal_outcomes") &&
       sequel_summary_find_text(source.data, "r.generation = (SELECT generation")) {
