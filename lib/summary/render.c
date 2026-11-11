@@ -149,6 +149,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!sequel_summary_append_text(&text, &length, &capacity, " "))
       goto no_memory;
     cte_prefix_end = length;
+    if (sequel_query_outer_distinct_on(query) &&
+        (!sequel_summary_append_text(&text, &length, &capacity, "SELECT DISTINCT ON (…) …")))
+      goto no_memory;
     if (sequel_summary_find_text(source.data, " FROM (WITH ")) {
       const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
       if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
@@ -1091,8 +1094,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE") ||
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "ORDER"))
         alias = alias_end = end;
-      if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+      if ((!sequel_query_outer_distinct_on(query) &&
+           (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
           !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
           (alias < alias_end && !sequel_summary_append_text(&text, &length, &capacity, " AS ")) ||

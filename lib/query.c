@@ -250,7 +250,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   if (!document->statement_count && token_count) {
-    document->outer_distinct_on = sequel_text_find(source.data + outer, source.length - outer, "SELECT DISTINCT ON") != NULL;
     for (size_t token = 0; token < token_count; ++token) {
       if (is_trivia(&tokens[token]))
         continue;
@@ -371,6 +370,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     document->statement_count = kept;
     size_t outer = document->ctes[document->cte_count - 1].range.end;
+    const char *outer_select = sequel_text_find(source.data + outer, source.length - outer, "SELECT ");
+    const char *outer_from = outer_select
+                                 ? sequel_text_find(outer_select, source.length - (size_t)(outer_select - source.data),
+                                                    " FROM ")
+                                 : NULL;
+    document->outer_distinct_on = outer_select && outer_from &&
+                                  sequel_text_find(outer_select, (size_t)(outer_from - outer_select), "DISTINCT ON") != NULL;
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
         continue;
