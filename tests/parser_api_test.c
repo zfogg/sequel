@@ -737,6 +737,7 @@ int main(void) {
   if (!check(sequel_parse_sql(&lateral_source, &options, NULL, &lateral_syntax) == SEQUEL_OK &&
                  sequel_build_query_document(lateral_syntax, &options, &lateral_query) == SEQUEL_OK &&
                  sequel_query_relation_count(lateral_query) >= 2 && sequel_query_join_count(lateral_query) >= 1 &&
+                 sequel_query_joins(lateral_query)[0].kind == SEQUEL_JOIN_LATERAL &&
                  sequel_query_joins(lateral_query)[0].has_condition &&
                  sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
                  strstr(lateral_summary.data, "JOIN LATERAL") != NULL && strstr(lateral_summary.data, " ON ?") != NULL,

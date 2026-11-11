@@ -104,6 +104,8 @@ static bool is_expression_kind(sequel_syntax_kind_t kind) {
   return kind >= SEQUEL_SYNTAX_IDENTIFIER && kind <= SEQUEL_SYNTAX_GROUP;
 }
 
+static int is_trivia(const sequel_token_t *token);
+
 static size_t expression_node_for_range(const sequel_syntax_document_t *syntax, sequel_source_range_t range) {
   size_t count = 0;
   const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &count);
@@ -120,6 +122,51 @@ static size_t expression_node_for_range(const sequel_syntax_document_t *syntax, 
     }
   }
   return best;
+}
+
+static sequel_join_kind_t join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index,
+                                    const sequel_source_view_t *source) {
+  size_t previous[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
+  size_t found = 0;
+  for (size_t cursor = join_index; cursor-- > 0 && found < 3;) {
+    if (!is_trivia(&tokens[cursor]))
+      previous[found++] = cursor;
+  }
+  if (join_index + 1 < token_count) {
+    size_t next = join_index + 1;
+    while (next < token_count && is_trivia(&tokens[next]))
+      ++next;
+    if (next < token_count && word_equals_ci(source->data + tokens[next].range.start,
+                                             tokens[next].range.end - tokens[next].range.start, "LATERAL"))
+      return SEQUEL_JOIN_LATERAL;
+  }
+  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
+                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "CROSS"))
+    return SEQUEL_JOIN_CROSS;
+  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
+                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "NATURAL"))
+    return SEQUEL_JOIN_NATURAL;
+  size_t modifier =
+      found > 1 && word_equals_ci(source->data + tokens[previous[0]].range.start,
+                                  tokens[previous[0]].range.end - tokens[previous[0]].range.start, "OUTER")
+          ? 1
+          : 0;
+  if (found > modifier &&
+      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
+                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "LEFT"))
+    return SEQUEL_JOIN_LEFT;
+  if (found > modifier &&
+      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
+                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "RIGHT"))
+    return SEQUEL_JOIN_RIGHT;
+  if (found > modifier &&
+      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
+                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "FULL"))
+    return SEQUEL_JOIN_FULL;
+  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
+                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "INNER"))
+    return SEQUEL_JOIN_INNER;
+  return SEQUEL_JOIN_INNER;
 }
 
 static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *number) {
@@ -873,7 +920,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (left == SIZE_MAX || right == SIZE_MAX)
       continue;
     size_t statement = statement_for_range(document, tokens[i].range);
-    sequel_join_info_t join = {.kind = SEQUEL_JOIN_INNER,
+    sequel_join_info_t join = {.kind = join_kind(tokens, token_count, i, &source),
                                .range = {tokens[i].range.start, document->relations[right].range.end},
                                .left_relation = left,
                                .right_relation = right,
