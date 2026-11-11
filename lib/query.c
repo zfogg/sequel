@@ -14,6 +14,7 @@ struct sequel_query_document {
   sequel_cte_info_t *ctes;
   size_t cte_count;
   bool outer_distinct_on;
+  sequel_source_range_t outer_range;
   sequel_parameter_info_t *parameters;
   size_t parameter_count;
   sequel_join_info_t *joins;
@@ -370,6 +371,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     document->statement_count = kept;
     size_t outer = document->ctes[document->cte_count - 1].range.end;
+    document->outer_range = (sequel_source_range_t){outer, source.length};
     const char *outer_select = sequel_text_find(source.data + outer, source.length - outer, "SELECT ");
     const char *outer_from = outer_select
                                  ? sequel_text_find(outer_select, source.length - (size_t)(outer_select - source.data),
@@ -765,6 +767,10 @@ const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *docume
 
 bool sequel_query_outer_distinct_on(const sequel_query_document_t *document) {
   return document ? document->outer_distinct_on : false;
+}
+
+sequel_source_range_t sequel_query_outer_range(const sequel_query_document_t *document) {
+  return document ? document->outer_range : (sequel_source_range_t){0, 0};
 }
 
 size_t sequel_query_parameter_count(const sequel_query_document_t *document) {

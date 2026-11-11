@@ -202,7 +202,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           goto no_memory;
       }
     }
-    outer_start = ctes[sequel_query_cte_count(query) - 1].range.end;
+    outer_start = sequel_query_outer_range(query).start;
   }
   if (settings->include_operation && scalar_with_scope &&
       !sequel_summary_append_text(&text, &length, &capacity, "WITH "))
@@ -1049,7 +1049,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       goto no_memory;
     if (sequel_query_cte_count(query) && statement_count &&
         (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
-      size_t outer = sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end;
+      size_t outer = sequel_query_outer_range(query).start;
       const char *from = sequel_summary_find_word(source.data, source.length, outer, "FROM");
       if (from) {
         const char *table = from + 4;
@@ -1067,9 +1067,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   }
   if (settings->include_tables && sequel_query_cte_count(query) && statement_count &&
       (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
-    size_t outer = sequel_query_cte_count(query)
-                       ? sequel_query_ctes(query)[sequel_query_cte_count(query) - 1].range.end
-                       : outer_start;
+    size_t outer = sequel_query_cte_count(query) ? sequel_query_outer_range(query).start : outer_start;
     while (outer < source.length &&
            (isspace((unsigned char)source.data[outer]) || source.data[outer] == ')'))
       ++outer;
