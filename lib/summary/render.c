@@ -2270,8 +2270,8 @@ summary_postprocess:
         length = strlen(text);
       }
     }
-    if (text && sequel_summary_find_text(source.data, "ON CONFLICT") &&
-        sequel_summary_find_text(source.data, "DO NOTHING")) {
+    if (text && sequel_query_dialect(query) >= SEQUEL_POSTGRESQL &&
+        sequel_summary_find_text(source.data, "ON CONFLICT") && sequel_summary_find_text(source.data, "DO NOTHING")) {
       const char *insert = sequel_summary_find_text(source.data, "INSERT INTO ");
       const char *select = insert ? sequel_summary_find_text(insert, " SELECT ") : NULL;
       const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;

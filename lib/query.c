@@ -949,6 +949,10 @@ sequel_source_view_t sequel_query_source(const sequel_query_document_t *document
   return document ? sequel_lexed_source(sequel_syntax_lexed(document->syntax)) : (sequel_source_view_t){0};
 }
 
+sequel_dialect_t sequel_query_dialect(const sequel_query_document_t *document) {
+  return document ? sequel_lexed_dialect(sequel_syntax_lexed(document->syntax)) : SEQUEL_GENERIC;
+}
+
 const sequel_syntax_document_t *sequel_query_syntax(const sequel_query_document_t *document) {
   return document ? document->syntax : NULL;
 }
