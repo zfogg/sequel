@@ -1,6 +1,7 @@
-/* Compile the private engine into this test only. This tests standard SHA-256
- * vectors directly without adding a public hash API or linking a second engine. */
-#include "../lib/engine.c"
+#include <stdio.h>
+#include <string.h>
+
+#include "../lib/sha256.h"
 
 #define CHECK(condition)                                                                                               \
   do {                                                                                                                 \

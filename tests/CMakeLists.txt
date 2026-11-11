@@ -122,7 +122,7 @@ target_link_libraries(sequel-analysis-test PRIVATE sequel::sequel)
 add_test(NAME sequel-analysis-api COMMAND sequel-analysis-test)
 
 # Test the private streaming digest against standard vectors without exposing it.
-add_executable(sequel-sha256-test sha256_api_test.c ../lib/util/utf8.c ${SEQUEL_PARSER_SOURCES})
+add_executable(sequel-sha256-test sha256_api_test.c ../lib/engine.c ../lib/util/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-sha256-test PRIVATE ../include)
 target_link_libraries(sequel-sha256-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 add_test(NAME sequel-sha256-api COMMAND sequel-sha256-test)
