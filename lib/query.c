@@ -7,10 +7,6 @@
 #include "util/text.h"
 #include "model.h"
 
-static int is_trivia(const sequel_token_t *token);
-
-static int is_identifier_token(const sequel_token_t *token) { return sequel_token_is_identifier(token); }
-
 static int is_clause_keyword(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return 0;
@@ -81,8 +77,6 @@ static int token_in_subquery(const sequel_token_t *tokens, size_t index, const s
   return subquery_depth != SIZE_MAX && depth >= subquery_depth;
 }
 
-static int is_trivia(const sequel_token_t *token) { return sequel_token_is_trivia(token); }
-
 static uint64_t range_hash(const sequel_source_view_t *source, sequel_source_range_t range) {
   uint64_t hash = 1469598103934665603ull;
   for (size_t i = range.start; i < range.end; ++i)
@@ -138,7 +132,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     document->outer_range = (sequel_source_range_t){outer, source.length};
     unsigned outer_depth = 0;
     for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.end <= outer || is_trivia(&tokens[token]))
+      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
         continue;
       char punctuation = source.data[tokens[token].range.start];
       if (punctuation == '(' || punctuation == ')') {
@@ -171,7 +165,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
     for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
+      if (tokens[token].range.start < outer || sequel_token_is_trivia(&tokens[token]))
         continue;
       sequel_operation_t outer_operation = sequel_query_operation_from_word(
           source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
@@ -186,7 +180,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     document->outer_range = (sequel_source_range_t){outer, source.length};
     unsigned outer_depth = 0;
     for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.end <= outer || is_trivia(&tokens[token]))
+      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
         continue;
       char punctuation = source.data[tokens[token].range.start];
       if (punctuation == '(' || punctuation == ')') {
@@ -211,7 +205,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     bool after_with = false;
     for (size_t token = 0; token < token_count; ++token) {
       const sequel_token_t *current = &tokens[token];
-      if (is_trivia(current))
+      if (sequel_token_is_trivia(current))
         continue;
       if (!after_with) {
         if (current->kind == SEQUEL_TOKEN_KEYWORD && current->keyword_id == SEQUEL_KEYWORD_WITH)
@@ -238,7 +232,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   }
   if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
     for (size_t token = 0; token < token_count; ++token) {
-      if (is_trivia(&tokens[token]))
+      if (sequel_token_is_trivia(&tokens[token]))
         continue;
       sequel_operation_t recovered = sequel_query_operation_from_word(
           source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
@@ -292,10 +286,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (!boundary)
         continue;
       size_t first_token = item_start;
-      while (first_token < i && is_trivia(&tokens[first_token]))
+      while (first_token < i && sequel_token_is_trivia(&tokens[first_token]))
         ++first_token;
       size_t last_token = i;
-      while (last_token > first_token && is_trivia(&tokens[last_token - 1]))
+      while (last_token > first_token && sequel_token_is_trivia(&tokens[last_token - 1]))
         --last_token;
       if (first_token < last_token) {
         sequel_projection_info_t projection = {
@@ -321,7 +315,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           (tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE && tokens[i].keyword_id != SEQUEL_KEYWORD_PREWHERE))
         continue;
       size_t predicate_start = i + 1;
-      while (predicate_start < end && is_trivia(&tokens[predicate_start]))
+      while (predicate_start < end && sequel_token_is_trivia(&tokens[predicate_start]))
         ++predicate_start;
       size_t predicate_end = end;
       for (size_t j = predicate_start; j < end; ++j)
@@ -329,7 +323,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           predicate_end = j;
           break;
         }
-      while (predicate_end > predicate_start && is_trivia(&tokens[predicate_end - 1]))
+      while (predicate_end > predicate_start && sequel_token_is_trivia(&tokens[predicate_end - 1]))
         --predicate_end;
       if (predicate_start < predicate_end) {
         sequel_predicate_info_t predicate = {
@@ -354,7 +348,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i].range.start] == ',') {
       for (size_t previous = i; previous > 0;) {
         --previous;
-        if (is_trivia(&tokens[previous]))
+        if (sequel_token_is_trivia(&tokens[previous]))
           continue;
         if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && (tokens[previous].keyword_id == SEQUEL_KEYWORD_FROM ||
                                                               tokens[previous].keyword_id == SEQUEL_KEYWORD_JOIN)) {
@@ -374,7 +368,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       size_t prior[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
       size_t found = 0;
       for (size_t cursor = i; cursor-- > 0 && found < 3;) {
-        if (!is_trivia(&tokens[cursor]))
+        if (!sequel_token_is_trivia(&tokens[cursor]))
           prior[found++] = cursor;
       }
       if (found == 3 && tokens[prior[1]].kind == SEQUEL_TOKEN_KEYWORD &&
@@ -412,16 +406,16 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (close >= token_count)
         continue;
       size_t alias = close + 1;
-      while (alias < token_count && is_trivia(&tokens[alias]))
+      while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
       if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
           tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
         ++alias;
-        while (alias < token_count && is_trivia(&tokens[alias]))
+        while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
           ++alias;
       }
       sequel_source_range_t alias_range = {tokens[close].range.end, tokens[close].range.end};
-      if (alias < token_count && is_identifier_token(&tokens[alias]))
+      if (alias < token_count && sequel_token_is_identifier(&tokens[alias]))
         alias_range = tokens[alias].range;
       sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_SUBQUERY,
                                          .range = {tokens[name].range.start, alias_range.end > tokens[close].range.end
@@ -443,7 +437,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     bool lateral_name = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
                                                     tokens[name].range.end - tokens[name].range.start, "LATERAL");
-    if (!is_identifier_token(&tokens[name]) && !lateral_name)
+    if (!sequel_token_is_identifier(&tokens[name]) && !lateral_name)
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
@@ -451,7 +445,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     bool lateral_subquery = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
                                                         tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (lateral_subquery) {
-      while (cursor < token_count && is_trivia(&tokens[cursor]))
+      while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
       if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
           source.data[tokens[cursor].range.start] == '(') {
@@ -481,7 +475,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (!lateral_subquery) {
       size_t opening = cursor;
-      while (opening < token_count && is_trivia(&tokens[opening]))
+      while (opening < token_count && sequel_token_is_trivia(&tokens[opening]))
         ++opening;
       if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
           source.data[tokens[opening].range.start] == '(') {
@@ -507,7 +501,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         !sequel_query_word_equals_ci(source.data + tokens[name].range.start,
                                      tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
       size_t opening = cursor;
-      while (opening < token_count && is_trivia(&tokens[opening]))
+      while (opening < token_count && sequel_token_is_trivia(&tokens[opening]))
         ++opening;
       if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
           source.data[tokens[opening].range.start] == '(') {
@@ -530,7 +524,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
     while (cursor + 1 < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
-           source.data[tokens[cursor].range.start] == '.' && is_identifier_token(&tokens[cursor + 1])) {
+           source.data[tokens[cursor].range.start] == '.' && sequel_token_is_identifier(&tokens[cursor + 1])) {
       end = tokens[cursor + 1].range.end;
       cursor += 2;
     }
@@ -545,13 +539,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
                                     tokens[alias].range.end - tokens[alias].range.start, "WITH")) {
       ++alias;
-      while (alias < token_count && is_trivia(&tokens[alias]))
+      while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
       if (alias < token_count &&
           sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
                                       tokens[alias].range.end - tokens[alias].range.start, "ORDINALITY"))
         ++alias;
-      while (alias < token_count && is_trivia(&tokens[alias]))
+      while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
     }
     if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
@@ -563,7 +557,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         ++alias;
     }
     sequel_source_range_t alias_range = {end, end};
-    if (alias < token_count && is_identifier_token(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
+    if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
         !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     sequel_relation_info_t relation = {
@@ -637,7 +631,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         size_t condition_start = j + 1;
-        while (condition_start < token_count && is_trivia(&tokens[condition_start]))
+        while (condition_start < token_count && sequel_token_is_trivia(&tokens[condition_start]))
           ++condition_start;
         size_t condition_end = condition_start;
         size_t nesting = 0;
@@ -658,7 +652,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             break;
           ++condition_end;
         }
-        while (condition_end > condition_start && is_trivia(&tokens[condition_end - 1]))
+        while (condition_end > condition_start && sequel_token_is_trivia(&tokens[condition_end - 1]))
           --condition_end;
         if (condition_start < condition_end) {
           join.has_condition = true;
