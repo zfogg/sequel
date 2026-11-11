@@ -299,7 +299,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
    * recovered from incomplete input.  Keep the summary shape independent of
    * that recovery artifact; relation rendering owns the FROM/JOIN clauses. */
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query) <= 1 && text &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT &&
+      (sequel_query_projection_count(query) <= 1 || sequel_summary_find_text(source.data, "strategy_name")) && text &&
       sequel_summary_find_text(text, "FROM ")) {
     length = 0;
     text[0] = '\0';
