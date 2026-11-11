@@ -640,10 +640,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       continue;
     bool expression_from = false;
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_FROM) {
-      size_t lookback = tokens[i].range.start > 32 ? tokens[i].range.start - 32 : 0;
-      for (size_t prior = lookback; prior + 8 < tokens[i].range.start; ++prior)
-        if (!memcmp(source.data + prior, "DISTINCT", 8))
-          expression_from = true;
+      size_t prior[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
+      size_t found = 0;
+      for (size_t cursor = i; cursor-- > 0 && found < 3;) {
+        if (!is_trivia(&tokens[cursor]))
+          prior[found++] = cursor;
+      }
+      if (found == 3 && tokens[prior[1]].kind == SEQUEL_TOKEN_KEYWORD &&
+          tokens[prior[1]].keyword_id == SEQUEL_KEYWORD_NOT && tokens[prior[2]].kind == SEQUEL_TOKEN_KEYWORD &&
+          tokens[prior[2]].keyword_id == SEQUEL_KEYWORD_IS &&
+          word_equals_ci(source.data + tokens[prior[0]].range.start,
+                         tokens[prior[0]].range.end - tokens[prior[0]].range.start, "DISTINCT"))
+        expression_from = true;
     }
     if (expression_from)
       continue;
