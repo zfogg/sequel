@@ -72,6 +72,27 @@ int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity
   return 1;
 }
 
+int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *capacity) {
+  if (!text || !*text || !length || !capacity)
+    return 0;
+  char *order_limit = sequel_summary_find_text(*text, "ORDER BY LIMIT ");
+  if (!order_limit)
+    return 1;
+  const char replacement[] = "ORDER BY … LIMIT ";
+  size_t old_length = sizeof("ORDER BY LIMIT ") - 1;
+  size_t new_length = sizeof(replacement) - 1;
+  size_t offset = (size_t)(order_limit - *text);
+  char *grown = realloc(*text, *length + new_length - old_length + 1);
+  if (!grown)
+    return 0;
+  *text = grown;
+  memmove(*text + offset + new_length, *text + offset + old_length, *length - offset - old_length + 1);
+  memcpy(*text + offset, replacement, new_length);
+  *length += new_length - old_length;
+  *capacity = *length + 1;
+  return 1;
+}
+
 void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   if (!text || !length)
     return;
