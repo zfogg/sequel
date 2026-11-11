@@ -11,17 +11,6 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
-static int sequel_summary_begin_render(char **text, size_t *length, size_t *capacity,
-                                       const sequel_query_document_t *query, const sequel_summary_options_t *settings,
-                                       sequel_source_view_t source, size_t statement_count,
-                                       const sequel_statement_info_t *statements, int *route) {
-  if (!text || !length || !capacity || !query || !settings || !route)
-    return 0;
-  *route =
-      sequel_summary_try_special_routes(text, length, capacity, query, settings, source, statement_count, statements);
-  return *route >= 0;
-}
-
 sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
                                                     const sequel_summary_options_t *options,
                                                     sequel_text_result_t *out) {
