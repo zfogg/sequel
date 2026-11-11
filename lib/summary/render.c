@@ -1289,7 +1289,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         const char *end = table;
         while (*end && !isspace((unsigned char)*end) && *end != ';' && *end != ')')
           ++end;
-        if ((!text || !sequel_summary_find_text(text + cte_prefix_end, " FROM ")) &&
+        if ((!text || !sequel_summary_find_text(text, " FROM ")) &&
             (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
              !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table))))
           goto no_memory;
@@ -1623,6 +1623,44 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       !sequel_summary_find_text(text ? text : "", " SAMPLE")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " SAMPLE"))
       goto no_memory;
+  }
+  if (settings->include_predicates && text) {
+    const sequel_relation_info_t *relations = sequel_query_relations(query);
+    for (size_t i = 0; i < sequel_query_relation_count(query); ++i) {
+      if (relations[i].name_range.end <= relations[i].name_range.start)
+        continue;
+      const char *relation_start = source.data + relations[i].range.start;
+      const char *global_in = sequel_summary_find_text(source.data, " GLOBAL IN ");
+      const char *plain_in = sequel_summary_find_text(source.data, " IN ");
+      const char *in = global_in ? global_in : plain_in;
+      if (!in || relation_start <= in || !sequel_summary_find_text(relation_start, "SELECT"))
+        continue;
+      const char *name = source.data + relations[i].name_range.start;
+      size_t name_length = relations[i].name_range.end - relations[i].name_range.start;
+      if (sequel_summary_find_text(text, name))
+        continue;
+      if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+          !sequel_summary_append_bytes(&text, &length, &capacity, name, name_length) ||
+          !sequel_summary_append_text(&text, &length, &capacity, " WHERE"))
+        goto no_memory;
+    }
+    const char *subquery = sequel_summary_find_text(source.data, " IN (SELECT");
+    if (!subquery)
+      subquery = sequel_summary_find_text(source.data, " GLOBAL IN (SELECT");
+    const char *from = subquery ? sequel_summary_find_text(subquery + 5, " FROM ") : NULL;
+    if (from) {
+      const char *table = from + 6;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while (*end && !isspace((unsigned char)*end) && *end != ')')
+        ++end;
+      if (end > table && !sequel_summary_find_text(text, table) &&
+          (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
+           !sequel_summary_append_text(&text, &length, &capacity, " WHERE")))
+        goto no_memory;
+    }
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
       statements[0].operation == SEQUEL_OPERATION_SELECT && !sequel_summary_find_text(source.data, "QUALIFY")) {
