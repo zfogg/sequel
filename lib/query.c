@@ -598,6 +598,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
+  for (size_t child = 0; child < document->relation_count; ++child) {
+    size_t best = SIZE_MAX;
+    for (size_t parent = 0; parent < document->relation_count; ++parent) {
+      if (parent == child || !sequel_source_range_contains(document->relations[parent].range,
+                                                            document->relations[child].range))
+        continue;
+      if (best == SIZE_MAX || document->relations[parent].range.end - document->relations[parent].range.start <
+                                  document->relations[best].range.end - document->relations[best].range.start)
+        best = parent;
+    }
+    document->relations[child].parent_relation = best;
+  }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN)
       continue;
