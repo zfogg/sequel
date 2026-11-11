@@ -59,7 +59,6 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/serialization.c
   ../lib/formatter.c
   ../lib/fingerprint.c
-  ../lib/summary/document.c
   ../lib/summary/render.c
   ../lib/summary/buffer.c
   ../lib/summary/options.c
