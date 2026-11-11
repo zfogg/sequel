@@ -303,6 +303,8 @@ int main(void) {
   sequel_query_document_t *query = NULL;
   if (!check(sequel_build_query_document(syntax, &options, &query) == SEQUEL_OK, "query document succeeds"))
     return 1;
+  if (!check(sequel_query_dialect(query) == SEQUEL_POSTGRESQL, "query retains dialect"))
+    return 1;
   sequel_diagnostic_list_t query_diagnostics = {0};
   if (!check(sequel_collect_query_diagnostics(query, &query_diagnostics) == SEQUEL_OK, "query diagnostic collection"))
     return 1;
