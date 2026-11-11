@@ -58,6 +58,49 @@ static void sequel_inspection_document_restore_array_literals(sequel_text_result
   }
 }
 
+static void sequel_inspection_document_restore_array_indexes(sequel_text_result_t *summary,
+                                                             const sequel_text_result_t *sanitized) {
+  if (!summary || !summary->data || !sanitized || !sanitized->data)
+    return;
+  const char *source = sanitized->data;
+  char *target = summary->data;
+  while ((source = strchr(source, '[')) != NULL && (target = strchr(target, '[')) != NULL) {
+    const char *source_end = source + 1;
+    char *target_end = target + 1;
+    while (source_end < sanitized->data + sanitized->length && *source_end >= '0' && *source_end <= '9')
+      ++source_end;
+    if (source_end == source + 1 || source_end >= sanitized->data + sanitized->length || *source_end != ']') {
+      source += 1;
+      continue;
+    }
+    while (target_end < summary->data + summary->length && *target_end != ']')
+      ++target_end;
+    if (target_end >= summary->data + summary->length || target_end != target + 2 || *target_end != ']') {
+      target += 1;
+      continue;
+    }
+    size_t source_length = (size_t)(source_end - source) + 1;
+    size_t target_offset = (size_t)(target - summary->data);
+    size_t target_length = 3;
+    if (source_length > target_length) {
+      size_t growth = source_length - target_length;
+      char *grown = realloc(summary->data, summary->capacity + growth);
+      if (!grown)
+        return;
+      summary->data = grown;
+      summary->capacity += growth;
+      target = summary->data + target_offset;
+      memmove(target + source_length, target + target_length, summary->length - target_offset - target_length + 1);
+    } else if (target_length > source_length) {
+      memmove(target + source_length, target + target_length, summary->length - target_offset - target_length + 1);
+    }
+    memcpy(target, source, source_length);
+    summary->length += source_length - target_length;
+    source += source_length;
+    target += source_length;
+  }
+}
+
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
   sequel_parse_options_t parse_options;
@@ -106,6 +149,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     goto done;
   sequel_inspection_document_normalize_parameters(&summary);
   sequel_inspection_document_restore_array_literals(&summary, &sanitized);
+  sequel_inspection_document_restore_array_indexes(&summary, &sanitized);
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
     memcpy(summary.data + limit, "…", 3);
