@@ -2330,6 +2330,15 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
       goto no_memory;
   }
+  if (text) {
+    char *malformed_limit = sequel_summary_find_text(text, " LIMIT sqlc.arg(?) ORDER BY LIMIT ?");
+    if (malformed_limit) {
+      length = (size_t)(malformed_limit - text);
+      text[length] = 0;
+      if (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY … LIMIT ?"))
+        goto no_memory;
+    }
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
