@@ -848,13 +848,15 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (left == SIZE_MAX || right == SIZE_MAX)
       continue;
+    size_t statement = statement_for_range(document, tokens[i].range);
     sequel_join_info_t join = {.kind = SEQUEL_JOIN_INNER,
                                .range = {tokens[i].range.start, document->relations[right].range.end},
                                .left_relation = left,
                                .right_relation = right,
                                .condition_node = SIZE_MAX,
                                .has_condition = false};
-    for (size_t j = i + 1; j < token_count && tokens[j].range.start < document->relations[right].range.end; ++j) {
+    size_t join_end = statement != SIZE_MAX ? document->statements[statement].range.end : token_count;
+    for (size_t j = i + 1; j < token_count && tokens[j].range.start < join_end; ++j) {
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         break;
