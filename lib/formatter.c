@@ -541,12 +541,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     data[0] = 0;
     capacity = 1;
   }
-  size_t last_token = token_count;
-  while (last_token &&
-         (tokens[last_token - 1].kind == SEQUEL_TOKEN_WHITESPACE || tokens[last_token - 1].kind == SEQUEL_TOKEN_EOF))
-    --last_token;
-  if (last_token && tokens[last_token - 1].kind == SEQUEL_TOKEN_LINE_COMMENT && source.length &&
-      source.data[source.length - 1] != '\n' && length && data[length - 1] == '\n')
+  if (source.length && source.data[source.length - 1] != '\n' && length && data[length - 1] == '\n')
     data[--length] = 0;
   sequel_text_result_free(out);
   *out = (sequel_text_result_t){data, length, capacity, settings->mode};
