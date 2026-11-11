@@ -11,6 +11,7 @@
 #include "util/text.h"
 #include "sha256.h"
 #include "runtime_types.h"
+#include "tokens.h"
 
 /* Token arrays grow with parsed tokens, rather than the maximum input size. */
 static void *grow_tokens(void *tokens, size_t *capacity, size_t element_size) {
@@ -205,7 +206,6 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
 
 // clang-format off
 bool boundary(token t);
-sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
 /* Preserve lexical contents; only whitespace outside lexical tokens changes.
  * Keeping the formatter independent of a grammar also supports driver/sqlc
  * parameters and sanitized telemetry templates that aren't executable SQL. */
