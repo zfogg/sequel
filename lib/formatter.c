@@ -142,10 +142,6 @@ static int is_line_comment(const sequel_token_t *token) { return token->kind == 
 
 static int is_block_comment(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_BLOCK_COMMENT; }
 
-static int has_valid_range(const sequel_token_t *token, size_t source_length) {
-  return token->range.start <= token->range.end && token->range.end <= source_length;
-}
-
 static int is_open_paren(const sequel_source_view_t source, const sequel_token_t *token) {
   return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == '(';
 }
@@ -236,7 +232,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if (!has_valid_range(token, source.length))
+    if (!sequel_token_has_range(token, source.length))
       goto invalid;
     if (token->kind == SEQUEL_TOKEN_WHITESPACE)
       continue;
