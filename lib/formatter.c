@@ -462,6 +462,12 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool no_space_after_previous =
         no_space_after_punctuation(previous, data, length) &&
         !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+    if (previous_token && text_length && text[0] == '@') {
+      size_t previous_length = 0;
+      const char *previous_text = token_text(source, previous_token, &previous_length);
+      if (previous_length && previous_text[previous_length - 1] == '@')
+        no_space_after_previous = true;
+    }
     if (previous_token && is_operator_token(previous_token) &&
         previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '#')
       no_space_after_previous = true;
