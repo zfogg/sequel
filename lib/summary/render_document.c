@@ -1383,6 +1383,10 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
         const char *alias_end = alias;
         while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
           ++alias_end;
+        if (alias < source.data + source.length &&
+            (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LIMIT") ||
+             sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE")))
+          alias_end = alias;
         if (!sequel_summary_append_text(&text, &length, &capacity, " EXISTS (SELECT ") ||
             !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
             !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
@@ -2399,9 +2403,16 @@ summary_postprocess:
       !sequel_summary_find_text(source.data, " EXCEPT ")) {
     char *premature_limit = sequel_summary_find_text(text, " LIMIT ");
     char *order = premature_limit ? sequel_summary_find_text(premature_limit, " ORDER BY ") : NULL;
-    if (premature_limit && order) {
-      memmove(premature_limit, order, strlen(order) + 1);
-      length -= (size_t)(order - premature_limit);
+    char *group = premature_limit ? sequel_summary_find_text(premature_limit, " GROUP BY ") : NULL;
+    char *qualify = premature_limit ? sequel_summary_find_text(premature_limit, " QUALIFY ") : NULL;
+    char *boundary = order;
+    if (!boundary || (group && group < boundary))
+      boundary = group;
+    if (!boundary || (qualify && qualify < boundary))
+      boundary = qualify;
+    if (premature_limit && boundary) {
+      memmove(premature_limit, boundary, strlen(boundary) + 1);
+      length -= (size_t)(boundary - premature_limit);
     }
   }
   if (!sequel_summary_normalize_order_limit(&text, &length, &capacity))
@@ -2469,6 +2480,10 @@ summary_postprocess:
       const char *alias_end = alias;
       while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
         ++alias_end;
+      if (alias < source.data + source.length &&
+          (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LIMIT") ||
+           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE")))
+        alias_end = alias;
       if (!sequel_summary_append_text(&text, &length, &capacity, " NOT EXISTS (SELECT … FROM ") ||
           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
           (alias < alias_end &&
