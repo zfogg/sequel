@@ -5,11 +5,12 @@
 
 #include <sequel.h>
 #include <sequel/parser.h>
-#include "inspection_collapse.h"
 #include "inspection.h"
 #include "inspection_text.h"
+#include "tokens.h"
 #include "util/text.h"
 #include "util/utf8.h"
+
 sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
                                            bool collapse_in_lists, size_t limit, char *out, size_t capacity,
                                            bool *truncated) {
@@ -56,7 +57,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   if (status != SEQUEL_OK)
     return status;
   if (collapse_in_lists && (flags & SEQUEL_REPLACE_LITERALS)) {
-    status = sequel_inspection_collapse_in_lists(&result, dialect);
+    status = sequel_tokens_collapse_in_lists(&result, dialect);
     if (status != SEQUEL_OK) {
       sequel_text_result_free(&result);
       return status;
@@ -124,7 +125,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
     goto done;
   sequel_inspection_trim_prefix(&sanitized);
   if (options && !options->keep_in_lists)
-    status = sequel_inspection_collapse_in_lists(&sanitized, parse_options.dialect);
+    status = sequel_tokens_collapse_in_lists(&sanitized, parse_options.dialect);
   if (status != SEQUEL_OK)
     goto done;
   sequel_inspection_normalize_text(sanitized.data);
