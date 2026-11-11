@@ -57,6 +57,23 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
   return 1;
 }
 
+static bool append_scalar_projection_join_text(char **text, size_t *length, size_t *capacity, const char *start,
+                                               const char *end) {
+  const char *join = sequel_summary_find_text(start, " JOIN ");
+  while (join && join < end) {
+    const char *join_table = join + strlen(" JOIN ");
+    const char *on = sequel_summary_find_text(join_table, " ON ");
+    if (!on || on >= end)
+      break;
+    if (!sequel_summary_append_text(text, length, capacity, " JOIN ") ||
+        !sequel_summary_append_bytes(text, length, capacity, join_table, (size_t)(on - join_table)) ||
+        !sequel_summary_append_text(text, length, capacity, " ON …"))
+      return false;
+    join = sequel_summary_find_text(on + strlen(" ON "), " JOIN ");
+  }
+  return true;
+}
+
 int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                            const sequel_query_document_t *query,
                                            const sequel_statement_info_t *statement) {
@@ -67,7 +84,15 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     bool scalar_list = false;
     for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
       const char *nested_select = sequel_summary_find_text(source.data + projection[i].range.start, "(SELECT");
-      scalar_list = nested_select && (size_t)(nested_select - source.data) < projection[i].range.end;
+      bool scoped_relation = false;
+      const sequel_relation_info_t *relations = sequel_query_relations(query);
+      for (size_t r = 0; r < sequel_query_relation_count(query); ++r)
+        if ((relations[r].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) &&
+            sequel_source_range_contains(projection[i].range, relations[r].range)) {
+          scoped_relation = true;
+          break;
+        }
+      scalar_list = nested_select && (size_t)(nested_select - source.data) < projection[i].range.end && scoped_relation;
       if (scalar_list)
         break;
     }
@@ -105,6 +130,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
             (alias < item_end &&
              (!sequel_summary_append_text(text, length, capacity, " AS ") ||
               !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))) ||
+            !append_scalar_projection_join_text(text, length, capacity, table_end, item_end) ||
             (where && !sequel_summary_append_text(text, length, capacity, " WHERE …")) ||
             (order && !sequel_summary_append_text(text, length, capacity, " ORDER BY …")) ||
             (limit && !sequel_summary_append_text(text, length, capacity, " LIMIT 1")) ||
@@ -113,6 +139,9 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
       }
       return 1;
     }
+    /* Multiple ordinary projections are rendered by the statement/relation
+     * consumers.  This pass only owns scalar subquery projection shape. */
+    return 1;
   }
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
   bool literal =

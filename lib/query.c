@@ -854,7 +854,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                .right_relation = right,
                                .condition_node = SIZE_MAX,
                                .has_condition = false};
-    for (size_t j = i + 1; j < token_count && tokens[j].range.start < document->relations[right].range.start; ++j) {
+    for (size_t j = i + 1; j < token_count && tokens[j].range.start < document->relations[right].range.end; ++j) {
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         break;

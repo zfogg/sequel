@@ -111,22 +111,6 @@ static int normalize_projection_shape(char **text, size_t *length, size_t *capac
   return 1;
 }
 
-static void remove_duplicate_raw_relation(char *text, size_t *length) {
-  char *raw = sequel_summary_find_text(text, "\nFROM ");
-  if (!raw)
-    return;
-  char *normalized = raw + 1;
-  while ((normalized = sequel_summary_find_text(normalized, " FROM ")) != NULL) {
-    char *alias = sequel_summary_find_text(normalized, " AS ");
-    if (alias && alias < normalized + 160) {
-      memmove(raw, normalized, *length - (size_t)(normalized - text) + 1);
-      *length -= (size_t)(normalized - raw);
-      return;
-    }
-    ++normalized;
-  }
-}
-
 static int render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
                                             const sequel_query_document_t *query, sequel_source_view_t source,
                                             const sequel_statement_info_t *statement) {
@@ -2103,7 +2087,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
-  remove_duplicate_raw_relation(text, &length);
   if (!normalize_projection_shape(&text, &length, &capacity, query))
     goto no_memory;
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
