@@ -2635,6 +2635,23 @@ summary_postprocess:
   }
   }
   sequel_summary_redact_rendered_literals(text, &length);
+  for (char *duplicate_left = sequel_summary_find_text(text, "LEFT LEFT JOIN"); duplicate_left;
+       duplicate_left = sequel_summary_find_text(duplicate_left + 5, "LEFT LEFT JOIN")) {
+    memmove(duplicate_left + 5, duplicate_left + 10, strlen(duplicate_left + 10) + 1);
+    length -= 5;
+  }
+  char *named_limit = sequel_summary_find_text(text, "LIMIT sqlc.arg(");
+  if (named_limit) {
+    char *close = strchr(named_limit + 15, ')');
+    if (close) {
+      const char replacement[] = "LIMIT ?";
+      size_t old_length = (size_t)(close + 1 - named_limit);
+      size_t new_length = sizeof(replacement) - 1;
+      memmove(named_limit + new_length, close + 1, strlen(close + 1) + 1);
+      memcpy(named_limit, replacement, new_length);
+      length += new_length - old_length;
+    }
+  }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
   text[length] = 0;
