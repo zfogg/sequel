@@ -83,6 +83,10 @@ static int is_list_clause(uint32_t keyword) {
          keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
 }
 
+static int is_case_boundary(uint32_t keyword) {
+  return keyword == SEQUEL_KEYWORD_WHEN || keyword == SEQUEL_KEYWORD_ELSE || keyword == SEQUEL_KEYWORD_END;
+}
+
 static int is_word_token(sequel_token_kind_t kind) {
   return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
          kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
@@ -135,9 +139,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
                               (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR) &&
                               paren_depth == 0;
     bool select_start = keyword && token->keyword_id == SEQUEL_KEYWORD_SELECT && paren_depth == 0;
-    bool case_boundary =
-        keyword && (token->keyword_id == SEQUEL_KEYWORD_WHEN || token->keyword_id == SEQUEL_KEYWORD_ELSE ||
-                    token->keyword_id == SEQUEL_KEYWORD_END);
+    bool case_boundary = keyword && is_case_boundary(token->keyword_id);
     if (pending_clause_body &&
         !(keyword && token->range.end - token->range.start == 2 && source.data[token->range.start] == 'B' &&
           source.data[token->range.start + 1] == 'Y')) {
@@ -147,8 +149,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     }
     if (select_start || clause_start || condition_operator || case_boundary) {
       size_t indent = (select_start || clause_start) ? 0 : 1;
-      if (token->keyword_id == SEQUEL_KEYWORD_WHEN || token->keyword_id == SEQUEL_KEYWORD_ELSE ||
-          token->keyword_id == SEQUEL_KEYWORD_END)
+      if (is_case_boundary(token->keyword_id))
         indent = 1;
       if (!append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
