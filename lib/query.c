@@ -188,8 +188,14 @@ static int token_in_subquery(const sequel_token_t *tokens, size_t index, const s
              (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT ||
               tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
         ++next;
-      if (next < index && tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT)
-        subquery_depth = depth;
+      if (next < index) {
+        size_t length = tokens[next].range.end - tokens[next].range.start;
+        bool select_keyword =
+            tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT;
+        bool select_spelling = length == 6 && !_strnicmp(source->data + tokens[next].range.start, "SELECT", length);
+        if (select_keyword || select_spelling)
+          subquery_depth = depth;
+      }
     } else if (punctuation == ')' && depth) {
       if (subquery_depth == depth)
         subquery_depth = SIZE_MAX;
