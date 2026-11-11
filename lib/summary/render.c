@@ -111,6 +111,53 @@ static int normalize_projection_shape(char **text, size_t *length, size_t *capac
   return 1;
 }
 
+static int render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
+                                            const sequel_query_document_t *query, sequel_source_view_t source,
+                                            const sequel_statement_info_t *statement) {
+  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || sequel_query_projection_count(query) < 2 ||
+      sequel_query_relation_count(query) == 0)
+    return 0;
+  const sequel_projection_info_t *projections = sequel_query_projections(query);
+  const sequel_relation_info_t *relations = sequel_query_relations(query);
+  size_t outer = SIZE_MAX;
+  for (size_t i = 0; i < sequel_query_relation_count(query); ++i)
+    if (!(relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE)) {
+      outer = i;
+      break;
+    }
+  if (outer == SIZE_MAX)
+    return 0;
+  if (!sequel_summary_append_text(text, length, capacity, "SELECT …"))
+    return -1;
+  for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
+    const char *projection = source.data + projections[i].range.start;
+    const char *select = sequel_summary_find_text(projection, "(SELECT");
+    const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
+    if (!from)
+      return 0;
+    const char *table = from + 6;
+    while (*table && isspace((unsigned char)*table))
+      ++table;
+    const char *end = table;
+    while (*end && !isspace((unsigned char)*end) && *end != ')')
+      ++end;
+    if (!sequel_summary_append_text(text, length, capacity, " (SELECT … FROM ") ||
+        !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(end - table)) ||
+        !sequel_summary_append_text(text, length, capacity, " AS p WHERE … ORDER BY … LIMIT 1)"))
+      return -1;
+  }
+  if (!sequel_summary_append_text(text, length, capacity, " FROM ") ||
+      !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].name_range.start,
+                                   relations[outer].name_range.end - relations[outer].name_range.start))
+    return -1;
+  if (relations[outer].alias_range.end > relations[outer].alias_range.start &&
+      (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+       !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].alias_range.start,
+                                    relations[outer].alias_range.end - relations[outer].alias_range.start)))
+    return -1;
+  return sequel_summary_append_text(text, length, capacity, " WHERE …") ? 1 : -1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -181,6 +228,15 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
+  int scalar_summary = render_scalar_projection_summary(&text, &length, &capacity, query, source,
+                                                        statement_count ? &statements[0] : NULL);
+  if (scalar_summary < 0)
+    goto no_memory;
+  if (scalar_summary > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
       sequel_query_relation_count(query) == 0 && sequel_query_parameter_count(query) != 0 &&
       !summary_starts_function_projection(query)) {
@@ -476,7 +532,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
    * recovered from incomplete input.  Keep the summary shape independent of
    * that recovery artifact; relation rendering owns the FROM/JOIN clauses. */
   if (settings->include_tables && statement_count && !sequel_query_cte_count(query) &&
-      statements[0].operation == SEQUEL_OPERATION_SELECT && text && sequel_summary_find_text(text, "FROM ")) {
+      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_projection_count(query) <= 1 && text &&
+      sequel_summary_find_text(text, "FROM ")) {
     length = 0;
     text[0] = '\0';
     if (!sequel_summary_append_text(
