@@ -81,15 +81,16 @@ static int sequel_formatter_token_is_word(sequel_source_view_t source, const seq
   return 1;
 }
 
-static int is_upsert_on(const sequel_source_view_t source, const sequel_token_t *tokens, size_t index, size_t count) {
+static int sequel_formatter_is_upsert_on(const sequel_source_view_t source, const sequel_token_t *tokens, size_t index,
+                                         size_t count) {
   size_t next = index + 1;
   while (next < count && tokens[next].kind == SEQUEL_TOKEN_WHITESPACE)
     ++next;
   return next < count && sequel_formatter_token_is_word(source, &tokens[next], "DUPLICATE");
 }
 
-static int has_case_before_matching_close(sequel_source_view_t source, const sequel_token_t *tokens, size_t start,
-                                          size_t count) {
+static int sequel_formatter_has_case_before_matching_close(sequel_source_view_t source, const sequel_token_t *tokens,
+                                                           size_t start, size_t count) {
   size_t depth = 0;
   for (size_t i = start + 1; i < count; ++i) {
     const sequel_token_t *token = &tokens[i];
@@ -109,78 +110,91 @@ static int has_case_before_matching_close(sequel_source_view_t source, const seq
   return 0;
 }
 
-static int no_space_before_punctuation(const char *text, size_t length, int punctuation) {
+static int sequel_formatter_no_space_before_punctuation(const char *text, size_t length, int punctuation) {
   return punctuation && length == 1 &&
          (text[0] == '(' || text[0] == '[' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' ||
           text[0] == ';');
 }
 
-static int no_space_after_punctuation(sequel_token_kind_t previous, const char *data, size_t length) {
+static int sequel_formatter_no_space_after_punctuation(sequel_token_kind_t previous, const char *data, size_t length) {
   return previous == SEQUEL_TOKEN_PUNCTUATION && length &&
          (data[length - 1] == '(' || data[length - 1] == '[' || data[length - 1] == '.' || data[length - 1] == ':');
 }
 
-static int compact_json_operator(const sequel_token_t *token, sequel_source_view_t source, const char *data,
-                                 size_t length) {
+static int sequel_formatter_compact_json_operator(const sequel_token_t *token, sequel_source_view_t source,
+                                                  const char *data, size_t length) {
   size_t text_length = 0;
   const char *text = sequel_formatter_token_text(source, token, &text_length);
   return token->kind == SEQUEL_TOKEN_OPERATOR &&
          ((text_length && (text[0] == '#' || text[0] == '?' || text[0] == '@')) || (length && data[length - 1] == '#'));
 }
 
-static int is_as_before_open_paren(const char *data, size_t length, const char *text, size_t text_length) {
+static int sequel_formatter_is_as_before_open_paren(const char *data, size_t length, const char *text,
+                                                    size_t text_length) {
   return text_length == 1 && text[0] == '(' && length >= 2 && data[length - 2] == 'A' && data[length - 1] == 'S';
 }
 
-static int colon_before_literal_needs_space(sequel_token_kind_t previous, const char *data, size_t length,
-                                            sequel_token_kind_t current, size_t bracket_depth) {
+static int sequel_formatter_colon_before_literal_needs_space(sequel_token_kind_t previous, const char *data,
+                                                             size_t length, sequel_token_kind_t current,
+                                                             size_t bracket_depth) {
   return (previous == SEQUEL_TOKEN_PUNCTUATION || previous == SEQUEL_TOKEN_OPERATOR) && length &&
          data[length - 1] == ':' && bracket_depth == 0 &&
          (current == SEQUEL_TOKEN_NUMBER || current == SEQUEL_TOKEN_STRING || current == SEQUEL_TOKEN_BOOLEAN ||
           current == SEQUEL_TOKEN_NULL);
 }
 
-static int is_line_comment(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_LINE_COMMENT; }
+static int sequel_formatter_is_line_comment(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_LINE_COMMENT;
+}
 
-static int is_block_comment(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_BLOCK_COMMENT; }
+static int sequel_formatter_is_block_comment(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
+}
 
-static int is_open_paren(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_open_paren(const sequel_source_view_t source, const sequel_token_t *token) {
   return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == '(';
 }
 
-static int is_close_paren(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_close_paren(const sequel_source_view_t source, const sequel_token_t *token) {
   return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ')';
 }
 
-static int is_comma(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_comma(const sequel_source_view_t source, const sequel_token_t *token) {
   return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ',';
 }
 
-static int is_semicolon(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_semicolon(const sequel_source_view_t source, const sequel_token_t *token) {
   return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ';';
 }
 
-static int is_cast_operator(const char *text, size_t length) { return length == 2 && text[0] == ':' && text[1] == ':'; }
+static int sequel_formatter_is_cast_operator(const char *text, size_t length) {
+  return length == 2 && text[0] == ':' && text[1] == ':';
+}
 
-static int is_range_colon(const char *text, size_t length) { return length == 1 && text[0] == ':'; }
+static int sequel_formatter_is_range_colon(const char *text, size_t length) { return length == 1 && text[0] == ':'; }
 
-static int is_dot(const char *text, size_t length) { return length == 1 && text[0] == '.'; }
+static int sequel_formatter_is_dot(const char *text, size_t length) { return length == 1 && text[0] == '.'; }
 
-static int is_open_brace(const char *text, size_t length) { return length == 1 && text[0] == '{'; }
+static int sequel_formatter_is_open_brace(const char *text, size_t length) { return length == 1 && text[0] == '{'; }
 
-static int is_close_brace(const char *text, size_t length) { return length == 1 && text[0] == '}'; }
+static int sequel_formatter_is_close_brace(const char *text, size_t length) { return length == 1 && text[0] == '}'; }
 
-static int is_newline_terminated(const char *data, size_t length) { return length && data[length - 1] == '\n'; }
+static int sequel_formatter_is_newline_terminated(const char *data, size_t length) {
+  return length && data[length - 1] == '\n';
+}
 
-static int is_space_terminated(const char *data, size_t length) { return length && data[length - 1] == ' '; }
+static int sequel_formatter_is_space_terminated(const char *data, size_t length) {
+  return length && data[length - 1] == ' ';
+}
 
-static int is_clause_header(uint32_t keyword) {
+static int sequel_formatter_is_clause_header(uint32_t keyword) {
   return keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_SET ||
          keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_GROUP ||
          keyword == SEQUEL_KEYWORD_ORDER || keyword == SEQUEL_KEYWORD_QUALIFY;
 }
 
-static void update_parenthesis_depth(const sequel_source_view_t source, const sequel_token_t *token, size_t *depth) {
+static void sequel_formatter_update_parenthesis_depth(const sequel_source_view_t source, const sequel_token_t *token,
+                                                      size_t *depth) {
   if (!sequel_token_is_single_punctuation(token))
     return;
   char symbol = source.data[token->range.start];
@@ -190,8 +204,8 @@ static void update_parenthesis_depth(const sequel_source_view_t source, const se
     --*depth;
 }
 
-static int append_comment(char **data, size_t *length, size_t *capacity, sequel_source_view_t source,
-                          const sequel_token_t *token) {
+static int sequel_formatter_append_comment(char **data, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                           const sequel_token_t *token) {
   bool inline_line_comment = *length && ((*data)[*length - 1] == ';' ||
                                          (*length > 1 && (*data)[*length - 1] == '\n' && (*data)[*length - 2] == ';'));
   if (inline_line_comment && *length && (*data)[*length - 1] == '\n')
@@ -238,22 +252,22 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       goto invalid;
     if (token->kind == SEQUEL_TOKEN_WHITESPACE)
       continue;
-    bool follows_closed_cte = cte_just_closed && !is_comma(source, token);
+    bool follows_closed_cte = cte_just_closed && !sequel_formatter_is_comma(source, token);
     if (follows_closed_cte)
       cte_just_closed = false;
     if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT) &&
         !settings->preserve_comments)
       continue;
     if (sequel_token_kind_is_comment(token->kind)) {
-      if (!append_comment(&data, &length, &capacity, source, token))
+      if (!sequel_formatter_append_comment(&data, &length, &capacity, source, token))
         goto no_memory;
       previous = token->kind;
       continue;
     }
     bool keyword = sequel_token_is_keyword(token);
     bool join_modifier = sequel_formatter_is_join_lead(source, token);
-    bool upsert_on =
-        sequel_formatter_token_is_word(source, token, "ON") && is_upsert_on(source, tokens, i, token_count);
+    bool upsert_on = sequel_formatter_token_is_word(source, token, "ON") &&
+                     sequel_formatter_is_upsert_on(source, tokens, i, token_count);
     bool window_boundary = window_paren && (sequel_formatter_token_is_word(source, token, "PARTITION") ||
                                             sequel_formatter_token_is_word(source, token, "ORDER"));
     bool values_function = sequel_formatter_token_is_word(source, token, "VALUES") && previous_token &&
@@ -293,7 +307,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       nested_query = true;
     bool case_boundary = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
     bool grouped_condition =
-        is_open_paren(source, token) && previous_token && previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
+        sequel_formatter_is_open_paren(source, token) && previous_token &&
+        previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
         (previous_token->keyword_id == SEQUEL_KEYWORD_AND || previous_token->keyword_id == SEQUEL_KEYWORD_OR ||
          previous_token->keyword_id == SEQUEL_KEYWORD_NOT);
     if (pending_clause_body && !upsert_on && !sequel_formatter_is_by_keyword(source, token) && !grouped_condition) {
@@ -325,48 +340,48 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (!sequel_format_append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
       if ((select_start && !distinct_on_group) ||
-          (is_clause_header(token->keyword_id) && !upsert_on && !window_boundary))
+          (sequel_formatter_is_clause_header(token->keyword_id) && !upsert_on && !window_boundary))
         pending_clause_body = true;
     }
     if (sequel_token_is_single_punctuation(token)) {
-      if (is_open_paren(source, token) && previous_token && is_comma(source, previous_token) &&
-          clause != SEQUEL_KEYWORD_VALUES)
+      if (sequel_formatter_is_open_paren(source, token) && previous_token &&
+          sequel_formatter_is_comma(source, previous_token) && clause != SEQUEL_KEYWORD_VALUES)
         projection_subquery = true;
-      if (is_open_paren(source, token) && previous_token &&
+      if (sequel_formatter_is_open_paren(source, token) && previous_token &&
           sequel_formatter_token_is_word(source, previous_token, "AS"))
         cte_paren_depth = paren_depth + 1;
-      update_parenthesis_depth(source, token, &paren_depth);
+      sequel_formatter_update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
       if (symbol == '[')
         ++bracket_depth;
       else if (symbol == ']' && bracket_depth)
         --bracket_depth;
-      if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
+      if (sequel_formatter_is_close_paren(source, token) && length && data[length - 1] != '\n' &&
           (query_paren_depth == paren_depth + 1 || (nested_query && paren_depth == 0) ||
            (projection_subquery && paren_depth == 0)) &&
           !sequel_format_append_line_start(&data, &length, &capacity,
                                            projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
         goto no_memory;
-      if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
+      if (sequel_formatter_is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
-      if (is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
+      if (sequel_formatter_is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
         cte_paren_depth = 0, cte_just_closed = true, pending_clause_body = false;
-      if (is_close_paren(source, token) && nested_query && paren_depth == 0)
+      if (sequel_formatter_is_close_paren(source, token) && nested_query && paren_depth == 0)
         nested_query = false;
-      if (is_close_paren(source, token) && projection_subquery && paren_depth == 0)
+      if (sequel_formatter_is_close_paren(source, token) && projection_subquery && paren_depth == 0)
         projection_subquery = false;
-      if (is_close_paren(source, token) && window_paren && paren_depth == 0) {
+      if (sequel_formatter_is_close_paren(source, token) && window_paren && paren_depth == 0) {
         if (length && data[length - 1] != '\n' && !sequel_format_append_line_start(&data, &length, &capacity, 1))
           goto no_memory;
         window_paren = false;
       }
-      if (is_close_paren(source, token) && case_function_count) {
+      if (sequel_formatter_is_close_paren(source, token) && case_function_count) {
         if (length && data[length - 1] != '\n' &&
             !sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
           goto no_memory;
         --case_function_count;
       }
-      if (is_close_paren(source, token) && distinct_on_group && paren_depth == 0)
+      if (sequel_formatter_is_close_paren(source, token) && distinct_on_group && paren_depth == 0)
         pending_clause_body = true;
     }
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
@@ -376,7 +391,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       text = "?";
       text_length = 1;
     }
-    bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
+    bool no_space_before = sequel_formatter_no_space_before_punctuation(text, text_length, punctuation);
     if (text_length && (text[0] == '>' || text[0] == '<' || text[0] == '=' || text[0] == '+' || text[0] == '-') &&
         length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
         !sequel_format_append_space(&data, &length, &capacity))
@@ -384,21 +399,22 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if (text_length == 1 && text[0] == '(' && previous == SEQUEL_TOKEN_KEYWORD &&
         !(previous_token && sequel_formatter_token_is_word(source, previous_token, "VALUES")))
       no_space_before = false;
-    if (is_as_before_open_paren(data, length, text, text_length))
+    if (sequel_formatter_is_as_before_open_paren(data, length, text, text_length))
       no_space_before = false;
-    bool cast_operator = sequel_token_is_operator(token) && is_cast_operator(text, text_length);
-    bool range_colon = sequel_token_is_operator(token) && is_range_colon(text, text_length);
+    bool cast_operator = sequel_token_is_operator(token) && sequel_formatter_is_cast_operator(text, text_length);
+    bool range_colon = sequel_token_is_operator(token) && sequel_formatter_is_range_colon(text, text_length);
     bool after_cast_operator = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
                                previous_token->range.end == previous_token->range.start + 2 &&
                                source.data[previous_token->range.start] == ':' &&
                                source.data[previous_token->range.start + 1] == ':';
-    bool after_range_colon = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
-                             previous_token->range.end == previous_token->range.start + 1 &&
-                             source.data[previous_token->range.start] == ':' &&
-                             !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+    bool after_range_colon =
+        previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
+        previous_token->range.end == previous_token->range.start + 1 &&
+        source.data[previous_token->range.start] == ':' &&
+        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
     bool no_space_after_previous =
-        no_space_after_punctuation(previous, data, length) &&
-        !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+        sequel_formatter_no_space_after_punctuation(previous, data, length) &&
+        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
     if (previous_token && text_length && text[0] == '@') {
       size_t previous_length = 0;
       const char *previous_text = sequel_formatter_token_text(source, previous_token, &previous_length);
@@ -415,8 +431,9 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         (sequel_token_is_operator(previous_token) || sequel_token_is_single_punctuation(previous_token)))
       no_space_after_previous = true;
     if (sequel_token_is_operator(token) && !no_space_after_previous &&
-        !compact_json_operator(token, source, data, length) && !cast_operator && !range_colon && length &&
-        data[length - 1] != ' ' && data[length - 1] != '\n' && !sequel_format_append_space(&data, &length, &capacity))
+        !sequel_formatter_compact_json_operator(token, source, data, length) && !cast_operator && !range_colon &&
+        length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
+        !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
         !no_space_after_previous && (sequel_token_kind_is_word(previous) || sequel_token_kind_is_word(token->kind)) &&
@@ -432,12 +449,12 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
     }
     if (punctuation && text_length == 1 && text[0] == '(' &&
-        has_case_before_matching_close(source, tokens, i, token_count)) {
+        sequel_formatter_has_case_before_matching_close(source, tokens, i, token_count)) {
       ++case_function_count;
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
-    if (is_comma(source, token) && bracket_depth == 0 &&
+    if (sequel_formatter_is_comma(source, token) && bracket_depth == 0 &&
         (case_function_count || paren_depth == 0 || paren_depth == query_paren_depth) &&
         (list_clause || (length >= 2 && data[length - 2] == ')'))) {
       size_t indent = (cte_just_closed || (projection_subquery && length >= 2 && data[length - 2] == ')' &&
@@ -447,7 +464,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (!sequel_format_append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
     }
-    if (is_semicolon(source, token) && !sequel_format_append_text(&data, &length, &capacity, "\n", 1))
+    if (sequel_formatter_is_semicolon(source, token) && !sequel_format_append_text(&data, &length, &capacity, "\n", 1))
       goto no_memory;
     previous = token->kind;
     previous_token = token;
