@@ -242,7 +242,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   bool cte_just_closed = false;
   size_t case_function_count = 0;
   size_t case_depth = 0;
-  bool list_clause = false;
+  bool list_clause_active = false;
   bool pending_clause_body = false;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
@@ -305,7 +305,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       query_paren_depth = paren_depth;
     if (select_start && paren_depth)
       nested_query = true;
-    bool case_boundary = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
+    bool case_boundary_keyword = keyword && sequel_keyword_is_case_boundary(token->keyword_id);
     bool grouped_condition =
         sequel_formatter_is_open_paren(source, token) && previous_token &&
         previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
@@ -316,7 +316,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
       pending_clause_body = false;
     }
-    if (select_start || clause_start || upsert_on || window_boundary || condition_operator || case_boundary ||
+    if (select_start || clause_start || upsert_on || window_boundary || condition_operator || case_boundary_keyword ||
         nested_case_start || function_case_start || join_modifier) {
       size_t indent = (select_start || clause_start || upsert_on) ? paren_depth : paren_depth + 1;
       if (window_boundary)
@@ -456,7 +456,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     }
     if (sequel_formatter_is_comma(source, token) && bracket_depth == 0 &&
         (case_function_count || paren_depth == 0 || paren_depth == query_paren_depth) &&
-        (list_clause || (length >= 2 && data[length - 2] == ')'))) {
+        (list_clause_active || (length >= 2 && data[length - 2] == ')'))) {
       size_t indent = (cte_just_closed || (projection_subquery && length >= 2 && data[length - 2] == ')' &&
                                            clause != SEQUEL_KEYWORD_VALUES && !case_function_count))
                           ? 0
@@ -474,7 +474,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       ++case_depth;
     else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
       --case_depth;
-    list_clause = sequel_keyword_starts_list_clause(clause);
+    list_clause_active = sequel_keyword_starts_list(clause);
   }
   if (!data) {
     data = malloc(1);
