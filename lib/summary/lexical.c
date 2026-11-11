@@ -5,7 +5,7 @@
 
 char *sequel_summary_find_text(const char *source, const char *needle) {
   if (!source || !needle || !*needle)
-    return source;
+    return (char *)source;
   size_t needle_length = strlen(needle);
   for (const char *cursor = source; *cursor; ++cursor) {
     size_t i = 0;
