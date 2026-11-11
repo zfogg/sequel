@@ -1068,6 +1068,16 @@ int main(void) {
       sequel_syntax_document_free(quoted_syntax);
       return 1;
     }
+    if (!check(sequel_query_relation(quoted_query, 0) == &sequel_query_relations(quoted_query)[0] &&
+                   sequel_query_relation(quoted_query, 1) == &sequel_query_relations(quoted_query)[1] &&
+                   sequel_query_relation(quoted_query, 2) == NULL &&
+                   sequel_query_join(quoted_query, 0) == &sequel_query_joins(quoted_query)[0] &&
+                   sequel_query_join(quoted_query, 1) == NULL,
+               "indexed relation and join accessors")) {
+      sequel_query_document_free(quoted_query);
+      sequel_syntax_document_free(quoted_syntax);
+      return 1;
+    }
     sequel_summary_options_t quoted_summary_options;
     sequel_summary_options_init(&quoted_summary_options);
     quoted_summary_options.redact_relations = true;
