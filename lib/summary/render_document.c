@@ -82,28 +82,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       goto no_memory;
     if (!sequel_summary_append_nested_cte_projection(&text, &length, &capacity, source, &nested_cte_scope))
       goto no_memory;
-    const char *outer_insert =
-        sequel_summary_find_text(source.data + ctes[sequel_query_cte_count(query) - 1].range.end, "INSERT INTO ");
-    if (outer_insert)
-      cte_insert_scope = true;
-    if (outer_insert) {
-      const char *target = outer_insert + 12, *target_end = target;
-      while (*target_end && !isspace((unsigned char)*target_end) && *target_end != '(')
-        ++target_end;
-      const char *outer_from = sequel_summary_find_text(target_end, " FROM ");
-      if (outer_from) {
-        const char *relation = outer_from + 6, *relation_end = relation;
-        while (*relation_end && !isspace((unsigned char)*relation_end) && *relation_end != ';')
-          ++relation_end;
-        if (!sequel_summary_append_text(&text, &length, &capacity, "INSERT INTO ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)))
-          goto no_memory;
-      }
-    }
+    if (!sequel_summary_append_cte_insert_shape(&text, &length, &capacity, source, ctes, sequel_query_cte_count(query),
+                                                &cte_insert_scope))
+      goto no_memory;
     outer_start = sequel_query_outer_range(query).start;
   }
   if (settings->include_operation && scalar_with_scope &&
