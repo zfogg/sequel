@@ -792,7 +792,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
     }
     for (size_t i = 0; i < relation_count; ++i) {
-      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT)
+      if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
+          !sequel_summary_find_text(source.data, " LATERAL "))
         break;
       if (grouped_relation)
         break;
@@ -1252,11 +1253,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       if (first_outer_relation != SIZE_MAX) {
         for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
-          if (relations[i].name_range.end - relations[i].name_range.start == 7 &&
-              !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7))
-            continue;
-          bool lateral_subquery =
-              relations[i].kind == SEQUEL_RELATION_SUBQUERY && sequel_summary_find_text(source.data, " LATERAL ");
+          bool lateral_subquery = relations[i].name_range.end - relations[i].name_range.start == 7 &&
+                                  !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
           if ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && !lateral_subquery)
             continue;
           if (relations[i].kind == SEQUEL_RELATION_SUBQUERY && lateral_subquery) {
