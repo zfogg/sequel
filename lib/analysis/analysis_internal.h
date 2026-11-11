@@ -7,13 +7,13 @@
 
 #include <sequel.h>
 
-#include "runtime.h"
-#include "runtime_types.h"
-#include "resources.h"
-#include "diagnostics.h"
-#include "util/text.h"
-#include "sha256.h"
-#include "util/utf8.h"
+#include "../runtime.h"
+#include "../runtime_types.h"
+#include "../resources.h"
+#include "../diagnostics.h"
+#include "../util/text.h"
+#include "../sha256.h"
+#include "../util/utf8.h"
 
 typedef struct {
   char *p;
