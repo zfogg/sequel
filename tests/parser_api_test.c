@@ -1003,6 +1003,19 @@ int main(void) {
       sequel_syntax_document_free(quoted_syntax);
       return 1;
     }
+    sequel_summary_options_t quoted_summary_options;
+    sequel_summary_options_init(&quoted_summary_options);
+    quoted_summary_options.redact_relations = true;
+    sequel_text_result_t quoted_summary = {0};
+    if (!check(sequel_summarize_query(quoted_query, &quoted_summary_options, &quoted_summary) == SEQUEL_OK &&
+                   strstr(quoted_summary.data, "JOIN") != NULL && strstr(quoted_summary.data, "ON ?") != NULL,
+               "quoted join summary")) {
+      sequel_text_result_free(&quoted_summary);
+      sequel_query_document_free(quoted_query);
+      sequel_syntax_document_free(quoted_syntax);
+      return 1;
+    }
+    sequel_text_result_free(&quoted_summary);
     sequel_query_document_free(quoted_query);
     sequel_syntax_document_free(quoted_syntax);
   }
