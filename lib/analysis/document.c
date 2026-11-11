@@ -5,7 +5,7 @@
 #include <sequel/sanitizer.h>
 #include <sequel/summary.h>
 
-#include "../tokens.h"
+#include "analysis_internal.h"
 
 struct sequel_query_analysis {
   const sequel_query_document_t *query;
@@ -41,53 +41,6 @@ static int append_diagnostics(sequel_diagnostic_list_t *destination, const seque
   destination->count = count;
   destination->capacity = count;
   return 1;
-}
-
-static sequel_status_t build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
-                                           sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
-                                           sequel_analysis_map_segment_t **owned_segments) {
-  size_t token_count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
-  sequel_source_view_t source = sequel_lexed_source(lexed);
-  size_t segment_count = 0;
-  size_t output_offset = 0;
-  for (size_t i = 0; i < token_count; ++i) {
-    const sequel_token_t *token = &tokens[i];
-    if (token->kind == SEQUEL_TOKEN_EOF)
-      break;
-    if (!sequel_token_has_range(token, source.length))
-      return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (segment_count == SIZE_MAX / sizeof(**owned_segments))
-      return SEQUEL_ERR_OVERFLOW;
-    ++segment_count;
-    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) ? 0
-                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token)
-                         ? 1
-                         : token->range.end - token->range.start;
-  }
-  sequel_analysis_map_segment_t *segments = calloc(segment_count ? segment_count : 1, sizeof(*segments));
-  if (!segments)
-    return SEQUEL_ERR_NOMEM;
-  size_t segment = 0;
-  output_offset = 0;
-  for (size_t i = 0; i < token_count; ++i) {
-    const sequel_token_t *token = &tokens[i];
-    if (token->kind == SEQUEL_TOKEN_EOF)
-      break;
-    size_t source_length = token->range.end - token->range.start;
-    bool removed = (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token);
-    bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token);
-    size_t result_length = removed ? 0 : replaced ? 1 : source_length;
-    segments[segment++] = (sequel_analysis_map_segment_t){token->range.start, token->range.end, output_offset,
-                                                          output_offset + result_length,
-                                                          removed    ? SEQUEL_ANALYSIS_MAP_DELETE
-                                                          : replaced ? SEQUEL_ANALYSIS_MAP_REPLACE
-                                                                     : SEQUEL_ANALYSIS_MAP_COPY};
-    output_offset += result_length;
-  }
-  *owned_segments = segments;
-  *map = (sequel_analysis_source_map_t){source.length, sanitized->length, segments, segment};
-  return SEQUEL_OK;
 }
 
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options) {
@@ -176,9 +129,9 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
     status = sequel_format_syntax(syntax, NULL, &analysis->formatted_sql);
   if (status == SEQUEL_OK && analysis->options.include_source_maps) {
     if (analysis->sanitized_sql.data) {
-      status = build_sanitized_map(sequel_syntax_lexed(syntax),
-                                   SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
-                                   &analysis->sanitized_sql, &analysis->sanitized_map, &analysis->sanitized_segments);
+      status = sequel_analysis_build_sanitized_map(
+          sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
+          &analysis->sanitized_sql, &analysis->sanitized_map, &analysis->sanitized_segments);
     }
     if (status == SEQUEL_OK && analysis->formatted_sql.data) {
       analysis->formatted_segment = (sequel_analysis_map_segment_t){

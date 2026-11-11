@@ -48,6 +48,9 @@ sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t
 void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
 void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
 void analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
+sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
+                                                    sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
+                                                    sequel_analysis_map_segment_t **owned_segments);
 bool analysis_word(analysis_token_t token, const char *word);
 void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void analysis_summary_default(sequel_analysis_t *out);
