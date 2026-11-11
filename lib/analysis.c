@@ -1178,19 +1178,28 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   free(events);
 }
 
-static void analysis_structure_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
-  size_t count = sequel_query_statement_count(query);
-  const sequel_statement_info_t *statements = sequel_query_statements(query);
-  sequel_source_view_t source = sequel_query_source(query);
+static void analysis_structure_from_lexed(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
+  size_t count = 0, start = SIZE_MAX, last = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
   for (size_t i = 0; i < count; ++i) {
-    size_t start = statements[i].range.start;
-    size_t end = statements[i].range.end;
-    while (start < end && isspace((unsigned char)source.data[start]))
-      ++start;
-    while (end > start && isspace((unsigned char)source.data[end - 1]))
-      --end;
-    analysis_add_statement(out, start, end);
+    const sequel_token_t *token = &tokens[i];
+    if (token->kind == SEQUEL_TOKEN_EOF)
+      break;
+    if (token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
+        token->kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+      continue;
+    if (start == SIZE_MAX)
+      start = token->range.start;
+    last = token->range.end;
+    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1 &&
+        source.data[token->range.start] == ';') {
+      analysis_add_statement(out, start, last);
+      start = SIZE_MAX;
+    }
   }
+  if (start != SIZE_MAX)
+    analysis_add_statement(out, start, last);
 }
 
 static void analysis_compact_list_text(analysis_text *text) {
@@ -1728,8 +1737,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
                         call->ambiguous_offset + 2);
       count = SIZE_MAX;
     }
-    if (query)
-      analysis_structure_from_query(query, out);
+    if (syntax)
+      analysis_structure_from_lexed(sequel_syntax_lexed(syntax), out);
     if (count == SIZE_MAX) {
       if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sym(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
