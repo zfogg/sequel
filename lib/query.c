@@ -639,17 +639,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       break;
     }
   }
-  /* Relations discovered inside scalar SELECT-list expressions belong to
-   * the expression scope, not the statement's FROM clause. Record that
-   * ownership explicitly so consumers never have to infer it from text. */
-  for (size_t r = 0; r < document->relation_count; ++r) {
-    for (size_t p = 0; p < document->projection_count; ++p) {
-      if (sequel_source_range_contains(document->projections[p].range, document->relations[r].range)) {
-        document->relations[r].flags |= SEQUEL_RELATION_FLAG_PROJECTION_SCOPE;
-        break;
-      }
-    }
-  }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
         (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN &&
@@ -862,6 +851,17 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     if (!append((void **)&document->joins, &document->join_count, sizeof(join), &join)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
+    }
+  }
+  /* Relations discovered inside scalar SELECT-list expressions belong to
+   * the expression scope, not the statement's FROM clause. Record that
+   * ownership explicitly so consumers never have to infer it from text. */
+  for (size_t r = 0; r < document->relation_count; ++r) {
+    for (size_t p = 0; p < document->projection_count; ++p) {
+      if (sequel_source_range_contains(document->projections[p].range, document->relations[r].range)) {
+        document->relations[r].flags |= SEQUEL_RELATION_FLAG_PROJECTION_SCOPE;
+        break;
+      }
     }
   }
   *out = document;

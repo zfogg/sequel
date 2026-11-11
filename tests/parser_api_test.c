@@ -523,6 +523,29 @@ int main(void) {
     return 1;
   sequel_text_result_free(&summary);
   {
+    const char scalar_sql[] = "SELECT (SELECT p.id FROM revisions p WHERE p.id < r.id ORDER BY p.id LIMIT 1) AS older, "
+                              "(SELECT p.id FROM revisions p WHERE p.id > r.id ORDER BY p.id LIMIT 1) AS newer "
+                              "FROM revisions r WHERE r.id = $1";
+    sequel_source_view_t scalar_source = {scalar_sql, strlen(scalar_sql)};
+    sequel_syntax_document_t *scalar_syntax = NULL;
+    sequel_query_document_t *scalar_query = NULL;
+    if (!check(sequel_parse_sql(&scalar_source, &options, NULL, &scalar_syntax) == SEQUEL_OK,
+               "parse scalar projection query") ||
+        !check(sequel_build_query_document(scalar_syntax, &options, &scalar_query) == SEQUEL_OK,
+               "build scalar projection query") ||
+        !check(sequel_query_projection_count(scalar_query) == 2, "scalar projection boundaries") ||
+        !check(sequel_query_relation_count(scalar_query) == 3, "scalar projection relations") ||
+        !check((sequel_query_relations(scalar_query)[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 &&
+                   (sequel_query_relations(scalar_query)[1].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 &&
+                   (sequel_query_relations(scalar_query)[0].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) != 0 &&
+                   (sequel_query_relations(scalar_query)[1].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) != 0 &&
+                   (sequel_query_relations(scalar_query)[2].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) == 0,
+               "scalar projection relation ownership"))
+      return 1;
+    sequel_query_document_free(scalar_query);
+    sequel_syntax_document_free(scalar_syntax);
+  }
+  {
     const char lowercase_sql[] = "select value from records where value = 1 order by value limit 1";
     sequel_source_view_t lowercase_source = {lowercase_sql, strlen(lowercase_sql)};
     sequel_syntax_document_t *lowercase_syntax = NULL;
