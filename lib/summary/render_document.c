@@ -1861,53 +1861,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       }
     }
   }
-  if (text && sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
-      !sequel_summary_find_text(source.data, " FROM ")) {
-    const char *set = sequel_summary_find_text(source.data, " SET ");
-    const char *where = set ? sequel_summary_find_text(set, " WHERE ") : NULL;
-    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
-    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
-    if (set) {
-      const char *target = source.data + strlen("UPDATE ");
-      length = 0;
-      text[0] = '\0';
-      if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, target, (size_t)(set - target)) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " SET ") ||
-          !sequel_summary_append_redacted_clause(&text, &length, &capacity) ||
-          (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE …"))) ||
-          (order && (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY …"))) ||
-          (limit && (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
-                     !sequel_summary_append_bytes(&text, &length, &capacity, limit + 7,
-                                                  (source.data + source.length) - (limit + 7)))))
-        goto no_memory;
-    }
-  }
-  if (text && sequel_summary_word(source.data, source.length, 0, "DELETE") &&
-      sequel_summary_find_text(source.data, " ORDER BY ")) {
-    const char *from = sequel_summary_find_text(source.data, " FROM ");
-    const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
-    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
-    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
-    if (from && where && order) {
-      const char *table = from + 6;
-      const char *table_end = where;
-      while (table_end > table && isspace((unsigned char)table_end[-1]))
-        --table_end;
-      length = 0;
-      text[0] = '\0';
-      if (!sequel_summary_append_text(&text, &length, &capacity, "DELETE FROM ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          (limit && (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
-                     !sequel_summary_append_bytes(&text, &length, &capacity, limit + 7,
-                                                  (source.data + source.length) - (limit + 7)))))
-        goto no_memory;
-    }
-  }
+  if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
+    goto no_memory;
 summary_postprocess:
   if (!sequel_summary_prepare_postprocess(&text, &length, &capacity, query, source, statement_count, statements))
     goto no_memory;

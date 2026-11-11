@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -71,5 +72,55 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
   if (sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
       !sequel_summary_preserve_keyword(text, length, capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
     return 0;
+  return 1;
+}
+
+int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
+  if (!text || !*text || !length || !capacity || !source.data)
+    return 0;
+  if (sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
+      !sequel_summary_find_text(source.data, " FROM ")) {
+    const char *set = sequel_summary_find_text(source.data, " SET ");
+    const char *where = set ? sequel_summary_find_text(set, " WHERE ") : NULL;
+    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
+    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
+    if (set) {
+      const char *target = source.data + strlen("UPDATE ");
+      *length = 0;
+      (*text)[0] = '\0';
+      if (!sequel_summary_append_text(text, length, capacity, "UPDATE ") ||
+          !sequel_summary_append_bytes(text, length, capacity, target, (size_t)(set - target)) ||
+          !sequel_summary_append_text(text, length, capacity, " SET ") ||
+          !sequel_summary_append_redacted_clause(text, length, capacity) ||
+          (where && !sequel_summary_append_text(text, length, capacity, " WHERE …")) ||
+          (order && !sequel_summary_append_text(text, length, capacity, " ORDER BY …")) ||
+          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
+                     !sequel_summary_append_bytes(text, length, capacity, limit + 7,
+                                                  (source.data + source.length) - (limit + 7)))))
+        return 0;
+    }
+  }
+  if (sequel_summary_word(source.data, source.length, 0, "DELETE") &&
+      sequel_summary_find_text(source.data, " ORDER BY ")) {
+    const char *from = sequel_summary_find_text(source.data, " FROM ");
+    const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+    const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
+    const char *limit = order ? sequel_summary_find_text(order, " LIMIT ") : NULL;
+    if (from && where && order) {
+      const char *table = from + 6;
+      const char *table_end = where;
+      while (table_end > table && isspace((unsigned char)table_end[-1]))
+        --table_end;
+      *length = 0;
+      (*text)[0] = '\0';
+      if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") ||
+          !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
+          !sequel_summary_append_text(text, length, capacity, " WHERE … ORDER BY …") ||
+          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
+                     !sequel_summary_append_bytes(text, length, capacity, limit + 7,
+                                                  (source.data + source.length) - (limit + 7)))))
+        return 0;
+    }
+  }
   return 1;
 }
