@@ -769,6 +769,24 @@ int main(void) {
   sequel_query_document_free(lateral_query);
   sequel_syntax_document_free(lateral_syntax);
 
+  const char lateral_union_sql[] = "SELECT * FROM a JOIN LATERAL (SELECT * FROM b LIMIT $1) AS recent ON true "
+                                   "UNION ALL SELECT * FROM c JOIN d USING(id)";
+  sequel_source_view_t lateral_union_source = {lateral_union_sql, strlen(lateral_union_sql)};
+  sequel_syntax_document_t *lateral_union_syntax = NULL;
+  sequel_query_document_t *lateral_union_query = NULL;
+  sequel_text_result_t lateral_union_summary = {0};
+  if (!check(sequel_parse_sql(&lateral_union_source, &options, NULL, &lateral_union_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(lateral_union_syntax, &options, &lateral_union_query) == SEQUEL_OK &&
+                 sequel_summarize_query(lateral_union_query, NULL, &lateral_union_summary) == SEQUEL_OK &&
+                 strcmp(lateral_union_summary.data,
+                        "SELECT … FROM a JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ? "
+                        "UNION ALL SELECT … FROM c JOIN d USING (id)") == 0,
+             "lateral union summary"))
+    return 1;
+  sequel_text_result_free(&lateral_union_summary);
+  sequel_query_document_free(lateral_union_query);
+  sequel_syntax_document_free(lateral_union_syntax);
+
   {
     const char nested_join_sql[] = "SELECT * FROM a JOIN b ON b.id IN (SELECT id FROM c JOIN d USING(id) LIMIT 1) AND "
                                    "b.ts >= now() - interval 'secret'";
