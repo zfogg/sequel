@@ -127,8 +127,10 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     }
   }
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
-  bool literal =
-      strchr("'?0123456789", first) != NULL || (first == '$' && !sequel_summary_find_text(source.data, " FROM "));
+  bool literal = strchr("'?0123456789", first) != NULL ||
+                 (first == 'U' && projection[0].range.start + 1 < source.length &&
+                  source.data[projection[0].range.start + 1] == '&') ||
+                 (first == '$' && !sequel_summary_find_text(source.data, " FROM "));
   size_t projection_end = projection[0].range.end;
   const char *from_clause = sequel_summary_find_text(source.data + projection[0].range.start, " FROM ");
   if (from_clause && (size_t)(from_clause - source.data) < projection_end)
