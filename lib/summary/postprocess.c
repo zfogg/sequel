@@ -134,18 +134,8 @@ static void collapse_duplicate_relation(char *text, size_t *length) {
   char *second = sequel_summary_find_text(first + 5, " FROM ");
   if (!second)
     return;
-  if (strncmp(text, "SELECT *", 8) != 0) {
-    char *alias = NULL;
-    for (char *candidate = sequel_summary_find_text(first, " AS "); candidate && candidate < second;
-         candidate = sequel_summary_find_text(candidate + 4, " AS "))
-      alias = candidate;
-    char *order = sequel_summary_find_text(second, " ORDER BY");
-    if (!alias || alias >= second || !order)
-      return;
-    memmove(alias, order, strlen(order) + 1);
-    *length -= (size_t)(order - alias);
+  if (strncmp(text, "SELECT *", 8) != 0)
     return;
-  }
   size_t prefix_length = (size_t)(first - text);
   const char *replacement = second + 1;
   size_t replacement_length = strlen(replacement);
