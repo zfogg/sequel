@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "internal.h"
@@ -156,5 +157,38 @@ int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_sou
   memmove(*text + replacement_length, *text + prefix_length, *length - prefix_length + 1);
   memcpy(*text, replacement, replacement_length);
   *length -= prefix_length - replacement_length;
+  return 1;
+}
+
+int sequel_summary_repair_group_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
+  if (!text || !*text || !length || !capacity || !source.data)
+    return 0;
+  if (!sequel_summary_find_text(source.data, "GROUP BY") || !sequel_summary_find_text(source.data, "HAVING") ||
+      !sequel_summary_find_text(source.data, "ORDER BY"))
+    return 1;
+  char *group = sequel_summary_find_text(*text, "GROUP BY");
+  char *order = group ? sequel_summary_find_text(group, "ORDER BY") : NULL;
+  char *premature_limit = sequel_summary_find_text(*text, " LIMIT ");
+  if (!group || !order || !premature_limit || premature_limit >= group)
+    return 1;
+  memmove(premature_limit, group, *length - (size_t)(group - *text) + 1);
+  *length -= (size_t)(group - premature_limit);
+  (*text)[*length] = 0;
+  group = sequel_summary_find_text(*text, "GROUP BY");
+  order = group ? sequel_summary_find_text(group, "ORDER BY") : NULL;
+  if (!group || !order)
+    return 1;
+  const char having[] = " … HAVING … ";
+  size_t offset = (size_t)(order - *text), having_length = sizeof(having) - 1;
+  if (*length + having_length + 1 > *capacity) {
+    char *grown = realloc(*text, *length + having_length + 1);
+    if (!grown)
+      return 0;
+    *text = grown;
+    *capacity = *length + having_length + 1;
+  }
+  memmove(*text + offset + having_length, *text + offset, *length - offset + 1);
+  memcpy(*text + offset, having, having_length);
+  *length += having_length;
   return 1;
 }

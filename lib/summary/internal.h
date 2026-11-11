@@ -86,6 +86,8 @@ int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capa
 int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_source_view_t source,
                                          const sequel_query_document_t *query);
 
+int sequel_summary_repair_group_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,
