@@ -2686,6 +2686,30 @@ summary_postprocess:
         (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
       goto no_memory;
   }
+  if (text && sequel_query_statement_count(query) == 1 && !sequel_summary_find_text(source.data, " UNION ") &&
+      !sequel_summary_find_text(source.data, " INTERSECT ") && !sequel_summary_find_text(source.data, " EXCEPT ")) {
+    char *premature_limit = sequel_summary_find_text(text, " LIMIT ");
+    char *order = premature_limit ? sequel_summary_find_text(premature_limit, " ORDER BY ") : NULL;
+    if (premature_limit && order) {
+      memmove(premature_limit, order, strlen(order) + 1);
+      length -= (size_t)(order - premature_limit);
+      char *order_limit = sequel_summary_find_text(text, "ORDER BY LIMIT ");
+      if (order_limit) {
+        const char replacement[] = "ORDER BY … LIMIT ";
+        size_t old_length = sizeof("ORDER BY LIMIT ") - 1;
+        size_t new_length = sizeof(replacement) - 1;
+        size_t offset = (size_t)(order_limit - text);
+        char *grown = realloc(text, length + new_length - old_length + 1);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        memmove(text + offset + new_length, text + offset + old_length, length - offset - old_length + 1);
+        memcpy(text + offset, replacement, new_length);
+        length += new_length - old_length;
+        capacity = length + 1;
+      }
+    }
+  }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
   text[length] = 0;
