@@ -80,10 +80,13 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
       ++i;
       continue;
     }
-    bool word_boundary =
-        (i == 0 || !isalnum((unsigned char)text[i - 1])) && (i + 4 >= *length || !isalnum((unsigned char)text[i + 4]));
-    if (word_boundary && (!memcmp(text + i, "true", 4) || !memcmp(text + i, "false", 5))) {
-      size_t word_length = text[i] == 't' ? 4 : 5;
+    bool word_boundary = (i == 0 || !isalnum((unsigned char)text[i - 1]));
+    bool true_word =
+        i + 4 <= *length && !memcmp(text + i, "true", 4) && (i + 4 == *length || !isalnum((unsigned char)text[i + 4]));
+    bool false_word =
+        i + 5 <= *length && !memcmp(text + i, "false", 5) && (i + 5 == *length || !isalnum((unsigned char)text[i + 5]));
+    if (word_boundary && (true_word || false_word)) {
+      size_t word_length = true_word ? 4 : 5;
       text[i] = '?';
       memmove(text + i + 1, text + i + word_length, *length - i - word_length + 1);
       *length -= word_length - 1;

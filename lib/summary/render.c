@@ -1667,16 +1667,22 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     char source_pattern[32];
     snprintf(source_pattern, sizeof(source_pattern), "%s JOIN", join_modifiers[modifier]);
     if (sequel_summary_find_text(source.data, source_pattern) && !sequel_summary_find_text(text, source_pattern)) {
+      size_t actual_length = strlen(text);
+      if (actual_length != length)
+        length = actual_length;
       char *join = sequel_summary_find_text(text, " JOIN ");
       if (join) {
         size_t offset = (size_t)(join - text) + 1;
         size_t modifier_length = strlen(join_modifiers[modifier]);
-        if (capacity < length + modifier_length + 1) {
-          char *grown = realloc(text, length + modifier_length + 1);
+        if (offset > length || modifier_length > SIZE_MAX - length - 2)
+          goto no_memory;
+        size_t required = length + modifier_length + 2;
+        if (capacity < required) {
+          char *grown = realloc(text, required);
           if (!grown)
             goto no_memory;
           text = grown;
-          capacity = length + modifier_length + 1;
+          capacity = required;
           join = text + offset - 1;
         }
         memmove(text + offset + modifier_length + 1, text + offset, length - offset + 1);
