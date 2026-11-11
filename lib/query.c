@@ -675,7 +675,31 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           /* A JOIN starts a new relation and therefore owns any later ON.
            * Do not let the preceding join inherit that condition.  Nested
            * subqueries are protected by the nesting counter above. */
+          bool distinct_from_operator = false;
+          if (tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
+              tokens[condition_end].keyword_id == SEQUEL_KEYWORD_FROM) {
+            size_t previous = condition_end;
+            const char *expected[] = {"DISTINCT", "NOT", "IS"};
+            distinct_from_operator = true;
+            for (size_t word = 0; word < 3; ++word) {
+              do {
+                if (previous == condition_start) {
+                  distinct_from_operator = false;
+                  break;
+                }
+                --previous;
+              } while (sequel_token_is_trivia(&tokens[previous]));
+              if (!distinct_from_operator ||
+                  !sequel_query_word_equals_ci(source.data + tokens[previous].range.start,
+                                               tokens[previous].range.end - tokens[previous].range.start,
+                                               expected[word])) {
+                distinct_from_operator = false;
+                break;
+              }
+            }
+          }
           if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
+              !distinct_from_operator &&
               (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN ||
                sequel_token_is_clause_keyword(&tokens[condition_end])))
             break;

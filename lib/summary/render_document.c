@@ -581,10 +581,10 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       from = set ? sequel_summary_find_text(
                        subquery_end ? subquery_end + 1 : (subquery_close ? subquery_close + 1 : set + 5), " FROM ")
                  : NULL;
-    const char *where = from ? sequel_summary_find_text(from + 6, " WHERE ") : NULL;
+    const char *where = from ? sequel_summary_find_text(from + 4, " WHERE ") : NULL;
     if (set && from) {
       const char *table_end = set;
-      const char *from_table = from + 6;
+      const char *from_table = from + 4;
       while (*from_table && isspace((unsigned char)*from_table))
         ++from_table;
       const char *from_end = where ? where : source.data + source.length;
