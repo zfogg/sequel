@@ -220,7 +220,8 @@ int main(void) {
                  retained_lexical_diagnostics[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
                  sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK &&
                  lexical_diagnostics.count == 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL &&
-                 lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING,
+                 lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
+                 lexical_diagnostics.records[0].message[0] != 0 && lexical_diagnostics.records[0].hint[0] != 0,
              "lexical diagnostic collection"))
     return 1;
   sequel_diagnostic_list_free(&lexical_diagnostics);

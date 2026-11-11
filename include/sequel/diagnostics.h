@@ -98,6 +98,9 @@ typedef struct sequel_diagnostic_record {
   int incomplete;
   int recovered;
   int statement_complete;
+  char message[128];
+  char explanation[384];
+  char hint[256];
 } sequel_diagnostic_record_t;
 
 typedef struct {

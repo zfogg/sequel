@@ -75,6 +75,12 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
 }
 
 bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
+  if (!record.message[0])
+    snprintf(record.message, sizeof(record.message), "%s", sequel_diagnostic_code_name(record.code));
+  if (!record.explanation[0])
+    snprintf(record.explanation, sizeof(record.explanation), "The SQL analysis pipeline reported this issue.");
+  if (!record.hint[0])
+    snprintf(record.hint, sizeof(record.hint), "Review the highlighted source range.");
   if (record.origin >= SEQUEL_DIAGNOSTIC_SEMANTIC && !record.incomplete && !record.recovered)
     record.statement_complete = 1;
   if (diagnostics->count == diagnostics->capacity) {
