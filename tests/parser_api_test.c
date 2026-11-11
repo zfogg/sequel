@@ -1022,5 +1022,35 @@ int main(void) {
     sequel_query_document_free(quoted_query);
     sequel_syntax_document_free(quoted_syntax);
   }
+  /* ClickHouse heredoc coverage is tracked in the dialect corpus. */
+  {
+    const char *heredoc_sql = "SELECT $tag$SECRET ' /* ; $tag$ FROM events";
+    sequel_source_view_t heredoc_source = {heredoc_sql, strlen(heredoc_sql)};
+    sequel_parse_options_t heredoc_options;
+    sequel_parse_options_init(&heredoc_options);
+    heredoc_options.dialect = SEQUEL_CLICKHOUSE;
+    sequel_syntax_document_t *heredoc_syntax = NULL;
+    sequel_query_document_t *heredoc_query = NULL;
+    if (!check(sequel_parse_sql(&heredoc_source, &heredoc_options, NULL, &heredoc_syntax) == SEQUEL_OK,
+               "ClickHouse heredoc parse") ||
+        !check(sequel_build_query_document(heredoc_syntax, &heredoc_options, &heredoc_query) == SEQUEL_OK,
+               "ClickHouse heredoc query")) {
+      sequel_syntax_document_free(heredoc_syntax);
+      return 1;
+    }
+    const sequel_relation_info_t *heredoc_relation = sequel_query_relations(heredoc_query);
+    if (!check(sequel_query_relation_count(heredoc_query) == 1 &&
+                   heredoc_relation[0].name_range.end > heredoc_relation[0].name_range.start &&
+                   !strncmp(heredoc_sql + heredoc_relation[0].name_range.start, "events", 6) &&
+                   !(heredoc_relation[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) &&
+                   !(heredoc_relation[0].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE),
+               "ClickHouse heredoc relation retained")) {
+      sequel_query_document_free(heredoc_query);
+      sequel_syntax_document_free(heredoc_syntax);
+      return 1;
+    }
+    sequel_query_document_free(heredoc_query);
+    sequel_syntax_document_free(heredoc_syntax);
+  }
   return 0;
 }
