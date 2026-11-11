@@ -3,6 +3,8 @@
 
 #include <sequel/formatter.h>
 
+#include "tokens.h"
+
 void sequel_format_options_init(sequel_format_options_t *options) {
   if (options)
     *options = (sequel_format_options_t){
@@ -122,7 +124,7 @@ static int is_select_start(const sequel_token_t *token, size_t paren_depth) {
 }
 
 static int is_literal_replacement(const sequel_token_t *token, const sequel_format_options_t *settings) {
-  return is_literal_token(token) && !is_bind_token(token) && !settings->preserve_literals;
+  return sequel_token_is_literal(token) && !sequel_token_is_bind(token) && !settings->preserve_literals;
 }
 
 static int no_space_before_punctuation(const char *text, size_t length, int punctuation) {

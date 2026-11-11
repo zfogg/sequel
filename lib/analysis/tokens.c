@@ -28,22 +28,19 @@ sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysi
     return SEQUEL_ERR_NULL;
   *out = NULL;
   *count = 0;
-  size_t token_count = 0;
+  size_t token_count = 0, capacity = 0, previous_end = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
-  size_t capacity = 0;
-  size_t previous_end = 0;
-  bool gap = false;
-  bool pending_newline = false;
+  bool gap = false, pending_newline = false;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
       break;
-    if (token->range.end > source.length || token->range.start > token->range.end)
+    if (!sequel_token_has_range(token, source.length))
       goto invalid;
     if (token->kind == SEQUEL_TOKEN_WHITESPACE) {
-      for (size_t offset = token->range.start; offset < token->range.end; ++offset)
-        pending_newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
+      for (size_t j = token->range.start; j < token->range.end; ++j)
+        pending_newline |= source.data[j] == '\r' || source.data[j] == '\n';
       previous_end = token->range.end;
       gap = true;
       continue;
@@ -63,13 +60,13 @@ sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysi
       capacity = next;
     }
     bool newline = false;
-    for (size_t offset = previous_end; offset < token->range.start; ++offset)
-      newline |= source.data[offset] == '\r' || source.data[offset] == '\n';
+    for (size_t j = previous_end; j < token->range.start; ++j)
+      newline |= source.data[j] == '\r' || source.data[j] == '\n';
     int kind = shared_token_kind(token->kind);
-    bool opening = kind == 0 && token->range.end == token->range.start + 1 &&
-                   strchr("([{", source.data[token->range.start]) != NULL;
-    bool previous_open = *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 &&
-                         strchr("([{", *(*out)[*count - 1].t.p) != NULL;
+    bool opening =
+        kind == 0 && token->range.end == token->range.start + 1 && strchr("([{", source.data[token->range.start]);
+    bool previous_open =
+        *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 && strchr("([{", *(*out)[*count - 1].t.p);
     (*out)[(*count)++] = (analysis_token_t){.t = {.p = source.data + token->range.start,
                                                   .n = token->range.end - token->range.start,
                                                   .word = kind == 1,
