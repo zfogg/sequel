@@ -11,6 +11,17 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static int sequel_summary_begin_render(char **text, size_t *length, size_t *capacity,
+                                       const sequel_query_document_t *query, const sequel_summary_options_t *settings,
+                                       sequel_source_view_t source, size_t statement_count,
+                                       const sequel_statement_info_t *statements, int *route) {
+  if (!text || !length || !capacity || !query || !settings || !route)
+    return 0;
+  *route =
+      sequel_summary_try_special_routes(text, length, capacity, query, settings, source, statement_count, statements);
+  return *route >= 0;
+}
+
 sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
                                                     const sequel_summary_options_t *options,
                                                     sequel_text_result_t *out) {
@@ -24,9 +35,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
-  int special_route = sequel_summary_try_special_routes(&text, &length, &capacity, query, settings, source,
-                                                        statement_count, statements);
-  if (special_route < 0)
+  int special_route = 0;
+  if (!sequel_summary_begin_render(&text, &length, &capacity, query, settings, source, statement_count, statements,
+                                   &special_route))
     goto no_memory;
   if (special_route == 1) {
     *out = (sequel_text_result_t){
