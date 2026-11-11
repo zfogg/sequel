@@ -436,8 +436,6 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   }
   highlight_source(&b, cursor, n - (size_t)(cursor - sql), options->mode);
   highlight_text(&b, options->mode == SEQUEL_HTML ? "</code></pre>" : "\033[0m");
-  if (options->mode == SEQUEL_HTML && n && sql[n - 1] == '\n')
-    highlight_text(&b, "\n");
   sequel_syntax_document_free(document);
   *length = b.n;
   if (out) {
