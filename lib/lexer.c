@@ -19,16 +19,16 @@ struct sequel_lexed_document {
   size_t diagnostic_capacity;
 };
 
-static int is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
+static int sequel_lexer_is_word_start(unsigned char c) { return isalpha(c) || c == '_'; }
 
-static int is_word_part(unsigned char c) { return isalnum(c) || c == '_' || c >= 128; }
+static int sequel_lexer_is_word_part(unsigned char c) { return isalnum(c) || c == '_' || c >= 128; }
 
-static int is_operator_char(unsigned char c) {
+static int sequel_lexer_is_operator_char(unsigned char c) {
   return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '=' || c == '!' || c == '<' || c == '>' ||
          c == '~' || c == '|' || c == '&' || c == '^' || c == '@';
 }
 
-static int append_token(sequel_lexed_document_t *document, sequel_token_t token, size_t limit) {
+static int sequel_lexer_append_token(sequel_lexed_document_t *document, sequel_token_t token, size_t limit) {
   if (document->token_count >= limit)
     return 0;
   size_t count = document->token_count + 1;
@@ -54,8 +54,8 @@ static int append_token(sequel_lexed_document_t *document, sequel_token_t token,
   return 1;
 }
 
-static int append_lexical_diagnostic(sequel_lexed_document_t *document, sequel_diagnostic_code_t code,
-                                     sequel_source_range_t range, size_t limit) {
+static int sequel_lexer_append_diagnostic(sequel_lexed_document_t *document, sequel_diagnostic_code_t code,
+                                          sequel_source_range_t range, size_t limit) {
   if (document->diagnostic_count >= limit)
     return 1;
   if (document->diagnostic_count == document->diagnostic_capacity) {
@@ -83,7 +83,7 @@ static int append_lexical_diagnostic(sequel_lexed_document_t *document, sequel_d
   return 1;
 }
 
-static size_t scan_quoted(const char *source, size_t length, size_t start, char quote) {
+static size_t sequel_lexer_scan_quoted(const char *source, size_t length, size_t start, char quote) {
   size_t i = start + 1;
   while (i < length) {
     if (source[i] == '\\' && i + 1 < length) {
@@ -102,7 +102,8 @@ static size_t scan_quoted(const char *source, size_t length, size_t start, char 
   return length;
 }
 
-static int quoted_token_is_terminated(const char *source, size_t start, size_t end, size_t length, char quote) {
+static int sequel_lexer_quoted_token_is_terminated(const char *source, size_t start, size_t end, size_t length,
+                                                   char quote) {
   if (end <= start + 1 || end != length || source[end - 1] != quote)
     return 0;
   size_t backslashes = 0;
@@ -232,17 +233,18 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         continue;
     } else if (settings->dialect == SEQUEL_MYSQL && source->data[i] == '_' && i + 1 < source->length) {
       size_t prefix_end = i + 1;
-      while (prefix_end < source->length && is_word_part((unsigned char)source->data[prefix_end]))
+      while (prefix_end < source->length && sequel_lexer_is_word_part((unsigned char)source->data[prefix_end]))
         ++prefix_end;
       if (prefix_end < source->length && source->data[prefix_end] == '\'') {
-        i = scan_quoted(source->data, source->length, prefix_end, '\'');
+        i = sequel_lexer_scan_quoted(source->data, source->length, prefix_end, '\'');
         kind = SEQUEL_TOKEN_STRING;
         flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
-        if (i == source->length && !quoted_token_is_terminated(source->data, prefix_end, i, source->length, '\''))
+        if (i == source->length &&
+            !sequel_lexer_quoted_token_is_terminated(source->data, prefix_end, i, source->length, '\''))
           flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
       } else {
         ++i;
-        while (i < source->length && is_word_part((unsigned char)source->data[i]))
+        while (i < source->length && sequel_lexer_is_word_part((unsigned char)source->data[i]))
           ++i;
         kind = SEQUEL_TOKEN_IDENTIFIER;
       }
@@ -268,18 +270,18 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if ((source->data[i] == 'U' || source->data[i] == 'u') && i + 2 < source->length &&
                source->data[i + 1] == '&' && source->data[i + 2] == '\'') {
-      i = scan_quoted(source->data, source->length, i + 2, '\'');
+      i = sequel_lexer_scan_quoted(source->data, source->length, i + 2, '\'');
       kind = SEQUEL_TOKEN_STRING;
       flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
-      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
+      if (i == source->length && !sequel_lexer_quoted_token_is_terminated(source->data, start, i, source->length, '\''))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if ((source->data[i] == 'E' || source->data[i] == 'e' || source->data[i] == 'B' || source->data[i] == 'b' ||
                 source->data[i] == 'X' || source->data[i] == 'x' || source->data[i] == 'N' || source->data[i] == 'n') &&
                i + 1 < source->length && source->data[i + 1] == '\'') {
-      i = scan_quoted(source->data, source->length, i + 1, '\'');
+      i = sequel_lexer_scan_quoted(source->data, source->length, i + 1, '\'');
       kind = SEQUEL_TOKEN_STRING;
       flags = SEQUEL_TOKEN_FLAG_LITERAL | SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC;
-      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, '\''))
+      if (i == source->length && !sequel_lexer_quoted_token_is_terminated(source->data, start, i, source->length, '\''))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (source->data[i] == '$' && settings->dialect == SEQUEL_CLICKHOUSE) {
       size_t delimiter_end = i + 1;
@@ -306,9 +308,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         ++i;
         kind = SEQUEL_TOKEN_OPERATOR;
       }
-    } else if (is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
+    } else if (sequel_lexer_is_word_start((unsigned char)source->data[i]) || (unsigned char)source->data[i] >= 128) {
       ++i;
-      while (i < source->length && is_word_part((unsigned char)source->data[i]) &&
+      while (i < source->length && sequel_lexer_is_word_part((unsigned char)source->data[i]) &&
              !(i + 2 < source->length && (unsigned char)source->data[i] == 0xe2 &&
                (unsigned char)source->data[i + 1] == 0x80 && (unsigned char)source->data[i + 2] >= 0x98 &&
                (unsigned char)source->data[i + 2] <= 0x9d))
@@ -324,13 +326,14 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     } else if (source->data[i] == '\'' || source->data[i] == '"' || source->data[i] == '`' ||
                (source->data[i] == '[' && sequel_dialect_definition(settings->dialect)->supports_bracket_identifiers)) {
       char quote = source->data[i++];
-      i = scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
+      i = sequel_lexer_scan_quoted(source->data, source->length, start, quote == '[' ? ']' : quote);
       kind = quote == '\'' || (quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_STRING
                                                                                   : SEQUEL_TOKEN_QUOTED_IDENTIFIER;
       char closing_quote = quote == '[' ? ']' : quote;
       flags = (kind == SEQUEL_TOKEN_STRING ? SEQUEL_TOKEN_FLAG_LITERAL : 0) |
               ((quote == '"' && settings->dialect == SEQUEL_MYSQL) ? SEQUEL_TOKEN_FLAG_DIALECT_SPECIFIC : 0);
-      if (i == source->length && !quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
+      if (i == source->length &&
+          !sequel_lexer_quoted_token_is_terminated(source->data, start, i, source->length, closing_quote))
         flags |= SEQUEL_TOKEN_FLAG_UNTERMINATED;
     } else if (isdigit((unsigned char)source->data[i]) ||
                (source->data[i] == '.' && i + 1 < source->length && isdigit((unsigned char)source->data[i + 1]))) {
@@ -384,13 +387,13 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                 (terminated ? 0 : SEQUEL_TOKEN_FLAG_UNTERMINATED);
       } else {
         ++i;
-        while (i < source->length && is_word_part((unsigned char)source->data[i]))
+        while (i < source->length && sequel_lexer_is_word_part((unsigned char)source->data[i]))
           ++i;
         if (settings->dialect == SEQUEL_SQLITE && source->data[start] == '$') {
           if (i + 2 < source->length && source->data[i] == ':' && source->data[i + 1] == ':' &&
-              is_word_start((unsigned char)source->data[i + 2])) {
+              sequel_lexer_is_word_start((unsigned char)source->data[i + 2])) {
             i += 2;
-            while (i < source->length && is_word_part((unsigned char)source->data[i]))
+            while (i < source->length && sequel_lexer_is_word_part((unsigned char)source->data[i]))
               ++i;
             if (i < source->length && source->data[i] == '(') {
               size_t depth = 0;
@@ -463,15 +466,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     } else if ((source->data[i] == '?' && (settings->dialect == SEQUEL_SQLITE || settings->dialect == SEQUEL_MYSQL)) ||
                source->data[i] == '$' ||
                (source->data[i] == ':' && i > 0 && source->data[i - 1] != ':' && i + 1 < source->length &&
-                (is_word_start((unsigned char)source->data[i + 1]) ||
+                (sequel_lexer_is_word_start((unsigned char)source->data[i + 1]) ||
                  (settings->dialect == SEQUEL_SQLITE && isdigit((unsigned char)source->data[i + 1])))) ||
                (source->data[i] == '@' &&
-                (i + 1 >= source->length || is_word_part((unsigned char)source->data[i + 1]) ||
+                (i + 1 >= source->length || sequel_lexer_is_word_part((unsigned char)source->data[i + 1]) ||
                  (settings->dialect == SEQUEL_MYSQL && source->data[i + 1] == '@')))) {
       ++i;
       if (source->data[start] == '@' && i < source->length && source->data[i] == '@')
         ++i;
-      while (i < source->length && is_word_part((unsigned char)source->data[i]))
+      while (i < source->length && sequel_lexer_is_word_part((unsigned char)source->data[i]))
         ++i;
       kind = SEQUEL_TOKEN_PARAMETER;
       flags = SEQUEL_TOKEN_FLAG_BIND;
@@ -504,14 +507,15 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
         kind = SEQUEL_TOKEN_PARAMETER;
         flags = SEQUEL_TOKEN_FLAG_BIND;
       } else {
-        while (i < source->length && is_operator_char((unsigned char)source->data[i]))
+        while (i < source->length && sequel_lexer_is_operator_char((unsigned char)source->data[i]))
           ++i;
         kind = SEQUEL_TOKEN_OPERATOR;
       }
-    } else if (is_operator_char((unsigned char)source->data[i])) {
+    } else if (sequel_lexer_is_operator_char((unsigned char)source->data[i])) {
       ++i;
-      while (i < source->length && is_operator_char((unsigned char)source->data[i])) {
-        if (source->data[i] == '@' && i + 1 < source->length && is_word_start((unsigned char)source->data[i + 1]))
+      while (i < source->length && sequel_lexer_is_operator_char((unsigned char)source->data[i])) {
+        if (source->data[i] == '@' && i + 1 < source->length &&
+            sequel_lexer_is_word_start((unsigned char)source->data[i + 1]))
           break;
         ++i;
       }
@@ -542,29 +546,29 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
                                     : 0,
                             .dialect_id = (uint32_t)settings->dialect};
     if ((flags & SEQUEL_TOKEN_FLAG_UNTERMINATED) &&
-        !append_lexical_diagnostic(document,
-                                   kind == SEQUEL_TOKEN_BLOCK_COMMENT && (flags & SEQUEL_TOKEN_FLAG_RECOVERED)
-                                       ? SEQUEL_DIAG_NESTING_LIMIT
-                                   : kind == SEQUEL_TOKEN_BLOCK_COMMENT     ? SEQUEL_DIAG_UNTERMINATED_COMMENT
-                                   : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
-                                   : kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
-                                                                            : SEQUEL_DIAG_UNTERMINATED_STRING,
-                                   token.range, diagnostic_limit)) {
+        !sequel_lexer_append_diagnostic(document,
+                                        kind == SEQUEL_TOKEN_BLOCK_COMMENT && (flags & SEQUEL_TOKEN_FLAG_RECOVERED)
+                                            ? SEQUEL_DIAG_NESTING_LIMIT
+                                        : kind == SEQUEL_TOKEN_BLOCK_COMMENT     ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                                        : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                                        : kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
+                                                                                 : SEQUEL_DIAG_UNTERMINATED_STRING,
+                                        token.range, diagnostic_limit)) {
       sequel_lexed_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
     if (kind == SEQUEL_TOKEN_ERROR &&
-        !append_lexical_diagnostic(document, SEQUEL_DIAG_INVALID_ARGUMENT, token.range, diagnostic_limit)) {
+        !sequel_lexer_append_diagnostic(document, SEQUEL_DIAG_INVALID_ARGUMENT, token.range, diagnostic_limit)) {
       sequel_lexed_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
-    if (!append_token(document, token, limit)) {
+    if (!sequel_lexer_append_token(document, token, limit)) {
       sequel_lexed_document_free(document);
       return SEQUEL_ERR_LIMIT;
     }
   }
   sequel_token_t eof = {.kind = SEQUEL_TOKEN_EOF, .range = {source->length, source->length}};
-  if (!append_token(document, eof, limit)) {
+  if (!sequel_lexer_append_token(document, eof, limit)) {
     sequel_lexed_document_free(document);
     return SEQUEL_ERR_LIMIT;
   }
