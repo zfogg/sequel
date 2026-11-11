@@ -773,12 +773,15 @@ int main(void) {
     sequel_syntax_document_t *quoted_join_syntax = NULL;
     sequel_query_document_t *quoted_join_query = NULL;
     sequel_text_result_t quoted_join_summary = {0};
+    sequel_summary_options_t quoted_join_options;
+    sequel_summary_options_init(&quoted_join_options);
+    quoted_join_options.redact_relations = true;
     if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK &&
                    sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
                    sequel_query_join_count(quoted_join_query) == 1 &&
                    sequel_query_joins(quoted_join_query)[0].has_condition &&
                    sequel_query_joins(quoted_join_query)[0].condition_node != SIZE_MAX &&
-                   sequel_summarize_query(quoted_join_query, NULL, &quoted_join_summary) == SEQUEL_OK &&
+                   sequel_summarize_query(quoted_join_query, &quoted_join_options, &quoted_join_summary) == SEQUEL_OK &&
                    strstr(quoted_join_summary.data, " ON ") != NULL,
                "quoted alias join summary"))
       return 1;
