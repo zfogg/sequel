@@ -1258,7 +1258,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       if (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LEFT") ||
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "JOIN") ||
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE") ||
-          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "ORDER"))
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "ORDER") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "UNION") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "INTERSECT") ||
+          sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "EXCEPT"))
         alias = alias_end = end;
       if ((!sequel_query_outer_distinct_on(query) &&
            (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
@@ -1279,6 +1282,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
       }
       if (first_outer_relation != SIZE_MAX) {
+        size_t previous_outer_end = relations[first_outer_relation].range.end;
         for (size_t i = first_outer_relation + 1; i < relation_count; ++i) {
           bool lateral_subquery = relations[i].name_range.end - relations[i].name_range.start == 7 &&
                                   !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
@@ -1322,11 +1326,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                  !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " ON ?"))
               goto no_memory;
+            previous_outer_end = relations[i].range.end;
             continue;
           }
-          size_t previous_end = relations[i - 1].range.end;
-          const char *join_marker = previous_end < relations[i].range.start
-                                         ? sequel_summary_find_text(source.data + previous_end, " JOIN ")
+          const char *join_marker = previous_outer_end < relations[i].range.start
+                                         ? sequel_summary_find_word(source.data, source.length, previous_outer_end, "JOIN")
                                          : NULL;
           if (!join_marker || (size_t)(join_marker - source.data) >= relations[i].range.start)
             continue;
@@ -1359,6 +1363,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                !sequel_summary_append_bytes(&text, &length, &capacity, open + 1, (size_t)(close - open - 1)) ||
                !sequel_summary_append_text(&text, &length, &capacity, ")")))
             goto no_memory;
+          previous_outer_end = relations[i].range.end;
         }
       }
     }
