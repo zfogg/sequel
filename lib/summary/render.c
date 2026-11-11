@@ -23,17 +23,61 @@ sequel_status_t sequel_summary_render(const sequel_query_document_t *query, cons
   size_t statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
-  int special = sequel_summary_try_special_paths(&text, &length, &capacity, query, settings, source, statement_count,
-                                                 statements, out);
-  if (special < 0)
+  int scalar_summary = sequel_summary_render_scalar_projection_summary(&text, &length, &capacity, query, source,
+                                                                       statement_count ? &statements[0] : NULL);
+  if (scalar_summary < 0)
     goto no_memory;
-  if (special > 0) {
-    out->data = text;
-    out->length = length;
-    out->capacity = capacity;
+  if (scalar_summary > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  if (special == 2)
+  int parameter_only =
+      sequel_summary_append_parameter_only(&text, &length, &capacity, query, statement_count ? &statements[0] : NULL);
+  if (parameter_only < 0)
+    goto no_memory;
+  if (parameter_only > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int clickhouse_dollar = sequel_summary_append_clickhouse_dollar_projection(&text, &length, &capacity, query, source,
+                                                                             statement_count ? &statements[0] : NULL);
+  if (clickhouse_dollar < 0)
+    goto no_memory;
+  if (clickhouse_dollar > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int cte_shape = sequel_summary_append_cte_shape(&text, &length, &capacity, query, source,
+                                                  statement_count ? &statements[0] : NULL);
+  if (cte_shape < 0)
+    goto no_memory;
+  if (cte_shape > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int clickhouse_create = sequel_summary_append_clickhouse_create_shape(&text, &length, &capacity, query, source,
+                                                                        statement_count ? &statements[0] : NULL);
+  if (clickhouse_create < 0)
+    goto no_memory;
+  if (clickhouse_create > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int dialect_recovery = sequel_summary_append_dialect_recovery(&text, &length, &capacity, query, settings, source,
+                                                                statement_count, statements);
+  if (dialect_recovery < 0)
+    goto no_memory;
+  if (dialect_recovery == 1) {
+    *out =
+        (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_RECOVERED};
+    return SEQUEL_OK;
+  }
+  if (dialect_recovery == 2)
     goto summary_postprocess;
   size_t cte_prefix_end = 0;
   size_t outer_start = 0;
