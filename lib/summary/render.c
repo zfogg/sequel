@@ -789,7 +789,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         grouped_relation = true;
       }
     }
-    size_t relation_passes = sequel_query_join_count(query) && sequel_summary_find_text(source.data, " JOIN ") &&
+    size_t relation_passes = sequel_query_join_count(query) &&
+                                     sequel_summary_find_word(source.data, source.length, 0, "JOIN") &&
                                      !(sequel_query_cte_count(query) && statement_count &&
                                        (statements[0].operation == SEQUEL_OPERATION_INSERT ||
                                         statements[0].operation == SEQUEL_OPERATION_UPDATE ||
@@ -826,7 +827,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             join_index = j;
             break;
           }
-        if (!sequel_summary_find_text(source.data, " JOIN "))
+        if (!sequel_summary_find_word(source.data, source.length, 0, "JOIN"))
           join_index = SIZE_MAX;
         if (relation_passes == 2 && (relation_pass == 0) == (join_index != SIZE_MAX))
           continue;
