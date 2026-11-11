@@ -7,7 +7,7 @@
 #include "util/text.h"
 #include "model.h"
 
-static int is_clause_keyword(const sequel_token_t *token) {
+static int sequel_query_token_is_clause_keyword(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
     return 0;
   return token->keyword_id == SEQUEL_KEYWORD_WHERE || token->keyword_id == SEQUEL_KEYWORD_GROUP ||
@@ -21,7 +21,8 @@ static int is_clause_keyword(const sequel_token_t *token) {
          token->keyword_id == SEQUEL_KEYWORD_UNION;
 }
 
-static int is_reserved_relation_alias(const sequel_source_view_t *source, const sequel_token_t *token) {
+static int sequel_query_token_is_reserved_relation_alias(const sequel_source_view_t *source,
+                                                         const sequel_token_t *token) {
   size_t length = token->range.end - token->range.start;
   if (length != 5 || token->range.end > source->length)
     return 0;
@@ -32,7 +33,7 @@ static int is_reserved_relation_alias(const sequel_source_view_t *source, const 
          toupper((unsigned char)source->data[token->range.start + 4]) == 'L';
 }
 
-static int is_join_modifier(const sequel_source_view_t *source, const sequel_token_t *token) {
+static int sequel_query_token_is_join_modifier(const sequel_source_view_t *source, const sequel_token_t *token) {
   if (!sequel_token_is_identifier(token) || token->range.end > source->length)
     return 0;
   size_t length = token->range.end - token->range.start;
@@ -44,7 +45,8 @@ static int is_join_modifier(const sequel_source_view_t *source, const sequel_tok
   return 0;
 }
 
-static int token_in_subquery(const sequel_token_t *tokens, size_t index, const sequel_source_view_t *source) {
+static int sequel_query_token_is_in_subquery(const sequel_token_t *tokens, size_t index,
+                                             const sequel_source_view_t *source) {
   size_t depth = 0;
   size_t subquery_depth = SIZE_MAX;
   for (size_t i = 0; i < index; ++i) {
@@ -319,7 +321,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         ++predicate_start;
       size_t predicate_end = end;
       for (size_t j = predicate_start; j < end; ++j)
-        if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[j])) {
+        if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[j])) {
           predicate_end = j;
           break;
         }
@@ -372,7 +374,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           comma_relation = true;
           break;
         }
-        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[previous]))
+        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[previous]))
           break;
       }
     }
@@ -575,8 +577,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     size_t name_end = end;
     sequel_source_range_t alias_range = {end, end};
-    if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) && !is_clause_keyword(&tokens[alias]) &&
-        !is_join_modifier(&source, &tokens[alias]) && !is_reserved_relation_alias(&source, &tokens[alias]))
+    if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) &&
+        !sequel_query_token_is_clause_keyword(&tokens[alias]) &&
+        !sequel_query_token_is_join_modifier(&source, &tokens[alias]) &&
+        !sequel_query_token_is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     if (alias_range.end > alias_range.start) {
       size_t column_list = alias + 1;
@@ -607,7 +611,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         .syntax_node = SIZE_MAX,
         .parent_relation = SIZE_MAX,
         .subquery_statement = SIZE_MAX};
-    if (token_in_subquery(tokens, name, &source)) {
+    if (sequel_query_token_is_in_subquery(tokens, name, &source)) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
     }
@@ -686,7 +690,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            * Do not let the preceding join inherit that condition.  Nested
            * subqueries are protected by the nesting counter above. */
           if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
-              (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN || is_clause_keyword(&tokens[condition_end])))
+              (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN ||
+               sequel_query_token_is_clause_keyword(&tokens[condition_end])))
             break;
           ++condition_end;
         }
@@ -718,7 +723,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
   }
   for (size_t i = 0; i < token_count; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || !is_clause_keyword(&tokens[i]))
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || !sequel_query_token_is_clause_keyword(&tokens[i]))
       continue;
     size_t statement_index = SIZE_MAX;
     for (size_t s = 0; s < document->statement_count; ++s)
@@ -746,7 +751,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t j = i + 1; j < token_count; ++j) {
       if (tokens[j].range.start >= end)
         break;
-      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[j])) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && sequel_query_token_is_clause_keyword(&tokens[j])) {
         size_t nested = 0;
         for (size_t previous = i + 1; previous < j; ++previous) {
           if (tokens[previous].range.end != tokens[previous].range.start + 1)
