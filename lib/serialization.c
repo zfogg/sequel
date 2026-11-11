@@ -4,8 +4,7 @@
 #include <sequel/serialization.h>
 #include <sequel/fingerprint.h>
 
-#define SEQUEL_DOCUMENT_SCHEMA_MAJOR 1u
-#define SEQUEL_DOCUMENT_SCHEMA_MINOR 2u
+enum { sequel_document_schema_major = 1u, sequel_document_schema_minor = 2u };
 
 struct sequel_document_bundle {
   sequel_syntax_document_t *syntax;
@@ -81,7 +80,7 @@ static int read_serialized_query_range(const uint8_t **cursor, size_t *remaining
 
 void sequel_serialization_options_init(sequel_serialization_options_t *options) {
   if (options)
-    *options = (sequel_serialization_options_t){{SEQUEL_DOCUMENT_SCHEMA_MAJOR, SEQUEL_DOCUMENT_SCHEMA_MINOR}};
+    *options = (sequel_serialization_options_t){{sequel_document_schema_major, sequel_document_schema_minor}};
 }
 
 void sequel_buffer_free(sequel_buffer_t *buffer) {
@@ -98,7 +97,7 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
   sequel_serialization_options_t defaults;
   sequel_serialization_options_init(&defaults);
   const sequel_serialization_options_t *settings = options ? options : &defaults;
-  if (settings->schema.major != SEQUEL_DOCUMENT_SCHEMA_MAJOR)
+  if (settings->schema.major != sequel_document_schema_major)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_buffer_free(out);
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
@@ -244,8 +243,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   for (size_t i = 0; i < 16; ++i)
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (header[0] != 0x31544451534c4553ull || header[1] != SEQUEL_DOCUMENT_SCHEMA_MAJOR ||
-      header[2] > SEQUEL_DOCUMENT_SCHEMA_MINOR || header[3] > SEQUEL_CLICKHOUSE ||
+  if (header[0] != 0x31544451534c4553ull || header[1] != sequel_document_schema_major ||
+      header[2] > sequel_document_schema_minor || header[3] > SEQUEL_CLICKHOUSE ||
       (options && (options->schema.major != header[1] || options->schema.minor < header[2])))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[4] != source->length)
