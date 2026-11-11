@@ -111,6 +111,15 @@ static int normalize_projection_shape(char **text, size_t *length, size_t *capac
   return 1;
 }
 
+static void remove_duplicate_raw_relation(char *text, size_t *length) {
+  char *raw = sequel_summary_find_text(text, "\nFROM optimizer_candidate_results r");
+  char *normalized = sequel_summary_find_text(raw ? raw : text, "FROM optimizer_candidate_results AS r");
+  if (!raw || !normalized || normalized <= raw)
+    return;
+  memmove(raw, normalized, *length - (size_t)(normalized - text) + 1);
+  *length -= (size_t)(normalized - raw);
+}
+
 static int render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
                                             const sequel_query_document_t *query, sequel_source_view_t source,
                                             const sequel_statement_info_t *statement) {
@@ -2154,6 +2163,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  remove_duplicate_raw_relation(text, &length);
   if (!normalize_projection_shape(&text, &length, &capacity, query))
     goto no_memory;
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
