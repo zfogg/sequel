@@ -4,6 +4,7 @@
 
 #include <sequel/formatter.h>
 
+#include "format_buffer.h"
 #include "tokens.h"
 
 void sequel_format_options_init(sequel_format_options_t *options) {
@@ -33,45 +34,6 @@ static sequel_status_t copy_source(sequel_source_view_t source, sequel_format_mo
   out->capacity = source.length + 1;
   out->mode = mode;
   return SEQUEL_OK;
-}
-
-static int append_text(char **data, size_t *length, size_t *capacity, const char *text, size_t amount) {
-  if (amount > SIZE_MAX - *length - 1)
-    return 0;
-  size_t required = *length + amount + 1;
-  if (required > *capacity) {
-    size_t next = *capacity ? *capacity : 64;
-    while (next < required) {
-      if (next > SIZE_MAX / 2)
-        return 0;
-      next *= 2;
-    }
-    char *grown = realloc(*data, next);
-    if (!grown)
-      return 0;
-    *data = grown;
-    *capacity = next;
-  }
-  memcpy(*data + *length, text, amount);
-  *length += amount;
-  (*data)[*length] = 0;
-  return 1;
-}
-
-static int append_space(char **data, size_t *length, size_t *capacity) {
-  return !*length || (*data)[*length - 1] == ' ' || (*data)[*length - 1] == '\n' ||
-         append_text(data, length, capacity, " ", 1);
-}
-
-static int append_line_start(char **data, size_t *length, size_t *capacity, size_t indent) {
-  while (*length && (*data)[*length - 1] == ' ')
-    --*length;
-  if (*length && (*data)[*length - 1] != '\n' && !append_text(data, length, capacity, "\n", 1))
-    return 0;
-  for (size_t i = 0; i < indent; ++i)
-    if (!append_text(data, length, capacity, "  ", 2))
-      return 0;
-  return 1;
 }
 
 static int is_word_token(sequel_token_kind_t kind) {
@@ -274,10 +236,10 @@ static int append_comment(char **data, size_t *length, size_t *capacity, sequel_
   if (inline_line_comment && *length && (*data)[*length - 1] == '\n')
     (*data)[--*length] = 0;
   if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT && !inline_line_comment
-           ? (*length && (*data)[*length - 1] != '\n' && !append_text(data, length, capacity, "\n", 1))
-           : !append_space(data, length, capacity)) ||
-      !append_text(data, length, capacity, source.data + token->range.start, token->range.end - token->range.start) ||
-      (token->kind == SEQUEL_TOKEN_LINE_COMMENT && !append_text(data, length, capacity, "\n", 1)))
+           ? (*length && (*data)[*length - 1] != '\n' && !sequel_format_append_text(data, length, capacity, "\n", 1))
+           : !sequel_format_append_space(data, length, capacity)) ||
+      !sequel_format_append_text(data, length, capacity, source.data + token->range.start, token->range.end - token->range.start) ||
+      (token->kind == SEQUEL_TOKEN_LINE_COMMENT && !sequel_format_append_text(data, length, capacity, "\n", 1)))
     return 0;
   return 1;
 }
@@ -365,7 +327,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       nested_query = true;
     bool case_boundary = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
     if (pending_clause_body && !upsert_on && !is_by_keyword(source, token)) {
-      if (!append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
+      if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
         goto no_memory;
       pending_clause_body = false;
     }
@@ -390,7 +352,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         indent = paren_depth + case_depth * 2;
       else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
         indent = paren_depth + case_depth * 2 - 1;
-      if (!append_line_start(&data, &length, &capacity, indent))
+      if (!sequel_format_append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
       if ((select_start && !distinct_on_group) ||
           (is_clause_header(token->keyword_id) && !upsert_on && !window_boundary))
@@ -411,7 +373,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
           (query_paren_depth == paren_depth + 1 || (nested_query && paren_depth == 0) ||
            (projection_subquery && paren_depth == 0)) &&
-          !append_line_start(&data, &length, &capacity, projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
+          !sequel_format_append_line_start(&data, &length, &capacity, projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
         goto no_memory;
       if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
@@ -422,12 +384,12 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (is_close_paren(source, token) && projection_subquery && paren_depth == 0)
         projection_subquery = false;
       if (is_close_paren(source, token) && window_paren && paren_depth == 0) {
-        if (length && data[length - 1] != '\n' && !append_line_start(&data, &length, &capacity, 1))
+        if (length && data[length - 1] != '\n' && !sequel_format_append_line_start(&data, &length, &capacity, 1))
           goto no_memory;
         window_paren = false;
       }
       if (is_close_paren(source, token) && case_function_count) {
-        if (length && data[length - 1] != '\n' && !append_line_start(&data, &length, &capacity, paren_depth + 1))
+        if (length && data[length - 1] != '\n' && !sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
           goto no_memory;
         --case_function_count;
       }
@@ -443,7 +405,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     }
     bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
     if (text_length && (text[0] == '>' || text[0] == '<' || text[0] == '=' || text[0] == '+' || text[0] == '-') &&
-        length && data[length - 1] != ' ' && data[length - 1] != '\n' && !append_space(&data, &length, &capacity))
+        length && data[length - 1] != ' ' && data[length - 1] != '\n' && !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (text_length == 1 && text[0] == '(' && previous == SEQUEL_TOKEN_KEYWORD &&
         !(previous_token && token_is_word(source, previous_token, "VALUES")))
@@ -480,25 +442,25 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       no_space_after_previous = true;
     if (is_operator_token(token) && !no_space_after_previous && !compact_json_operator(token, source, data, length) &&
         !cast_operator && !range_colon && length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
-        !append_space(&data, &length, &capacity))
+        !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
         !no_space_after_previous && (is_word_token(previous) || is_word_token(token->kind)) &&
         !(follows_closed_cte && previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ','))
-      if (!append_space(&data, &length, &capacity))
+      if (!sequel_format_append_space(&data, &length, &capacity))
         goto no_memory;
-    if (!append_text(&data, &length, &capacity, text, text_length))
+    if (!sequel_format_append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;
     if (punctuation && text_length == 1 && text[0] == '(' && previous_token &&
         token_is_word(source, previous_token, "OVER")) {
       window_paren = true;
-      if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
+      if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
     if (punctuation && text_length == 1 && text[0] == '(' &&
         has_case_before_matching_close(source, tokens, i, token_count)) {
       ++case_function_count;
-      if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
+      if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
     if (is_comma(source, token) && bracket_depth == 0 &&
@@ -508,10 +470,10 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
                                            clause != SEQUEL_KEYWORD_VALUES && !case_function_count))
                           ? 0
                           : paren_depth + 1;
-      if (!append_line_start(&data, &length, &capacity, indent))
+      if (!sequel_format_append_line_start(&data, &length, &capacity, indent))
         goto no_memory;
     }
-    if (is_semicolon(source, token) && !append_text(&data, &length, &capacity, "\n", 1))
+    if (is_semicolon(source, token) && !sequel_format_append_text(&data, &length, &capacity, "\n", 1))
       goto no_memory;
     previous = token->kind;
     previous_token = token;
