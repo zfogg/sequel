@@ -11,8 +11,8 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
-sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, const sequel_summary_options_t *options,
-                                       sequel_text_result_t *out) {
+sequel_status_t sequel_summary_render(const sequel_query_document_t *query, const sequel_summary_options_t *options,
+                                      sequel_text_result_t *out) {
   if (!query || !out)
     return SEQUEL_ERR_NULL;
   sequel_summary_options_t defaults;

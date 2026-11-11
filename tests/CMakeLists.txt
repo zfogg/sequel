@@ -90,6 +90,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/formatter.c
   ../lib/fingerprint.c
   ../lib/summary/render.c
+  ../lib/summary/entry.c
   ../lib/summary/special.c
   ../lib/summary/recovery.c
   ../lib/summary/normalize.c

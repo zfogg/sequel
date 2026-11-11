@@ -70,3 +70,6 @@ int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,
                                            size_t statement_count, const sequel_statement_info_t *statements);
+
+sequel_status_t sequel_summary_render(const sequel_query_document_t *query, const sequel_summary_options_t *options,
+                                      sequel_text_result_t *out);
