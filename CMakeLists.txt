@@ -11,6 +11,33 @@ endif()
 project(sequel VERSION 0.2.0 LANGUAGES C CXX)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+# Keep Clang's Windows AddressSanitizer runtime beside local sanitizer builds.
+if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND
+   CMAKE_C_FLAGS MATCHES "(^| )-fsanitize=address( |$)")
+  execute_process(
+    COMMAND "${CMAKE_C_COMPILER}" -print-file-name=clang_rt.asan_dynamic-x86_64.dll
+    OUTPUT_VARIABLE SEQUEL_ASAN_RUNTIME
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  if(NOT EXISTS "${SEQUEL_ASAN_RUNTIME}")
+    execute_process(
+      COMMAND "${CMAKE_C_COMPILER}" -print-file-name=clang_rt.asan_dynamic-i386.dll
+      OUTPUT_VARIABLE SEQUEL_ASAN_RUNTIME
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET)
+  endif()
+  if(NOT EXISTS "${SEQUEL_ASAN_RUNTIME}")
+    message(FATAL_ERROR "Could not locate the Clang AddressSanitizer runtime")
+  endif()
+
+  function(sequel_copy_asan_runtime target)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "${SEQUEL_ASAN_RUNTIME}" "$<TARGET_FILE_DIR:${target}>"
+      VERBATIM)
+  endfunction()
+endif()
 option(SEQUEL_BUILD_DOCS "Enable API documentation and publication targets" OFF)
 if(SEQUEL_BUILD_DOCS)
   include(docs/targets.cmake)
@@ -85,6 +112,9 @@ if(SEQUEL_BUILD_CLI)
   endif()
   if(SEQUEL_STATIC_CLI AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_options(sequel-cli PRIVATE -static)
+  endif()
+  if(COMMAND sequel_copy_asan_runtime)
+    sequel_copy_asan_runtime(sequel-cli)
   endif()
   install(TARGETS sequel-cli RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
