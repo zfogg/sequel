@@ -242,6 +242,48 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
+sequel_status_t sequel_collect_document_diagnostics(const sequel_lexed_document_t *lexed,
+                                                    const sequel_syntax_document_t *syntax,
+                                                    const sequel_query_document_t *query,
+                                                    sequel_diagnostic_list_t *diagnostics) {
+  if (!diagnostics)
+    return SEQUEL_ERR_NULL;
+  sequel_diagnostic_list_free(diagnostics);
+  sequel_diagnostic_list_t current = {0};
+  sequel_status_t status = SEQUEL_OK;
+  if (lexed)
+    status = sequel_collect_lexical_diagnostics(lexed, &current);
+  if (status == SEQUEL_OK) {
+    sequel_diagnostic_list_t stage = {0};
+    if (syntax)
+      status = sequel_collect_syntax_diagnostics(syntax, &stage);
+    if (status == SEQUEL_OK) {
+      for (size_t i = 0; i < stage.count; ++i)
+        if (!sequel_diagnostic_list_append(&current, stage.records[i]))
+          status = SEQUEL_ERR_NOMEM;
+    }
+    sequel_diagnostic_list_free(&stage);
+  }
+  if (status == SEQUEL_OK) {
+    sequel_diagnostic_list_t stage = {0};
+    if (query)
+      status = sequel_collect_query_diagnostics(query, &stage);
+    if (status == SEQUEL_OK) {
+      for (size_t i = 0; i < stage.count; ++i)
+        if (!sequel_diagnostic_list_append(&current, stage.records[i]))
+          status = SEQUEL_ERR_NOMEM;
+    }
+    sequel_diagnostic_list_free(&stage);
+  }
+  if (status != SEQUEL_OK) {
+    sequel_diagnostic_list_free(&current);
+    return status;
+  }
+  *diagnostics = current;
+  sequel_diagnostic_list_sort(diagnostics);
+  return SEQUEL_OK;
+}
+
 static sequel_status_t collect_query_diagnostics_by_origin(const sequel_query_document_t *query,
                                                            sequel_diagnostic_origin_t origin,
                                                            sequel_diagnostic_list_t *diagnostics) {

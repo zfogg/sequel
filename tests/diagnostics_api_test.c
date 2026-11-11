@@ -32,6 +32,15 @@ int main(void) {
   CHECK(sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics) == SEQUEL_OK);
   CHECK(syntax_diagnostics.count >= 1 && syntax_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_SYNTAX);
   sequel_diagnostic_list_free(&syntax_diagnostics);
+  sequel_query_document_t *query = NULL;
+  CHECK(sequel_build_query_document(syntax, &parse_options, &query) == SEQUEL_OK && query);
+  sequel_diagnostic_list_t all_diagnostics = {0};
+  CHECK(sequel_collect_document_diagnostics(sequel_syntax_lexed(syntax), syntax, query, &all_diagnostics) == SEQUEL_OK);
+  CHECK(all_diagnostics.count >= 1);
+  for (size_t i = 1; i < all_diagnostics.count; ++i)
+    CHECK(all_diagnostics.records[i - 1].range.start <= all_diagnostics.records[i].range.start);
+  sequel_diagnostic_list_free(&all_diagnostics);
+  sequel_query_document_free(query);
   sequel_diagnostic_list_t portability_diagnostics = {0};
   CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK);
   CHECK(portability_diagnostics.count == 0);

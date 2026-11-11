@@ -146,3 +146,9 @@ sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_docum
 /** Collect every recoverable syntax issue from a parsed document. */
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
                                                   sequel_diagnostic_list_t *diagnostics);
+
+/** Collect lexical, syntax, semantic, and policy diagnostics into one sorted list. */
+sequel_status_t sequel_collect_document_diagnostics(const sequel_lexed_document_t *lexed,
+                                                    const sequel_syntax_document_t *syntax,
+                                                    const sequel_query_document_t *query,
+                                                    sequel_diagnostic_list_t *diagnostics);
