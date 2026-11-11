@@ -624,19 +624,18 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
       code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
       break;
     }
-    sequel_diagnostic_record_t record = {
-        .origin = SEQUEL_DIAGNOSTIC_SYNTAX,
-        .code = code,
-        .severity = issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
-                            issues[i].code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN
-                        ? SEQUEL_ERROR
-                        : SEQUEL_WARNING,
-        .range = issues[i].range,
-        .statement_index = issues[i].statement_index,
-        .syntax_node = SIZE_MAX,
-        .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
-                      issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
-        .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_SYNTAX,
+                                         .code = code,
+                                         .severity = issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
+                                                             issues[i].code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN
+                                                         ? SEQUEL_ERROR
+                                                         : SEQUEL_WARNING,
+                                         .range = issues[i].range,
+                                         .statement_index = issues[i].statement_index,
+                                         .syntax_node = SIZE_MAX,
+                                         .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
+                                                       issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
+                                         .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
     snprintf(record.message, sizeof(record.message), "%s", sequel_diagnostic_code_name(code));
     if (!sequel_diagnostic_list_append(diagnostics, record))
       goto no_memory;
