@@ -1,6 +1,8 @@
 /* Policy diagnostics consume the shared token view; they do not rescan SQL text. */
-static void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_token *ts, size_t count,
-                                             sequel_dialect_t dialect, sequel_analysis_t *out) {
+#include "analysis_internal.h"
+
+void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_token *ts, size_t count,
+                                      sequel_dialect_t dialect, sequel_analysis_t *out) {
   (void)sql;
   if (out->statement_count > 1)
     analysis_add_diagnostic(out, SEQUEL_DIAG_MULTIPLE_STATEMENTS, out->statements[1].offset,

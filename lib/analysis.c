@@ -132,11 +132,6 @@ bool boundary(token t) {
 }
 
 typedef struct {
-  char *p;
-  size_t n, capacity;
-} analysis_text;
-
-typedef struct {
   sequel_map_segment_t *p;
   size_t n, capacity;
 } analysis_map;
@@ -249,10 +244,6 @@ static void analysis_segment(analysis_map *b, size_t fs, size_t fe, size_t ts, s
   b->p[b->n++] = (sequel_map_segment_t){fs, fe, ts, te, kind};
 }
 
-#include "analysis_literal.c"
-
-#include "analysis_binding_token.c"
-
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish
  * SQLite binding namespaces; fingerprint frames exclude those spellings. */
 static uint64_t analysis_key_hash(const char *p, size_t n) {
@@ -334,7 +325,7 @@ static void analysis_dictionary_clear(analysis_bindings *b) {
   *b = (analysis_bindings){0};
 }
 
-static void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
+void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
   size_t count = out->diagnostic_count;
   sequel_output_tick(sizeof(sequel_diagnostic_t));
   sequel_diagnostic_t *ds = analysis_array((void *)out->diagnostics, count + 1, sizeof(*ds));
@@ -418,9 +409,7 @@ static void analysis_positions(const char *sql, sequel_analysis_t *out) {
   }
 }
 
-#include "analysis_text.c"
-
-static bool analysis_word(format_token t, const char *word) {
+bool analysis_word(format_token t, const char *word) {
   size_t n = strlen(word);
   if (t.kind != 1 || t.t.n != n)
     return false;
@@ -429,8 +418,6 @@ static bool analysis_word(format_token t, const char *word) {
       return false;
   return true;
 }
-
-#include "analysis_policy.c"
 
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */

@@ -1,6 +1,8 @@
 /* Classify one source token as a canonical binding marker. */
-static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char **key, size_t *length, size_t *number,
-                                sequel_bind_style_t *style) {
+#include "analysis_internal.h"
+
+bool analysis_bind_token(format_token t, sequel_dialect_t d, const char **key, size_t *length, size_t *number,
+                         sequel_bind_style_t *style) {
   const char *p = t.t.p;
   size_t n = t.t.n;
   *key = p;
