@@ -100,6 +100,28 @@ static size_t statement_for_range(const sequel_query_document_t *document, seque
   return SIZE_MAX;
 }
 
+static bool is_expression_kind(sequel_syntax_kind_t kind) {
+  return kind >= SEQUEL_SYNTAX_IDENTIFIER && kind <= SEQUEL_SYNTAX_GROUP;
+}
+
+static size_t expression_node_for_range(const sequel_syntax_document_t *syntax, sequel_source_range_t range) {
+  size_t count = 0;
+  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &count);
+  size_t best = SIZE_MAX;
+  size_t best_width = SIZE_MAX;
+  for (size_t i = 0; i < count; ++i) {
+    if (!is_expression_kind(nodes[i].kind) ||
+        (!sequel_source_range_contains(range, nodes[i].range) && !sequel_source_range_contains(nodes[i].range, range)))
+      continue;
+    size_t width = nodes[i].range.end - nodes[i].range.start;
+    if (width < best_width) {
+      best = i;
+      best_width = width;
+    }
+  }
+  return best;
+}
+
 static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *number) {
   *number = 0;
   if (!length)
@@ -611,6 +633,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             .wildcard = last_token == first_token + 1 && tokens[first_token].kind == SEQUEL_TOKEN_OPERATOR &&
                         source.data[tokens[first_token].range.start] == '*',
             .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
+        projection.expression_node = expression_node_for_range(document->syntax, projection.range);
         if (!append((void **)&document->projections, &document->projection_count, sizeof(projection), &projection)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
@@ -643,6 +666,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             .normalized_hash = range_hash(&source, (sequel_source_range_t){tokens[predicate_start].range.start,
                                                                            tokens[predicate_end - 1].range.end}),
             .depth = 0};
+        predicate.expression_node = expression_node_for_range(document->syntax, predicate.range);
         if (!append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;

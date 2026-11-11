@@ -316,6 +316,11 @@ int main(void) {
                  sequel_query_clauses(query)[0].range.start < sequel_query_clauses(query)[0].range.end,
              "query retains clause ranges"))
     return 1;
+  if (!check(
+          sequel_query_projection_count(query) > 0 && sequel_query_projections(query)[0].expression_node != SIZE_MAX &&
+              sequel_query_predicate_count(query) > 0 && sequel_query_predicates(query)[0].expression_node != SIZE_MAX,
+          "query links expression nodes"))
+    return 1;
   sequel_diagnostic_list_t query_diagnostics = {0};
   if (!check(sequel_collect_query_diagnostics(query, &query_diagnostics) == SEQUEL_OK, "query diagnostic collection"))
     return 1;
