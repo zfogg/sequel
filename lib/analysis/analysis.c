@@ -789,27 +789,3 @@ sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t 
     out->work_units += n;
   return status;
 }
-
-sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, char out[96]) {
-  if (!out)
-    return SEQUEL_ERR_NULL;
-  out[0] = 0;
-  if (sql) {
-    const char *cursor = sql;
-    while (*cursor && isspace((unsigned char)*cursor))
-      ++cursor;
-    if (!*cursor || (cursor[0] == '-' && cursor[1] == '-') || (cursor[0] == '/' && cursor[1] == '*'))
-      return SEQUEL_OK;
-  }
-  sequel_analysis_options_t o = {0};
-  o.dialect = dialect;
-  o.omit_query_text = true;
-  o.omit_source_maps = true;
-  o.omit_bind_descriptors = true;
-  sequel_analysis_t a;
-  sequel_status_t status = sequel_analyze(sql, &o, &a);
-  if (status == SEQUEL_OK)
-    memcpy(out, a.fingerprint, sizeof(a.fingerprint));
-  sequel_analysis_free(&a);
-  return status;
-}

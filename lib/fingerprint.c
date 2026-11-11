@@ -1,7 +1,33 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
+#include <sequel.h>
 #include <sequel/fingerprint.h>
+
+sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, char out[96]) {
+  if (!out)
+    return SEQUEL_ERR_NULL;
+  out[0] = 0;
+  if (sql) {
+    const char *cursor = sql;
+    while (*cursor && isspace((unsigned char)*cursor))
+      ++cursor;
+    if (!*cursor || (cursor[0] == '-' && cursor[1] == '-') || (cursor[0] == '/' && cursor[1] == '*'))
+      return SEQUEL_OK;
+  }
+  sequel_analysis_options_t options = {0};
+  options.dialect = dialect;
+  options.omit_query_text = true;
+  options.omit_source_maps = true;
+  options.omit_bind_descriptors = true;
+  sequel_analysis_t analysis;
+  sequel_status_t status = sequel_analyze(sql, &options, &analysis);
+  if (status == SEQUEL_OK)
+    memcpy(out, analysis.fingerprint, sizeof(analysis.fingerprint));
+  sequel_analysis_free(&analysis);
+  return status;
+}
 
 static void hash_bytes(uint64_t *hash, const void *data, size_t length) {
   const unsigned char *bytes = data;
