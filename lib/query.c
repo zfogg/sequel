@@ -469,9 +469,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             break;
         }
         if (close < token_count) {
-          size_t body_start = tokens[cursor].range.end;
-          size_t body_end = tokens[close].range.start;
-          lateral_subquery = sequel_text_find(source.data + body_start, body_end - body_start, " OR ") != NULL;
+          /* Parenthesized LATERAL relations are subquery relations regardless
+           * of the predicates present in their body.  Using a predicate as a
+           * proxy misclassified aggregate-only lateral queries as tables and
+           * left their closing tokens to the summary renderer. */
+          lateral_subquery = true;
           if (lateral_subquery) {
             end = tokens[close].range.end;
             cursor = close + 1;
