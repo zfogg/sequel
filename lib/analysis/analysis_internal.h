@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <sequel/analysis.h>
+#include <sequel.h>
 #include <sequel/binds.h>
 #include <sequel/diagnostics.h>
 #include <sequel/dialect.h>

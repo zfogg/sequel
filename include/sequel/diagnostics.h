@@ -47,6 +47,23 @@ typedef enum {
 
 typedef enum { SEQUEL_NOTE, SEQUEL_WARNING, SEQUEL_ERROR } sequel_severity_t;
 
+/** Legacy fixed diagnostic record retained while callers migrate to lists. */
+typedef struct sequel_diagnostic {
+  sequel_diagnostic_code_t code;
+  sequel_severity_t severity;
+  size_t offset;
+  size_t end_offset;
+  size_t line;
+  size_t column;
+  size_t end_line;
+  size_t end_column;
+  bool incomplete;
+  bool statement_complete;
+  char message[128];
+  char explanation[384];
+  char hint[256];
+} sequel_diagnostic_t;
+
 /** Layer that produced a structured diagnostic. */
 typedef enum {
   SEQUEL_DIAGNOSTIC_LEXICAL = 0,

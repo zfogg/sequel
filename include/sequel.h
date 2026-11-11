@@ -32,15 +32,6 @@ extern "C" {
 #endif
 
 /** Source range, completion state and explanations for a lexical/delimiter issue. */
-typedef struct {
-  sequel_diagnostic_code_t code;
-  sequel_severity_t severity;
-  size_t offset, end_offset;                 /** zero-based UTF-8 bytes, end exclusive */
-  size_t line, column, end_line, end_column; /** one-based Unicode scalar columns */
-  bool incomplete, statement_complete;
-  char message[128], explanation[384], hint[256];
-} sequel_diagnostic_t;
-
 /** Return a stable lowercase code name, or NULL for an unknown code. */
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
 
