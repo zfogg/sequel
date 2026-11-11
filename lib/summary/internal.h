@@ -71,6 +71,9 @@ int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capa
 int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out);
 int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *capacity);
 
+int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                          const char *keyword, const char *replacement);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,

@@ -114,6 +114,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/postprocess.c
   ../lib/summary/statement.c
   ../lib/summary/subquery.c
+  ../lib/summary/repair.c
   ../lib/sanitizer.c
   )
 

@@ -45,6 +45,7 @@ setup(
                 "lib/formatter.c",
                 "lib/fingerprint.c",
                 "lib/summary/render.c",
+                "lib/summary/repair.c",
                 "lib/summary/recovery.c",
                 "lib/summary/buffer.c",
                 "lib/summary/options.c",
