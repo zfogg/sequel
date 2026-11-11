@@ -12,6 +12,7 @@ char *sequel_summary_find_text(const char *source, const char *needle);
 int sequel_summary_word(const char *source, size_t length, size_t offset, const char *word);
 const char *sequel_summary_find_word(const char *source, size_t length, size_t offset, const char *word);
 size_t sequel_summary_skip_space(const char *source, size_t length, size_t offset);
+bool sequel_summary_cursor_is_quoted_identifier(const sequel_query_document_t *query, size_t cursor);
 const char *sequel_summary_operation_name(sequel_operation_t operation);
 int sequel_summary_append_redacted_clause(char **text, size_t *length, size_t *capacity);
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,

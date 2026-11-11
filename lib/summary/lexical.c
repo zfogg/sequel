@@ -44,3 +44,19 @@ size_t sequel_summary_skip_space(const char *source, size_t length, size_t offse
     ++offset;
   return offset;
 }
+
+bool sequel_summary_cursor_is_quoted_identifier(const sequel_query_document_t *query, size_t cursor) {
+  if (!query)
+    return false;
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), &token_count);
+  sequel_source_view_t source = sequel_query_source(query);
+  for (size_t i = 0; i < token_count; ++i)
+    if ((tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ||
+         (tokens[i].range.start < source.length &&
+          (source.data[tokens[i].range.start] == '"' || source.data[tokens[i].range.start] == '`' ||
+           source.data[tokens[i].range.start] == '['))) &&
+        tokens[i].range.start <= cursor && cursor < tokens[i].range.end)
+      return true;
+  return false;
+}

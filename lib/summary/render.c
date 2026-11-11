@@ -8,20 +8,6 @@
 
 #include "internal.h"
 
-static bool summary_cursor_is_quoted_identifier(const sequel_query_document_t *query, size_t cursor) {
-  size_t token_count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), &token_count);
-  sequel_source_view_t source = sequel_query_source(query);
-  for (size_t i = 0; i < token_count; ++i)
-    if ((tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ||
-         (tokens[i].range.start < source.length &&
-          (source.data[tokens[i].range.start] == '"' || source.data[tokens[i].range.start] == '`' ||
-           source.data[tokens[i].range.start] == '['))) &&
-        tokens[i].range.start <= cursor && cursor < tokens[i].range.end)
-      return true;
-  return false;
-}
-
 static const char summary_ellipsis[] = "\342\200\246";
 
 static int normalize_insert_clause_order(char **text, size_t *length, size_t *capacity) {
@@ -1005,43 +991,43 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           size_t context_start = i ? relations[i - 1].range.end : 0;
           for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor) {
             if (sequel_summary_word(source.data, source.length, cursor, "ASOF") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = " ASOF LEFT JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "CROSS") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = cursor + 18 <= source.length && !memcmp(source.data + cursor, "CROSS JOIN LATERAL", 18)
                            ? " CROSS JOIN LATERAL "
                            : " CROSS JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "LEFT") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "LEFT OUTER", 10)
                            ? " LEFT OUTER JOIN "
                            : " LEFT JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "RIGHT") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = " RIGHT JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "FULL") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "FULL OUTER", 10)
                            ? " FULL OUTER JOIN "
                            : " FULL JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "INNER") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = " INNER JOIN ";
               break;
             }
             if (sequel_summary_word(source.data, source.length, cursor, "NATURAL") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = cursor + 12 <= source.length && !memcmp(source.data + cursor, "NATURAL LEFT", 12)
                            ? " NATURAL LEFT JOIN "
                            : " NATURAL JOIN ";
@@ -1055,7 +1041,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             prefix = " FROM ";
           for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor)
             if (sequel_summary_word(source.data, source.length, cursor, "JOIN") &&
-                !summary_cursor_is_quoted_identifier(query, cursor)) {
+                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
               prefix = " JOIN ";
               break;
             }
