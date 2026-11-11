@@ -5,7 +5,7 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
-static size_t summary_matching_parenthesis(const char *source, size_t end, size_t open) {
+static size_t sequel_summary_matching_parenthesis(const char *source, size_t end, size_t open) {
   size_t depth = 0;
   for (size_t cursor = open; cursor < end; ++cursor) {
     if (source[cursor] == '(')
@@ -24,7 +24,7 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
     ++open;
   if (open >= end || source[open] != '(')
     return 1;
-  size_t close = summary_matching_parenthesis(source, end, open);
+  size_t close = sequel_summary_matching_parenthesis(source, end, open);
   const char *select_match = sequel_summary_find_word(source, close, open + 1, "SELECT");
   size_t select = select_match ? (size_t)(select_match - source) : close;
   if (select >= close)

@@ -186,7 +186,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
   }
 }
 
-static void normalize_function_arguments(char *text, size_t *length) {
+static void sequel_summary_normalize_function_arguments(char *text, size_t *length) {
   for (char *function = text; function;) {
     function = sequel_summary_find_text(function, "argMax(");
     if (!function)
@@ -206,7 +206,7 @@ static void normalize_function_arguments(char *text, size_t *length) {
   }
 }
 
-static void collapse_adjacent_ellipsis(char *text, size_t *length) {
+static void sequel_summary_collapse_adjacent_ellipsis(char *text, size_t *length) {
   const char pair[] = "… …";
   const size_t pair_length = sizeof(pair) - 1;
   const size_t one_length = sizeof("…") - 1;
@@ -216,7 +216,7 @@ static void collapse_adjacent_ellipsis(char *text, size_t *length) {
   }
 }
 
-static void collapse_duplicate_relation(char *text, size_t *length) {
+static void sequel_summary_collapse_duplicate_relation(char *text, size_t *length) {
   char *first = sequel_summary_find_text(text, "FROM ");
   if (!first)
     return;
@@ -248,9 +248,9 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
         memmove(match + width, match + width + 1, strlen(match + width + 1) + 1), --*length;
     }
   }
-  collapse_duplicate_relation(text, length);
-  collapse_adjacent_ellipsis(text, length);
-  normalize_function_arguments(text, length);
+  sequel_summary_collapse_duplicate_relation(text, length);
+  sequel_summary_collapse_adjacent_ellipsis(text, length);
+  sequel_summary_normalize_function_arguments(text, length);
   char *projection = sequel_summary_find_text(text, "SELECT ");
   if (!projection)
     return;
