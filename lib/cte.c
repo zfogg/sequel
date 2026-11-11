@@ -3,15 +3,7 @@
 #include <sequel/query.h>
 
 #include "model.h"
-
-static int trivia(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
-         token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
-
-static int identifier(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
-}
+#include "tokens.h"
 
 sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens,
                                         size_t token_count, const sequel_source_view_t *source) {
@@ -19,18 +11,18 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
       continue;
     size_t cursor = i + 1;
-    while (cursor < token_count && trivia(&tokens[cursor]))
+    while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
       ++cursor;
     if (cursor < token_count && tokens[cursor].range.end - tokens[cursor].range.start == 9 &&
         sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 9, "RECURSIVE"))
       ++cursor;
     for (;;) {
-      while (cursor < token_count && trivia(&tokens[cursor]))
+      while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor >= token_count || !identifier(&tokens[cursor]))
+      if (cursor >= token_count || !sequel_token_is_identifier(&tokens[cursor]))
         break;
       size_t name = cursor++;
-      while (cursor < token_count && trivia(&tokens[cursor]))
+      while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
       if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
           source->data[tokens[cursor].range.start] == '(') {
@@ -45,28 +37,28 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
           }
           ++cursor;
         } while (cursor < token_count && depth);
-        while (cursor < token_count && trivia(&tokens[cursor]))
+        while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
           ++cursor;
       }
       if (cursor >= token_count || tokens[cursor].range.end - tokens[cursor].range.start != 2 ||
           !sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 2, "AS"))
         break;
       ++cursor;
-      while (cursor < token_count && trivia(&tokens[cursor]))
+      while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor < token_count && identifier(&tokens[cursor])) {
+      if (cursor < token_count && sequel_token_is_identifier(&tokens[cursor])) {
         size_t modifier = tokens[cursor].range.end - tokens[cursor].range.start;
         if ((modifier == 12 &&
              sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED")) ||
             (modifier == 3 && sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 3, "NOT"))) {
           ++cursor;
-          while (cursor < token_count && trivia(&tokens[cursor]))
+          while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
             ++cursor;
-          if (modifier == 3 && cursor < token_count && identifier(&tokens[cursor]) &&
+          if (modifier == 3 && cursor < token_count && sequel_token_is_identifier(&tokens[cursor]) &&
               tokens[cursor].range.end - tokens[cursor].range.start == 12 &&
               sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED"))
             ++cursor;
-          while (cursor < token_count && trivia(&tokens[cursor]))
+          while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
             ++cursor;
         }
       }
@@ -93,7 +85,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
                                .syntax_node = SIZE_MAX};
       if (!sequel_query_array_append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte))
         return SEQUEL_ERR_NOMEM;
-      while (cursor < token_count && trivia(&tokens[cursor]))
+      while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
       if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
           source->data[tokens[cursor].range.start] != ',')
