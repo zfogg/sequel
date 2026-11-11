@@ -84,6 +84,17 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
       (!sequel_summary_append_text(text, length, capacity, " WHERE ") ||
        !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
     return 0;
+  const char *offset_match = sequel_summary_find_word(source, close, cursor, "OFFSET");
+  if (offset_match) {
+    size_t offset = (size_t)(offset_match - source);
+    size_t value = sequel_summary_skip_space(source, close, offset + strlen("OFFSET"));
+    size_t value_end = value;
+    while (value_end < close && !isspace((unsigned char)source[value_end]) && source[value_end] != ')')
+      ++value_end;
+    if (!sequel_summary_append_text(text, length, capacity, " OFFSET ") ||
+        !sequel_summary_append_bytes(text, length, capacity, source + value, value_end - value))
+      return 0;
+  }
   return sequel_summary_append_text(text, length, capacity, ")");
 }
 

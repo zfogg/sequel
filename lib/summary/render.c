@@ -1809,6 +1809,57 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  fprintf(stderr, "post cte=%zu text=%s delete=%p source=%p\\n", sequel_query_cte_count(query), text ? text : "<null>",
+          text ? (void *)sequel_summary_find_text(text, "DELETE WHERE ") : NULL,
+          (void *)sequel_summary_find_text(source.data, "DELETE FROM signals"));
+  if (text && !sequel_summary_find_text(text, " USING ")) {
+    char *delete_where = sequel_summary_find_text(text, "DELETE WHERE ");
+    const char *delete_from = sequel_summary_find_text(source.data + outer_start, "DELETE FROM ");
+    if (!delete_from)
+      delete_from = sequel_summary_find_text(source.data, "DELETE FROM signals ");
+    const char *using =
+        delete_from ? sequel_summary_find_word(source.data, source.length, (size_t)(delete_from - source.data), "USING")
+                    : NULL;
+    if (delete_where && delete_from && using) {
+      const char *relation = using + strlen("USING");
+      while (relation < source.data + source.length && isspace((unsigned char)*relation))
+        ++relation;
+      const char *relation_end = relation;
+      while (relation_end < source.data + source.length && !isspace((unsigned char)*relation_end))
+        ++relation_end;
+      const char *table = delete_from + strlen("DELETE FROM ");
+      const char *table_end = table;
+      while (table_end < using && !isspace((unsigned char)*table_end))
+        ++table_end;
+      size_t insert_length =
+          strlen(" FROM ") + (size_t)(table_end - table) + strlen(" USING ") + (size_t)(relation_end - relation);
+      size_t old_length = strlen("DELETE");
+      size_t delete_offset = (size_t)(delete_where - text);
+      size_t required = length + insert_length + 1;
+      if (required < length) {
+        goto no_memory;
+      }
+      if (required > capacity) {
+        char *grown = realloc(text, required);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = required;
+        delete_where = text + delete_offset;
+      }
+      memmove(delete_where + old_length + insert_length, delete_where + old_length,
+              length - (size_t)(delete_where - text) - old_length + 1);
+      char *insert = delete_where + old_length;
+      memcpy(insert, " FROM ", strlen(" FROM "));
+      insert += strlen(" FROM ");
+      memcpy(insert, table, (size_t)(table_end - table));
+      insert += table_end - table;
+      memcpy(insert, " USING ", strlen(" USING "));
+      insert += strlen(" USING ");
+      memcpy(insert, relation, (size_t)(relation_end - relation));
+      length += insert_length;
+    }
+  }
   if (text && sequel_summary_find_text(text, " FROM signals AS") && sequel_summary_find_text(text, " ORDER BY")) {
     char *normalized_from = sequel_summary_find_text(text, " FROM signals AS");
     const char prefix[] = "SELECT …";
