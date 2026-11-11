@@ -757,6 +757,7 @@ int main(void) {
                  sequel_query_relation_count(lateral_query) >= 2 && sequel_query_join_count(lateral_query) >= 1 &&
                  sequel_query_joins(lateral_query)[0].kind == SEQUEL_JOIN_LATERAL &&
                  sequel_query_joins(lateral_query)[0].has_condition &&
+                 sequel_query_joins(lateral_query)[0].condition_node != SIZE_MAX &&
                  sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
                  strstr(lateral_summary.data, "JOIN LATERAL") != NULL && strstr(lateral_summary.data, " ON ?") != NULL,
              "lateral relation summary"))
@@ -776,6 +777,7 @@ int main(void) {
                    sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
                    sequel_query_join_count(quoted_join_query) == 1 &&
                    sequel_query_joins(quoted_join_query)[0].has_condition &&
+                   sequel_query_joins(quoted_join_query)[0].condition_node != SIZE_MAX &&
                    sequel_summarize_query(quoted_join_query, NULL, &quoted_join_summary) == SEQUEL_OK &&
                    strstr(quoted_join_summary.data, " ON ") != NULL,
                "quoted alias join summary"))

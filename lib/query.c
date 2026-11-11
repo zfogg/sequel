@@ -930,6 +930,22 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t j = i + 1; j < token_count && tokens[j].range.start < join_end; ++j) {
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
+        size_t condition_start = j + 1;
+        while (condition_start < token_count && is_trivia(&tokens[condition_start]))
+          ++condition_start;
+        size_t condition_end = condition_start;
+        while (condition_end < token_count && tokens[condition_end].range.start < join_end) {
+          if (condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
+              is_clause_keyword(&tokens[condition_end]))
+            break;
+          ++condition_end;
+        }
+        while (condition_end > condition_start && is_trivia(&tokens[condition_end - 1]))
+          --condition_end;
+        if (condition_start < condition_end)
+          join.condition_node =
+              expression_node_for_range(document->syntax, (sequel_source_range_t){tokens[condition_start].range.start,
+                                                                                  tokens[condition_end - 1].range.end});
         break;
       }
     }
