@@ -49,6 +49,10 @@ int sequel_token_is_symbol(sequel_source_view_t source, const sequel_token_t *to
          source.data[token->range.start] == symbol;
 }
 
+int sequel_token_is_single_punctuation(const sequel_token_t *token) {
+  return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1;
+}
+
 size_t sequel_token_next_significant(const sequel_token_t *tokens, size_t count, size_t index) {
   while (index < count && sequel_token_is_trivia(&tokens[index]))
     ++index;

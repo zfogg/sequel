@@ -47,10 +47,6 @@ static int is_comment_token(sequel_token_kind_t kind) {
   return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT;
 }
 
-static int is_single_char_punctuation(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1;
-}
-
 static const char *token_text(sequel_source_view_t source, const sequel_token_t *token, size_t *length) {
   *length = token->range.end - token->range.start;
   return source.data + token->range.start;
@@ -107,7 +103,7 @@ static int has_case_before_matching_close(sequel_source_view_t source, const seq
     const sequel_token_t *token = &tokens[i];
     if (token->keyword_id == SEQUEL_KEYWORD_CASE)
       return 1;
-    if (!is_single_char_punctuation(token))
+    if (!sequel_token_is_single_punctuation(token))
       continue;
     char symbol = source.data[token->range.start];
     if (symbol == '(')
@@ -171,19 +167,19 @@ static int has_valid_range(const sequel_token_t *token, size_t source_length) {
 }
 
 static int is_open_paren(const sequel_source_view_t source, const sequel_token_t *token) {
-  return is_single_char_punctuation(token) && source.data[token->range.start] == '(';
+  return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == '(';
 }
 
 static int is_close_paren(const sequel_source_view_t source, const sequel_token_t *token) {
-  return is_single_char_punctuation(token) && source.data[token->range.start] == ')';
+  return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ')';
 }
 
 static int is_comma(const sequel_source_view_t source, const sequel_token_t *token) {
-  return is_single_char_punctuation(token) && source.data[token->range.start] == ',';
+  return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ',';
 }
 
 static int is_semicolon(const sequel_source_view_t source, const sequel_token_t *token) {
-  return is_single_char_punctuation(token) && source.data[token->range.start] == ';';
+  return sequel_token_is_single_punctuation(token) && source.data[token->range.start] == ';';
 }
 
 static int is_cast_operator(const char *text, size_t length) { return length == 2 && text[0] == ':' && text[1] == ':'; }
@@ -207,7 +203,7 @@ static int is_clause_header(uint32_t keyword) {
 }
 
 static void update_parenthesis_depth(const sequel_source_view_t source, const sequel_token_t *token, size_t *depth) {
-  if (!is_single_char_punctuation(token))
+  if (!sequel_token_is_single_punctuation(token))
     return;
   char symbol = source.data[token->range.start];
   if (symbol == '(')
@@ -225,7 +221,8 @@ static int append_comment(char **data, size_t *length, size_t *capacity, sequel_
   if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT && !inline_line_comment
            ? (*length && (*data)[*length - 1] != '\n' && !sequel_format_append_text(data, length, capacity, "\n", 1))
            : !sequel_format_append_space(data, length, capacity)) ||
-      !sequel_format_append_text(data, length, capacity, source.data + token->range.start, token->range.end - token->range.start) ||
+      !sequel_format_append_text(data, length, capacity, source.data + token->range.start,
+                                 token->range.end - token->range.start) ||
       (token->kind == SEQUEL_TOKEN_LINE_COMMENT && !sequel_format_append_text(data, length, capacity, "\n", 1)))
     return 0;
   return 1;
@@ -290,7 +287,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           token_is_word(source, previous_token, "DISTINCT")) &&
         !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
-    bool condition_operator = sequel_format_is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
+    bool condition_operator =
+        sequel_format_is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
     if (keyword && token->keyword_id == SEQUEL_KEYWORD_BETWEEN)
       between_pending = true;
     else if (keyword && token->keyword_id == SEQUEL_KEYWORD_AND && between_pending)
@@ -306,7 +304,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
                              previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
                              previous_token->keyword_id == SEQUEL_KEYWORD_THEN;
     bool function_case_start = keyword && token->keyword_id == SEQUEL_KEYWORD_CASE && previous_token &&
-                               is_single_char_punctuation(previous_token) &&
+                               sequel_token_is_single_punctuation(previous_token) &&
                                source.data[previous_token->range.start] == '(' && paren_depth > 0;
     if (select_start && paren_depth)
       query_paren_depth = paren_depth;
@@ -345,7 +343,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           (is_clause_header(token->keyword_id) && !upsert_on && !window_boundary))
         pending_clause_body = true;
     }
-    if (is_single_char_punctuation(token)) {
+    if (sequel_token_is_single_punctuation(token)) {
       if (is_open_paren(source, token) && previous_token && is_comma(source, previous_token) &&
           clause != SEQUEL_KEYWORD_VALUES)
         projection_subquery = true;
@@ -360,7 +358,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
           (query_paren_depth == paren_depth + 1 || (nested_query && paren_depth == 0) ||
            (projection_subquery && paren_depth == 0)) &&
-          !sequel_format_append_line_start(&data, &length, &capacity, projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
+          !sequel_format_append_line_start(&data, &length, &capacity,
+                                           projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
         goto no_memory;
       if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
@@ -376,7 +375,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         window_paren = false;
       }
       if (is_close_paren(source, token) && case_function_count) {
-        if (length && data[length - 1] != '\n' && !sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
+        if (length && data[length - 1] != '\n' &&
+            !sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
           goto no_memory;
         --case_function_count;
       }
@@ -392,7 +392,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     }
     bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
     if (text_length && (text[0] == '>' || text[0] == '<' || text[0] == '=' || text[0] == '+' || text[0] == '-') &&
-        length && data[length - 1] != ' ' && data[length - 1] != '\n' && !sequel_format_append_space(&data, &length, &capacity))
+        length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
+        !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (text_length == 1 && text[0] == '(' && previous == SEQUEL_TOKEN_KEYWORD &&
         !(previous_token && token_is_word(source, previous_token, "VALUES")))
@@ -425,7 +426,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '-')
       no_space_after_previous = true;
     if (previous_token && token->kind == SEQUEL_TOKEN_OPERATOR && previous_token->range.end == token->range.start &&
-        (is_operator_token(previous_token) || is_single_char_punctuation(previous_token)))
+        (is_operator_token(previous_token) || sequel_token_is_single_punctuation(previous_token)))
       no_space_after_previous = true;
     if (is_operator_token(token) && !no_space_after_previous && !compact_json_operator(token, source, data, length) &&
         !cast_operator && !range_colon && length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
