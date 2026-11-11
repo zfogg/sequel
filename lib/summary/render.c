@@ -1783,15 +1783,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
       goto no_memory;
   }
-  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED") &&
-      !sequel_summary_find_text(text, "ORDER BY … LIMIT")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " FROM jobs WHERE ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-        !sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-        !sequel_summary_append_text(&text, &length, &capacity, " LIMIT 1"))
-      goto no_memory;
-  }
   if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
       !sequel_summary_find_text(text, "SELECT DISTINCT ON")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT DISTINCT ON") ||
@@ -2729,6 +2720,14 @@ summary_postprocess:
         capacity = length + 1;
       }
     }
+  }
+  if (sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED")) {
+    char *limit = sequel_summary_find_text(text, " LIMIT ?");
+    if (limit)
+      memcpy(limit, " LIMIT 1", sizeof(" LIMIT 1") - 1);
+    if (!sequel_summary_find_text(text, "FOR UPDATE SKIP LOCKED") &&
+        !sequel_summary_append_text(&text, &length, &capacity, " FOR UPDATE SKIP LOCKED"))
+      goto no_memory;
   }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
