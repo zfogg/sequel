@@ -94,6 +94,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/format_rules.c
   ../lib/inspection.c
   ../lib/inspection_text.c
+  ../lib/inspection_collapse.c
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c
