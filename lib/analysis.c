@@ -106,33 +106,7 @@ no_memory:
   return SEQUEL_ERR_NOMEM;
 }
 
-static bool requires_template_scan(const char *sql, size_t length) {
-  for (size_t i = 0; i < length; ++i) {
-    if (sql[i] == '%' && i + 1 < length && (sql[i + 1] == 's' || sql[i + 1] == '('))
-      return true;
-    if (sql[i] == '\\' && i + 1 < length && (sql[i + 1] == '\'' || sql[i + 1] == '"'))
-      return true;
-    if (sql[i] == '$' && i + 1 < length && sql[i + 1] == '$')
-      return true;
-    if (sql[i] == '[') {
-      for (size_t j = i + 1; j < length && sql[j] != ']'; ++j)
-        if (sql[j] == ':')
-          return true;
-    }
-    if (i + 2 < length && (sql[i] == 'I' || sql[i] == 'i') && (sql[i + 1] == 'N' || sql[i + 1] == 'n')) {
-      size_t next = i + 2;
-      while (next < length && (sql[next] == ' ' || sql[next] == '\t' || sql[next] == '\r' || sql[next] == '\n'))
-        ++next;
-      if (next < length && sql[next] == '(')
-        return true;
-    }
-  }
-  return false;
-}
-
-/* Shared formatter boundary classification. The old recursive summary
- * traversal was removed; formatting still needs clause boundaries while
- * laying out the canonical token stream. */
+/* Clause boundaries used by the shared layout pass. */
 static bool boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH",  "FOR",
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
