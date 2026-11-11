@@ -789,8 +789,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         grouped_relation = true;
       }
     }
-    size_t relation_passes = sequel_query_join_count(query) &&
-                                     sequel_summary_find_word(source.data, source.length, 0, "JOIN") &&
+    size_t relation_passes = sequel_query_join_count(query) && sequel_summary_find_text(source.data, "JOIN") &&
                                      !(sequel_query_cte_count(query) && statement_count &&
                                        (statements[0].operation == SEQUEL_OPERATION_INSERT ||
                                         statements[0].operation == SEQUEL_OPERATION_UPDATE ||
@@ -827,7 +826,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             join_index = j;
             break;
           }
-        if (!sequel_summary_find_word(source.data, source.length, 0, "JOIN"))
+        if (!sequel_summary_find_text(source.data, "JOIN"))
           join_index = SIZE_MAX;
         if (relation_passes == 2 && (relation_pass == 0) == (join_index != SIZE_MAX))
           continue;
@@ -925,12 +924,10 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             const char *union_all = i ? sequel_summary_find_text(source.data + context_start, "UNION ALL") : NULL;
             if (union_all && (size_t)(union_all - source.data) < relations[i].range.start)
               prefix = " FROM ";
-            for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor)
-              if (sequel_summary_word(source.data, source.length, cursor, "JOIN") &&
-                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-                prefix = " JOIN ";
-                break;
-              }
+            const char *join_marker = sequel_summary_find_text(source.data + context_start, " JOIN ");
+            if (join_marker && (size_t)(join_marker - source.data) < relations[i].range.start &&
+                !sequel_summary_cursor_is_quoted_identifier(query, (size_t)(join_marker - source.data)))
+              prefix = " JOIN ";
           }
           if (!sequel_summary_append_text(&text, &length, &capacity, prefix))
             goto no_memory;
@@ -1130,11 +1127,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         }
         int okay = sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]);
         if (okay && join_index != SIZE_MAX && joins[join_index].has_condition &&
-            joins[join_index].condition_range.end > joins[join_index].condition_range.start)
+            joins[join_index].condition_range.end > joins[join_index].condition_range.start) {
           okay = sequel_summary_append_text(&text, &length, &capacity, " ON ") &&
                  sequel_summary_append_redacted_range(&text, &length, &capacity, query,
                                                       joins[join_index].condition_range.start,
                                                       joins[join_index].condition_range.end);
+        }
         if (okay && join_index != SIZE_MAX && !joins[join_index].has_condition) {
           size_t condition_start = relations[i].alias_range.end > relations[i].range.end ? relations[i].alias_range.end
                                                                                          : relations[i].range.end;
@@ -1326,6 +1324,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               goto no_memory;
             continue;
           }
+          size_t previous_end = relations[i - 1].range.end;
+          const char *join_marker = previous_end < relations[i].range.start
+                                         ? sequel_summary_find_text(source.data + previous_end, " JOIN ")
+                                         : NULL;
+          if (!join_marker || (size_t)(join_marker - source.data) >= relations[i].range.start)
+            continue;
           if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
               !sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
             goto no_memory;
@@ -2643,6 +2647,7 @@ summary_postprocess:
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
+      sequel_summary_find_text(source.data, "JOIN") &&
       !sequel_summary_find_text(text, "JOIN")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
