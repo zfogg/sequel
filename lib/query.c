@@ -382,21 +382,26 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     document->statement_count = kept;
     size_t outer = document->ctes[document->cte_count - 1].range.end;
     document->outer_range = (sequel_source_range_t){outer, source.length};
-    const char *outer_select = sequel_text_find(source.data + outer, source.length - outer, "SELECT ");
-    const char *outer_from = outer_select
-                                 ? sequel_text_find(outer_select, source.length - (size_t)(outer_select - source.data),
-                                                    " FROM ")
-                                 : NULL;
-    document->outer_distinct_on = outer_select && outer_from &&
-                                  sequel_text_find(outer_select, (size_t)(outer_from - outer_select), "DISTINCT ON") != NULL;
+    document->outer_distinct_on = false;
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
         continue;
-      if (tokens[token].range.end - tokens[token].range.start == 6 &&
-          !memcmp(source.data + tokens[token].range.start, "SELECT", 6)) {
+      const char *token_text = NULL;
+      size_t token_length = 0;
+      if (sequel_token_text(&source, &tokens[token], &token_text, &token_length) == SEQUEL_OK &&
+          word_equals_ci(token_text, token_length, "SELECT")) {
         size_t next = token + 1;
         while (next < token_count && is_trivia(&tokens[next]))
           ++next;
+        if (next < token_count && sequel_token_text(&source, &tokens[next], &token_text, &token_length) == SEQUEL_OK &&
+            word_equals_ci(token_text, token_length, "DISTINCT")) {
+          ++next;
+          while (next < token_count && is_trivia(&tokens[next]))
+            ++next;
+          document->outer_distinct_on =
+              next < token_count && sequel_token_text(&source, &tokens[next], &token_text, &token_length) == SEQUEL_OK &&
+              word_equals_ci(token_text, token_length, "ON");
+        }
         break;
       }
     }

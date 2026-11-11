@@ -609,10 +609,14 @@ int main(void) {
   sequel_source_view_t cte_source = {cte_sql, strlen(cte_sql)};
   sequel_syntax_document_t *cte_syntax = NULL;
   sequel_query_document_t *cte_query = NULL;
+  sequel_source_range_t cte_outer_range = {0};
   if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK &&
                  sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
                  sequel_query_cte_count(cte_query) == 1 &&
-                 sequel_query_ctes(cte_query)[0].range.end <= cte_source.length,
+                 sequel_query_ctes(cte_query)[0].range.end <= cte_source.length &&
+                 (cte_outer_range = sequel_query_outer_range(cte_query)).start >=
+                     sequel_query_ctes(cte_query)[0].range.end &&
+                 cte_outer_range.end == cte_source.length && !sequel_query_outer_distinct_on(cte_query),
              "cte query metadata"))
     return 1;
   sequel_query_document_free(cte_query);
