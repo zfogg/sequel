@@ -463,8 +463,8 @@ static sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialec
     diagnostic_report(sql, n, out, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
-  if (n > INPUT_MAX) {
-    diagnostic_report(sql, INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, INPUT_MAX, INPUT_MAX);
+  if (n > SEQUEL_INPUT_MAX) {
+    diagnostic_report(sql, SEQUEL_INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, SEQUEL_INPUT_MAX, SEQUEL_INPUT_MAX);
     return SEQUEL_ERR_OVERFLOW;
   }
   for (size_t i = 0; (sequel_work_tick(1), i < n);) {
@@ -567,7 +567,7 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   size_t n = 0;
   if (sql)
-    while (n <= INPUT_MAX && sql[n])
+    while (n <= SEQUEL_INPUT_MAX && sql[n])
       ++n;
   return sequel_diagnose_n(sql, n, dialect, out);
 }

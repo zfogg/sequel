@@ -164,9 +164,9 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   if (!limit)
     limit = SEQUEL_TEXT_MAX;
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n])
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
-  if (n > INPUT_MAX)
+  if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -367,9 +367,9 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
   if (o.dialect > SEQUEL_CLICKHOUSE || o.dialect < SEQUEL_GENERIC || o.max_query_text_bytes > SEQUEL_TEXT_MAX)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n])
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
-  if (n > INPUT_MAX)
+  if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;

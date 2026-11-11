@@ -55,9 +55,9 @@ sequel_status_t sequel_colorscheme_parse(const char *yaml, sequel_colorscheme_t 
   if (!yaml || !out)
     return SEQUEL_ERR_NULL;
   size_t n = 0;
-  while (n <= INPUT_MAX && yaml[n])
+  while (n <= SEQUEL_INPUT_MAX && yaml[n])
     ++n;
-  if (n > INPUT_MAX)
+  if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(yaml, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -234,8 +234,9 @@ static sequel_highlight_color_t highlight_token_kind(const sequel_token_t *token
                           "TIMESTAMP UUID VARCHAR"))
     return SEQUEL_COLOR_TYPE;
   if (token->kind == SEQUEL_TOKEN_IDENTIFIER &&
-      highlight_text_word(text, length, "BY ALL DISTINCT ASC DESC LATERAL CROSS LEFT RIGHT FULL NATURAL INNER OUTER "
-                                      "PARTITION ROWS RANGE FETCH FIRST NEXT ONLY"))
+      highlight_text_word(text, length,
+                          "BY ALL DISTINCT ASC DESC LATERAL CROSS LEFT RIGHT FULL NATURAL INNER OUTER "
+                          "PARTITION ROWS RANGE FETCH FIRST NEXT ONLY"))
     return SEQUEL_COLOR_KEYWORD;
   if (token->kind == SEQUEL_TOKEN_KEYWORD) {
     if (highlight_text_word(text, length, "TRUE FALSE"))
@@ -340,7 +341,7 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n])
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
   sequel_status_t status = diagnostic_input(sql, n, options->dialect, diagnostic);
   if (status != SEQUEL_OK)

@@ -10,8 +10,6 @@
 #include "resources.h"
 #include "util/text.h"
 
-#define INPUT_MAX SEQUEL_INPUT_MAX
-
 typedef struct {
   const char *p;
   size_t n;
@@ -785,4 +783,3 @@ done:
 #undef free
 #undef while
 #undef sequel_checkpoint
-#undef INPUT_MAX

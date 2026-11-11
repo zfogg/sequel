@@ -5,9 +5,9 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
     return SEQUEL_ERR_INVALID_ARGUMENT;
   *out = 0;
   size_t n = 0;
-  while (n <= INPUT_MAX && sql[n])
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
-  if (n > INPUT_MAX)
+  if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
