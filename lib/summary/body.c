@@ -64,7 +64,8 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
     size_t on = on_match ? (size_t)(on_match - source) : close;
     if (on >= close)
       break;
-    size_t next = sequel_summary_find_word(source, close, on + 2, "WHERE") - source;
+    const char *next_match = sequel_summary_find_word(source, close, on + 2, "WHERE");
+    size_t next = next_match ? (size_t)(next_match - source) : close;
     if (next >= close)
       next = close;
     if (!sequel_summary_append_text(text, length, capacity, " JOIN ") ||
@@ -117,9 +118,9 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
   }
   if (sequel_summary_word(source, range.end, start, "SELECT")) {
     size_t distinct = sequel_summary_skip_space(source, range.end, start + 6);
-    bool distinct_on = sequel_summary_word(source, range.end, distinct, "DISTINCT") &&
-                       sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, distinct + 8),
-                                           "ON");
+    bool distinct_on =
+        sequel_summary_word(source, range.end, distinct, "DISTINCT") &&
+        sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, distinct + 8), "ON");
     const char *select_prefix = distinct_on ? "SELECT DISTINCT ON (…) " : "SELECT ";
     size_t from = start;
     while (from < range.end && !sequel_summary_word(source, range.end, from, "FROM"))

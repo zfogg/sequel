@@ -843,9 +843,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           }
         } else if (rendered_relations) {
           size_t context_start = i ? relations[i - 1].range.end : 0;
-          if (i && sequel_summary_find_text(source.data + context_start, "UNION ALL") &&
-              (size_t)(sequel_summary_find_text(source.data + context_start, "UNION ALL") - source.data) <
-                  relations[i].range.start)
+          const char *union_all = i ? sequel_summary_find_text(source.data + context_start, "UNION ALL") : NULL;
+          if (union_all && (size_t)(union_all - source.data) < relations[i].range.start)
             prefix = " FROM ";
           for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor)
             if (sequel_summary_word(source.data, source.length, cursor, "JOIN")) {
