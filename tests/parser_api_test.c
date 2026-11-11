@@ -764,6 +764,26 @@ int main(void) {
   sequel_text_result_free(&lateral_summary);
   sequel_query_document_free(lateral_query);
   sequel_syntax_document_free(lateral_syntax);
+
+  {
+    const char quoted_join_sql[] =
+        "SELECT * FROM a AS \"left\" JOIN b AS \"right\" ON \"left\".\"key\"=\"right\".\"key\"";
+    sequel_source_view_t quoted_join_source = {quoted_join_sql, strlen(quoted_join_sql)};
+    sequel_syntax_document_t *quoted_join_syntax = NULL;
+    sequel_query_document_t *quoted_join_query = NULL;
+    sequel_text_result_t quoted_join_summary = {0};
+    if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK &&
+                   sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
+                   sequel_query_join_count(quoted_join_query) == 1 &&
+                   sequel_query_joins(quoted_join_query)[0].has_condition &&
+                   sequel_summarize_query(quoted_join_query, NULL, &quoted_join_summary) == SEQUEL_OK &&
+                   strstr(quoted_join_summary.data, " ON ") != NULL,
+               "quoted alias join summary"))
+      return 1;
+    sequel_text_result_free(&quoted_join_summary);
+    sequel_query_document_free(quoted_join_query);
+    sequel_syntax_document_free(quoted_join_syntax);
+  }
   const char nested_limit_sql[] = "SELECT * FROM accounts WHERE id IN (SELECT id FROM archive LIMIT 1)";
   sequel_source_view_t nested_limit_source = {nested_limit_sql, strlen(nested_limit_sql)};
   sequel_syntax_document_t *nested_limit_syntax = NULL;
