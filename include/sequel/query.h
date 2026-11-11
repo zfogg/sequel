@@ -98,8 +98,21 @@ typedef enum {
   SEQUEL_JOIN_UNKNOWN
 } sequel_join_kind_t;
 
+enum {
+  SEQUEL_JOIN_FLAG_OUTER = 1u << 0,
+  SEQUEL_JOIN_FLAG_NATURAL = 1u << 1,
+  SEQUEL_JOIN_FLAG_LATERAL = 1u << 2,
+  SEQUEL_JOIN_FLAG_USING = 1u << 3,
+  SEQUEL_JOIN_FLAG_ASOF = 1u << 4,
+  SEQUEL_JOIN_FLAG_GLOBAL = 1u << 5,
+  SEQUEL_JOIN_FLAG_ANY = 1u << 6,
+  SEQUEL_JOIN_FLAG_SEMI = 1u << 7,
+  SEQUEL_JOIN_FLAG_ANTI = 1u << 8,
+};
+
 typedef struct {
   sequel_join_kind_t kind;
+  uint32_t flags;
   sequel_source_range_t range;
   /** Exact source range of the expression after ON; empty when has_condition is false. */
   sequel_source_range_t condition_range;

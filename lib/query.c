@@ -169,6 +169,40 @@ static sequel_join_kind_t join_kind(const sequel_token_t *tokens, size_t token_c
   return SEQUEL_JOIN_INNER;
 }
 
+static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index,
+                           const sequel_source_view_t *source) {
+  uint32_t flags = 0;
+  size_t begin = join_index > 6 ? join_index - 6 : 0;
+  for (size_t i = begin; i < join_index; ++i) {
+    if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD)
+      continue;
+    const char *word = source->data + tokens[i].range.start;
+    size_t length = tokens[i].range.end - tokens[i].range.start;
+    if (word_equals_ci(word, length, "OUTER"))
+      flags |= SEQUEL_JOIN_FLAG_OUTER;
+    if (word_equals_ci(word, length, "NATURAL"))
+      flags |= SEQUEL_JOIN_FLAG_NATURAL;
+    if (word_equals_ci(word, length, "ASOF"))
+      flags |= SEQUEL_JOIN_FLAG_ASOF;
+    if (word_equals_ci(word, length, "GLOBAL"))
+      flags |= SEQUEL_JOIN_FLAG_GLOBAL;
+    if (word_equals_ci(word, length, "ANY"))
+      flags |= SEQUEL_JOIN_FLAG_ANY;
+    if (word_equals_ci(word, length, "SEMI"))
+      flags |= SEQUEL_JOIN_FLAG_SEMI;
+    if (word_equals_ci(word, length, "ANTI"))
+      flags |= SEQUEL_JOIN_FLAG_ANTI;
+  }
+  size_t next = join_index + 1;
+  while (next < token_count && is_trivia(&tokens[next]))
+    ++next;
+  if (next < token_count && tokens[next].kind == SEQUEL_TOKEN_KEYWORD &&
+      word_equals_ci(source->data + tokens[next].range.start, tokens[next].range.end - tokens[next].range.start,
+                     "LATERAL"))
+    flags |= SEQUEL_JOIN_FLAG_LATERAL;
+  return flags;
+}
+
 static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *number) {
   *number = 0;
   if (!length)
@@ -921,6 +955,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       continue;
     size_t statement = statement_for_range(document, tokens[i].range);
     sequel_join_info_t join = {.kind = join_kind(tokens, token_count, i, &source),
+                               .flags = join_flags(tokens, token_count, i, &source),
                                .range = {tokens[i].range.start, document->relations[right].range.end},
                                .condition_range = {0, 0},
                                .left_relation = left,
@@ -929,6 +964,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                .has_condition = false};
     size_t join_end = statement != SIZE_MAX ? document->statements[statement].range.end : token_count;
     for (size_t j = i + 1; j < token_count && tokens[j].range.start < join_end; ++j) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_USING)
+        join.flags |= SEQUEL_JOIN_FLAG_USING;
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         size_t condition_start = j + 1;
