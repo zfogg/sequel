@@ -62,6 +62,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/compact.c
   ../lib/api.c
   ../lib/analysis/analysis.c
+  ../lib/analysis/format.c
   ../lib/analysis/layout.c
   ../lib/analysis/locations.c
   ../lib/analysis/operation.c

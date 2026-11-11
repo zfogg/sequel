@@ -663,18 +663,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           out->original_to_sanitized = (sequel_source_map_t){n, safe.n, map.p, map.n};
         }
         if (o.format && safe.n && !out->truncated) {
-          sequel_source_view_t formatted_source = {safe.p, safe.n};
-          sequel_parse_options_t format_parse_options;
-          sequel_parse_options_init(&format_parse_options);
-          format_parse_options.dialect = o.dialect;
-          format_parse_options.retain_comments = true;
-          sequel_lexed_document_t *formatted_lexed = NULL;
           sequel_text_result_t formatted_result = {0};
-          sequel_format_options_t format_options;
-          sequel_format_options_init(&format_options);
-          format_options.mode = SEQUEL_FORMAT_SYNTAX_AWARE;
-          if (sequel_lex(&formatted_source, &format_parse_options, NULL, &formatted_lexed) == SEQUEL_OK &&
-              sequel_format_tokens(formatted_lexed, &format_options, &formatted_result) == SEQUEL_OK) {
+          if (analysis_format_sanitized(safe.p, safe.n, o.dialect, &formatted_result) == SEQUEL_OK) {
             analysis_charge(&a, 1);
             out->formatted = formatted_result.data;
             if (maps) {
@@ -705,7 +695,6 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
             formatted_result.data = NULL;
           }
           sequel_text_result_free(&formatted_result);
-          sequel_lexed_document_free(formatted_lexed);
         }
       }
     }

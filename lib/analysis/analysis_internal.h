@@ -47,3 +47,5 @@ void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t co
 bool analysis_word(analysis_token_t token, const char *word);
 void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void analysis_summary_default(sequel_analysis_t *out);
+sequel_status_t analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
+                                          sequel_text_result_t *out);
