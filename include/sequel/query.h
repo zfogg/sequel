@@ -101,6 +101,7 @@ typedef enum {
 typedef struct {
   sequel_join_kind_t kind;
   sequel_source_range_t range;
+  /** Exact source range of the expression after ON; empty when has_condition is false. */
   sequel_source_range_t condition_range;
   size_t left_relation;
   size_t right_relation;
