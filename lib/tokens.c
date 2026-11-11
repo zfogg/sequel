@@ -7,6 +7,14 @@ int sequel_token_is_comment(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
 }
 
+int sequel_token_is_trivia(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_WHITESPACE || sequel_token_is_comment(token);
+}
+
+int sequel_token_is_identifier(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
+}
+
 int sequel_token_is_punctuation(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_PUNCTUATION; }
 
 int sequel_token_is_keyword(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_KEYWORD; }

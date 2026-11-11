@@ -3,14 +3,13 @@
 #include <ctype.h>
 
 #include <sequel/query.h>
+#include "tokens.h"
 #include "util/text.h"
 #include "model.h"
 
 static int is_trivia(const sequel_token_t *token);
 
-static int is_identifier_token(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
-}
+static int is_identifier_token(const sequel_token_t *token) { return sequel_token_is_identifier(token); }
 
 static int is_clause_keyword(const sequel_token_t *token) {
   if (token->kind != SEQUEL_TOKEN_KEYWORD)
@@ -38,7 +37,7 @@ static int is_reserved_relation_alias(const sequel_source_view_t *source, const 
 }
 
 static int is_join_modifier(const sequel_source_view_t *source, const sequel_token_t *token) {
-  if (!is_identifier_token(token) || token->range.end > source->length)
+  if (!sequel_token_is_identifier(token) || token->range.end > source->length)
     return 0;
   size_t length = token->range.end - token->range.start;
   const char *modifiers[] = {"NATURAL", "LEFT",  "RIGHT",   "FULL", "OUTER", "CROSS", "GLOBAL",
@@ -82,10 +81,7 @@ static int token_in_subquery(const sequel_token_t *tokens, size_t index, const s
   return subquery_depth != SIZE_MAX && depth >= subquery_depth;
 }
 
-static int is_trivia(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
-         token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
+static int is_trivia(const sequel_token_t *token) { return sequel_token_is_trivia(token); }
 
 static uint64_t range_hash(const sequel_source_view_t *source, sequel_source_range_t range) {
   uint64_t hash = 1469598103934665603ull;
@@ -601,8 +597,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   for (size_t child = 0; child < document->relation_count; ++child) {
     size_t best = SIZE_MAX;
     for (size_t parent = 0; parent < document->relation_count; ++parent) {
-      if (parent == child || !sequel_source_range_contains(document->relations[parent].range,
-                                                            document->relations[child].range))
+      if (parent == child ||
+          !sequel_source_range_contains(document->relations[parent].range, document->relations[child].range))
         continue;
       if (best == SIZE_MAX || document->relations[parent].range.end - document->relations[parent].range.start <
                                   document->relations[best].range.end - document->relations[best].range.start)

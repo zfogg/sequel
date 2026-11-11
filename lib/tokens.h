@@ -7,6 +7,8 @@
 sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out, size_t *count);
 
 int sequel_token_is_comment(const sequel_token_t *token);
+int sequel_token_is_trivia(const sequel_token_t *token);
+int sequel_token_is_identifier(const sequel_token_t *token);
 int sequel_token_is_punctuation(const sequel_token_t *token);
 int sequel_token_is_keyword(const sequel_token_t *token);
 int sequel_token_is_operator(const sequel_token_t *token);
