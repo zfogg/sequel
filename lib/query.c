@@ -194,39 +194,6 @@ static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, siz
   return flags;
 }
 
-static sequel_bind_style_t bind_style(const char *text, size_t length, size_t *number) {
-  *number = 0;
-  if (!length)
-    return SEQUEL_BIND_UNKNOWN;
-  if (text[0] == '?') {
-    if (length == 1)
-      return SEQUEL_BIND_POSITIONAL;
-    for (size_t i = 1; i < length; ++i) {
-      if (!isdigit((unsigned char)text[i]))
-        return SEQUEL_BIND_UNKNOWN;
-      *number = *number * 10 + (size_t)(text[i] - '0');
-    }
-    return *number ? SEQUEL_BIND_NUMBERED : SEQUEL_BIND_UNKNOWN;
-  }
-  if (text[0] == '$') {
-    if (length == 1)
-      return SEQUEL_BIND_UNKNOWN;
-    bool numeric = true;
-    for (size_t i = 1; i < length; ++i) {
-      if (!isdigit((unsigned char)text[i]))
-        numeric = false;
-      else
-        *number = *number * 10 + (size_t)(text[i] - '0');
-    }
-    return numeric && *number ? SEQUEL_BIND_NUMBERED : SEQUEL_BIND_NAMED;
-  }
-  if (text[0] == ':' || text[0] == '@')
-    return length > 1 ? SEQUEL_BIND_NAMED : SEQUEL_BIND_UNKNOWN;
-  if (text[0] == '%')
-    return length >= 2 && (text[1] == 's' || text[1] == '(') ? SEQUEL_BIND_FORMAT : SEQUEL_BIND_UNKNOWN;
-  return SEQUEL_BIND_UNKNOWN;
-}
-
 static int is_identifier_token(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
 }
@@ -605,7 +572,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     const char *text = source.data + tokens[i].range.start;
     size_t length = tokens[i].range.end - tokens[i].range.start;
     size_t explicit_number = 0;
-    sequel_bind_style_t style = bind_style(text, length, &explicit_number);
+    sequel_bind_style_t style = sequel_query_bind_style(text, length, &explicit_number);
     if (style == SEQUEL_BIND_UNKNOWN)
       continue;
     ++ordinal;

@@ -4,6 +4,8 @@
 
 #include <sequel/query.h>
 
+sequel_bind_style_t sequel_query_bind_style(const char *text, size_t length, size_t *number);
+
 typedef struct {
   size_t capacity;
 } query_array_header;

@@ -21,6 +21,7 @@ setup(
                 "lib/analysis/locations.c",
                 "lib/analysis/operation.c",
                 "lib/analysis/lifecycle.c",
+                "lib/bindings.c",
                 "lib/analysis/analysis_literal.c",
                 "lib/analysis/analysis_binding_token.c",
                 "lib/analysis/analysis_text.c",
