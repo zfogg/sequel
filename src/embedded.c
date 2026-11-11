@@ -1,4 +1,5 @@
 #include "embedded.h"
+#include "../lib/util/text.h"
 #include "../lib/util/utf8.h"
 #include <ctype.h>
 #include <sequel.h>
@@ -39,6 +40,10 @@ static void append(buffer *b, const char *p, size_t n) {
 
 static void str(buffer *b, const char *s) { append(b, s, strlen(s)); }
 
+static const char *text_find(const char *source, const char *needle) {
+  return source ? sequel_text_find(source, strlen(source), needle) : NULL;
+}
+
 static int word(const char *s, const char *w) {
   while (*w) {
     if (toupper((unsigned char)*s++) != *w++)
@@ -64,7 +69,7 @@ static int sql_candidate(const char *s) {
         return 0;
       s = end + 1;
     } else if (s[0] == '/' && s[1] == '*') {
-      const char *end = strstr(s + 2, "*/");
+      const char *end = text_find(s + 2, "*/");
       if (!end)
         return 0;
       s = end + 2;
@@ -94,7 +99,7 @@ typedef struct {
 
 static char *format_sql(const char *s, sql_transform *policy) {
   int dialect = policy->dialect;
-  if (!sql_candidate(s) || strstr(s, "{{") || strstr(s, "{}") || strstr(s, "{:"))
+  if (!sql_candidate(s) || text_find(s, "{{") || text_find(s, "{}") || text_find(s, "{:"))
     return NULL;
   for (size_t i = 0; s[i] && s[i + 1]; ++i) {
     if (s[i] == '\'' || s[i] == '"' || s[i] == '`') {
@@ -330,7 +335,7 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang, literal
     memcpy(closing + 1, s + start + 1, dn);
     closing[dn + 1] = '"';
     closing[dn + 2] = 0;
-    const char *end = strstr(s + p + 1, closing);
+    const char *end = text_find(s + p + 1, closing);
     if (!end)
       return 0;
     l->raw = 1;
@@ -675,7 +680,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
       while (p < n && (isalnum((unsigned char)s[p]) || s[p] == '_' || s[p] == '.'))
         ++p;
       if (p < n && s[p] == '|') {
-        const char *end = strstr(s + p + 1, "|]");
+        const char *end = text_find(s + p + 1, "|]");
         if (!end)
           goto fail;
         size_t closing = (size_t)(end - s);
@@ -686,7 +691,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
           goto fail;
         }
         char *formatted = format_sql(query.p, policy);
-        if (formatted && strstr(formatted, "|]")) {
+        if (formatted && text_find(formatted, "|]")) {
           free(formatted);
           formatted = NULL;
         }
@@ -783,16 +788,16 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
             safe = 0;
           else {
             if (strchr(query.p, '%') &&
-                (strstr(context.p, "printf") || strstr(context.p, "Printf") || strstr(context.p, "format(")))
+                (text_find(context.p, "printf") || text_find(context.p, "Printf") || text_find(context.p, "format(")))
               safe = 0;
             if (lang == RUST && (strchr(query.p, '{') || strchr(query.p, '}'))) {
               const char *macros[] = {"format!", "format_args!", "write!", "writeln!",
                                       "print!",  "println!",     "panic!", NULL};
               for (size_t j = 0; macros[j]; ++j)
-                if (strstr(context.p, macros[j]))
+                if (text_find(context.p, macros[j]))
                   safe = 0;
             }
-            if (lang == C && (strstr(context.p, "fmt::format") || strstr(context.p, "std::format")))
+            if (lang == C && (text_find(context.p, "fmt::format") || text_find(context.p, "std::format")))
               safe = 0;
           }
           free(context.p);
@@ -810,14 +815,14 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
           }
           memcpy(closing, s + first.end, length);
           closing[length] = 0;
-          if (strstr(formatted, closing)) {
+          if (text_find(formatted, closing)) {
             free(formatted);
             formatted = NULL;
           }
           free(closing);
         }
         if (formatted && !first.cppraw && (first.triple || first.raw) &&
-            strstr(formatted, first.triple ? (first.quote == '"' ? "\"\"\"" : "'''") : "`")) {
+            text_find(formatted, first.triple ? (first.quote == '"' ? "\"\"\"" : "'''") : "`")) {
           free(formatted);
           formatted = NULL;
         }
