@@ -53,6 +53,16 @@ int sequel_token_is_single_punctuation(const sequel_token_t *token) {
   return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1;
 }
 
+int sequel_token_kind_is_word(sequel_token_kind_t kind) {
+  return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
+         kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
+         kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER || kind == SEQUEL_TOKEN_PARAMETER;
+}
+
+int sequel_token_kind_is_comment(sequel_token_kind_t kind) {
+  return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT;
+}
+
 size_t sequel_token_next_significant(const sequel_token_t *tokens, size_t count, size_t index) {
   while (index < count && sequel_token_is_trivia(&tokens[index]))
     ++index;

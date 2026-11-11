@@ -37,16 +37,6 @@ static sequel_status_t copy_source(sequel_source_view_t source, sequel_format_mo
   return SEQUEL_OK;
 }
 
-static int is_word_token(sequel_token_kind_t kind) {
-  return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
-         kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
-         kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER || kind == SEQUEL_TOKEN_PARAMETER;
-}
-
-static int is_comment_token(sequel_token_kind_t kind) {
-  return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
-
 static const char *token_text(sequel_source_view_t source, const sequel_token_t *token, size_t *length) {
   *length = token->range.end - token->range.start;
   return source.data + token->range.start;
@@ -152,16 +142,6 @@ static int is_line_comment(const sequel_token_t *token) { return token->kind == 
 
 static int is_block_comment(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_BLOCK_COMMENT; }
 
-static int is_keyword_token(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_KEYWORD; }
-
-static int is_operator_token(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_OPERATOR; }
-
-static int is_bind_token(const sequel_token_t *token) { return (token->flags & SEQUEL_TOKEN_FLAG_BIND) != 0; }
-
-static int is_literal_token(const sequel_token_t *token) { return (token->flags & SEQUEL_TOKEN_FLAG_LITERAL) != 0; }
-
-static int is_eof_token(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_EOF; }
-
 static int has_valid_range(const sequel_token_t *token, size_t source_length) {
   return token->range.start <= token->range.end && token->range.end <= source_length;
 }
@@ -254,7 +234,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   bool pending_clause_body = false;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
-    if (is_eof_token(token))
+    if (token->kind == SEQUEL_TOKEN_EOF)
       break;
     if (!has_valid_range(token, source.length))
       goto invalid;
@@ -266,13 +246,13 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT) &&
         !settings->preserve_comments)
       continue;
-    if (is_comment_token(token->kind)) {
+    if (sequel_token_kind_is_comment(token->kind)) {
       if (!append_comment(&data, &length, &capacity, source, token))
         goto no_memory;
       previous = token->kind;
       continue;
     }
-    bool keyword = is_keyword_token(token);
+    bool keyword = sequel_token_is_keyword(token);
     bool join_modifier = is_join_lead(source, token);
     bool upsert_on = token_is_word(source, token, "ON") && is_upsert_on(source, tokens, i, token_count);
     bool window_boundary =
@@ -400,8 +380,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       no_space_before = false;
     if (is_as_before_open_paren(data, length, text, text_length))
       no_space_before = false;
-    bool cast_operator = is_operator_token(token) && is_cast_operator(text, text_length);
-    bool range_colon = is_operator_token(token) && is_range_colon(text, text_length);
+    bool cast_operator = sequel_token_is_operator(token) && is_cast_operator(text, text_length);
+    bool range_colon = sequel_token_is_operator(token) && is_range_colon(text, text_length);
     bool after_cast_operator = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
                                previous_token->range.end == previous_token->range.start + 2 &&
                                source.data[previous_token->range.start] == ':' &&
@@ -419,21 +399,21 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (previous_length && previous_text[previous_length - 1] == '@')
         no_space_after_previous = true;
     }
-    if (previous_token && is_operator_token(previous_token) &&
+    if (previous_token && sequel_token_is_operator(previous_token) &&
         previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '#')
       no_space_after_previous = true;
-    if (previous_token && is_operator_token(previous_token) && token->kind == SEQUEL_TOKEN_NUMBER &&
+    if (previous_token && sequel_token_is_operator(previous_token) && token->kind == SEQUEL_TOKEN_NUMBER &&
         previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '-')
       no_space_after_previous = true;
     if (previous_token && token->kind == SEQUEL_TOKEN_OPERATOR && previous_token->range.end == token->range.start &&
-        (is_operator_token(previous_token) || sequel_token_is_single_punctuation(previous_token)))
+        (sequel_token_is_operator(previous_token) || sequel_token_is_single_punctuation(previous_token)))
       no_space_after_previous = true;
-    if (is_operator_token(token) && !no_space_after_previous && !compact_json_operator(token, source, data, length) &&
-        !cast_operator && !range_colon && length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
-        !sequel_format_append_space(&data, &length, &capacity))
+    if (sequel_token_is_operator(token) && !no_space_after_previous &&
+        !compact_json_operator(token, source, data, length) && !cast_operator && !range_colon && length &&
+        data[length - 1] != ' ' && data[length - 1] != '\n' && !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
-        !no_space_after_previous && (is_word_token(previous) || is_word_token(token->kind)) &&
+        !no_space_after_previous && (sequel_token_kind_is_word(previous) || sequel_token_kind_is_word(token->kind)) &&
         !(follows_closed_cte && previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ','))
       if (!sequel_format_append_space(&data, &length, &capacity))
         goto no_memory;
