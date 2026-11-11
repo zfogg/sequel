@@ -442,15 +442,15 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
     if (!sequel_format_append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;
-    if (punctuation && text_length == 1 && text[0] == '(' && previous_token &&
-        sequel_formatter_token_is_word(source, previous_token, "OVER")) {
-      window_paren = true;
+    if (punctuation && text_length == 1 && text[0] == '(' && !grouped_condition &&
+        sequel_formatter_has_case_before_matching_close(source, tokens, i, token_count)) {
+      ++case_function_count;
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
-    if (punctuation && text_length == 1 && text[0] == '(' &&
-        sequel_formatter_has_case_before_matching_close(source, tokens, i, token_count)) {
-      ++case_function_count;
+    if (punctuation && text_length == 1 && text[0] == '(' && previous_token &&
+        sequel_formatter_token_is_word(source, previous_token, "OVER")) {
+      window_paren = true;
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
     }
