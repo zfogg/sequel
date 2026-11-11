@@ -5,6 +5,7 @@
 #include <sequel/formatter.h>
 
 #include "format_buffer.h"
+#include "format_rules.h"
 #include "tokens.h"
 
 void sequel_format_options_init(sequel_format_options_t *options) {
@@ -118,20 +119,6 @@ static int has_case_before_matching_close(sequel_source_view_t source, const seq
     }
   }
   return 0;
-}
-
-static int is_condition_operator(const sequel_token_t *token, size_t paren_depth, size_t cte_paren_depth) {
-  return token->kind == SEQUEL_TOKEN_KEYWORD &&
-         (paren_depth == 0 || (cte_paren_depth && paren_depth == cte_paren_depth)) &&
-         (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR);
-}
-
-static int is_select_start(const sequel_token_t *token, size_t paren_depth) {
-  return token->kind == SEQUEL_TOKEN_KEYWORD && token->keyword_id == SEQUEL_KEYWORD_SELECT && paren_depth == 0;
-}
-
-static int is_literal_replacement(const sequel_token_t *token, const sequel_format_options_t *settings) {
-  return sequel_token_is_literal(token) && !sequel_token_is_bind(token) && !settings->preserve_literals;
 }
 
 static int no_space_before_punctuation(const char *text, size_t length, int punctuation) {
@@ -303,7 +290,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           token_is_word(source, previous_token, "DISTINCT")) &&
         !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
-    bool condition_operator = is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
+    bool condition_operator = sequel_format_is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
     if (keyword && token->keyword_id == SEQUEL_KEYWORD_BETWEEN)
       between_pending = true;
     else if (keyword && token->keyword_id == SEQUEL_KEYWORD_AND && between_pending)
@@ -399,7 +386,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
     size_t text_length = 0;
     const char *text = token_text(source, token, &text_length);
-    if (is_literal_replacement(token, settings)) {
+    if (sequel_format_is_literal_replacement(token, settings)) {
       text = "?";
       text_length = 1;
     }
