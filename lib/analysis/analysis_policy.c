@@ -1,7 +1,7 @@
 /* Policy diagnostics consume the shared token view; they do not rescan SQL text. */
 #include "analysis_internal.h"
 
-void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_token *ts, size_t count,
+void analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis_token_t *ts, size_t count,
                                       sequel_dialect_t dialect, sequel_analysis_t *out) {
   (void)sql;
   if (out->statement_count > 1)
@@ -10,7 +10,7 @@ void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_token *t
   size_t depth = 0, joins = 0, in_items = 0, in_start = SIZE_MAX;
   bool write = false, where = false, table = false, operation = false, star = false;
   for (size_t i = 0; i < count; ++i) {
-    format_token t = ts[i];
+    analysis_token_t t = ts[i];
     if (t.kind >= 3)
       continue;
     if (sequel_runtime_symbol(t.t, '(')) {

@@ -1,7 +1,7 @@
 /* Identify values that sanitization and fingerprinting must redact. */
 #include "analysis_internal.h"
 
-bool analysis_literal(format_token t, sequel_dialect_t d) {
+bool analysis_literal(analysis_token_t t, sequel_dialect_t d) {
   unsigned char c = (unsigned char)*t.t.p;
   if (isdigit(c) || (c == '.' && t.t.n > 1 && isdigit((unsigned char)t.t.p[1])))
     return true;

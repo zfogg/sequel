@@ -249,7 +249,7 @@ static void analysis_recovered_statement_ranges(const sequel_lexed_document_t *l
     analysis_add_statement(out, start, last);
 }
 
-bool analysis_word(format_token t, const char *word) {
+bool analysis_word(analysis_token_t t, const char *word) {
   size_t n = strlen(word);
   if (t.kind != 1 || t.t.n != n)
     return false;
@@ -261,7 +261,7 @@ bool analysis_word(format_token t, const char *word) {
 
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
-static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_t count, analysis_state *a,
+static void analysis_sanitize(const char *sql, size_t n, analysis_token_t *ts, size_t count, analysis_state *a,
                               analysis_text *safe, analysis_map *map, sequel_sha256 *hash) {
   sequel_analysis_t *out = a->out;
   analysis_bindings dictionary = {0}, slot_dictionary = {0};
@@ -270,7 +270,7 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
   size_t collapse_end = SIZE_MAX, fingerprint_next = 0;
   for (size_t i = 0; i < count; i++) {
     sequel_work_tick(1);
-    format_token t = ts[i];
+    analysis_token_t t = ts[i];
     size_t start = t.source_offset, end = start + t.t.n;
     if (collapse_end != SIZE_MAX && i == collapse_end) {
       consumed = start;
@@ -560,7 +560,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT : SEQUEL_DIAG_INVALID_ARGUMENT, 0,
           n ? 1 : 0);
     }
-    format_token *tokens = NULL;
+    analysis_token_t *tokens = NULL;
     size_t scanned = 0;
     size_t count = SIZE_MAX;
     sequel_status_t adapter_status = SEQUEL_ERR_INVALID_ARGUMENT;

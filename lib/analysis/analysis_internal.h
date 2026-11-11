@@ -32,11 +32,11 @@ typedef struct {
   size_t n, capacity;
 } analysis_text;
 
-bool analysis_literal(format_token token, sequel_dialect_t dialect);
-bool analysis_bind_token(format_token token, sequel_dialect_t dialect, const char **key, size_t *length, size_t *number,
-                         sequel_bind_style_t *style);
+bool analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
+bool analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
+                         size_t *number, sequel_bind_style_t *style);
 void analysis_compact_list_text(analysis_text *text);
-void analysis_policy_diagnostics_pass(const char *sql, size_t length, format_token *tokens, size_t count,
+void analysis_policy_diagnostics_pass(const char *sql, size_t length, analysis_token_t *tokens, size_t count,
                                       sequel_dialect_t dialect, sequel_analysis_t *out);
 void analysis_positions(const char *sql, sequel_analysis_t *out);
 void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
@@ -44,6 +44,6 @@ void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
 sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
                               sequel_diagnostic_code_t code);
 void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
-bool analysis_word(format_token token, const char *word);
+bool analysis_word(analysis_token_t token, const char *word);
 void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void analysis_summary_default(sequel_analysis_t *out);

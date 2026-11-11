@@ -15,14 +15,6 @@ typedef struct {
 } token;
 
 typedef struct {
-  char *p;
-  size_t n;
-  size_t cap;
-  bool overflow;
-  bool charge_output;
-} output;
-
-typedef struct {
   token t;
   bool gap;
   bool newline;
@@ -32,9 +24,7 @@ typedef struct {
   size_t flat_width;
   size_t source_offset;
   size_t rendered_offset;
-} format_token;
-
-bool format_layout(format_token *tokens, size_t count, output *buffer);
+} analysis_token_t;
 
 static inline bool sequel_runtime_keyword(token value, const char *word) {
   return value.word && value.p && sequel_scan_equal(value.p, value.n, word);

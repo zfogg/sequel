@@ -23,7 +23,7 @@ static int shared_token_kind(sequel_token_kind_t kind) {
   }
 }
 
-sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count) {
+sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out, size_t *count) {
   if (!lexed || !out || !count)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -52,7 +52,7 @@ sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_
       size_t next = capacity ? capacity * 2 : 64;
       if (next < *count || next > SIZE_MAX / sizeof(**out))
         goto overflow;
-      format_token *grown = calloc(next, sizeof(*grown));
+      analysis_token_t *grown = calloc(next, sizeof(*grown));
       if (!grown)
         goto no_memory;
       if (*out) {
@@ -70,20 +70,20 @@ sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_
                    strchr("([{", source.data[token->range.start]) != NULL;
     bool previous_open = *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 &&
                          strchr("([{", *(*out)[*count - 1].t.p) != NULL;
-    (*out)[(*count)++] = (format_token){.t = {.p = source.data + token->range.start,
-                                              .n = token->range.end - token->range.start,
-                                              .word = kind == 1,
-                                              .space = gap,
-                                              .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
-                                        .gap = gap,
-                                        .newline = newline || pending_newline,
-                                        .kind = kind,
-                                        .matching = 0,
-                                        .multiline = newline || (pending_newline && (!opening || previous_open)),
-                                        .flat_width = (*count > 1 ? (*out)[*count - 2].flat_width : 0) +
-                                                      token->range.end - token->range.start + 1,
-                                        .source_offset = token->range.start,
-                                        .rendered_offset = 0};
+    (*out)[(*count)++] = (analysis_token_t){.t = {.p = source.data + token->range.start,
+                                                  .n = token->range.end - token->range.start,
+                                                  .word = kind == 1,
+                                                  .space = gap,
+                                                  .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
+                                            .gap = gap,
+                                            .newline = newline || pending_newline,
+                                            .kind = kind,
+                                            .matching = 0,
+                                            .multiline = newline || (pending_newline && (!opening || previous_open)),
+                                            .flat_width = (*count > 1 ? (*out)[*count - 2].flat_width : 0) +
+                                                          token->range.end - token->range.start + 1,
+                                            .source_offset = token->range.start,
+                                            .rendered_offset = 0};
     previous_end = token->range.end;
     gap = false;
     pending_newline = false;
