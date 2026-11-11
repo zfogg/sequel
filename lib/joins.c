@@ -3,22 +3,18 @@
 #include <sequel/query.h>
 
 #include "model.h"
-
-static bool join_token_is_trivia(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_WHITESPACE || token->kind == SEQUEL_TOKEN_LINE_COMMENT ||
-         token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
+#include "tokens.h"
 
 sequel_join_kind_t sequel_query_join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index,
                                           const sequel_source_view_t *source) {
   size_t previous[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
   size_t found = 0;
   for (size_t cursor = join_index; cursor-- > 0 && found < 3;)
-    if (!join_token_is_trivia(&tokens[cursor]))
+    if (!sequel_token_is_trivia(&tokens[cursor]))
       previous[found++] = cursor;
   if (join_index + 1 < token_count) {
     size_t next = join_index + 1;
-    while (next < token_count && join_token_is_trivia(&tokens[next]))
+    while (next < token_count && sequel_token_is_trivia(&tokens[next]))
       ++next;
     if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
                                                           tokens[next].range.end - tokens[next].range.start, "LATERAL"))
@@ -59,7 +55,7 @@ uint32_t sequel_query_join_flags(const sequel_token_t *tokens, size_t token_coun
                                       names[name]))
         flags |= values[name];
   size_t next = join_index + 1;
-  while (next < token_count && join_token_is_trivia(&tokens[next]))
+  while (next < token_count && sequel_token_is_trivia(&tokens[next]))
     ++next;
   if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
                                                         tokens[next].range.end - tokens[next].range.start, "LATERAL"))
