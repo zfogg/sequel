@@ -25,6 +25,8 @@ sequel_status_t sequel_query_build_statements(sequel_query_document_t *document,
                                               const sequel_source_view_t *source, size_t max_nodes);
 sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document, const sequel_token_t *tokens,
                                               size_t token_count, const sequel_source_view_t *source);
+sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens,
+                                        size_t token_count, const sequel_source_view_t *source);
 
 static inline void sequel_query_array_free(void *array) {
   if (array)

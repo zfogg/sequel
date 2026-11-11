@@ -35,6 +35,7 @@ setup(
                 "lib/parser.c",
                 "lib/query.c",
                 "lib/query_arrays.c",
+                "lib/cte.c",
                 "lib/access.c",
                 "lib/diagnostics.c",
                 "lib/analysis/document.c",

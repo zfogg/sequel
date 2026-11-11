@@ -68,6 +68,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/analysis/operation.c
   ../lib/analysis/lifecycle.c
   ../lib/bindings.c
+  ../lib/cte.c
   ../lib/statements.c
   ../lib/joins.c
   ../lib/expressions.c
