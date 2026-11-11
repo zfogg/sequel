@@ -87,6 +87,9 @@ int main(void) {
   sequel_source_t *owned_source = NULL;
   if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
     return 1;
+  sequel_source_view_t invalid_source = {NULL, 1};
+  if (!check(sequel_source_create(&invalid_source, NULL, &owned_source) == SEQUEL_ERR_NULL, "reject null source data"))
+    return 1;
   if (!check(sequel_source_dialect(owned_source) == SEQUEL_GENERIC, "default source dialect"))
     return 1;
   if (!check(sequel_source_view(owned_source).length == source.length, "owned source length"))

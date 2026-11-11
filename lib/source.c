@@ -14,6 +14,10 @@ sequel_status_t sequel_source_create(const sequel_source_view_t *view, const seq
                                      sequel_source_t **out) {
   if (!view || !out)
     return SEQUEL_ERR_NULL;
+  if (view->length && !view->data)
+    return SEQUEL_ERR_NULL;
+  if (view->length == SIZE_MAX)
+    return SEQUEL_ERR_OVERFLOW;
   *out = NULL;
   sequel_source_storage_t storage = options ? options->storage : SEQUEL_SOURCE_COPIED;
   sequel_dialect_t dialect = options ? options->dialect : SEQUEL_GENERIC;
