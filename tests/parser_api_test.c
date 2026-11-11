@@ -760,6 +760,7 @@ int main(void) {
                  sequel_query_joins(lateral_query)[0].condition_range.end >
                      sequel_query_joins(lateral_query)[0].condition_range.start &&
                  sequel_query_joins(lateral_query)[0].condition_node != SIZE_MAX &&
+                 (sequel_query_joins(lateral_query)[0].flags & SEQUEL_JOIN_FLAG_LATERAL) != 0 &&
                  sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
                  strstr(lateral_summary.data, "JOIN LATERAL") != NULL && strstr(lateral_summary.data, " ON ?") != NULL,
              "lateral relation summary"))
@@ -767,6 +768,25 @@ int main(void) {
   sequel_text_result_free(&lateral_summary);
   sequel_query_document_free(lateral_query);
   sequel_syntax_document_free(lateral_syntax);
+
+  {
+    const char modifiers_sql[] = "SELECT * FROM a LEFT OUTER JOIN b USING (id)";
+    sequel_source_view_t modifiers_source = {modifiers_sql, strlen(modifiers_sql)};
+    sequel_syntax_document_t *modifiers_syntax = NULL;
+    sequel_query_document_t *modifiers_query = NULL;
+    if (!check(sequel_parse_sql(&modifiers_source, &options, NULL, &modifiers_syntax) == SEQUEL_OK &&
+                   sequel_build_query_document(modifiers_syntax, &options, &modifiers_query) == SEQUEL_OK &&
+                   sequel_query_join_count(modifiers_query) == 1,
+               "join modifier query model"))
+      return 1;
+    const sequel_join_info_t *join = sequel_query_joins(modifiers_query);
+    if (!check((join[0].flags & (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING)) ==
+                   (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING),
+               "outer and using join modifier flags"))
+      return 1;
+    sequel_query_document_free(modifiers_query);
+    sequel_syntax_document_free(modifiers_syntax);
+  }
 
   {
     const char quoted_join_sql[] = "SELECT * FROM a AS \"left\" JOIN b AS \"right\" ON "
