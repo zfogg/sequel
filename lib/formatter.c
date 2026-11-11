@@ -78,6 +78,11 @@ static int is_clause(uint32_t keyword) {
          keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_UNION;
 }
 
+static int is_list_clause(uint32_t keyword) {
+  return keyword == SEQUEL_KEYWORD_SELECT || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_ORDER ||
+         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
+}
+
 static int is_word_token(sequel_token_kind_t kind) {
   return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
          kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
@@ -197,8 +202,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     previous_token = token;
     if (select_start || clause_start)
       clause = token->keyword_id;
-    list_clause = clause == SEQUEL_KEYWORD_SELECT || clause == SEQUEL_KEYWORD_GROUP || clause == SEQUEL_KEYWORD_ORDER ||
-                  clause == SEQUEL_KEYWORD_SET || clause == SEQUEL_KEYWORD_VALUES || clause == SEQUEL_KEYWORD_RETURNING;
+    list_clause = is_list_clause(clause);
   }
   if (!data) {
     data = malloc(1);

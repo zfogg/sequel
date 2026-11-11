@@ -92,6 +92,10 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   }
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  size_t comment_count = 0;
+  for (size_t i = 0; i < token_count; ++i)
+    if (tokens[i].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT)
+      ++comment_count;
   size_t case_count = 0, end_count = 0;
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_CASE)
@@ -107,6 +111,11 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
 
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
+  /* Dense generated SQL often carries comment attachment semantics that a
+   * recovered tree cannot safely reflow. Keep those documents lossless until
+   * the formatter has a comment-aware syntax tree. */
+  if (comment_count > 8 && source_length > 4096)
+    format_options.mode = SEQUEL_FORMAT_LEXICAL;
   sequel_text_result_t result = {0};
   status = sequel_format_tokens(lexed, &format_options, &result);
   sequel_syntax_document_free(syntax);
