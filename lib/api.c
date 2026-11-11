@@ -1,4 +1,12 @@
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <sequel.h>
 #include "util/text.h"
+#include "util/utf8.h"
+#include "scan.h"
 
 static void utf8_cut(char *s, size_t limit) {
   size_t n = strlen(s);
@@ -77,18 +85,18 @@ static void trim_sanitized_prefix(sequel_text_result_t *result) {
 
 static void collapse_in(char *s, sequel_dialect_t dialect) {
   size_t n = strlen(s);
-  for (size_t i = 0; (sequel_work_tick(1), i + 2 < n); ++i) {
+  for (size_t i = 0; i + 2 < n; ++i) {
     /* Retained comments and quoted identifiers are opaque to IN collapsing. */
     unsigned char c = (unsigned char)s[i];
-    if (dialect == SEQUEL_CLICKHOUSE && clickhouse_quote(s, n, i)) {
-      size_t end = clickhouse_quoted_end(s, n, i);
+    if (dialect == SEQUEL_CLICKHOUSE && sequel_scan_clickhouse_quote(s, n, i)) {
+      size_t end = sequel_scan_clickhouse_quoted_end(s, n, i);
       if (end) {
         i = end - 1;
         continue;
       }
     }
     if (c == '"' || c == '`' || (c == '[' && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))) {
-      size_t end = quoted(s, n, i, c == '[' ? ']' : (char)c, dialect == SEQUEL_CLICKHOUSE);
+      size_t end = sequel_scan_quoted(s, n, i, c == '[' ? ']' : (char)c, dialect == SEQUEL_CLICKHOUSE);
       if (end) {
         i = end - 1;
         continue;
@@ -117,7 +125,8 @@ static void collapse_in(char *s, sequel_dialect_t dialect) {
       continue;
     }
 
-    if (!equal(s + i, 2, "IN") || (i && part((unsigned char)s[i - 1])) || (i + 2 < n && part((unsigned char)s[i + 2])))
+    if (!sequel_scan_equal(s + i, 2, "IN") || (i && sequel_scan_part((unsigned char)s[i - 1])) ||
+        (i + 2 < n && sequel_scan_part((unsigned char)s[i + 2])))
       continue;
     size_t j = i + 2;
     while (j < n && isspace((unsigned char)s[j]))
@@ -126,7 +135,7 @@ static void collapse_in(char *s, sequel_dialect_t dialect) {
       continue;
     size_t k = j + 1, count = 0;
     bool comma = false;
-    for (; (sequel_work_tick(1), 1);) {
+    for (;;) {
       while (k < n && isspace((unsigned char)s[k]))
         ++k;
       if (k == n || s[k] != '?')

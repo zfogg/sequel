@@ -2,6 +2,16 @@
  * classes and produces numeric provenance while values are replaced. */
 #include "sha256.h"
 
+static void utf8_cut(char *text, size_t limit) {
+  size_t length = strlen(text);
+  if (length <= limit)
+    return;
+  limit = sequel_utf8_prefix(text, length, limit);
+  text[limit] = 0;
+  while (limit && isspace((unsigned char)text[limit - 1]))
+    text[--limit] = 0;
+}
+
 static int shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:

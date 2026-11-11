@@ -781,7 +781,6 @@ done:
 #define calloc sequel_calloc
 #define realloc sequel_realloc
 #define free sequel_dealloc
-#include "api.c"
 #include "analysis.c"
 // clang-format on
 
