@@ -2479,6 +2479,19 @@ summary_postprocess:
             "AS s WHERE … ORDER BY … LIMIT 1"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "WITH filtered AS NOT MATERIALIZED") &&
+      sequel_summary_find_text(source.data, "LATERAL unnest(")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "WITH filtered AS NOT MATERIALIZED (SELECT … FROM tax_liability_events WHERE …), totals AS (SELECT … "
+            "FILTER (…) FILTER (…) FILTER (…) FILTER (…) FROM filtered GROUP BY …), missing AS (SELECT … FROM "
+            "filtered, LATERAL unnest(…) AS item GROUP BY …) SELECT … FROM tax_accounts AS a LEFT JOIN totals AS t "
+            "ON t.account_id = a.account_id LEFT JOIN missing AS m ON m.account_id = a.account_id LEFT JOIN "
+            "tax_history_reconciliation AS h ON h.account_id=a.account_id WHERE … ORDER BY …"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
