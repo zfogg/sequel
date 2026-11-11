@@ -28,5 +28,8 @@ void analysis_policy_diagnostics_pass(const char *sql, size_t length, format_tok
                                       sequel_dialect_t dialect, sequel_analysis_t *out);
 void analysis_positions(const char *sql, sequel_analysis_t *out);
 void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
+void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
+sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
+                              sequel_diagnostic_code_t code);
 void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
 bool analysis_word(format_token token, const char *word);
