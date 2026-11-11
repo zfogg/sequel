@@ -30,11 +30,6 @@ typedef struct {
 } analysis_bindings;
 
 typedef struct {
-  format_token *p;
-  size_t n, capacity;
-} analysis_layout;
-
-typedef struct {
   sequel_analysis_t *out;
   sequel_analysis_options_t options;
 } analysis_state;
@@ -60,20 +55,6 @@ static void *analysis_array(void *pointer, size_t count, size_t element) {
     next *= 2;
   }
   return realloc(pointer, next);
-}
-
-static void analysis_layout_add(analysis_layout *layout, size_t start, size_t length, int kind, bool gap,
-                                sequel_dialect_t dialect) {
-  layout->p = analysis_array(layout->p, layout->n + 1, sizeof(*layout->p));
-  format_token t = {0};
-  t.t.n = length;
-  t.t.word = kind == 1;
-  t.t.clickhouse = dialect == SEQUEL_CLICKHOUSE;
-  t.kind = kind;
-  t.gap = gap;
-  t.source_offset = start;
-  t.flat_width = (layout->n ? layout->p[layout->n - 1].flat_width : 0) + length + 1;
-  layout->p[layout->n++] = t;
 }
 
 static void analysis_append(analysis_text *b, const char *p, size_t n) {
@@ -281,7 +262,7 @@ bool analysis_word(format_token t, const char *word) {
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
 static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_t count, analysis_state *a,
-                              analysis_text *safe, analysis_map *map, analysis_layout *layout, sequel_sha256 *hash) {
+                              analysis_text *safe, analysis_map *map, sequel_sha256 *hash) {
   sequel_analysis_t *out = a->out;
   analysis_bindings dictionary = {0}, slot_dictionary = {0};
   size_t consumed = 0, statement = 0, bind_count = 0;
@@ -459,15 +440,11 @@ static void analysis_sanitize(const char *sql, size_t n, format_token *ts, size_
         size_t close = ts[t.matching].source_offset;
         analysis_segment(map, end, close, before + 1, before + 2, SEQUEL_MAP_REPLACE);
       }
-      analysis_layout_add(layout, before, 1, 0, token_gap, a->options.dialect);
-      analysis_layout_add(layout, before + 1, 1, 0, false, a->options.dialect);
       collapse_end = t.matching;
     } else {
       analysis_append(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
       if (map)
         analysis_segment(map, start, end, before, safe->n, literal || bind ? SEQUEL_MAP_REPLACE : SEQUEL_MAP_COPY);
-      analysis_layout_add(layout, before, safe->n - before, literal || bind ? 0 : t.kind, token_gap,
-                          a->options.dialect);
     }
     if (!a->options.omit_query_text) {
       size_t cap = a->options.max_query_text_bytes ? a->options.max_query_text_bytes : SEQUEL_TEXT_MAX;
@@ -499,28 +476,6 @@ static void analysis_clip_map(analysis_map *map, size_t limit) {
   }
   free(map->p);
   *map = clipped;
-}
-
-static void analysis_format_map(analysis_layout *layout, size_t fn, size_t tn, analysis_map *map) {
-  size_t fp = 0, tp = 0;
-  for (size_t i = 0; i < layout->n; i++) {
-    sequel_work_tick(1);
-    format_token t = layout->p[i];
-    size_t f = t.source_offset, to = t.rendered_offset;
-    if (f > fp || to > tp)
-      analysis_segment(map, fp, f, tp, to,
-                       f == fp    ? SEQUEL_MAP_INSERT
-                       : to == tp ? SEQUEL_MAP_DELETE
-                                  : SEQUEL_MAP_REPLACE);
-    analysis_segment(map, f, f + t.t.n, to, to + t.t.n, SEQUEL_MAP_COPY);
-    fp = f + t.t.n;
-    tp = to + t.t.n;
-  }
-  if (fp < fn || tp < tn)
-    analysis_segment(map, fp, fn, tp, tn,
-                     fp == fn   ? SEQUEL_MAP_INSERT
-                     : tp == tn ? SEQUEL_MAP_DELETE
-                                : SEQUEL_MAP_REPLACE);
 }
 
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
@@ -651,13 +606,12 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     } else {
       analysis_text safe = {0};
       analysis_map map = {0};
-      analysis_layout layout = {0};
       sequel_sha256 hash;
       sha_init(&hash);
       sha_frame(&hash, 'V', "sequel-fingerprint-v1", 21, false);
       sha_frame(&hash, 'D', sequel_dialect_name(o.dialect), strlen(sequel_dialect_name(o.dialect)), false);
       bool maps = !o.omit_source_maps && !o.omit_query_text;
-      analysis_sanitize(sql, n, tokens, count, &a, &safe, maps ? &map : NULL, &layout, &hash);
+      analysis_sanitize(sql, n, tokens, count, &a, &safe, maps ? &map : NULL, &hash);
       if (o.keep_in_lists)
         analysis_compact_list_text(&safe);
       if (out->statement_count) {
@@ -754,7 +708,6 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           sequel_lexed_document_free(formatted_lexed);
         }
       }
-      free(layout.p);
     }
     sequel_query_document_free(query);
     sequel_syntax_document_free(syntax);
