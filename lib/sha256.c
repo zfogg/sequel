@@ -14,16 +14,16 @@ static void sha_block(sequel_sha256 *s) {
       0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
   uint32_t w[64];
-  for (size_t i = 0; (sequel_work_tick(1), i < 16); i++)
+  for (size_t i = 0; i < 16; i++)
     w[i] = ((uint32_t)s->block[i * 4] << 24) | ((uint32_t)s->block[i * 4 + 1] << 16) |
            ((uint32_t)s->block[i * 4 + 2] << 8) | s->block[i * 4 + 3];
-  for (size_t i = 16; (sequel_work_tick(1), i < 64); i++) {
+  for (size_t i = 16; i < 64; i++) {
     uint32_t a = w[i - 15], b = w[i - 2];
     w[i] = w[i - 16] + (sha_rotr(a, 7) ^ sha_rotr(a, 18) ^ (a >> 3)) + w[i - 7] +
            (sha_rotr(b, 17) ^ sha_rotr(b, 19) ^ (b >> 10));
   }
   uint32_t a = s->h[0], b = s->h[1], c = s->h[2], d = s->h[3], e = s->h[4], f = s->h[5], g = s->h[6], h = s->h[7];
-  for (size_t i = 0; (sequel_work_tick(1), i < 64); i++) {
+  for (size_t i = 0; i < 64; i++) {
     uint32_t t = h + (sha_rotr(e, 6) ^ sha_rotr(e, 11) ^ sha_rotr(e, 25)) + ((e & f) ^ (~e & g)) + k[i] + w[i];
     uint32_t u = (sha_rotr(a, 2) ^ sha_rotr(a, 13) ^ sha_rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
     h = g;
@@ -53,7 +53,7 @@ void sha_init(sequel_sha256 *s) {
 void sha_update(sequel_sha256 *s, const void *data, size_t n) {
   const unsigned char *p = data;
   s->bytes += n;
-  for (size_t i = 0; (sequel_work_tick(1), i < n); i++) {
+  for (size_t i = 0; i < n; i++) {
     s->block[s->used++] = p[i];
     if (s->used == 64) {
       sha_block(s);
@@ -64,7 +64,7 @@ void sha_update(sequel_sha256 *s, const void *data, size_t n) {
 
 void sha_u64(sequel_sha256 *s, uint64_t value) {
   unsigned char b[8];
-  for (size_t i = 0; (sequel_work_tick(1), i < 8); i++)
+  for (size_t i = 0; i < 8; i++)
     b[7 - i] = (unsigned char)(value >> (i * 8));
   sha_update(s, b, 8);
 }
@@ -75,7 +75,7 @@ void sha_frame(sequel_sha256 *s, unsigned char kind, const char *p, size_t n, bo
   if (!fold)
     sha_update(s, p, n);
   else
-    for (size_t i = 0; (sequel_work_tick(1), i < n); i++) {
+    for (size_t i = 0; i < n; i++) {
       unsigned char c = (unsigned char)p[i];
       if (c >= 'a' && c <= 'z')
         c -= 32;
@@ -91,7 +91,7 @@ void sha_final(sequel_sha256 *s, char out[65]) {
     sha_update(s, &zero, 1);
   sha_u64(s, bits);
   static const char hex[] = "0123456789abcdef";
-  for (size_t i = 0; (sequel_work_tick(1), i < 32); i++) {
+  for (size_t i = 0; i < 32; i++) {
     unsigned char c = (unsigned char)(s->h[i / 4] >> (24 - (i % 4) * 8));
     out[i * 2] = hex[c >> 4];
     out[i * 2 + 1] = hex[c & 15];
