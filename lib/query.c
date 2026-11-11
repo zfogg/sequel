@@ -572,7 +572,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     int depth = 0;
     for (size_t i = item_start; i <= end; ++i) {
       bool boundary = i == end;
-      if (!boundary && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION) {
+      if (!boundary && tokens[i].range.end == tokens[i].range.start + 1 && tokens[i].range.start < source.length) {
         char c = source.data[tokens[i].range.start];
         if (c == '(')
           ++depth;
