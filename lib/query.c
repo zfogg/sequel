@@ -877,11 +877,37 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     if (statement_index == SIZE_MAX)
       continue;
+    size_t depth = 0;
+    size_t statement_start = document->statements[statement_index].range.start;
+    for (size_t previous = 0; previous < i; ++previous) {
+      if (tokens[previous].range.start < statement_start || tokens[previous].range.start >= tokens[i].range.start ||
+          tokens[previous].range.end != tokens[previous].range.start + 1)
+        continue;
+      char punctuation = source.data[tokens[previous].range.start];
+      if (punctuation == '(')
+        ++depth;
+      else if (punctuation == ')' && depth)
+        --depth;
+    }
+    if (depth != 0)
+      continue;
     size_t end = document->statements[statement_index].range.end;
     for (size_t j = i + 1; j < token_count; ++j) {
       if (tokens[j].range.start >= end)
         break;
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && is_clause_keyword(&tokens[j])) {
+        size_t nested = 0;
+        for (size_t previous = i + 1; previous < j; ++previous) {
+          if (tokens[previous].range.end != tokens[previous].range.start + 1)
+            continue;
+          char punctuation = source.data[tokens[previous].range.start];
+          if (punctuation == '(')
+            ++nested;
+          else if (punctuation == ')' && nested)
+            --nested;
+        }
+        if (nested != 0)
+          continue;
         end = tokens[j].range.start;
         break;
       }
