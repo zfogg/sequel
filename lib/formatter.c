@@ -408,13 +408,13 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       else if (symbol == ']' && bracket_depth)
         --bracket_depth;
       if (is_close_paren(source, token) && length && data[length - 1] != '\n' &&
-          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth + 1 ||
+          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth ||
            (nested_query && paren_depth == 0) || (projection_subquery && paren_depth == 0)) &&
           !append_line_start(&data, &length, &capacity, projection_subquery ? 1 : (paren_depth ? paren_depth - 1 : 0)))
         goto no_memory;
       if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
         query_paren_depth = 0;
-      if (is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
+      if (is_close_paren(source, token) && cte_paren_depth == paren_depth)
         cte_paren_depth = 0, cte_just_closed = true;
       if (is_close_paren(source, token) && nested_query && paren_depth == 0)
         nested_query = false;
