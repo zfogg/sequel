@@ -1009,7 +1009,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                                sizeof(summary_ellipsis) - 1))) ||
                 (limit && limit < close &&
                  !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit))) ||
-                !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+                !sequel_summary_append_text(&text, &length, &capacity, (limit && limit < close) ? " AS " : ") AS ") ||
                 !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
                 (omit_cross_condition
                      ? 0
