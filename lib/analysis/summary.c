@@ -3,7 +3,7 @@
 
 #include "analysis_internal.h"
 
-void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
+void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   sequel_summary_options_t options;
   sequel_summary_options_init(&options);
   options.include_bind_count = false;
@@ -20,7 +20,7 @@ void analysis_summary_from_query(const sequel_query_document_t *query, sequel_an
   sequel_text_result_free(&summary);
 }
 
-void analysis_summary_default(sequel_analysis_t *out) {
+void sequel_analysis_summary_default(sequel_analysis_t *out) {
   static const char fallback[] = "SQL";
   char *summary = malloc(sizeof(fallback));
   if (!summary)

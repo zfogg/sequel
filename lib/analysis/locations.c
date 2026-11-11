@@ -1,6 +1,6 @@
 #include "analysis_internal.h"
 
-void analysis_positions(const char *sql, sequel_analysis_t *out) {
+void sequel_analysis_positions(const char *sql, sequel_analysis_t *out) {
   if (!sql || !out)
     return;
   sequel_source_view_t source = {sql, out->original_length};

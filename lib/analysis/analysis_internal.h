@@ -34,25 +34,25 @@ typedef struct {
 
 void *analysis_array(void *pointer, size_t count, size_t element);
 
-bool analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
-bool analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
-                         size_t *number, sequel_bind_style_t *style);
-void analysis_compact_list_text(analysis_text *text);
-void analysis_policy_diagnostics_pass(const char *sql, size_t length, analysis_token_t *tokens, size_t count,
-                                      sequel_dialect_t dialect, sequel_analysis_t *out);
-void analysis_positions(const char *sql, sequel_analysis_t *out);
-void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
-void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
+bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
+bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
+                                size_t *number, sequel_bind_style_t *style);
+void sequel_analysis_compact_list_text(analysis_text *text);
+void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t length, analysis_token_t *tokens, size_t count,
+                                             sequel_dialect_t dialect, sequel_analysis_t *out);
+void sequel_analysis_positions(const char *sql, sequel_analysis_t *out);
+void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
+void sequel_analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
 sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
                               sequel_diagnostic_code_t code);
-void analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
-void analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
-void analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
+void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
+void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
+void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
 sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
                                                     sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments);
-bool analysis_word(analysis_token_t token, const char *word);
-void analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
-void analysis_summary_default(sequel_analysis_t *out);
+bool sequel_analysis_word(analysis_token_t token, const char *word);
+void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
+void sequel_analysis_summary_default(sequel_analysis_t *out);
 sequel_status_t analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
                                           sequel_text_result_t *out);

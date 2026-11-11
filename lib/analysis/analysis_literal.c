@@ -7,7 +7,7 @@ static unsigned char clickhouse_quote_kind(const char *text, size_t length) {
   return ((unsigned char)text[2] == 0x98 || (unsigned char)text[2] == 0x9c) ? (unsigned char)text[2] : 0;
 }
 
-bool analysis_literal(analysis_token_t t, sequel_dialect_t d) {
+bool sequel_analysis_literal(analysis_token_t t, sequel_dialect_t d) {
   unsigned char c = (unsigned char)*t.t.p;
   if (isdigit(c) || (c == '.' && t.t.n > 1 && isdigit((unsigned char)t.t.p[1])))
     return true;

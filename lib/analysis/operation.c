@@ -1,6 +1,6 @@
 #include "analysis_internal.h"
 
-void analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
+void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   if (!query || !out || !sequel_query_statement_count(query))
     return;
   const sequel_statement_info_t *statement = sequel_query_statements(query);

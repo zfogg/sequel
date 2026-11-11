@@ -1,7 +1,7 @@
 /* Normalize list punctuation after the shared sanitizer has emitted text. */
 #include "analysis_internal.h"
 
-void analysis_compact_list_text(analysis_text *text) {
+void sequel_analysis_compact_list_text(analysis_text *text) {
   size_t read = 0, write = 0;
   while (read < text->n) {
     char c = text->p[read++];

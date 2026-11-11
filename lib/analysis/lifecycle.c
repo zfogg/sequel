@@ -1,6 +1,6 @@
 #include "analysis_internal.h"
 
-void analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
+void sequel_analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};
   out->schema_version = SEQUEL_ANALYSIS_VERSION;
   out->dialect = dialect;
@@ -16,12 +16,12 @@ void sequel_analysis_free(sequel_analysis_t *out) {
   if (!out)
     return;
   sequel_release_allocations(out->_storage);
-  analysis_empty(out, 0, SEQUEL_GENERIC);
+  sequel_analysis_empty(out, 0, SEQUEL_GENERIC);
 }
 
 sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
                               sequel_diagnostic_code_t code) {
-  analysis_empty(out, n, dialect);
+  sequel_analysis_empty(out, n, dialect);
   out->status = status == SEQUEL_ERR_CANCELLED                                ? "cancelled"
                 : status == SEQUEL_ERR_LIMIT || status == SEQUEL_ERR_OVERFLOW ? "limit"
                 : status == SEQUEL_ERR_INVALID_ARGUMENT                       ? "malformed"

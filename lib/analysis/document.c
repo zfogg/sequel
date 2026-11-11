@@ -21,11 +21,12 @@ struct sequel_query_analysis {
   sequel_analysis_map_segment_t formatted_segment;
 };
 
-static int analysis_cancelled(const sequel_cancellation_t *cancellation) {
+static int sequel_analysis_cancelled(const sequel_cancellation_t *cancellation) {
   return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata);
 }
 
-static int append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source) {
+static int sequel_analysis_append_diagnostics(sequel_diagnostic_list_t *destination,
+                                              const sequel_diagnostic_list_t *source) {
   if (!source->count)
     return 1;
   if (source->count > SIZE_MAX - destination->count)
@@ -73,7 +74,7 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   if (options)
     analysis->options = *options;
   analysis->query = query;
-  if (analysis_cancelled(cancellation)) {
+  if (sequel_analysis_cancelled(cancellation)) {
     free(analysis);
     return SEQUEL_ERR_CANCELLED;
   }
@@ -83,22 +84,22 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   sequel_diagnostic_list_t query_diagnostics = {0};
   sequel_diagnostic_list_t portability_diagnostics = {0};
   status = sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical_diagnostics);
-  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+  if (status == SEQUEL_OK && sequel_analysis_cancelled(cancellation))
     status = SEQUEL_ERR_CANCELLED;
   if (status == SEQUEL_OK)
     status = sequel_collect_syntax_diagnostics(syntax, &syntax_diagnostics);
-  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+  if (status == SEQUEL_OK && sequel_analysis_cancelled(cancellation))
     status = SEQUEL_ERR_CANCELLED;
   if (status == SEQUEL_OK && analysis->options.include_lints)
     status = sequel_collect_query_diagnostics(analysis->query, &query_diagnostics);
-  if (status == SEQUEL_OK && analysis_cancelled(cancellation))
+  if (status == SEQUEL_OK && sequel_analysis_cancelled(cancellation))
     status = SEQUEL_ERR_CANCELLED;
   if (status == SEQUEL_OK && analysis->options.include_portability) {
     if (analysis->options.portability_target_count && !analysis->options.portability_targets)
       status = SEQUEL_ERR_INVALID_ARGUMENT;
     else if (analysis->options.portability_target_count) {
       for (size_t i = 0; i < analysis->options.portability_target_count && status == SEQUEL_OK; ++i) {
-        if (analysis_cancelled(cancellation)) {
+        if (sequel_analysis_cancelled(cancellation)) {
           status = SEQUEL_ERR_CANCELLED;
           break;
         }
@@ -140,13 +141,13 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           sequel_query_source(query).length, analysis->formatted_sql.length, &analysis->formatted_segment, 1};
     }
   }
-  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
+  if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
     status = SEQUEL_ERR_NOMEM;
-  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &syntax_diagnostics))
+  if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &syntax_diagnostics))
     status = SEQUEL_ERR_NOMEM;
-  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &query_diagnostics))
+  if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &query_diagnostics))
     status = SEQUEL_ERR_NOMEM;
-  if (status == SEQUEL_OK && !append_diagnostics(&analysis->diagnostics, &portability_diagnostics))
+  if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &portability_diagnostics))
     status = SEQUEL_ERR_NOMEM;
   sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_diagnostic_list_free(&syntax_diagnostics);
