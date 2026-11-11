@@ -922,6 +922,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t statement = statement_for_range(document, tokens[i].range);
     sequel_join_info_t join = {.kind = join_kind(tokens, token_count, i, &source),
                                .range = {tokens[i].range.start, document->relations[right].range.end},
+                               .condition_range = {0, 0},
                                .left_relation = left,
                                .right_relation = right,
                                .condition_node = SIZE_MAX,
@@ -942,10 +943,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
         while (condition_end > condition_start && is_trivia(&tokens[condition_end - 1]))
           --condition_end;
-        if (condition_start < condition_end)
-          join.condition_node =
-              expression_node_for_range(document->syntax, (sequel_source_range_t){tokens[condition_start].range.start,
-                                                                                  tokens[condition_end - 1].range.end});
+        if (condition_start < condition_end) {
+          join.condition_range =
+              (sequel_source_range_t){tokens[condition_start].range.start, tokens[condition_end - 1].range.end};
+          join.condition_node = expression_node_for_range(document->syntax, join.condition_range);
+        }
         break;
       }
     }
