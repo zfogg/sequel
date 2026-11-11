@@ -2143,9 +2143,23 @@ summary_postprocess:
       const char replacement[] = "SELECT unnest(…)";
       char *end = sequel_summary_find_text(select + 7, " ON CONFLICT");
       if (end) {
-        memmove(select + sizeof(replacement) - 1, end, strlen(end) + 1);
+        size_t prefix_length = (size_t)(select - text);
+        size_t suffix_offset = (size_t)(end - text);
+        size_t suffix_length = strlen(end);
+        size_t replacement_length = sizeof(replacement) - 1;
+        size_t required = prefix_length + replacement_length + suffix_length + 1;
+        if (required > capacity) {
+          char *grown = realloc(text, required);
+          if (!grown)
+            goto no_memory;
+          text = grown;
+          capacity = required;
+          select = text + prefix_length;
+          end = text + suffix_offset;
+        }
+        memmove(select + replacement_length, end, suffix_length + 1);
         memcpy(select, replacement, sizeof(replacement) - 1);
-        length = strlen(text);
+        length = required - 1;
       }
     }
     if (text && sequel_query_dialect(query) >= SEQUEL_POSTGRESQL &&
@@ -2527,6 +2541,16 @@ summary_postprocess:
     if (!sequel_summary_find_text(text, "FOR UPDATE SKIP LOCKED") &&
         !sequel_summary_append_text(&text, &length, &capacity, " FOR UPDATE SKIP LOCKED"))
       goto no_memory;
+  }
+  const char *source_last_limit = NULL;
+  for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
+    source_last_limit = cursor;
+  if (sequel_query_outer_limit(query) && source_last_limit && source_last_limit[6] == '$') {
+    char *last_limit = NULL;
+    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
+      last_limit = cursor;
+    if (last_limit && !memcmp(last_limit, "LIMIT 1", sizeof("LIMIT 1") - 1))
+      memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
