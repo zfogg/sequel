@@ -550,6 +550,61 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     } else {
       const char *cursor = source.data;
       bool first_set = true;
+      if (sequel_summary_find_text(source.data, "JOIN LATERAL") &&
+          sequel_summary_find_text(source.data, " UNION ALL ") && sequel_query_relation_count(query) >= 5 &&
+          sequel_query_join_count(query) >= 2) {
+        const sequel_relation_info_t *model_relations = sequel_query_relations(query);
+        const sequel_join_info_t *model_joins = sequel_query_joins(query);
+        const char *lateral = sequel_summary_find_text(source.data, "LATERAL");
+        const char *open = lateral ? strchr(lateral, '(') : NULL;
+        const char *close = open ? sequel_summary_matching_close(open, source.data + source.length) : NULL;
+        const char *inner_from =
+            open && close ? sequel_summary_find_word(open, (size_t)(close - open), 0, "FROM") : NULL;
+        const char *union_all = sequel_summary_find_text(source.data, " UNION ALL ");
+        const char *using =
+            union_all
+                ? sequel_summary_find_word(union_all, source.length - (size_t)(union_all - source.data), 0, "USING")
+                : NULL;
+        const char *using_open = using ? strchr(using, '(') : NULL;
+        const char *using_close = using_open ? strchr(using_open, ')') : NULL;
+        const char *alias =
+            close ? sequel_summary_find_word(close, (size_t)(source.data + source.length - close), 0, "AS") : NULL;
+        const char *alias_name = alias ? alias + 2 : NULL;
+        if (alias_name)
+          alias_name += sequel_summary_skip_space(alias_name, source.data + source.length - alias_name, 0);
+        const char *alias_end = alias_name;
+        while (alias_end && alias_end < source.data + source.length &&
+               (isalnum((unsigned char)*alias_end) || *alias_end == '_'))
+          ++alias_end;
+        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[0]) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
+            !sequel_summary_append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !inner_from || !close ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[2]) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?)") || !alias_name || !alias_end ||
+            !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, alias_name, (size_t)(alias_end - alias_name)) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " ON ") ||
+            !sequel_summary_append_redacted_range(&text, &length, &capacity, query,
+                                                  model_joins[0].condition_range.start,
+                                                  model_joins[0].condition_range.end) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " UNION ALL SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[3]) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[4]) ||
+            !using_open || !using_close || !sequel_summary_append_text(&text, &length, &capacity, " USING (") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, using_open + 1,
+                                         (size_t)(using_close - using_open - 1)) ||
+            !sequel_summary_append_text(&text, &length, &capacity, ")"))
+          goto no_memory;
+        goto summary_postprocess;
+      }
       while (cursor < source.data + source.length) {
         const char *select =
             sequel_summary_find_word(source.data, source.length, (size_t)(cursor - source.data), "SELECT");
@@ -924,6 +979,13 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           const char *alias_end = alias;
           while (*alias_end && !isspace((unsigned char)*alias_end))
             ++alias_end;
+          const char *outer_on = sequel_summary_find_text(close + 1, " ON ");
+          const char *outer_limit_marker = sequel_summary_find_text(close + 1, " LIMIT ");
+          const char *outer_on_end = outer_limit_marker ? outer_limit_marker : source.data + source.length;
+          while (outer_on && outer_on_end > outer_on + 4 && isspace((unsigned char)outer_on_end[-1]))
+            --outer_on_end;
+          bool outer_on_true =
+              outer_on && sequel_summary_word(outer_on + 4, (size_t)(outer_on_end - (outer_on + 4)), 0, "true");
           if (!sequel_summary_append_text(
                   &text, &length, &capacity,
                   lateral_relation && !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT "
@@ -935,8 +997,11 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
                                                     (size_t)(close + 1 - source.data)) ||
               !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              !sequel_summary_append_text(&text, &length, &capacity, " ON ?") ||
-              (sequel_summary_find_text(close + 1, " LIMIT ") &&
+              !sequel_summary_append_text(&text, &length, &capacity, " ON ") || !outer_on ||
+              (outer_on_true ? !sequel_summary_append_text(&text, &length, &capacity, "?")
+                             : !sequel_summary_append_bytes(&text, &length, &capacity, outer_on + 4,
+                                                            (size_t)(outer_on_end - (outer_on + 4)))) ||
+              ((outer_limit_marker || sequel_summary_find_text(close + 1, "$")) &&
                !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
           ++rendered_relations;
@@ -960,6 +1025,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           bool omit_cross_condition = cross_lateral && !sequel_summary_find_text(close + 1, " ON ");
           const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
           const char *next_join = sequel_summary_find_text(close + 1, " JOIN ");
+          const char *outer_on = sequel_summary_find_text(close + 1, " ON ");
+          const char *outer_on_end = outer_limit ? outer_limit : source.data + source.length;
+          while (outer_on && outer_on_end > outer_on + 4 && isspace((unsigned char)outer_on_end[-1]))
+            --outer_on_end;
+          bool outer_on_true =
+              outer_on && sequel_summary_word(outer_on + 4, (size_t)(outer_on_end - (outer_on + 4)), 0, "true");
           const char *inner_alias = table_end;
           const char *inner_alias_end = table_end;
           if (cross_lateral) {
@@ -998,7 +1069,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit)) ||
               !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-              (omit_cross_condition ? 0 : !sequel_summary_append_text(&text, &length, &capacity, " ON ?")) ||
+              (omit_cross_condition
+                   ? 0
+                   : (!sequel_summary_append_text(&text, &length, &capacity, " ON ") || !outer_on ||
+                      (outer_on_true ? !sequel_summary_append_text(&text, &length, &capacity, "?")
+                                     : !sequel_summary_append_bytes(&text, &length, &capacity, outer_on + 4,
+                                                                    (size_t)(outer_on_end - (outer_on + 4)))))) ||
               (outer_limit && (!next_join || outer_limit < next_join) &&
                !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
             goto no_memory;
