@@ -577,6 +577,24 @@ int main(void) {
     sequel_syntax_document_free(scalar_syntax);
   }
   {
+    const char nested_limit_sql[] = "SELECT * FROM accounts WHERE id IN (SELECT id FROM archive LIMIT 1)";
+    sequel_source_view_t nested_limit_source = {nested_limit_sql, strlen(nested_limit_sql)};
+    sequel_syntax_document_t *nested_limit_syntax = NULL;
+    sequel_query_document_t *nested_limit_query = NULL;
+    sequel_text_result_t nested_limit_summary = {0};
+    if (!check(sequel_parse_sql(&nested_limit_source, &options, NULL, &nested_limit_syntax) == SEQUEL_OK,
+               "nested limit parsing") ||
+        !check(sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK,
+               "nested limit query extraction") ||
+        !check(sequel_summarize_query(nested_limit_query, NULL, &nested_limit_summary) == SEQUEL_OK &&
+                   strstr(nested_limit_summary.data, "LIMIT 1)") == NULL,
+               "nested limit summary"))
+      return 1;
+    sequel_text_result_free(&nested_limit_summary);
+    sequel_query_document_free(nested_limit_query);
+    sequel_syntax_document_free(nested_limit_syntax);
+  }
+  {
     const char lowercase_sql[] = "select value from records where value = 1 order by value limit 1";
     sequel_source_view_t lowercase_source = {lowercase_sql, strlen(lowercase_sql)};
     sequel_syntax_document_t *lowercase_syntax = NULL;
