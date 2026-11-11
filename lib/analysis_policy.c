@@ -11,12 +11,12 @@ static void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_t
     format_token t = ts[i];
     if (t.kind >= 3)
       continue;
-    if (sym(t.t, '(')) {
+    if (sequel_runtime_symbol(t.t, '(')) {
       if (++depth > 16)
         analysis_add_diagnostic(out, SEQUEL_DIAG_DEEP_QUERY_NESTING, t.source_offset, t.source_offset + 1);
       if (in_start != SIZE_MAX)
         ++in_items;
-    } else if (sym(t.t, ')')) {
+    } else if (sequel_runtime_symbol(t.t, ')')) {
       if (in_start != SIZE_MAX && depth == in_start) {
         if (in_items > 32)
           analysis_add_diagnostic(out, SEQUEL_DIAG_LARGE_IN_LIST, t.source_offset, t.source_offset + 1);
@@ -26,7 +26,7 @@ static void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_t
       if (depth)
         --depth;
     }
-    if (sym(t.t, ';') && i + 1 < count && sym(ts[i + 1].t, ';'))
+    if (sequel_runtime_symbol(t.t, ';') && i + 1 < count && sequel_runtime_symbol(ts[i + 1].t, ';'))
       analysis_add_diagnostic(out, SEQUEL_DIAG_EMPTY_STATEMENT, t.source_offset, t.source_offset + 1);
     if (t.kind == 1) {
       if (!operation) {
@@ -49,7 +49,7 @@ static void analysis_policy_diagnostics_pass(const char *sql, size_t n, format_t
       if (analysis_word(t, "ILIKE") && dialect != SEQUEL_POSTGRESQL && dialect != SEQUEL_DUCKDB)
         analysis_add_diagnostic(out, SEQUEL_DIAG_DIALECT_PORTABILITY, t.source_offset, t.source_offset + t.t.n);
     }
-    if (sym(t.t, '*') && i > 0 && analysis_word(ts[i - 1], "SELECT"))
+    if (sequel_runtime_symbol(t.t, '*') && i > 0 && analysis_word(ts[i - 1], "SELECT"))
       star = true;
   }
   if (!table)

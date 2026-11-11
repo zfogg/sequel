@@ -39,7 +39,7 @@ static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char *
     return false;
   if (p[0] == ':' && (p[1] == ':' || p[1] == '='))
     return false;
-  if (p[0] == '$' && d != SEQUEL_SQLITE && dollar_tag_end(p, n, 0, d))
+  if (p[0] == '$' && d != SEQUEL_SQLITE && sequel_runtime_dollar_tag_end(p, n, 0, d))
     return false;
   bool digits = true;
   for (size_t i = 1; i < n; i++) {
@@ -62,7 +62,7 @@ static bool analysis_bind_token(format_token t, sequel_dialect_t d, const char *
   }
   if (p[0] == '?')
     return false;
-  if (!letter((unsigned char)p[1]) && !(d == SEQUEL_SQLITE && isdigit((unsigned char)p[1])))
+  if (!sequel_runtime_letter((unsigned char)p[1]) && !(d == SEQUEL_SQLITE && isdigit((unsigned char)p[1])))
     return false;
   *style = SEQUEL_BIND_NAMED;
   if (d != SEQUEL_SQLITE) {
