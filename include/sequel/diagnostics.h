@@ -47,6 +47,12 @@ typedef enum {
 
 typedef enum { SEQUEL_NOTE, SEQUEL_WARNING, SEQUEL_ERROR } sequel_severity_t;
 
+enum {
+  SEQUEL_DIAGNOSTIC_MESSAGE_MAX = 128,
+  SEQUEL_DIAGNOSTIC_EXPLANATION_MAX = 384,
+  SEQUEL_DIAGNOSTIC_HINT_MAX = 256,
+};
+
 /** Legacy fixed diagnostic record retained while callers migrate to lists. */
 typedef struct sequel_diagnostic {
   sequel_diagnostic_code_t code;
@@ -59,9 +65,9 @@ typedef struct sequel_diagnostic {
   size_t end_column;
   bool incomplete;
   bool statement_complete;
-  char message[128];
-  char explanation[384];
-  char hint[256];
+  char message[SEQUEL_DIAGNOSTIC_MESSAGE_MAX];
+  char explanation[SEQUEL_DIAGNOSTIC_EXPLANATION_MAX];
+  char hint[SEQUEL_DIAGNOSTIC_HINT_MAX];
 } sequel_diagnostic_t;
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
@@ -98,9 +104,9 @@ typedef struct sequel_diagnostic_record {
   int incomplete;
   int recovered;
   int statement_complete;
-  char message[128];
-  char explanation[384];
-  char hint[256];
+  char message[SEQUEL_DIAGNOSTIC_MESSAGE_MAX];
+  char explanation[SEQUEL_DIAGNOSTIC_EXPLANATION_MAX];
+  char hint[SEQUEL_DIAGNOSTIC_HINT_MAX];
 } sequel_diagnostic_record_t;
 
 typedef struct {
