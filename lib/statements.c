@@ -3,6 +3,8 @@
 
 #include <sequel/query.h>
 
+#include "model.h"
+
 sequel_operation_t sequel_query_operation_from_syntax(sequel_syntax_kind_t kind) {
   switch (kind) {
   case SEQUEL_SYNTAX_SELECT_STATEMENT:

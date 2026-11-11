@@ -6,32 +6,6 @@
 #include "util/text.h"
 #include "model.h"
 
-static int append(void **array, size_t *count, size_t size, const void *value) {
-  size_t required = *count + 1;
-  query_array_header *header = *array ? (query_array_header *)*array - 1 : NULL;
-  size_t capacity = header ? header->capacity : 0;
-  if (capacity < required) {
-    capacity = capacity ? capacity : 64;
-    while (capacity < required) {
-      if (capacity > SIZE_MAX / 2) {
-        capacity = required;
-        break;
-      }
-      capacity *= 2;
-    }
-    if (capacity > SIZE_MAX / size || capacity > (SIZE_MAX - sizeof(*header)) / size)
-      return 0;
-    header = realloc(header, sizeof(*header) + capacity * size);
-    if (!header)
-      return 0;
-    header->capacity = capacity;
-    *array = header + 1;
-  }
-  memcpy((char *)*array + *count * size, value, size);
-  ++*count;
-  return 1;
-}
-
 static int is_trivia(const sequel_token_t *token);
 
 static int is_identifier_token(const sequel_token_t *token) {
@@ -144,7 +118,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .operation = sequel_query_operation_from_syntax(kind),
                                          .syntax_node = i,
                                          .query_body = SIZE_MAX};
-    if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {
+    if (!sequel_query_array_append((void **)&document->statements, &document->statement_count, sizeof(statement),
+                                   &statement)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -182,7 +157,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         continue;
       sequel_statement_info_t statement = {
           .range = {0, source.length}, .operation = recovered, .syntax_node = SIZE_MAX, .query_body = SIZE_MAX};
-      if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {
+      if (!sequel_query_array_append((void **)&document->statements, &document->statement_count, sizeof(statement),
+                                     &statement)) {
         sequel_query_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
@@ -264,7 +240,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                .body_range = {tokens[body_open].range.end, tokens[body_close].range.start},
                                .statement_index = sequel_query_statement_for_range(document, tokens[name].range),
                                .syntax_node = SIZE_MAX};
-      if (!append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte)) {
+      if (!sequel_query_array_append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte)) {
         sequel_query_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
@@ -459,7 +435,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .name_range = name_range,
                                          .type_range = type_range,
                                          .identity = identity};
-    if (!append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter)) {
+    if (!sequel_query_array_append((void **)&document->parameters, &document->parameter_count, sizeof(parameter),
+                                   &parameter)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -515,8 +492,9 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             .wildcard = last_token == first_token + 1 && tokens[first_token].kind == SEQUEL_TOKEN_OPERATOR &&
                         source.data[tokens[first_token].range.start] == '*',
             .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
-        projection.expression_node = expression_node_for_range(document->syntax, projection.range);
-        if (!append((void **)&document->projections, &document->projection_count, sizeof(projection), &projection)) {
+        projection.expression_node = sequel_query_expression_node_for_range(document->syntax, projection.range);
+        if (!sequel_query_array_append((void **)&document->projections, &document->projection_count, sizeof(projection),
+                                       &projection)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -549,7 +527,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                                                            tokens[predicate_end - 1].range.end}),
             .depth = 0};
         predicate.expression_node = sequel_query_expression_node_for_range(document->syntax, predicate.range);
-        if (!append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
+        if (!sequel_query_array_append((void **)&document->predicates, &document->predicate_count, sizeof(predicate),
+                                       &predicate)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -627,7 +606,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .parent_relation = SIZE_MAX,
                                          .subquery_statement = SIZE_MAX,
                                          .flags = SEQUEL_RELATION_FLAG_NESTED_SCOPE};
-      if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
+      if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
+                                     &relation)) {
         sequel_query_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
@@ -736,7 +716,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (function_relation)
       relation.kind = SEQUEL_RELATION_FUNCTION;
-    if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
+    if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
+                                   &relation)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -798,7 +779,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         break;
       }
     }
-    if (!append((void **)&document->joins, &document->join_count, sizeof(join), &join)) {
+    if (!sequel_query_array_append((void **)&document->joins, &document->join_count, sizeof(join), &join)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -861,7 +842,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
     sequel_clause_info_t clause = {{tokens[i].range.start, end}, statement_index, tokens[i].keyword_id};
-    if (!append((void **)&document->clauses, &document->clause_count, sizeof(clause), &clause)) {
+    if (!sequel_query_array_append((void **)&document->clauses, &document->clause_count, sizeof(clause), &clause)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }

@@ -19,6 +19,8 @@ typedef struct {
   size_t capacity;
 } query_array_header;
 
+int sequel_query_array_append(void **array, size_t *count, size_t size, const void *value);
+
 static inline void sequel_query_array_free(void *array) {
   if (array)
     free((query_array_header *)array - 1);
