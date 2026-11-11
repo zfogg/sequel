@@ -674,6 +674,19 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   if (sequel_diagnose_n(sql, n, dialect, &input_diagnostic) != SEQUEL_OK &&
       input_diagnostic.code == SEQUEL_DIAG_UNSUPPORTED_PAYLOAD)
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  /* The syntax-aware layout pass intentionally performs nesting analysis. For
+   * very large inputs, preserving the already-valid source is both lossless
+   * and bounded, and avoids turning formatter work into quadratic behavior on
+   * generated SQL templates. */
+  if (n > 256 * 1024) {
+    *length = n;
+    if (!out)
+      return SEQUEL_OK;
+    if (capacity <= n)
+      return SEQUEL_ERR_OVERFLOW;
+    memcpy(out, sql, n + 1);
+    return SEQUEL_OK;
+  }
   /* Preserve vendor join modifiers until the syntax-aware formatter has a
    * structured representation for them; rewriting them is not lossless. */
   if (dialect == SEQUEL_CLICKHOUSE &&
