@@ -90,6 +90,8 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
 }
 
 bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel_diagnostic_record_t record) {
+  if (record.origin >= SEQUEL_DIAGNOSTIC_SEMANTIC && !record.incomplete && !record.recovered)
+    record.statement_complete = 1;
   if (diagnostics->count == diagnostics->capacity) {
     size_t capacity = diagnostics->capacity ? diagnostics->capacity * 2 : 8;
     if (capacity < diagnostics->count || capacity > SIZE_MAX / sizeof(*diagnostics->records))
