@@ -8,6 +8,21 @@ char *sequel_summary_find_text(const char *source, const char *needle) {
     return (char *)source;
   size_t needle_length = strlen(needle);
   for (const char *cursor = source; *cursor; ++cursor) {
+    if (*cursor == '\'' || *cursor == '"' || *cursor == '`' || *cursor == '[') {
+      char quote = *cursor == '[' ? ']' : *cursor;
+      ++cursor;
+      while (*cursor) {
+        if (*cursor == quote) {
+          if (cursor[1] == quote) {
+            ++cursor;
+          } else {
+            break;
+          }
+        }
+        ++cursor;
+      }
+      continue;
+    }
     size_t i = 0;
     while (i < needle_length && cursor[i] && toupper((unsigned char)cursor[i]) == toupper((unsigned char)needle[i]))
       ++i;
