@@ -789,7 +789,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         grouped_relation = true;
       }
     }
-    size_t relation_passes = sequel_query_join_count(query) ? 2 : 1;
+    size_t relation_passes = sequel_query_join_count(query) && !(sequel_query_cte_count(query) && statement_count &&
+                                                                 (statements[0].operation == SEQUEL_OPERATION_INSERT ||
+                                                                  statements[0].operation == SEQUEL_OPERATION_UPDATE ||
+                                                                  statements[0].operation == SEQUEL_OPERATION_DELETE))
+                                 ? 2
+                                 : 1;
     for (size_t relation_pass = 0; relation_pass < relation_passes; ++relation_pass)
       for (size_t i = 0; i < relation_count; ++i) {
         if (sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
