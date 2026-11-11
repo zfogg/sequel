@@ -31,10 +31,16 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
     if (table) {
       while (*table && isspace((unsigned char)*table))
         ++table;
+      if (truncate_statement && !strncmp(table, "TABLE", strlen("TABLE"))) {
+        table += strlen("TABLE");
+        while (*table && isspace((unsigned char)*table))
+          ++table;
+      }
       const char *end = table;
       while (*end && !isspace((unsigned char)*end) && *end != ';')
         ++end;
-      return sequel_summary_append_bytes(text, length, capacity, source.data, (size_t)(table - source.data)) &&
+      const char *operation = truncate_statement ? "TRUNCATE " : "VACUUM ";
+      return sequel_summary_append_text(text, length, capacity, operation) &&
                      sequel_summary_append_bytes(text, length, capacity, table, (size_t)(end - table))
                  ? 1
                  : -1;
