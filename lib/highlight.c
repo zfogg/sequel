@@ -94,12 +94,12 @@ sequel_status_t sequel_colorscheme_parse(const char *yaml, sequel_colorscheme_t 
     while (p < end && (yaml[p] == ' ' || yaml[p] == '\t'))
       ++p;
     char quote = p < end && (yaml[p] == '\'' || yaml[p] == '"') ? yaml[p++] : 0;
-    size_t value = p;
     if (p < end && yaml[p] == '#')
       ++p;
-    p += 6;
-    if (p > end || !highlight_hex(yaml + value, p - value, &parsed.base[lo]))
+    size_t value = p;
+    if (end - p < 6 || !highlight_hex(yaml + value, 6, &parsed.base[lo]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
+    p += 6;
     if (quote && (p == end || yaml[p++] != quote))
       return SEQUEL_ERR_INVALID_ARGUMENT;
     if (p < end && !isspace((unsigned char)yaml[p]) && yaml[p] != '#')
