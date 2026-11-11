@@ -18,6 +18,19 @@ typedef struct {
   unsigned id;
 } sequel_keyword_definition_t;
 
+typedef struct {
+  const char *text;
+  unsigned precedence;
+  bool right_associative;
+  bool unary;
+} sequel_operator_definition_t;
+
+typedef struct {
+  const char *name;
+  unsigned keyword_id;
+  bool repeatable;
+} sequel_clause_definition_t;
+
 /** Stable keyword identifiers shared by lexer, parser and query consumers. */
 enum {
   SEQUEL_KEYWORD_SELECT = 1,
@@ -73,7 +86,13 @@ typedef struct {
   bool supports_typed_parameters;
   const sequel_keyword_definition_t *keywords;
   size_t keyword_count;
+  const sequel_operator_definition_t *operators;
+  size_t operator_count;
+  const sequel_clause_definition_t *clauses;
+  size_t clause_count;
 } sequel_dialect_definition_t;
 
 const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t dialect);
 unsigned sequel_dialect_keyword_id(sequel_dialect_t dialect, const char *text, size_t length);
+const sequel_operator_definition_t *sequel_dialect_operator(sequel_dialect_t dialect, const char *text, size_t length);
+const sequel_clause_definition_t *sequel_dialect_clause(sequel_dialect_t dialect, unsigned keyword_id);

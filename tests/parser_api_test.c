@@ -25,6 +25,15 @@ static bool count_relations(const sequel_query_document_t *document, size_t inde
 }
 
 int main(void) {
+  const sequel_dialect_definition_t *postgres = sequel_dialect_definition(SEQUEL_POSTGRESQL);
+  if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0,
+             "dialect exposes operator and clause metadata"))
+    return 1;
+  if (!check(sequel_dialect_operator(SEQUEL_POSTGRESQL, ">=", 2) != NULL, "dialect resolves operators"))
+    return 1;
+  if (!check(sequel_dialect_clause(SEQUEL_POSTGRESQL, SEQUEL_KEYWORD_ORDER) != NULL, "dialect resolves clauses"))
+    return 1;
+
   {
     const char named_sql[] = "SELECT @token";
     sequel_source_view_t named_source = {named_sql, strlen(named_sql)};
