@@ -2515,6 +2515,17 @@ summary_postprocess:
             "WHERE …)"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
+      sequel_summary_find_text(source.data, "GROUP BY generation")) {
+    length = 0;
+    text[0] = 0;
+    if (!sequel_summary_append_text(
+            &text, &length, &capacity,
+            "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker WHERE … "
+            "(SELECT … FROM ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1) GROUP BY … HAVING … ORDER BY … "
+            "LIMIT ?"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
