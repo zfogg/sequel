@@ -5,6 +5,7 @@
 
 #include <sequel.h>
 #include <sequel/parser.h>
+#include "inspection.h"
 #include "util/text.h"
 #include "util/utf8.h"
 
@@ -319,58 +320,7 @@ static sequel_status_t inspect_document(const char *sql, size_t length, const se
   out->summary = storage + text_length + 1;
   out->statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
-  if (out->statement_count) {
-    bool same_operation = true;
-    for (size_t statement_index = 1; statement_index < out->statement_count; ++statement_index)
-      if (statements[statement_index].operation != statements[0].operation) {
-        same_operation = false;
-        break;
-      }
-    if (!same_operation)
-      out->operation[0] = 0;
-    else {
-      const char *name = statements[0].operation == SEQUEL_OPERATION_SELECT        ? "SELECT"
-                         : statements[0].operation == SEQUEL_OPERATION_INSERT      ? "INSERT"
-                         : statements[0].operation == SEQUEL_OPERATION_UPDATE      ? "UPDATE"
-                         : statements[0].operation == SEQUEL_OPERATION_DELETE      ? "DELETE"
-                         : statements[0].operation == SEQUEL_OPERATION_MERGE       ? "MERGE"
-                         : statements[0].operation == SEQUEL_OPERATION_CREATE      ? "CREATE"
-                         : statements[0].operation == SEQUEL_OPERATION_ALTER       ? "ALTER"
-                         : statements[0].operation == SEQUEL_OPERATION_DROP        ? "DROP"
-                         : statements[0].operation == SEQUEL_OPERATION_EXPLAIN     ? "EXPLAIN"
-                         : statements[0].operation == SEQUEL_OPERATION_OPTIMIZE    ? "OPTIMIZE"
-                         : statements[0].operation == SEQUEL_OPERATION_TRUNCATE    ? "TRUNCATE"
-                         : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
-                                                                                   : "";
-      if (statements[0].operation == SEQUEL_OPERATION_TRANSACTION) {
-        size_t start = 0;
-        while (start < source.length && isspace((unsigned char)source.data[start]))
-          ++start;
-        if (start + 5 <= source.length && !_strnicmp(source.data + start, "BEGIN", 5))
-          name = "BEGIN";
-        else if (start + 6 <= source.length && !_strnicmp(source.data + start, "COMMIT", 6))
-          name = "COMMIT";
-        else if (start + 8 <= source.length && !_strnicmp(source.data + start, "ROLLBACK", 8))
-          name = "ROLLBACK";
-      }
-      if (*name) {
-        snprintf(out->operation, sizeof(out->operation), "%s", name);
-      } else {
-        size_t start = 0, end;
-        while (start < source.length && isspace((unsigned char)source.data[start]))
-          ++start;
-        end = start;
-        while (end < source.length && isalpha((unsigned char)source.data[end]))
-          ++end;
-        size_t amount = end - start;
-        if (amount >= sizeof(out->operation))
-          amount = sizeof(out->operation) - 1;
-        for (size_t i = 0; i < amount; ++i)
-          out->operation[i] = (char)toupper((unsigned char)source.data[start + i]);
-        out->operation[amount] = 0;
-      }
-    }
-  }
+  sequel_inspection_set_operation(&source, statements, out->statement_count, out->operation, sizeof(out->operation));
   out->truncated =
       text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX);
   if (out->truncated) {

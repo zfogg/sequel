@@ -92,6 +92,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/formatter.c
   ../lib/format_buffer.c
   ../lib/format_rules.c
+  ../lib/inspection.c
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c

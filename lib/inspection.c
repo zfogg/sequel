@@ -1,0 +1,62 @@
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "inspection.h"
+
+void sequel_inspection_set_operation(const sequel_source_view_t *source,
+                                     const sequel_statement_info_t *statements,
+                                     size_t statement_count, char *operation, size_t operation_capacity) {
+  if (!source || !statements || !operation || !operation_capacity || !statement_count)
+    return;
+  bool same_operation = true;
+  for (size_t i = 1; i < statement_count; ++i)
+    if (statements[i].operation != statements[0].operation) {
+      same_operation = false;
+      break;
+    }
+  if (!same_operation) {
+    operation[0] = 0;
+    return;
+  }
+  const char *name = statements[0].operation == SEQUEL_OPERATION_SELECT        ? "SELECT"
+                     : statements[0].operation == SEQUEL_OPERATION_INSERT      ? "INSERT"
+                     : statements[0].operation == SEQUEL_OPERATION_UPDATE      ? "UPDATE"
+                     : statements[0].operation == SEQUEL_OPERATION_DELETE      ? "DELETE"
+                     : statements[0].operation == SEQUEL_OPERATION_MERGE       ? "MERGE"
+                     : statements[0].operation == SEQUEL_OPERATION_CREATE      ? "CREATE"
+                     : statements[0].operation == SEQUEL_OPERATION_ALTER       ? "ALTER"
+                     : statements[0].operation == SEQUEL_OPERATION_DROP        ? "DROP"
+                     : statements[0].operation == SEQUEL_OPERATION_EXPLAIN     ? "EXPLAIN"
+                     : statements[0].operation == SEQUEL_OPERATION_OPTIMIZE    ? "OPTIMIZE"
+                     : statements[0].operation == SEQUEL_OPERATION_TRUNCATE    ? "TRUNCATE"
+                     : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
+                                                                                 : "";
+  if (statements[0].operation == SEQUEL_OPERATION_TRANSACTION) {
+    size_t start = 0;
+    while (start < source->length && isspace((unsigned char)source->data[start]))
+      ++start;
+    if (start + 5 <= source->length && !_strnicmp(source->data + start, "BEGIN", 5))
+      name = "BEGIN";
+    else if (start + 6 <= source->length && !_strnicmp(source->data + start, "COMMIT", 6))
+      name = "COMMIT";
+    else if (start + 8 <= source->length && !_strnicmp(source->data + start, "ROLLBACK", 8))
+      name = "ROLLBACK";
+  }
+  if (*name) {
+    snprintf(operation, operation_capacity, "%s", name);
+    return;
+  }
+  size_t start = 0;
+  while (start < source->length && isspace((unsigned char)source->data[start]))
+    ++start;
+  size_t end = start;
+  while (end < source->length && isalpha((unsigned char)source->data[end]))
+    ++end;
+  size_t amount = end - start;
+  if (amount >= operation_capacity)
+    amount = operation_capacity - 1;
+  for (size_t i = 0; i < amount; ++i)
+    operation[i] = (char)toupper((unsigned char)source->data[start + i]);
+  operation[amount] = 0;
+}
