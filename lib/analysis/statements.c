@@ -3,7 +3,7 @@
 void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end) {
   size_t count = out->statement_count;
   sequel_output_tick(sizeof(sequel_range_t));
-  sequel_range_t *ranges = analysis_array((void *)out->statements, count + 1, sizeof(*ranges));
+  sequel_range_t *ranges = sequel_analysis_array((void *)out->statements, count + 1, sizeof(*ranges));
   if (!ranges)
     return;
   ranges[count] = (sequel_range_t){start, end};

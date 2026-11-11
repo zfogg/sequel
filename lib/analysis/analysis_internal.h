@@ -32,7 +32,7 @@ typedef struct {
   size_t n, capacity;
 } analysis_text;
 
-void *analysis_array(void *pointer, size_t count, size_t element);
+void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
 bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
@@ -43,8 +43,8 @@ void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t length, ana
 void sequel_analysis_positions(const char *sql, sequel_analysis_t *out);
 void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void sequel_analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect);
-sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
-                              sequel_diagnostic_code_t code);
+sequel_status_t sequel_analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
+                                     sequel_diagnostic_code_t code);
 void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
 void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
 void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
@@ -54,5 +54,5 @@ sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_
 bool sequel_analysis_word(analysis_token_t token, const char *word);
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void sequel_analysis_summary_default(sequel_analysis_t *out);
-sequel_status_t analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
-                                          sequel_text_result_t *out);
+sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
+                                                 sequel_text_result_t *out);

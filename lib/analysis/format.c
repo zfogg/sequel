@@ -1,7 +1,7 @@
 #include "analysis_internal.h"
 
-sequel_status_t analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
-                                          sequel_text_result_t *out) {
+sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
+                                                 sequel_text_result_t *out) {
   if (!data || !out)
     return SEQUEL_ERR_NULL;
   *out = (sequel_text_result_t){0};

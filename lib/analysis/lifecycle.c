@@ -19,8 +19,8 @@ void sequel_analysis_free(sequel_analysis_t *out) {
   sequel_analysis_empty(out, 0, SEQUEL_GENERIC);
 }
 
-sequel_status_t analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
-                              sequel_diagnostic_code_t code) {
+sequel_status_t sequel_analysis_fail(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect, sequel_status_t status,
+                                     sequel_diagnostic_code_t code) {
   sequel_analysis_empty(out, n, dialect);
   out->status = status == SEQUEL_ERR_CANCELLED                                ? "cancelled"
                 : status == SEQUEL_ERR_LIMIT || status == SEQUEL_ERR_OVERFLOW ? "limit"

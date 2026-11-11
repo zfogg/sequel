@@ -39,7 +39,7 @@ static void sequel_analysis_charge(analysis_state *a, size_t bytes) {
   sequel_output_tick(bytes);
 }
 
-void *analysis_array(void *pointer, size_t count, size_t element) {
+void *sequel_analysis_array(void *pointer, size_t count, size_t element) {
   if (count > SIZE_MAX / element)
     sequel_abort(SEQUEL_ERR_LIMIT);
   size_t bytes = count * element,
@@ -104,7 +104,7 @@ static void sequel_analysis_segment(analysis_map *b, size_t fs, size_t fe, size_
 
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish
  * SQLite binding namespaces; fingerprint frames exclude those spellings. */
-static uint64_t analysis_key_hash(const char *p, size_t n) {
+static uint64_t sequel_analysis_key_hash(const char *p, size_t n) {
   sequel_sha256 s;
   sha_init(&s);
   sha_update(&s, p, n);
@@ -118,7 +118,8 @@ static uint64_t analysis_key_hash(const char *p, size_t n) {
   return v;
 }
 
-static analysis_binding *analysis_binding_slot(analysis_bindings *b, const char *key, size_t length, size_t number) {
+static analysis_binding *sequel_analysis_binding_slot(analysis_bindings *b, const char *key, size_t length,
+                                                      size_t number) {
   if (!b->capacity || b->count >= b->capacity / 2) {
     size_t next = b->capacity ? b->capacity * 2 : 16;
     if (next < b->capacity || next > SIZE_MAX / sizeof(*b->p))
@@ -137,7 +138,7 @@ static analysis_binding *analysis_binding_slot(analysis_bindings *b, const char 
     b->p = grown;
     b->capacity = next;
   }
-  uint64_t hash = length ? analysis_key_hash(key, length) : (uint64_t)(b->identities + 1);
+  uint64_t hash = length ? sequel_analysis_key_hash(key, length) : (uint64_t)(b->identities + 1);
   size_t at = (size_t)hash & (b->capacity - 1);
   while (b->p[at].occupied) {
     analysis_binding *v = &b->p[at];
@@ -158,11 +159,11 @@ static analysis_binding *analysis_binding_slot(analysis_bindings *b, const char 
   return &b->p[at];
 }
 
-static analysis_binding *analysis_numeric_identity(analysis_bindings *b, size_t slot) {
+static analysis_binding *sequel_analysis_numeric_identity(analysis_bindings *b, size_t slot) {
   char encoded[32];
   snprintf(encoded, sizeof(encoded), "%zu", slot);
   size_t n = strlen(encoded);
-  analysis_binding *v = analysis_binding_slot(b, encoded, n, slot);
+  analysis_binding *v = sequel_analysis_binding_slot(b, encoded, n, slot);
   if (v->key == encoded) {
     char *owned = malloc(n);
     memcpy(owned, encoded, n);
@@ -186,7 +187,7 @@ static void sequel_analysis_dictionary_clear(analysis_bindings *b) {
 void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
   size_t count = out->diagnostic_count;
   sequel_output_tick(sizeof(sequel_diagnostic_t));
-  sequel_diagnostic_t *ds = analysis_array((void *)out->diagnostics, count + 1, sizeof(*ds));
+  sequel_diagnostic_t *ds = sequel_analysis_array((void *)out->diagnostics, count + 1, sizeof(*ds));
   diagnostic_report(NULL, 0, &ds[count], code, 0, 0);
   ds[count].offset = start;
   ds[count].end_offset = end;
@@ -272,7 +273,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         key = numeric;
         key_length = strlen(numeric);
       }
-      analysis_binding *identity = analysis_binding_slot(&dictionary, key, key_length, number);
+      analysis_binding *identity = sequel_analysis_binding_slot(&dictionary, key, key_length, number);
       if (number && identity->key == numeric) {
         char *owned = malloc(key_length);
         memcpy(owned, numeric, key_length);
@@ -280,7 +281,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         identity->owned = true;
       }
       size_t old_count = slot_dictionary.count;
-      analysis_binding *canonical = analysis_numeric_identity(&slot_dictionary, identity->slot);
+      analysis_binding *canonical = sequel_analysis_numeric_identity(&slot_dictionary, identity->slot);
       if (slot_dictionary.count != old_count)
         canonical->identity = ++fingerprint_next;
       unsigned char kind = 'B';
@@ -323,7 +324,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         sha_frame(hash, 'Y', "", 0, false);
       if (!a->options.omit_bind_descriptors) {
         sequel_output_tick(sizeof(sequel_bind_descriptor_t));
-        sequel_bind_descriptor_t *bs = analysis_array((void *)out->binds, out->bind_count + 1, sizeof(*bs));
+        sequel_bind_descriptor_t *bs = sequel_analysis_array((void *)out->binds, out->bind_count + 1, sizeof(*bs));
         bs[out->bind_count] = (sequel_bind_descriptor_t){++bind_count, identity->slot, statement, start, end, style};
         out->binds = bs;
         out->bind_count++;
@@ -453,19 +454,19 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
   sequel_analysis_options_t o = options ? *options : (sequel_analysis_options_t){0};
   sequel_analysis_empty(out, n, o.dialect);
   if (!sql)
-    return analysis_fail(out, n, o.dialect, SEQUEL_ERR_NULL, SEQUEL_DIAG_NULL_INPUT);
+    return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_NULL, SEQUEL_DIAG_NULL_INPUT);
   if (o.dialect < SEQUEL_GENERIC || o.dialect > SEQUEL_CLICKHOUSE || o.max_input_bytes > SEQUEL_INPUT_MAX ||
       o.max_output_bytes > SEQUEL_TEXT_MAX || o.max_query_text_bytes > SEQUEL_TEXT_MAX || sequel_current_call)
-    return analysis_fail(out, n, o.dialect, SEQUEL_ERR_INVALID_ARGUMENT, SEQUEL_DIAG_INVALID_ARGUMENT);
+    return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_INVALID_ARGUMENT, SEQUEL_DIAG_INVALID_ARGUMENT);
   size_t input_limit = o.max_input_bytes ? o.max_input_bytes : SEQUEL_INPUT_MAX;
   if (n > input_limit)
-    return analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_INPUT_LIMIT);
+    return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_INPUT_LIMIT);
   size_t memory_limit = o.max_memory_bytes ? o.max_memory_bytes : SEQUEL_INPUT_MAX;
   if (memory_limit < sizeof(sequel_call))
-    return analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
+    return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
   sequel_call *call = sequel_call_new();
   if (!call)
-    return analysis_fail(out, n, o.dialect, SEQUEL_ERR_NOMEM, SEQUEL_DIAG_OUT_OF_MEMORY);
+    return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_NOMEM, SEQUEL_DIAG_OUT_OF_MEMORY);
   call->source = sql;
   call->output_limit = o.max_output_bytes ? o.max_output_bytes : SEQUEL_TEXT_MAX;
   call->memory_limit = o.max_memory_bytes ? o.max_memory_bytes : SEQUEL_INPUT_MAX;
@@ -479,11 +480,11 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     sequel_current_call = NULL;
     sequel_release_allocations(call->allocations);
     sequel_call_delete(call);
-    sequel_status_t result = analysis_fail(out, n, o.dialect, failure,
-                                           failure == SEQUEL_ERR_CANCELLED ? SEQUEL_DIAG_CANCELLED
-                                           : failure == SEQUEL_ERR_LIMIT   ? SEQUEL_DIAG_RESOURCE_LIMIT
-                                           : failure == SEQUEL_ERR_NOMEM   ? SEQUEL_DIAG_OUT_OF_MEMORY
-                                                                           : SEQUEL_DIAG_INVALID_PARAMETER);
+    sequel_status_t result = sequel_analysis_fail(out, n, o.dialect, failure,
+                                                  failure == SEQUEL_ERR_CANCELLED ? SEQUEL_DIAG_CANCELLED
+                                                  : failure == SEQUEL_ERR_LIMIT   ? SEQUEL_DIAG_RESOURCE_LIMIT
+                                                  : failure == SEQUEL_ERR_NOMEM   ? SEQUEL_DIAG_OUT_OF_MEMORY
+                                                                                  : SEQUEL_DIAG_INVALID_PARAMETER);
     out->memory_peak_bytes = peak;
     out->work_units = work;
     return result;
@@ -633,7 +634,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         }
         if (o.format && safe.n && !out->truncated) {
           sequel_text_result_t formatted_result = {0};
-          if (analysis_format_sanitized(safe.p, safe.n, o.dialect, &formatted_result) == SEQUEL_OK) {
+          if (sequel_analysis_format_sanitized(safe.p, safe.n, o.dialect, &formatted_result) == SEQUEL_OK) {
             sequel_analysis_charge(&a, 1);
             out->formatted = formatted_result.data;
             if (maps) {
@@ -691,14 +692,14 @@ sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t 
   if (sql)
     while (n <= limit && sql[n]) {
       if ((n & 255) == 0 && o.cancelled && o.cancelled(o.cancel_userdata))
-        return analysis_fail(out, n, o.dialect, SEQUEL_ERR_CANCELLED, SEQUEL_DIAG_CANCELLED);
+        return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_CANCELLED, SEQUEL_DIAG_CANCELLED);
       if (o.max_work_units && n >= o.max_work_units)
-        return analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
+        return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
       n++;
     }
   if (o.max_work_units) {
     if (n >= o.max_work_units)
-      return analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
+      return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_LIMIT, SEQUEL_DIAG_RESOURCE_LIMIT);
     o.max_work_units -= n;
   }
   sequel_status_t status = sequel_analyze_n(sql, n, &o, out);
