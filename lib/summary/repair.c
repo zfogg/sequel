@@ -192,3 +192,21 @@ int sequel_summary_repair_group_order(char **text, size_t *length, size_t *capac
   *length += having_length;
   return 1;
 }
+
+int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                        const sequel_query_document_t *query, const sequel_statement_info_t *statements,
+                                        size_t statement_count, bool include_predicates) {
+  (void)query;
+  if (!text || !*text || !length || !capacity || !statements)
+    return 0;
+  if (!include_predicates || !statement_count || statements[0].operation != SEQUEL_OPERATION_SELECT)
+    return 1;
+  const char *operators[] = {"EXCEPT", "INTERSECT ALL", "UNION ALL"};
+  for (size_t i = 0; i < sizeof(operators) / sizeof(operators[0]); ++i) {
+    if (sequel_summary_find_text(source.data, operators[i]) && !sequel_summary_find_text(*text, operators[i]) &&
+        (!sequel_summary_append_text(text, length, capacity, " ") ||
+         !sequel_summary_append_text(text, length, capacity, operators[i])))
+      return 0;
+  }
+  return 1;
+}

@@ -1505,17 +1505,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       }
     }
   }
-  if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
-    const char *set_keywords[] = {"EXCEPT", "INTERSECT ALL", "UNION ALL"};
-    for (size_t keyword = 0; keyword < sizeof(set_keywords) / sizeof(set_keywords[0]); ++keyword) {
-      if (sequel_summary_find_text(source.data, set_keywords[keyword]) &&
-          !sequel_summary_find_text(text ? text : "", set_keywords[keyword])) {
-        if (!sequel_summary_append_text(&text, &length, &capacity, " ") ||
-            !sequel_summary_append_text(&text, &length, &capacity, set_keywords[keyword]))
-          goto no_memory;
-      }
-    }
-  }
+  if (!sequel_summary_repair_set_operators(&text, &length, &capacity, source, query, statements, statement_count,
+                                           settings->include_predicates))
+    goto no_memory;
   if (settings->include_tables && statement_count) {
     const char *keywords[] = {"SETTINGS", "FORMAT"};
     for (size_t k = 0; k < sizeof(keywords) / sizeof(keywords[0]); ++k) {
