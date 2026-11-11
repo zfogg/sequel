@@ -4,11 +4,18 @@
 
 #include "inspection.h"
 
-void sequel_inspection_set_operation(const sequel_source_view_t *source,
-                                     const sequel_statement_info_t *statements,
+void sequel_inspection_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements,
                                      size_t statement_count, char *operation, size_t operation_capacity) {
   if (!source || !statements || !operation || !operation_capacity || !statement_count)
     return;
+  size_t first = 0;
+  while (first < source->length && isspace((unsigned char)source->data[first]))
+    ++first;
+  if (first + 3 <= source->length && !_strnicmp(source->data + first, "SET", 3) &&
+      (first + 3 == source->length || !isalpha((unsigned char)source->data[first + 3]))) {
+    operation[0] = 0;
+    return;
+  }
   bool same_operation = true;
   for (size_t i = 1; i < statement_count; ++i)
     if (statements[i].operation != statements[0].operation) {
@@ -31,7 +38,7 @@ void sequel_inspection_set_operation(const sequel_source_view_t *source,
                      : statements[0].operation == SEQUEL_OPERATION_OPTIMIZE    ? "OPTIMIZE"
                      : statements[0].operation == SEQUEL_OPERATION_TRUNCATE    ? "TRUNCATE"
                      : statements[0].operation == SEQUEL_OPERATION_TRANSACTION ? "TRANSACTION"
-                                                                                 : "";
+                                                                               : "";
   if (statements[0].operation == SEQUEL_OPERATION_TRANSACTION) {
     size_t start = 0;
     while (start < source->length && isspace((unsigned char)source->data[start]))

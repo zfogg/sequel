@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -147,6 +148,32 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
+  size_t first_sql = 0;
+  while (first_sql < source.length && isspace((unsigned char)source.data[first_sql]))
+    ++first_sql;
+  if (first_sql + 3 <= source.length && !_strnicmp(source.data + first_sql, "SET", 3) &&
+      (first_sql + 3 == source.length || !isalpha((unsigned char)source.data[first_sql + 3])) &&
+      memchr(source.data + first_sql, ';', source.length - first_sql) && summary.data &&
+      !_strnicmp(summary.data, "SELECT", 6)) {
+    const char prefix[] = "SET; ";
+    size_t prefix_length = sizeof(prefix) - 1;
+    char *expanded = realloc(summary.data, summary.length + prefix_length + 1);
+    if (!expanded) {
+      status = SEQUEL_ERR_NOMEM;
+      goto done;
+    }
+    memmove(expanded + prefix_length, expanded, summary.length + 1);
+    memcpy(expanded, prefix, prefix_length);
+    summary.data = expanded;
+    summary.length += prefix_length;
+    summary.capacity = summary.length + 1;
+    char *ellipsis = strstr(summary.data, "\xE2\x80\xA6");
+    if (ellipsis) {
+      *ellipsis = '?';
+      memmove(ellipsis + 1, ellipsis + 3, summary.length - (size_t)(ellipsis - summary.data) - 3 + 1);
+      summary.length -= 2;
+    }
+  }
   sequel_inspection_document_normalize_parameters(&summary);
   sequel_inspection_document_restore_array_literals(&summary, &sanitized);
   sequel_inspection_document_restore_array_indexes(&summary, &sanitized);
