@@ -9,7 +9,7 @@
 #include "tokens.h"
 #include "util/utf8.h"
 
-static void normalize_summary_parameters(sequel_text_result_t *summary) {
+static void sequel_inspection_document_normalize_parameters(sequel_text_result_t *summary) {
   if (!summary || !summary->data)
     return;
   for (size_t i = 0; i + 1 < summary->length; ++i) {
@@ -24,7 +24,8 @@ static void normalize_summary_parameters(sequel_text_result_t *summary) {
   }
 }
 
-static void restore_array_literals(sequel_text_result_t *summary, const sequel_text_result_t *sanitized) {
+static void sequel_inspection_document_restore_array_literals(sequel_text_result_t *summary,
+                                                              const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
     return;
   const char *source = strstr(sanitized->data, "ARRAY[");
@@ -103,8 +104,8 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
-  normalize_summary_parameters(&summary);
-  restore_array_literals(&summary, &sanitized);
+  sequel_inspection_document_normalize_parameters(&summary);
+  sequel_inspection_document_restore_array_literals(&summary, &sanitized);
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
     memcpy(summary.data + limit, "…", 3);
