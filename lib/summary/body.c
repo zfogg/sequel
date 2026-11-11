@@ -357,6 +357,9 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       size_t alias = sequel_summary_skip_space(source, range.end, relation_end), alias_end = alias;
       while (alias_end < range.end && !isspace((unsigned char)source[alias_end]))
         ++alias_end;
+      if (sequel_summary_word(source, range.end, alias, "WHERE") ||
+          sequel_summary_word(source, range.end, alias, "RETURNING"))
+        alias_end = alias;
       if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") ||
           !sequel_summary_append_bytes(text, length, capacity, source + table, table_end - table) ||
           !sequel_summary_append_text(text, length, capacity, " USING ") ||
@@ -392,6 +395,9 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
       size_t alias = sequel_summary_skip_space(source, range.end, relation_end), alias_end = alias;
       while (alias_end < range.end && !isspace((unsigned char)source[alias_end]))
         ++alias_end;
+      if (sequel_summary_word(source, range.end, alias, "WHERE") ||
+          sequel_summary_word(source, range.end, alias, "RETURNING"))
+        alias_end = alias;
       if (!sequel_summary_append_text(text, length, capacity, " USING ") ||
           !sequel_summary_append_bytes(text, length, capacity, source + relation, relation_end - relation) ||
           (alias < alias_end &&

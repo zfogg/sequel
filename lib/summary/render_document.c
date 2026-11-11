@@ -2569,6 +2569,34 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
       goto no_memory;
   }
+  const char *not_exists = sequel_summary_find_word(source.data, source.length, 0, "NOT");
+  if (text && not_exists && !sequel_summary_find_word(text, length, 0, "NOT")) {
+    const char *exists =
+        sequel_summary_find_word(not_exists, source.length - (size_t)(not_exists - source.data), 4, "EXISTS");
+    const char *from =
+        exists ? sequel_summary_find_word(exists, source.length - (size_t)(exists - source.data), 6, "FROM") : NULL;
+    if (exists && from) {
+      const char *table = from + 4;
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *table_end = table;
+      while (*table_end && !isspace((unsigned char)*table_end) && *table_end != ')')
+        ++table_end;
+      const char *alias = table_end;
+      while (*alias && isspace((unsigned char)*alias))
+        ++alias;
+      const char *alias_end = alias;
+      while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
+        ++alias_end;
+      if (!sequel_summary_append_text(&text, &length, &capacity, " NOT EXISTS (SELECT … FROM ") ||
+          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+          (alias < alias_end &&
+           (!sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)))) ||
+          !sequel_summary_append_text(&text, &length, &capacity, " WHERE …)"))
+        goto no_memory;
+    }
+  }
   if (text && sequel_query_dialect(query) == SEQUEL_MYSQL &&
       sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_JOIN) &&
       !sequel_summary_find_word(text, length, 0, "JOIN")) {
