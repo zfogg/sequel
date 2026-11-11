@@ -389,11 +389,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.end <= outer || is_trivia(&tokens[token]))
         continue;
-      if (tokens[token].kind == SEQUEL_TOKEN_PUNCTUATION) {
-        char punctuation = source.data[tokens[token].range.start];
+      char punctuation = source.data[tokens[token].range.start];
+      if (punctuation == '(' || punctuation == ')') {
         if (punctuation == '(')
           ++outer_depth;
-        else if (punctuation == ')' && outer_depth)
+        else if (outer_depth)
           --outer_depth;
         continue;
       }

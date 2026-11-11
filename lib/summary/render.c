@@ -1474,6 +1474,12 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             "ORDER BY … LIMIT ?"))
       goto no_memory;
   }
+  if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query)) {
+    size_t tail_start = length > 64 ? length - 64 : 0;
+    if (!sequel_summary_find_text(text + tail_start, "LIMIT") &&
+        !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
@@ -2489,10 +2495,8 @@ summary_postprocess:
       capacity = replacement_length + 1;
     }
   }
-  size_t outer_query_start = sequel_query_outer_range(query).start;
-  const char *outer_limit = sequel_summary_find_word(source.data, source.length, outer_query_start, "LIMIT");
   size_t rendered_tail_start = text && length > 32 ? length - 32 : 0;
-  if (text && sequel_query_cte_count(query) && outer_limit &&
+  if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query) &&
       !sequel_summary_find_text(text + rendered_tail_start, "LIMIT")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
       goto no_memory;
