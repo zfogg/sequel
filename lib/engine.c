@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #include <sequel.h>
@@ -14,6 +15,34 @@ static bool source_contains_json_operator(sequel_source_view_t source) {
         (source.data[i] == '?' && (source.data[i + 1] == '|' || source.data[i + 1] == '&')) ||
         (source.data[i] == '@' && source.data[i + 1] == '>') || (source.data[i] == '<' && source.data[i + 1] == '@'))
       return true;
+  }
+  return false;
+}
+
+static bool engine_token_is_word(sequel_source_view_t source, const sequel_token_t *token, const char *word) {
+  size_t length = token->range.end - token->range.start;
+  size_t expected = strlen(word);
+  if (length != expected)
+    return false;
+  for (size_t i = 0; i < length; ++i)
+    if (toupper((unsigned char)source.data[token->range.start + i]) != toupper((unsigned char)word[i]))
+      return false;
+  return true;
+}
+
+static bool has_clickhouse_payload(sequel_source_view_t source, const sequel_token_t *tokens, size_t count) {
+  if (!count)
+    return false;
+  bool insert = false;
+  for (size_t i = 0; i < count; ++i) {
+    if (tokens[i].kind == SEQUEL_TOKEN_EOF)
+      break;
+    if (engine_token_is_word(source, &tokens[i], "INSERT"))
+      insert = true;
+    else if (insert && engine_token_is_word(source, &tokens[i], "FORMAT"))
+      return true;
+    else if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i].range.start] == ';')
+      insert = false;
   }
   return false;
 }
@@ -102,6 +131,10 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   }
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  if (dialect == SEQUEL_CLICKHOUSE && has_clickhouse_payload(source, tokens, token_count)) {
+    sequel_lexed_document_free(lexed);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   size_t comment_count = 0;
   bool comment_before_sql = false;
   bool saw_sql = false;

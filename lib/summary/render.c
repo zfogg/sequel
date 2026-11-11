@@ -826,50 +826,56 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           prefix = ", ";
         if (rendered_relations && join_index != SIZE_MAX) {
           prefix = " JOIN ";
-          size_t context_start = i ? relations[i - 1].range.end : 0;
-          for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor) {
-            if (sequel_summary_word(source.data, source.length, cursor, "ASOF") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = " ASOF LEFT JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "CROSS") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = cursor + 18 <= source.length && !memcmp(source.data + cursor, "CROSS JOIN LATERAL", 18)
-                           ? " CROSS JOIN LATERAL "
-                           : " CROSS JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "LEFT") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "LEFT OUTER", 10)
-                           ? " LEFT OUTER JOIN "
-                           : " LEFT JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "RIGHT") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = " RIGHT JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "FULL") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "FULL OUTER", 10)
-                           ? " FULL OUTER JOIN "
-                           : " FULL JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "INNER") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = " INNER JOIN ";
-              break;
-            }
-            if (sequel_summary_word(source.data, source.length, cursor, "NATURAL") &&
-                !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
-              prefix = cursor + 12 <= source.length && !memcmp(source.data + cursor, "NATURAL LEFT", 12)
-                           ? " NATURAL LEFT JOIN "
-                           : " NATURAL JOIN ";
-              break;
+          if (joins[join_index].flags & SEQUEL_JOIN_FLAG_SEMI)
+            prefix = " LEFT SEMI JOIN ";
+          else if (joins[join_index].flags & SEQUEL_JOIN_FLAG_ANTI)
+            prefix = " LEFT ANTI JOIN ";
+          if (!(joins[join_index].flags & (SEQUEL_JOIN_FLAG_SEMI | SEQUEL_JOIN_FLAG_ANTI))) {
+            size_t context_start = i ? relations[i - 1].range.end : 0;
+            for (size_t cursor = context_start; cursor < relations[i].range.start; ++cursor) {
+              if (sequel_summary_word(source.data, source.length, cursor, "ASOF") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = " ASOF LEFT JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "CROSS") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = cursor + 18 <= source.length && !memcmp(source.data + cursor, "CROSS JOIN LATERAL", 18)
+                             ? " CROSS JOIN LATERAL "
+                             : " CROSS JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "LEFT") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "LEFT OUTER", 10)
+                             ? " LEFT OUTER JOIN "
+                             : " LEFT JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "RIGHT") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = " RIGHT JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "FULL") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = cursor + 10 <= source.length && !memcmp(source.data + cursor, "FULL OUTER", 10)
+                             ? " FULL OUTER JOIN "
+                             : " FULL JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "INNER") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = " INNER JOIN ";
+                break;
+              }
+              if (sequel_summary_word(source.data, source.length, cursor, "NATURAL") &&
+                  !sequel_summary_cursor_is_quoted_identifier(query, cursor)) {
+                prefix = cursor + 12 <= source.length && !memcmp(source.data + cursor, "NATURAL LEFT", 12)
+                             ? " NATURAL LEFT JOIN "
+                             : " NATURAL JOIN ";
+                break;
+              }
             }
           }
         } else if (rendered_relations) {
