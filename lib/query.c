@@ -32,29 +32,7 @@ static int append(void **array, size_t *count, size_t size, const void *value) {
   return 1;
 }
 
-static bool is_expression_kind(sequel_syntax_kind_t kind) {
-  return kind >= SEQUEL_SYNTAX_IDENTIFIER && kind <= SEQUEL_SYNTAX_GROUP;
-}
-
 static int is_trivia(const sequel_token_t *token);
-
-static size_t expression_node_for_range(const sequel_syntax_document_t *syntax, sequel_source_range_t range) {
-  size_t count = 0;
-  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &count);
-  size_t best = SIZE_MAX;
-  size_t best_width = SIZE_MAX;
-  for (size_t i = 0; i < count; ++i) {
-    if (!is_expression_kind(nodes[i].kind) ||
-        (!sequel_source_range_contains(range, nodes[i].range) && !sequel_source_range_contains(nodes[i].range, range)))
-      continue;
-    size_t width = nodes[i].range.end - nodes[i].range.start;
-    if (width < best_width) {
-      best = i;
-      best_width = width;
-    }
-  }
-  return best;
-}
 
 static int is_identifier_token(const sequel_token_t *token) {
   return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
@@ -570,7 +548,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             .normalized_hash = range_hash(&source, (sequel_source_range_t){tokens[predicate_start].range.start,
                                                                            tokens[predicate_end - 1].range.end}),
             .depth = 0};
-        predicate.expression_node = expression_node_for_range(document->syntax, predicate.range);
+        predicate.expression_node = sequel_query_expression_node_for_range(document->syntax, predicate.range);
         if (!append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
@@ -815,7 +793,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         if (condition_start < condition_end) {
           join.condition_range =
               (sequel_source_range_t){tokens[condition_start].range.start, tokens[condition_end - 1].range.end};
-          join.condition_node = expression_node_for_range(document->syntax, join.condition_range);
+          join.condition_node = sequel_query_expression_node_for_range(document->syntax, join.condition_range);
         }
         break;
       }

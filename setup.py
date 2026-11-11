@@ -24,6 +24,7 @@ setup(
                 "lib/bindings.c",
                 "lib/statements.c",
                 "lib/joins.c",
+                "lib/expressions.c",
                 "lib/analysis/analysis_literal.c",
                 "lib/analysis/analysis_binding_token.c",
                 "lib/analysis/analysis_text.c",

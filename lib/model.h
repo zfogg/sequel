@@ -13,6 +13,7 @@ sequel_join_kind_t sequel_query_join_kind(const sequel_token_t *tokens, size_t t
                                           const sequel_source_view_t *source);
 uint32_t sequel_query_join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index,
                                  const sequel_source_view_t *source);
+size_t sequel_query_expression_node_for_range(const sequel_syntax_document_t *syntax, sequel_source_range_t range);
 
 typedef struct {
   size_t capacity;
