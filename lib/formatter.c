@@ -21,7 +21,8 @@ void sequel_text_result_free(sequel_text_result_t *result) {
   *result = (sequel_text_result_t){0};
 }
 
-static sequel_status_t copy_source(sequel_source_view_t source, sequel_format_mode_t mode, sequel_text_result_t *out) {
+static sequel_status_t sequel_formatter_copy_source(sequel_source_view_t source, sequel_format_mode_t mode,
+                                                    sequel_text_result_t *out) {
   if (source.length == SIZE_MAX)
     return SEQUEL_ERR_OVERFLOW;
   char *data = malloc(source.length + 1);
@@ -37,20 +38,21 @@ static sequel_status_t copy_source(sequel_source_view_t source, sequel_format_mo
   return SEQUEL_OK;
 }
 
-static const char *token_text(sequel_source_view_t source, const sequel_token_t *token, size_t *length) {
+static const char *sequel_formatter_token_text(sequel_source_view_t source, const sequel_token_t *token,
+                                               size_t *length) {
   *length = token->range.end - token->range.start;
   return source.data + token->range.start;
 }
 
-static int is_by_keyword(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_by_keyword(const sequel_source_view_t source, const sequel_token_t *token) {
   size_t length = 0;
-  const char *text = token_text(source, token, &length);
+  const char *text = sequel_formatter_token_text(source, token, &length);
   return length == 2 && toupper((unsigned char)text[0]) == 'B' && toupper((unsigned char)text[1]) == 'Y';
 }
 
-static int is_join_modifier(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_join_modifier(const sequel_source_view_t source, const sequel_token_t *token) {
   size_t length = 0;
-  const char *text = token_text(source, token, &length);
+  const char *text = sequel_formatter_token_text(source, token, &length);
   if (length == 4)
     return (toupper((unsigned char)text[0]) == 'L' && toupper((unsigned char)text[1]) == 'E') ||
            (toupper((unsigned char)text[0]) == 'R' && toupper((unsigned char)text[1]) == 'I') ||
@@ -60,16 +62,16 @@ static int is_join_modifier(const sequel_source_view_t source, const sequel_toke
          (length == 5 && toupper((unsigned char)text[0]) == 'I' && toupper((unsigned char)text[1]) == 'N');
 }
 
-static int is_join_lead(const sequel_source_view_t source, const sequel_token_t *token) {
+static int sequel_formatter_is_join_lead(const sequel_source_view_t source, const sequel_token_t *token) {
   size_t length = 0;
-  const char *text = token_text(source, token, &length);
-  return (is_join_modifier(source, token) && length == 4) ||
+  const char *text = sequel_formatter_token_text(source, token, &length);
+  return (sequel_formatter_is_join_modifier(source, token) && length == 4) ||
          (length == 5 && toupper((unsigned char)text[0]) == 'I' && toupper((unsigned char)text[1]) == 'N');
 }
 
-static int token_is_word(sequel_source_view_t source, const sequel_token_t *token, const char *word) {
+static int sequel_formatter_token_is_word(sequel_source_view_t source, const sequel_token_t *token, const char *word) {
   size_t length = 0;
-  const char *text = token_text(source, token, &length);
+  const char *text = sequel_formatter_token_text(source, token, &length);
   size_t expected = strlen(word);
   if (length != expected)
     return 0;
@@ -83,7 +85,7 @@ static int is_upsert_on(const sequel_source_view_t source, const sequel_token_t 
   size_t next = index + 1;
   while (next < count && tokens[next].kind == SEQUEL_TOKEN_WHITESPACE)
     ++next;
-  return next < count && token_is_word(source, &tokens[next], "DUPLICATE");
+  return next < count && sequel_formatter_token_is_word(source, &tokens[next], "DUPLICATE");
 }
 
 static int has_case_before_matching_close(sequel_source_view_t source, const sequel_token_t *tokens, size_t start,
@@ -121,7 +123,7 @@ static int no_space_after_punctuation(sequel_token_kind_t previous, const char *
 static int compact_json_operator(const sequel_token_t *token, sequel_source_view_t source, const char *data,
                                  size_t length) {
   size_t text_length = 0;
-  const char *text = token_text(source, token, &text_length);
+  const char *text = sequel_formatter_token_text(source, token, &text_length);
   return token->kind == SEQUEL_TOKEN_OPERATOR &&
          ((text_length && (text[0] == '#' || text[0] == '?' || text[0] == '@')) || (length && data[length - 1] == '#'));
 }
@@ -249,18 +251,21 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       continue;
     }
     bool keyword = sequel_token_is_keyword(token);
-    bool join_modifier = is_join_lead(source, token);
-    bool upsert_on = token_is_word(source, token, "ON") && is_upsert_on(source, tokens, i, token_count);
-    bool window_boundary =
-        window_paren && (token_is_word(source, token, "PARTITION") || token_is_word(source, token, "ORDER"));
-    bool values_function =
-        token_is_word(source, token, "VALUES") && previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
-        previous_token->range.end > previous_token->range.start && source.data[previous_token->range.start] == '=';
+    bool join_modifier = sequel_formatter_is_join_lead(source, token);
+    bool upsert_on =
+        sequel_formatter_token_is_word(source, token, "ON") && is_upsert_on(source, tokens, i, token_count);
+    bool window_boundary = window_paren && (sequel_formatter_token_is_word(source, token, "PARTITION") ||
+                                            sequel_formatter_token_is_word(source, token, "ORDER"));
+    bool values_function = sequel_formatter_token_is_word(source, token, "VALUES") && previous_token &&
+                           previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
+                           previous_token->range.end > previous_token->range.start &&
+                           source.data[previous_token->range.start] == '=';
     bool clause_start =
         keyword && sequel_keyword_is_clause(token->keyword_id) &&
-        !(token->keyword_id == SEQUEL_KEYWORD_JOIN && previous_token && is_join_modifier(source, previous_token)) &&
+        !(token->keyword_id == SEQUEL_KEYWORD_JOIN && previous_token &&
+          sequel_formatter_is_join_modifier(source, previous_token)) &&
         !(token->keyword_id == SEQUEL_KEYWORD_ON && previous_token &&
-          token_is_word(source, previous_token, "DISTINCT")) &&
+          sequel_formatter_token_is_word(source, previous_token, "DISTINCT")) &&
         !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
     bool condition_operator =
@@ -274,7 +279,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       size_t next = i + 1;
       while (next < token_count && tokens[next].kind == SEQUEL_TOKEN_WHITESPACE)
         ++next;
-      distinct_on_group = next < token_count && token_is_word(source, &tokens[next], "DISTINCT");
+      distinct_on_group = next < token_count && sequel_formatter_token_is_word(source, &tokens[next], "DISTINCT");
     }
     bool nested_case_start = keyword && token->keyword_id == SEQUEL_KEYWORD_CASE && previous_token &&
                              previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
@@ -291,7 +296,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         is_open_paren(source, token) && previous_token && previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
         (previous_token->keyword_id == SEQUEL_KEYWORD_AND || previous_token->keyword_id == SEQUEL_KEYWORD_OR ||
          previous_token->keyword_id == SEQUEL_KEYWORD_NOT);
-    if (pending_clause_body && !upsert_on && !is_by_keyword(source, token) && !grouped_condition) {
+    if (pending_clause_body && !upsert_on && !sequel_formatter_is_by_keyword(source, token) && !grouped_condition) {
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
         goto no_memory;
       pending_clause_body = false;
@@ -327,7 +332,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (is_open_paren(source, token) && previous_token && is_comma(source, previous_token) &&
           clause != SEQUEL_KEYWORD_VALUES)
         projection_subquery = true;
-      if (is_open_paren(source, token) && previous_token && token_is_word(source, previous_token, "AS"))
+      if (is_open_paren(source, token) && previous_token &&
+          sequel_formatter_token_is_word(source, previous_token, "AS"))
         cte_paren_depth = paren_depth + 1;
       update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
@@ -365,7 +371,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     }
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
     size_t text_length = 0;
-    const char *text = token_text(source, token, &text_length);
+    const char *text = sequel_formatter_token_text(source, token, &text_length);
     if (sequel_format_is_literal_replacement(token, settings)) {
       text = "?";
       text_length = 1;
@@ -376,7 +382,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (text_length == 1 && text[0] == '(' && previous == SEQUEL_TOKEN_KEYWORD &&
-        !(previous_token && token_is_word(source, previous_token, "VALUES")))
+        !(previous_token && sequel_formatter_token_is_word(source, previous_token, "VALUES")))
       no_space_before = false;
     if (is_as_before_open_paren(data, length, text, text_length))
       no_space_before = false;
@@ -395,7 +401,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
     if (previous_token && text_length && text[0] == '@') {
       size_t previous_length = 0;
-      const char *previous_text = token_text(source, previous_token, &previous_length);
+      const char *previous_text = sequel_formatter_token_text(source, previous_token, &previous_length);
       if (previous_length && previous_text[previous_length - 1] == '@')
         no_space_after_previous = true;
     }
@@ -420,7 +426,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if (!sequel_format_append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;
     if (punctuation && text_length == 1 && text[0] == '(' && previous_token &&
-        token_is_word(source, previous_token, "OVER")) {
+        sequel_formatter_token_is_word(source, previous_token, "OVER")) {
       window_paren = true;
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
@@ -482,8 +488,9 @@ sequel_status_t sequel_format_tokens(const sequel_lexed_document_t *lexed, const
   const sequel_format_options_t *settings = options ? options : &defaults;
   if (settings->mode == SEQUEL_FORMAT_SYNTAX_AWARE)
     return format_lexed(lexed, settings, out);
-  return copy_source(sequel_lexed_source(lexed),
-                     settings->mode == SEQUEL_FORMAT_SYNTAX_AWARE ? SEQUEL_FORMAT_LEXICAL : settings->mode, out);
+  return sequel_formatter_copy_source(
+      sequel_lexed_source(lexed), settings->mode == SEQUEL_FORMAT_SYNTAX_AWARE ? SEQUEL_FORMAT_LEXICAL : settings->mode,
+      out);
 }
 
 sequel_status_t sequel_format_syntax(const sequel_syntax_document_t *syntax, const sequel_format_options_t *options,
@@ -497,6 +504,6 @@ sequel_status_t sequel_format_syntax(const sequel_syntax_document_t *syntax, con
   (void)sequel_syntax_issues(syntax, &issues);
   if (!issues && settings->mode == SEQUEL_FORMAT_SYNTAX_AWARE)
     return format_lexed(sequel_syntax_lexed(syntax), settings, out);
-  return copy_source(sequel_lexed_source(sequel_syntax_lexed(syntax)),
-                     issues ? SEQUEL_FORMAT_RECOVERED : settings->mode, out);
+  return sequel_formatter_copy_source(sequel_lexed_source(sequel_syntax_lexed(syntax)),
+                                      issues ? SEQUEL_FORMAT_RECOVERED : settings->mode, out);
 }
