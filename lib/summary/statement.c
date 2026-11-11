@@ -175,7 +175,7 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
     } else if (!sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
                !sequel_summary_append_text(text, length, capacity, ")"))
       return 0;
-  } else if (literal && !multiple
+  } else if (literal && !multiple && sequel_query_relation_count(query) == 0
                  ? !sequel_summary_append_text(text, length, capacity, "?")
                  : !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))
     return 0;
