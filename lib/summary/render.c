@@ -980,7 +980,16 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       }
       int okay = sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]);
       if (okay && join_index != SIZE_MAX) {
-        size_t condition_start = relations[i].range.end;
+        size_t condition_start = relations[i].alias_range.end > relations[i].range.end
+                                     ? relations[i].alias_range.end
+                                     : relations[i].range.end;
+        while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
+          ++condition_start;
+        if (condition_start < source.length && source.data[condition_start] == '(') {
+          const char *close = summary_matching_close(source.data + condition_start, source.data + source.length);
+          if (close)
+            condition_start = (size_t)(close + 1 - source.data);
+        }
         while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
           ++condition_start;
         size_t condition_end = source.length;
@@ -1159,7 +1168,9 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
               goto no_memory;
             continue;
           }
-          size_t condition_start = relations[i].range.end;
+          size_t condition_start = relations[i].alias_range.end > relations[i].range.end
+                                       ? relations[i].alias_range.end
+                                       : relations[i].range.end;
           while (condition_start < source.length && isspace((unsigned char)source.data[condition_start]))
             ++condition_start;
           if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||

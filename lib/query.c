@@ -713,6 +713,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
+    bool function_relation = false;
     bool lateral_subquery = word_equals_ci(source.data + tokens[name].range.start,
                                            tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (lateral_subquery) {
@@ -739,6 +740,32 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             end = tokens[close].range.end;
             cursor = close + 1;
           }
+        }
+      }
+    }
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN &&
+        !word_equals_ci(source.data + tokens[name].range.start,
+                        tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
+      size_t opening = cursor;
+      while (opening < token_count && is_trivia(&tokens[opening]))
+        ++opening;
+      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
+          source.data[tokens[opening].range.start] == '(') {
+        size_t close = opening;
+        unsigned depth = 0;
+        for (; close < token_count; ++close) {
+          if (tokens[close].kind != SEQUEL_TOKEN_PUNCTUATION)
+            continue;
+          char punctuation = source.data[tokens[close].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')' && depth && --depth == 0)
+            break;
+        }
+        if (close < token_count) {
+          function_relation = true;
+          end = tokens[close].range.end;
+          cursor = close + 1;
         }
       }
     }
@@ -782,6 +809,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
     }
+    if (function_relation)
+      relation.kind = SEQUEL_RELATION_FUNCTION;
     if (!append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
