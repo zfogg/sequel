@@ -48,6 +48,14 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
     if (close && (!sequel_summary_append_text(text, length, capacity, "(…)")))
       return 0;
   }
+  if (relation->kind == SEQUEL_RELATION_FUNCTION && relation->alias_range.start > end) {
+    const char *suffix = source.data + end;
+    size_t suffix_length = relation->alias_range.start - end;
+    if (sequel_summary_find_word(suffix, suffix_length, 0, "WITH") &&
+        sequel_summary_find_word(suffix, suffix_length, 0, "ORDINALITY") &&
+        !sequel_summary_append_text(text, length, capacity, " WITH ORDINALITY"))
+      return 0;
+  }
   if (relation->alias_range.end > relation->alias_range.start) {
     size_t alias_start = relation->alias_range.start;
     size_t alias_end = relation->alias_range.end;
@@ -58,6 +66,13 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
     if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
         !sequel_summary_append_bytes(text, length, capacity, source.data + alias_start, alias_end - alias_start))
       return 0;
+    if (relation->kind == SEQUEL_RELATION_FUNCTION && relation->range.end > alias_end &&
+        source.data[alias_end] == '(') {
+      const char *column_end = sequel_summary_matching_close(source.data + alias_end, source.data + source.length);
+      if (!column_end || !sequel_summary_append_bytes(text, length, capacity, source.data + alias_end,
+                                                      (size_t)(column_end - (source.data + alias_end)) + 1))
+        return 0;
+    }
   }
   return 1;
 }
