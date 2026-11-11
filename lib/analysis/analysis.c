@@ -813,19 +813,3 @@ sequel_status_t sequel_fingerprint(const char *sql, sequel_dialect_t dialect, ch
   sequel_analysis_free(&a);
   return status;
 }
-
-sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement,
-                                   size_t supplied) {
-  if (!binds && count)
-    return SEQUEL_ERR_NULL;
-  size_t needed = 0;
-  for (size_t i = 0; i < count; i++) {
-    sequel_work_tick(1);
-    if (!binds[i].slot || !binds[i].ordinal || binds[i].offset >= binds[i].end_offset ||
-        binds[i].style < SEQUEL_BIND_POSITIONAL || binds[i].style > SEQUEL_BIND_TYPED)
-      return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (binds[i].statement_index == statement && binds[i].slot > needed)
-      needed = binds[i].slot;
-  }
-  return supplied == needed ? SEQUEL_OK : SEQUEL_ERR_INVALID_ARGUMENT;
-}
