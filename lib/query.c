@@ -481,6 +481,30 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
     }
+    if (!lateral_subquery) {
+      size_t opening = cursor;
+      while (opening < token_count && is_trivia(&tokens[opening]))
+        ++opening;
+      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
+          source.data[tokens[opening].range.start] == '(') {
+        size_t close = opening;
+        unsigned depth = 0;
+        for (; close < token_count; ++close) {
+          if (tokens[close].kind != SEQUEL_TOKEN_PUNCTUATION)
+            continue;
+          char punctuation = source.data[tokens[close].range.start];
+          if (punctuation == '(')
+            ++depth;
+          else if (punctuation == ')' && depth && --depth == 0)
+            break;
+        }
+        if (close < token_count) {
+          function_relation = true;
+          end = tokens[close].range.end;
+          cursor = close + 1;
+        }
+      }
+    }
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN &&
         !sequel_query_word_equals_ci(source.data + tokens[name].range.start,
                                      tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
@@ -519,6 +543,19 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
             tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++alias;
+    if (alias < token_count &&
+        sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
+                                    tokens[alias].range.end - tokens[alias].range.start, "WITH")) {
+      ++alias;
+      while (alias < token_count && is_trivia(&tokens[alias]))
+        ++alias;
+      if (alias < token_count &&
+          sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
+                                      tokens[alias].range.end - tokens[alias].range.start, "ORDINALITY"))
+        ++alias;
+      while (alias < token_count && is_trivia(&tokens[alias]))
+        ++alias;
+    }
     if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
         tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
       ++alias;
@@ -550,6 +587,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (function_relation)
       relation.kind = SEQUEL_RELATION_FUNCTION;
+    if (function_relation)
+      relation.name_range.end = tokens[name].range.end;
     if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
                                    &relation)) {
       sequel_query_document_free(document);
