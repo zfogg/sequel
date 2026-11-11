@@ -24,6 +24,39 @@ static void normalize_summary_parameters(sequel_text_result_t *summary) {
   }
 }
 
+static void restore_array_literals(sequel_text_result_t *summary, const sequel_text_result_t *sanitized) {
+  if (!summary || !summary->data || !sanitized || !sanitized->data)
+    return;
+  const char *source = strstr(sanitized->data, "ARRAY[");
+  char *target = strstr(summary->data, "ARRAY[");
+  while (source && target) {
+    const char *source_end = strchr(source, ']');
+    char *target_end = strchr(target, ']');
+    if (!source_end || !target_end)
+      break;
+    size_t source_length = (size_t)(source_end - source) + 1;
+    size_t target_length = (size_t)(target_end - target) + 1;
+    if (source_length > target_length) {
+      size_t growth = source_length - target_length;
+      size_t target_offset = (size_t)(target - summary->data);
+      char *grown = realloc(summary->data, summary->capacity + growth);
+      if (!grown)
+        return;
+      summary->data = grown;
+      summary->capacity += growth;
+      target = summary->data + target_offset;
+      memmove(target + source_length, target + target_length, summary->length - target_offset - target_length + 1);
+    } else if (target_length > source_length) {
+      memmove(target + source_length, target + target_length,
+              summary->length - (size_t)(target - summary->data) - target_length + 1);
+    }
+    memcpy(target, source, source_length);
+    summary->length += source_length - target_length;
+    source = strstr(source + source_length, "ARRAY[");
+    target = strstr(target + source_length, "ARRAY[");
+  }
+}
+
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
   sequel_parse_options_t parse_options;
@@ -71,6 +104,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   if (status != SEQUEL_OK)
     goto done;
   normalize_summary_parameters(&summary);
+  restore_array_literals(&summary, &sanitized);
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
     memcpy(summary.data + limit, "…", 3);
