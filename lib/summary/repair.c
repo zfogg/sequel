@@ -273,3 +273,16 @@ int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capaci
   snprintf(binds, sizeof(binds), " [binds=%zu]", sequel_query_parameter_count(query));
   return sequel_summary_append_text(text, length, capacity, binds);
 }
+
+int sequel_summary_repair_outer_limit(char **text, size_t *length, size_t *capacity,
+                                      const sequel_query_document_t *query) {
+  if (!text || !*text || !length || !capacity || !query)
+    return 0;
+  if (!sequel_query_cte_count(query) || !sequel_query_outer_limit(query))
+    return 1;
+  size_t tail_start = *length > 64 ? *length - 64 : 0;
+  if (!sequel_summary_find_text(*text + tail_start, "LIMIT") &&
+      !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
+    return 0;
+  return 1;
+}

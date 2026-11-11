@@ -1515,12 +1515,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     goto no_memory;
   if (!sequel_summary_repair_cte_insert(&text, &length, source, cte_insert_scope))
     goto no_memory;
-  if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query)) {
-    size_t tail_start = length > 64 ? length - 64 : 0;
-    if (!sequel_summary_find_text(text + tail_start, "LIMIT") &&
-        !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
-      goto no_memory;
-  }
+  if (!sequel_summary_repair_outer_limit(&text, &length, &capacity, query))
+    goto no_memory;
   if (!sequel_summary_repair_group_order(&text, &length, &capacity, source))
     goto no_memory;
   sequel_summary_redact_rendered_literals(text, &length);
