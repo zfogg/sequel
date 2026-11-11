@@ -287,7 +287,11 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if (select_start && paren_depth)
       nested_query = true;
     bool case_boundary = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
-    if (pending_clause_body && !upsert_on && !is_by_keyword(source, token)) {
+    bool grouped_condition =
+        is_open_paren(source, token) && previous_token && previous_token->kind == SEQUEL_TOKEN_KEYWORD &&
+        (previous_token->keyword_id == SEQUEL_KEYWORD_AND || previous_token->keyword_id == SEQUEL_KEYWORD_OR ||
+         previous_token->keyword_id == SEQUEL_KEYWORD_NOT);
+    if (pending_clause_body && !upsert_on && !is_by_keyword(source, token) && !grouped_condition) {
       if (!sequel_format_append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
         goto no_memory;
       pending_clause_body = false;
