@@ -5,6 +5,10 @@
 #include <sequel/query.h>
 
 sequel_bind_style_t sequel_query_bind_style(const char *text, size_t length, size_t *number);
+sequel_operation_t sequel_query_operation_from_syntax(sequel_syntax_kind_t kind);
+bool sequel_query_word_equals_ci(const char *word, size_t length, const char *expected);
+sequel_operation_t sequel_query_operation_from_word(const char *word, size_t length);
+size_t sequel_query_statement_for_range(const sequel_query_document_t *document, sequel_source_range_t range);
 
 typedef struct {
   size_t capacity;

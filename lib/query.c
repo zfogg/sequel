@@ -32,68 +32,6 @@ static int append(void **array, size_t *count, size_t size, const void *value) {
   return 1;
 }
 
-static sequel_operation_t operation(sequel_syntax_kind_t kind) {
-  switch (kind) {
-  case SEQUEL_SYNTAX_SELECT_STATEMENT:
-    return SEQUEL_OPERATION_SELECT;
-  case SEQUEL_SYNTAX_INSERT_STATEMENT:
-    return SEQUEL_OPERATION_INSERT;
-  case SEQUEL_SYNTAX_UPDATE_STATEMENT:
-    return SEQUEL_OPERATION_UPDATE;
-  case SEQUEL_SYNTAX_DELETE_STATEMENT:
-    return SEQUEL_OPERATION_DELETE;
-  case SEQUEL_SYNTAX_MERGE_STATEMENT:
-    return SEQUEL_OPERATION_MERGE;
-  case SEQUEL_SYNTAX_CREATE_STATEMENT:
-    return SEQUEL_OPERATION_CREATE;
-  case SEQUEL_SYNTAX_ALTER_STATEMENT:
-    return SEQUEL_OPERATION_ALTER;
-  case SEQUEL_SYNTAX_DROP_STATEMENT:
-    return SEQUEL_OPERATION_DROP;
-  case SEQUEL_SYNTAX_TRANSACTION_STATEMENT:
-    return SEQUEL_OPERATION_TRANSACTION;
-  case SEQUEL_SYNTAX_EXPLAIN_STATEMENT:
-    return SEQUEL_OPERATION_EXPLAIN;
-  default:
-    return SEQUEL_OPERATION_UNKNOWN;
-  }
-}
-
-static bool word_equals_ci(const char *word, size_t length, const char *expected) {
-  size_t expected_length = strlen(expected);
-  if (length != expected_length)
-    return false;
-  for (size_t i = 0; i < length; ++i)
-    if (toupper((unsigned char)word[i]) != (unsigned char)expected[i])
-      return false;
-  return true;
-}
-
-static sequel_operation_t operation_from_word(const char *word, size_t length) {
-  if (word_equals_ci(word, length, "SELECT"))
-    return SEQUEL_OPERATION_SELECT;
-  if (word_equals_ci(word, length, "INSERT"))
-    return SEQUEL_OPERATION_INSERT;
-  if (word_equals_ci(word, length, "UPDATE"))
-    return SEQUEL_OPERATION_UPDATE;
-  if (word_equals_ci(word, length, "DELETE"))
-    return SEQUEL_OPERATION_DELETE;
-  if (word_equals_ci(word, length, "MERGE"))
-    return SEQUEL_OPERATION_MERGE;
-  if (word_equals_ci(word, length, "OPTIMIZE"))
-    return SEQUEL_OPERATION_OPTIMIZE;
-  if (word_equals_ci(word, length, "TRUNCATE"))
-    return SEQUEL_OPERATION_TRUNCATE;
-  return SEQUEL_OPERATION_UNKNOWN;
-}
-
-static size_t statement_for_range(const sequel_query_document_t *document, sequel_source_range_t range) {
-  for (size_t i = 0; i < document->statement_count; ++i)
-    if (sequel_source_range_contains(document->statements[i].range, range))
-      return i;
-  return SIZE_MAX;
-}
-
 static bool is_expression_kind(sequel_syntax_kind_t kind) {
   return kind >= SEQUEL_SYNTAX_IDENTIFIER && kind <= SEQUEL_SYNTAX_GROUP;
 }
@@ -130,35 +68,35 @@ static sequel_join_kind_t join_kind(const sequel_token_t *tokens, size_t token_c
     size_t next = join_index + 1;
     while (next < token_count && is_trivia(&tokens[next]))
       ++next;
-    if (next < token_count && word_equals_ci(source->data + tokens[next].range.start,
-                                             tokens[next].range.end - tokens[next].range.start, "LATERAL"))
+    if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
+                                                          tokens[next].range.end - tokens[next].range.start, "LATERAL"))
       return SEQUEL_JOIN_LATERAL;
   }
-  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
-                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "CROSS"))
+  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
+                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "CROSS"))
     return SEQUEL_JOIN_CROSS;
-  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
-                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "NATURAL"))
+  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
+                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "NATURAL"))
     return SEQUEL_JOIN_NATURAL;
   size_t modifier =
-      found > 1 && word_equals_ci(source->data + tokens[previous[0]].range.start,
-                                  tokens[previous[0]].range.end - tokens[previous[0]].range.start, "OUTER")
+      found > 1 && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
+                                               tokens[previous[0]].range.end - tokens[previous[0]].range.start, "OUTER")
           ? 1
           : 0;
-  if (found > modifier &&
-      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
-                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "LEFT"))
+  if (found > modifier && sequel_query_word_equals_ci(
+                              source->data + tokens[previous[modifier]].range.start,
+                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "LEFT"))
     return SEQUEL_JOIN_LEFT;
-  if (found > modifier &&
-      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
-                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "RIGHT"))
+  if (found > modifier && sequel_query_word_equals_ci(
+                              source->data + tokens[previous[modifier]].range.start,
+                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "RIGHT"))
     return SEQUEL_JOIN_RIGHT;
-  if (found > modifier &&
-      word_equals_ci(source->data + tokens[previous[modifier]].range.start,
-                     tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "FULL"))
+  if (found > modifier && sequel_query_word_equals_ci(
+                              source->data + tokens[previous[modifier]].range.start,
+                              tokens[previous[modifier]].range.end - tokens[previous[modifier]].range.start, "FULL"))
     return SEQUEL_JOIN_FULL;
-  if (found && word_equals_ci(source->data + tokens[previous[0]].range.start,
-                              tokens[previous[0]].range.end - tokens[previous[0]].range.start, "INNER"))
+  if (found && sequel_query_word_equals_ci(source->data + tokens[previous[0]].range.start,
+                                           tokens[previous[0]].range.end - tokens[previous[0]].range.start, "INNER"))
     return SEQUEL_JOIN_INNER;
   return SEQUEL_JOIN_INNER;
 }
@@ -170,26 +108,26 @@ static uint32_t join_flags(const sequel_token_t *tokens, size_t token_count, siz
   for (size_t i = begin; i < join_index; ++i) {
     const char *word = source->data + tokens[i].range.start;
     size_t length = tokens[i].range.end - tokens[i].range.start;
-    if (word_equals_ci(word, length, "OUTER"))
+    if (sequel_query_word_equals_ci(word, length, "OUTER"))
       flags |= SEQUEL_JOIN_FLAG_OUTER;
-    if (word_equals_ci(word, length, "NATURAL"))
+    if (sequel_query_word_equals_ci(word, length, "NATURAL"))
       flags |= SEQUEL_JOIN_FLAG_NATURAL;
-    if (word_equals_ci(word, length, "ASOF"))
+    if (sequel_query_word_equals_ci(word, length, "ASOF"))
       flags |= SEQUEL_JOIN_FLAG_ASOF;
-    if (word_equals_ci(word, length, "GLOBAL"))
+    if (sequel_query_word_equals_ci(word, length, "GLOBAL"))
       flags |= SEQUEL_JOIN_FLAG_GLOBAL;
-    if (word_equals_ci(word, length, "ANY"))
+    if (sequel_query_word_equals_ci(word, length, "ANY"))
       flags |= SEQUEL_JOIN_FLAG_ANY;
-    if (word_equals_ci(word, length, "SEMI"))
+    if (sequel_query_word_equals_ci(word, length, "SEMI"))
       flags |= SEQUEL_JOIN_FLAG_SEMI;
-    if (word_equals_ci(word, length, "ANTI"))
+    if (sequel_query_word_equals_ci(word, length, "ANTI"))
       flags |= SEQUEL_JOIN_FLAG_ANTI;
   }
   size_t next = join_index + 1;
   while (next < token_count && is_trivia(&tokens[next]))
     ++next;
-  if (next < token_count && word_equals_ci(source->data + tokens[next].range.start,
-                                           tokens[next].range.end - tokens[next].range.start, "LATERAL"))
+  if (next < token_count && sequel_query_word_equals_ci(source->data + tokens[next].range.start,
+                                                        tokens[next].range.end - tokens[next].range.start, "LATERAL"))
     flags |= SEQUEL_JOIN_FLAG_LATERAL;
   return flags;
 }
@@ -300,8 +238,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     sequel_syntax_kind_t kind = nodes[i].kind;
     if (kind < SEQUEL_SYNTAX_SELECT_STATEMENT || kind > SEQUEL_SYNTAX_UNKNOWN_STATEMENT)
       continue;
-    sequel_statement_info_t statement = {
-        .range = nodes[i].range, .operation = operation(kind), .syntax_node = i, .query_body = SIZE_MAX};
+    sequel_statement_info_t statement = {.range = nodes[i].range,
+                                         .operation = sequel_query_operation_from_syntax(kind),
+                                         .syntax_node = i,
+                                         .query_body = SIZE_MAX};
     if (!append((void **)&document->statements, &document->statement_count, sizeof(statement), &statement)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
@@ -314,13 +254,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (first >= token_count)
         continue;
       const sequel_token_t *first_token = &tokens[first];
-      document->statements[document->statement_count - 1].operation = operation_from_word(
+      document->statements[document->statement_count - 1].operation = sequel_query_operation_from_word(
           source.data + first_token->range.start, first_token->range.end - first_token->range.start);
       if (document->statements[document->statement_count - 1].operation == SEQUEL_OPERATION_UNKNOWN) {
         for (size_t candidate = first + 1; candidate < nodes[i].first_token + nodes[i].token_count; ++candidate) {
           if (is_trivia(&tokens[candidate]))
             continue;
-          sequel_operation_t recovered = operation_from_word(
+          sequel_operation_t recovered = sequel_query_operation_from_word(
               source.data + tokens[candidate].range.start, tokens[candidate].range.end - tokens[candidate].range.start);
           if (recovered != SEQUEL_OPERATION_UNKNOWN) {
             document->statements[document->statement_count - 1].operation = recovered;
@@ -334,8 +274,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t token = 0; token < token_count; ++token) {
       if (is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t recovered = operation_from_word(source.data + tokens[token].range.start,
-                                                         tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t recovered = sequel_query_operation_from_word(
+          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
       if (recovered == SEQUEL_OPERATION_UNKNOWN)
         continue;
       sequel_statement_info_t statement = {
@@ -420,7 +360,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       sequel_cte_info_t cte = {.range = {tokens[name].range.start, tokens[body_close].range.end},
                                .name_range = tokens[name].range,
                                .body_range = {tokens[body_open].range.end, tokens[body_close].range.start},
-                               .statement_index = statement_for_range(document, tokens[name].range),
+                               .statement_index = sequel_query_statement_for_range(document, tokens[name].range),
                                .syntax_node = SIZE_MAX};
       if (!append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte)) {
         sequel_query_document_free(document);
@@ -467,7 +407,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         continue;
       }
       if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
-          word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+          sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
         break;
       }
@@ -476,22 +416,23 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t cursor = outer;
     while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
       ++cursor;
-    if (cursor + 6 <= source.length && word_equals_ci(source.data + cursor, 6, "SELECT")) {
+    if (cursor + 6 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 6, "SELECT")) {
       cursor += 6;
       while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
         ++cursor;
-      if (cursor + 8 <= source.length && word_equals_ci(source.data + cursor, 8, "DISTINCT")) {
+      if (cursor + 8 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 8, "DISTINCT")) {
         cursor += 8;
         while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
           ++cursor;
-        document->outer_distinct_on = cursor + 2 <= source.length && word_equals_ci(source.data + cursor, 2, "ON");
+        document->outer_distinct_on =
+            cursor + 2 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 2, "ON");
       }
     }
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t outer_operation = operation_from_word(source.data + tokens[token].range.start,
-                                                               tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t outer_operation = sequel_query_operation_from_word(
+          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
       if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = outer_operation;
         break;
@@ -514,7 +455,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         continue;
       }
       if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
-          word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+          sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
         break;
       }
@@ -545,8 +486,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
       if (depth || current->kind != SEQUEL_TOKEN_KEYWORD)
         continue;
-      sequel_operation_t body_operation =
-          operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
+      sequel_operation_t body_operation = sequel_query_operation_from_word(source.data + current->range.start,
+                                                                           current->range.end - current->range.start);
       if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = body_operation;
         break;
@@ -557,8 +498,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t token = 0; token < token_count; ++token) {
       if (is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t recovered = operation_from_word(source.data + tokens[token].range.start,
-                                                         tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t recovered = sequel_query_operation_from_word(
+          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
       if (recovered != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = recovered;
         break;
@@ -610,7 +551,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     sequel_parameter_info_t parameter = {.range = tokens[i].range,
                                          .style = style,
-                                         .statement_index = statement_for_range(document, tokens[i].range),
+                                         .statement_index = sequel_query_statement_for_range(document, tokens[i].range),
                                          .ordinal = ordinal,
                                          .explicit_number = explicit_number,
                                          .name_range = name_range,
@@ -730,13 +671,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (found == 3 && tokens[prior[1]].kind == SEQUEL_TOKEN_KEYWORD &&
           tokens[prior[1]].keyword_id == SEQUEL_KEYWORD_NOT && tokens[prior[2]].kind == SEQUEL_TOKEN_KEYWORD &&
           tokens[prior[2]].keyword_id == SEQUEL_KEYWORD_IS &&
-          word_equals_ci(source.data + tokens[prior[0]].range.start,
-                         tokens[prior[0]].range.end - tokens[prior[0]].range.start, "DISTINCT"))
+          sequel_query_word_equals_ci(source.data + tokens[prior[0]].range.start,
+                                      tokens[prior[0]].range.end - tokens[prior[0]].range.start, "DISTINCT"))
         expression_from = true;
     }
     if (expression_from)
       continue;
-    size_t statement = statement_for_range(document, tokens[i].range);
+    size_t statement = sequel_query_statement_for_range(document, tokens[i].range);
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_ON &&
         (statement == SIZE_MAX || document->statements[statement].operation != SEQUEL_OPERATION_CREATE))
       continue;
@@ -795,8 +736,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
     bool function_relation = false;
-    bool lateral_subquery = word_equals_ci(source.data + tokens[name].range.start,
-                                           tokens[name].range.end - tokens[name].range.start, "LATERAL");
+    bool lateral_subquery = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
+                                                        tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (lateral_subquery) {
       while (cursor < token_count && is_trivia(&tokens[cursor]))
         ++cursor;
@@ -825,8 +766,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
     }
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN &&
-        !word_equals_ci(source.data + tokens[name].range.start, tokens[name].range.end - tokens[name].range.start,
-                        "LATERAL")) {
+        !sequel_query_word_equals_ci(source.data + tokens[name].range.start,
+                                     tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
       size_t opening = cursor;
       while (opening < token_count && is_trivia(&tokens[opening]))
         ++opening;
@@ -856,7 +797,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       cursor += 2;
     }
     sequel_source_range_t range = {tokens[i].range.start, end};
-    statement = statement_for_range(document, range);
+    statement = sequel_query_statement_for_range(document, range);
     size_t alias = cursor;
     while (alias < token_count &&
            (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
@@ -911,7 +852,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (left == SIZE_MAX || right == SIZE_MAX)
       continue;
-    size_t statement = statement_for_range(document, tokens[i].range);
+    size_t statement = sequel_query_statement_for_range(document, tokens[i].range);
     sequel_join_info_t join = {.kind = join_kind(tokens, token_count, i, &source),
                                .flags = join_flags(tokens, token_count, i, &source),
                                .range = {tokens[i].range.start, document->relations[right].range.end},
