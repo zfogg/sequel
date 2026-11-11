@@ -64,6 +64,16 @@ typedef struct sequel_diagnostic {
   char hint[256];
 } sequel_diagnostic_t;
 
+const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
+sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect,
+                                  sequel_diagnostic_t *diagnostic);
+
+size_t sequel_diagnostic_catalog_count(void);
+sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out);
+sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input,
+                                               sequel_diagnostic_t *out);
+
 /** Layer that produced a structured diagnostic. */
 typedef enum {
   SEQUEL_DIAGNOSTIC_LEXICAL = 0,

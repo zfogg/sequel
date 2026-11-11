@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include <sequel/status.h>
+
 typedef enum {
   SEQUEL_BIND_POSITIONAL = 0,
   SEQUEL_BIND_NUMBERED,
@@ -20,3 +22,7 @@ typedef struct {
   size_t end_offset;
   sequel_bind_style_t style;
 } sequel_bind_descriptor_t;
+
+/** Validate supplied arity for one statement without reading values. */
+sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement_index,
+                                   size_t supplied_slots);

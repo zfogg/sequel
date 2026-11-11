@@ -51,6 +51,8 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
                                          sequel_diagnostic_t *diagnostic);
 
 /** Analysis/diagnostic wire schema version. Unknown versions must be rejected. */
+#ifndef SEQUEL_ANALYSIS_LEGACY_TYPES
+#define SEQUEL_ANALYSIS_LEGACY_TYPES
 #define SEQUEL_ANALYSIS_VERSION 1u
 
 /** Diagnostic catalog/range wire schema version; currently 1. */
@@ -175,6 +177,7 @@ typedef struct {
   void *_storage;           /**< Private allocation registry; never read, modify or free directly. */
   sequel_diagnostic_t _failure_diagnostic; /**< Private inline fallback for allocation/budget failures. */
 } sequel_analysis_t;
+#endif
 
 /** Analyze explicit UTF-8 bytes; embedded NUL is diagnosed. Safe statement-boundary
  * recovery collects multiple issues. Any malformed statement fails closed for the
