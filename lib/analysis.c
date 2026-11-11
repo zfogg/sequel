@@ -1233,6 +1233,8 @@ static bool analysis_word(format_token t, const char *word) {
   return true;
 }
 
+#include "analysis_policy.c"
+
 static void analysis_policy_diagnostics(const char *sql, size_t n, format_token *ts, size_t count,
                                         sequel_dialect_t dialect, sequel_analysis_t *out) {
   (void)sql;
@@ -1802,7 +1804,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       out->status = "ok";
       out->omission_reason = o.omit_query_text ? "policy" : !safe.n ? "empty" : "";
       if (o.include_lints) {
-        analysis_policy_diagnostics(sql, n, tokens, count, o.dialect, out);
+        analysis_policy_diagnostics_pass(sql, n, tokens, count, o.dialect, out);
         analysis_positions(sql, out);
       }
       if (o.omit_query_text)
