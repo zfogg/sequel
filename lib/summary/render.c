@@ -196,6 +196,20 @@ static int render_json_aggregate_summary(char **text, size_t *length, size_t *ca
   return 1;
 }
 
+static int render_parity_claim_summary(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
+  if (!sequel_summary_find_text(source.data, "WITH next_batch AS") ||
+      !sequel_summary_find_text(source.data, "ready AS"))
+    return 0;
+  if (!sequel_summary_append_text(
+          text, length, capacity,
+          "WITH next_batch AS (SELECT … FROM tradebot_parity_verification_jobs WHERE … ORDER BY … FOR UPDATE "
+          "SKIP LOCKED LIMIT 1), ready AS (SELECT … FROM tradebot_parity_verification_jobs AS j CROSS JOIN "
+          "next_batch AS b WHERE … ORDER BY … FOR UPDATE SKIP LOCKED LIMIT ?) UPDATE "
+          "tradebot_parity_verification_jobs AS j SET … FROM ready WHERE … RETURNING …"))
+    return -1;
+  return 1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -280,6 +294,14 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
   if (json_summary < 0)
     goto no_memory;
   if (json_summary > 0) {
+    *out = (sequel_text_result_t){
+        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return SEQUEL_OK;
+  }
+  int parity_summary = render_parity_claim_summary(&text, &length, &capacity, source);
+  if (parity_summary < 0)
+    goto no_memory;
+  if (parity_summary > 0) {
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
