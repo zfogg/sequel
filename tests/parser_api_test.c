@@ -1049,6 +1049,18 @@ int main(void) {
       sequel_syntax_document_free(heredoc_syntax);
       return 1;
     }
+    sequel_summary_options_t heredoc_summary_options;
+    sequel_summary_options_init(&heredoc_summary_options);
+    sequel_text_result_t heredoc_summary = {0};
+    if (!check(sequel_summarize_query(heredoc_query, &heredoc_summary_options, &heredoc_summary) == SEQUEL_OK &&
+                   strstr(heredoc_summary.data, "FROM events") != NULL,
+               "ClickHouse heredoc summary retains relation")) {
+      sequel_text_result_free(&heredoc_summary);
+      sequel_query_document_free(heredoc_query);
+      sequel_syntax_document_free(heredoc_syntax);
+      return 1;
+    }
+    sequel_text_result_free(&heredoc_summary);
     sequel_query_document_free(heredoc_query);
     sequel_syntax_document_free(heredoc_syntax);
   }
