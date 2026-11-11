@@ -98,7 +98,7 @@ bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel
   return 1;
 }
 
-static int diagnostic_record_compare(const void *left, const void *right) {
+static int sequel_diagnostics_record_compare(const void *left, const void *right) {
   const sequel_diagnostic_record_t *a = left;
   const sequel_diagnostic_record_t *b = right;
   if (a->range.start != b->range.start)
@@ -115,7 +115,7 @@ static int diagnostic_record_compare(const void *left, const void *right) {
 void sequel_diagnostic_list_sort(sequel_diagnostic_list_t *diagnostics) {
   if (!diagnostics || diagnostics->count < 2 || !diagnostics->records)
     return;
-  qsort(diagnostics->records, diagnostics->count, sizeof(*diagnostics->records), diagnostic_record_compare);
+  qsort(diagnostics->records, diagnostics->count, sizeof(*diagnostics->records), sequel_diagnostics_record_compare);
 }
 
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics) {
@@ -141,7 +141,7 @@ sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t
   return SEQUEL_OK;
 }
 
-static int query_has_predicate(const sequel_query_document_t *query, size_t statement_index) {
+static int sequel_diagnostics_query_has_predicate(const sequel_query_document_t *query, size_t statement_index) {
   size_t count = sequel_query_predicate_count(query);
   const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
   for (size_t i = 0; i < count; ++i)
@@ -194,7 +194,7 @@ sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *
         goto no_memory;
     }
     if ((statements[i].operation == SEQUEL_OPERATION_UPDATE || statements[i].operation == SEQUEL_OPERATION_DELETE) &&
-        !query_has_predicate(query, i)) {
+        !sequel_diagnostics_query_has_predicate(query, i)) {
       sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_POLICY,
                                            .code = SEQUEL_DIAG_UNBOUNDED_WRITE,
                                            .severity = SEQUEL_ERROR,
@@ -284,9 +284,9 @@ sequel_status_t sequel_collect_document_diagnostics(const sequel_lexed_document_
   return SEQUEL_OK;
 }
 
-static sequel_status_t collect_query_diagnostics_by_origin(const sequel_query_document_t *query,
-                                                           sequel_diagnostic_origin_t origin,
-                                                           sequel_diagnostic_list_t *diagnostics) {
+static sequel_status_t sequel_diagnostics_collect_query_by_origin(const sequel_query_document_t *query,
+                                                                  sequel_diagnostic_origin_t origin,
+                                                                  sequel_diagnostic_list_t *diagnostics) {
   if (!query || !diagnostics)
     return SEQUEL_ERR_NULL;
   sequel_diagnostic_list_t all = {0};
@@ -309,12 +309,12 @@ static sequel_status_t collect_query_diagnostics_by_origin(const sequel_query_do
 
 sequel_status_t sequel_collect_semantic_diagnostics(const sequel_query_document_t *query,
                                                     sequel_diagnostic_list_t *diagnostics) {
-  return collect_query_diagnostics_by_origin(query, SEQUEL_DIAGNOSTIC_SEMANTIC, diagnostics);
+  return sequel_diagnostics_collect_query_by_origin(query, SEQUEL_DIAGNOSTIC_SEMANTIC, diagnostics);
 }
 
 sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t *query,
                                                   sequel_diagnostic_list_t *diagnostics) {
-  return collect_query_diagnostics_by_origin(query, SEQUEL_DIAGNOSTIC_POLICY, diagnostics);
+  return sequel_diagnostics_collect_query_by_origin(query, SEQUEL_DIAGNOSTIC_POLICY, diagnostics);
 }
 
 sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
@@ -460,7 +460,7 @@ const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code) {
              : NULL;
 }
 
-static void diagnostic_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column) {
+static void sequel_diagnostics_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column) {
   *line = *column = 1;
   if (!sql)
     return;
@@ -495,8 +495,8 @@ void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequ
                                                         : SEQUEL_ERROR;
   out->offset = start;
   out->end_offset = end;
-  diagnostic_position(sql, n, start, &out->line, &out->column);
-  diagnostic_position(sql, n, end, &out->end_line, &out->end_column);
+  sequel_diagnostics_position(sql, n, start, &out->line, &out->column);
+  sequel_diagnostics_position(sql, n, end, &out->end_line, &out->end_column);
   if (sequel_diagnostic_code_name(code)) {
     snprintf(out->message, sizeof(out->message), "%s", diagnostic_messages[code].message);
     snprintf(out->explanation, sizeof(out->explanation), "%s", diagnostic_messages[code].explanation);
