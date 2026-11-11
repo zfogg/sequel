@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sequel.h>
 #include <sequel/parser.h>
 #include <sequel/dialect.h>
 
