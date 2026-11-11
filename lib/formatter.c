@@ -93,6 +93,74 @@ static int is_word_token(sequel_token_kind_t kind) {
          kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER || kind == SEQUEL_TOKEN_PARAMETER;
 }
 
+static int is_comment_token(sequel_token_kind_t kind) {
+  return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT;
+}
+
+static int is_single_char_punctuation(const sequel_token_t *token) {
+  return token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1;
+}
+
+static const char *token_text(sequel_source_view_t source, const sequel_token_t *token, size_t *length) {
+  *length = token->range.end - token->range.start;
+  return source.data + token->range.start;
+}
+
+static int is_by_keyword(const sequel_source_view_t source, const sequel_token_t *token) {
+  size_t length = 0;
+  const char *text = token_text(source, token, &length);
+  return token->kind == SEQUEL_TOKEN_KEYWORD && length == 2 && text[0] == 'B' && text[1] == 'Y';
+}
+
+static int is_condition_operator(const sequel_token_t *token, size_t paren_depth) {
+  return token->kind == SEQUEL_TOKEN_KEYWORD && paren_depth == 0 &&
+         (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR);
+}
+
+static int is_select_start(const sequel_token_t *token, size_t paren_depth) {
+  return token->kind == SEQUEL_TOKEN_KEYWORD && token->keyword_id == SEQUEL_KEYWORD_SELECT && paren_depth == 0;
+}
+
+static int is_literal_replacement(const sequel_token_t *token, const sequel_format_options_t *settings) {
+  return (token->flags & SEQUEL_TOKEN_FLAG_LITERAL) && !(token->flags & SEQUEL_TOKEN_FLAG_BIND) &&
+         !settings->preserve_literals;
+}
+
+static int no_space_before_punctuation(const char *text, size_t length, int punctuation) {
+  return punctuation && length == 1 &&
+         (text[0] == '(' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' || text[0] == ';');
+}
+
+static int no_space_after_punctuation(sequel_token_kind_t previous, const char *data, size_t length) {
+  return previous == SEQUEL_TOKEN_PUNCTUATION && length &&
+         (data[length - 1] == '(' || data[length - 1] == '.' || data[length - 1] == ':');
+}
+
+static void update_parenthesis_depth(const sequel_source_view_t source, const sequel_token_t *token, size_t *depth) {
+  if (!is_single_char_punctuation(token))
+    return;
+  char symbol = source.data[token->range.start];
+  if (symbol == '(')
+    ++*depth;
+  else if (symbol == ')' && *depth)
+    --*depth;
+}
+
+static int append_comment(char **data, size_t *length, size_t *capacity, sequel_source_view_t source,
+                          const sequel_token_t *token) {
+  bool inline_line_comment = *length && ((*data)[*length - 1] == ';' ||
+                                         (*length > 1 && (*data)[*length - 1] == '\n' && (*data)[*length - 2] == ';'));
+  if (inline_line_comment && *length && (*data)[*length - 1] == '\n')
+    (*data)[--*length] = 0;
+  if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT && !inline_line_comment
+           ? (*length && (*data)[*length - 1] != '\n' && !append_text(data, length, capacity, "\n", 1))
+           : !append_space(data, length, capacity)) ||
+      !append_text(data, length, capacity, source.data + token->range.start, token->range.end - token->range.start) ||
+      (token->kind == SEQUEL_TOKEN_LINE_COMMENT && !append_text(data, length, capacity, "\n", 1)))
+    return 0;
+  return 1;
+}
+
 static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const sequel_format_options_t *settings,
                                     sequel_text_result_t *out) {
   size_t token_count = 0;
@@ -117,32 +185,18 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT) &&
         !settings->preserve_comments)
       continue;
-    if (token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT) {
-      bool inline_line_comment =
-          length && (data[length - 1] == ';' || (length > 1 && data[length - 1] == '\n' && data[length - 2] == ';'));
-      if (inline_line_comment && length && data[length - 1] == '\n') {
-        data[--length] = 0;
-      }
-      if ((token->kind == SEQUEL_TOKEN_LINE_COMMENT && !inline_line_comment
-               ? (length && data[length - 1] != '\n' && !append_text(&data, &length, &capacity, "\n", 1))
-               : !append_space(&data, &length, &capacity)) ||
-          !append_text(&data, &length, &capacity, source.data + token->range.start,
-                       token->range.end - token->range.start) ||
-          (token->kind == SEQUEL_TOKEN_LINE_COMMENT && !append_text(&data, &length, &capacity, "\n", 1)))
+    if (is_comment_token(token->kind)) {
+      if (!append_comment(&data, &length, &capacity, source, token))
         goto no_memory;
       previous = token->kind;
       continue;
     }
     bool keyword = token->kind == SEQUEL_TOKEN_KEYWORD;
     bool clause_start = keyword && is_clause(token->keyword_id) && paren_depth == 0;
-    bool condition_operator = keyword &&
-                              (token->keyword_id == SEQUEL_KEYWORD_AND || token->keyword_id == SEQUEL_KEYWORD_OR) &&
-                              paren_depth == 0;
-    bool select_start = keyword && token->keyword_id == SEQUEL_KEYWORD_SELECT && paren_depth == 0;
+    bool condition_operator = is_condition_operator(token, paren_depth);
+    bool select_start = is_select_start(token, paren_depth);
     bool case_boundary = keyword && is_case_boundary(token->keyword_id);
-    if (pending_clause_body &&
-        !(keyword && token->range.end - token->range.start == 2 && source.data[token->range.start] == 'B' &&
-          source.data[token->range.start + 1] == 'Y')) {
+    if (pending_clause_body && !is_by_keyword(source, token)) {
       if (!append_line_start(&data, &length, &capacity, 1))
         goto no_memory;
       pending_clause_body = false;
@@ -158,26 +212,20 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           token->keyword_id == SEQUEL_KEYWORD_RETURNING)
         pending_clause_body = true;
     }
-    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1) {
+    if (is_single_char_punctuation(token)) {
+      update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
-      if (symbol == '(')
-        ++paren_depth;
-      else if (symbol == ')' && paren_depth)
-        --paren_depth;
       if (symbol == ',' && paren_depth == 0 && list_clause && !append_line_start(&data, &length, &capacity, 1))
         goto no_memory;
     }
-    bool literal = token->flags & SEQUEL_TOKEN_FLAG_LITERAL;
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
-    const char *text = source.data + token->range.start;
-    size_t text_length = token->range.end - token->range.start;
-    if (literal && !(token->flags & SEQUEL_TOKEN_FLAG_BIND) && !settings->preserve_literals) {
+    size_t text_length = 0;
+    const char *text = token_text(source, token, &text_length);
+    if (is_literal_replacement(token, settings)) {
       text = "?";
       text_length = 1;
     }
-    bool no_space_before =
-        punctuation && text_length == 1 &&
-        (text[0] == '(' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' || text[0] == ';');
+    bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
     bool cast_operator = token->kind == SEQUEL_TOKEN_OPERATOR && text_length == 2 && text[0] == ':' && text[1] == ':';
     bool range_colon = token->kind == SEQUEL_TOKEN_OPERATOR && text_length == 1 && text[0] == ':';
     bool after_cast_operator = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
@@ -187,8 +235,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool after_range_colon = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
                              previous_token->range.end == previous_token->range.start + 1 &&
                              source.data[previous_token->range.start] == ':';
-    bool no_space_after_previous = previous == SEQUEL_TOKEN_PUNCTUATION && length &&
-                                   (data[length - 1] == '(' || data[length - 1] == '.' || data[length - 1] == ':');
+    bool no_space_after_previous = no_space_after_punctuation(previous, data, length);
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
         !no_space_after_previous &&
         (is_word_token(previous) || is_word_token(token->kind) ||
