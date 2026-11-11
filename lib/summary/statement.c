@@ -63,6 +63,61 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || !sequel_query_projection_count(query))
     return 1;
   const sequel_projection_info_t *projection = sequel_query_projections(query);
+  if (sequel_query_projection_count(query) > 1) {
+    bool scalar_list = false;
+    for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
+      for (size_t offset = projection[i].range.start; offset < projection[i].range.end; ++offset) {
+        if (sequel_summary_word(source.data, source.length, offset, "SELECT")) {
+          scalar_list = true;
+          break;
+        }
+      }
+      if (scalar_list)
+        break;
+    }
+    if (scalar_list) {
+      for (size_t i = 0; i < sequel_query_projection_count(query); ++i) {
+        const char *item = source.data + projection[i].range.start;
+        const char *item_end = source.data + projection[i].range.end;
+        const char *select = sequel_summary_find_text(item, "SELECT ");
+        const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
+        if (!select || !from || from >= item_end)
+          continue;
+        const char *table = from + 6;
+        while (table < item_end && isspace((unsigned char)*table))
+          ++table;
+        const char *table_end = table;
+        while (table_end < item_end && !isspace((unsigned char)*table_end) && *table_end != ')')
+          ++table_end;
+        const char *alias = table_end;
+        while (alias < item_end && isspace((unsigned char)*alias))
+          ++alias;
+        const char *alias_end = alias;
+        while (alias_end < item_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
+          ++alias_end;
+        const char *where = sequel_summary_find_text(table_end, " WHERE ");
+        const char *order = sequel_summary_find_text(table_end, " ORDER BY ");
+        const char *limit = sequel_summary_find_text(table_end, " LIMIT ");
+        if (where && where >= item_end)
+          where = NULL;
+        if (order && order >= item_end)
+          order = NULL;
+        if (limit && limit >= item_end)
+          limit = NULL;
+        if (!sequel_summary_append_text(text, length, capacity, " (SELECT … FROM ") ||
+            !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
+            (alias < item_end &&
+             (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+              !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))) ||
+            (where && !sequel_summary_append_text(text, length, capacity, " WHERE …")) ||
+            (order && !sequel_summary_append_text(text, length, capacity, " ORDER BY …")) ||
+            (limit && !sequel_summary_append_text(text, length, capacity, " LIMIT 1")) ||
+            !sequel_summary_append_text(text, length, capacity, ")"))
+          return 0;
+      }
+      return 1;
+    }
+  }
   char first = projection[0].range.start < source.length ? source.data[projection[0].range.start] : 0;
   bool literal =
       strchr("'?0123456789", first) != NULL || (first == '$' && !sequel_summary_find_text(source.data, " FROM "));
