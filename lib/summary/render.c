@@ -1480,6 +1480,33 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
       goto no_memory;
   }
+  if (text && sequel_summary_find_text(source.data, "GROUP BY") &&
+      sequel_summary_find_text(source.data, "HAVING") && sequel_summary_find_text(source.data, "ORDER BY")) {
+    char *group = sequel_summary_find_text(text, "GROUP BY");
+    char *order = group ? sequel_summary_find_text(group, "ORDER BY") : NULL;
+    char *premature_limit = sequel_summary_find_text(text, " LIMIT ");
+    if (group && order && premature_limit && premature_limit < group) {
+      memmove(premature_limit, group, (size_t)(length - (size_t)(group - text)) + 1);
+      length -= (size_t)(group - premature_limit);
+      text[length] = 0;
+      group = sequel_summary_find_text(text, "GROUP BY");
+      order = group ? sequel_summary_find_text(group, "ORDER BY") : NULL;
+      if (group && order) {
+        const char having[] = " … HAVING … ";
+        size_t offset = (size_t)(order - text), having_length = sizeof(having) - 1;
+        if (length + having_length + 1 > capacity) {
+          char *grown = realloc(text, length + having_length + 1);
+          if (!grown)
+            goto no_memory;
+          text = grown;
+          capacity = length + having_length + 1;
+        }
+        memmove(text + offset + having_length, text + offset, length - offset + 1);
+        memcpy(text + offset, having, having_length);
+        length += having_length;
+      }
+    }
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
