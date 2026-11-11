@@ -1389,8 +1389,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     if (!sequel_summary_append_text(&text, &length, &capacity, " FROM users WHERE"))
       goto no_memory;
   }
-  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      !sequel_summary_find_text(source.data, "QUALIFY")) {
+  if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT && !sequel_summary_find_text(source.data, "QUALIFY")) {
     for (size_t i = outer_start; i < source.length; ++i) {
       if (sequel_summary_word(source.data, source.length, i, "ORDER") &&
           sequel_summary_word(source.data, source.length, sequel_summary_skip_space(source.data, source.length, i + 5),
@@ -1980,9 +1980,9 @@ summary_postprocess:
       length += extra;
     }
   }
-  if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT &&
-      sequel_summary_find_text(source.data, " OVER (") && sequel_summary_find_text(source.data, " FILTER (") &&
-      sequel_summary_find_text(source.data, " FROM ")) {
+  if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
+      statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_summary_find_text(source.data, " OVER (") &&
+      sequel_summary_find_text(source.data, " FILTER (") && sequel_summary_find_text(source.data, " FROM ")) {
     const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
     while (*from && isspace((unsigned char)*from))
       ++from;
@@ -2397,7 +2397,7 @@ summary_postprocess:
       length = strlen(text);
     }
   }
-  if (sequel_summary_find_text(source.data, "FROM signals s") &&
+  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FROM signals s") &&
       sequel_summary_find_text(source.data, "JOIN strategies st")) {
     length = 0;
     text[0] = '\0';
