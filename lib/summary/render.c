@@ -1191,9 +1191,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
             goto no_memory;
         }
       }
-      const char *outer_limit = sequel_summary_find_word(source.data, source.length, outer, "LIMIT");
-      if (outer_limit && !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
-        goto no_memory;
     }
   }
   if (settings->include_operation && sequel_query_cte_count(query) && statement_count && !cte_insert_scope &&
