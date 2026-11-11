@@ -208,6 +208,25 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
                                       : parameter                  ? "?"
                                                                    : "1"))
         return 0;
+
+      /* A lateral relation is part of the body range, so its closing alias
+       * and join predicate must survive the limit normalization. */
+      if (table < range.end && source[table] == '(' && sequel_summary_find_text(source + table, "JOIN LATERAL")) {
+        size_t close = value_end;
+        while (close < range.end && source[close] != ')')
+          ++close;
+        if (close < range.end) {
+          size_t alias = sequel_summary_skip_space(source, range.end, close + 1);
+          size_t alias_end = alias;
+          while (alias_end < range.end && !isspace((unsigned char)source[alias_end]) && source[alias_end] != ')')
+            ++alias_end;
+          if (alias < alias_end &&
+              (!sequel_summary_append_text(text, length, capacity, ") AS ") ||
+               !sequel_summary_append_bytes(text, length, capacity, source + alias, alias_end - alias) ||
+               !sequel_summary_append_text(text, length, capacity, " ON ?")))
+            return 0;
+        }
+      }
     }
     return 1;
   }
