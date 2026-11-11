@@ -2367,6 +2367,16 @@ summary_postprocess:
       const char replacement[] = "SELECT unnest(\342\200\246)";
       size_t old_length = sizeof("SELECT \342\200\246") - 1;
       size_t new_length = sizeof(replacement) - 1;
+      if (new_length > old_length) {
+        size_t offset = (size_t)(select - text);
+        size_t required = length + new_length - old_length + 1;
+        char *grown = realloc(text, required);
+        if (!grown)
+          goto no_memory;
+        text = grown;
+        capacity = required;
+        select = text + offset;
+      }
       memmove(select + new_length, select + old_length, strlen(select + old_length) + 1);
       memcpy(select, replacement, new_length);
       length = strlen(text);
@@ -2376,6 +2386,18 @@ summary_postprocess:
       char *alias = sequel_summary_find_text(text, "flags f");
       if (alias) {
         const char replacement[] = "flags AS f";
+        size_t old_length = 7;
+        size_t new_length = sizeof(replacement) - 1;
+        if (new_length > old_length) {
+          size_t offset = (size_t)(alias - text);
+          size_t required = length + new_length - old_length + 1;
+          char *grown = realloc(text, required);
+          if (!grown)
+            goto no_memory;
+          text = grown;
+          capacity = required;
+          alias = text + offset;
+        }
         memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
         memcpy(alias, replacement, sizeof(replacement) - 1);
         length = strlen(text);
@@ -2508,6 +2530,15 @@ summary_postprocess:
   }
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
+  if (length == SIZE_MAX)
+    goto no_memory;
+  if (capacity <= length) {
+    char *grown = realloc(text, length + 1);
+    if (!grown)
+      goto no_memory;
+    text = grown;
+    capacity = length + 1;
+  }
   text[length] = 0;
   sequel_text_result_free(out);
   *out =
