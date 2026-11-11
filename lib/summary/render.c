@@ -290,22 +290,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_RECOVERED};
     return SEQUEL_OK;
   }
-  if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
-      sequel_summary_find_text(source.data, "JOIN signal_outcomes") &&
-      sequel_summary_find_text(source.data, "r.generation = (SELECT generation")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity,
-                                    "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS s ON "
-                                    "s.ticker = r.ticker LEFT JOIN (SELECT … FROM signals AS sig JOIN "
-                                    "signal_outcomes AS out ON out.signal_id = sig.id JOIN strategies AS st ON "
-                                    "st.id = sig.strategy_id WHERE … GROUP BY … HAVING …) AS mr ON mr.symbol = "
-                                    "r.ticker WHERE … (SELECT … FROM ticker_backtest_results GROUP BY … ORDER BY … "
-                                    "LIMIT 1) GROUP BY … HAVING … ORDER BY … LIMIT ?"))
-      goto no_memory;
-    sequel_text_result_free(out);
-    *out = (sequel_text_result_t){
-        .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-    return SEQUEL_OK;
-  }
   /* A ClickHouse numeric dollar-quoted literal is a single projection.  Keep
    * that shape stable when formatting has inserted line breaks around it; the
    * generic projection scanner otherwise mistakes the delimiter for a bind. */
@@ -1712,29 +1696,6 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
       length = strlen(text);
     }
   }
-  if (text && sequel_summary_find_text(source.data, "WITH upserted AS (") &&
-      sequel_summary_find_text(source.data, "NOT EXISTS (SELECT 1 FROM upserted)")) {
-    length = 0;
-    text[0] = 0;
-    if (!sequel_summary_append_text(
-            &text, &length, &capacity,
-            "WITH upserted AS (INSERT INTO signals VALUES … ON CONFLICT DO UPDATE SET … WHERE … RETURNING …) "
-            "SELECT … FROM upserted UNION ALL SELECT … FROM signals AS s WHERE … NOT EXISTS (SELECT … FROM upserted) "
-            "(SELECT … FROM tradebot_configurations WHERE …)"))
-      goto no_memory;
-  }
-  if (text && sequel_summary_find_text(source.data, "FROM portfolio_symbol_forecasts") &&
-      sequel_summary_find_text(source.data, "JOIN portfolio_symbol_results")) {
-    length = 0;
-    text[0] = 0;
-    if (!sequel_summary_append_text(
-            &text, &length, &capacity,
-            "SELECT … FROM portfolio_symbol_forecasts AS f LEFT JOIN LATERAL (SELECT … FROM sec_tickers WHERE … "
-            "ORDER BY … LIMIT 1) AS t ON ? LEFT JOIN portfolio_contexts AS c ON c.run_id = f.run_id LEFT JOIN "
-            "portfolio_symbol_results AS s ON s.context_id = c.id AND s.ticker = f.ticker WHERE … GROUP BY … "
-            "ORDER BY … LIMIT ?"))
-      goto no_memory;
-  }
   if (text && sequel_query_cte_count(query) && sequel_query_outer_limit(query)) {
     size_t tail_start = length > 64 ? length - 64 : 0;
     if (!sequel_summary_find_text(text + tail_start, "LIMIT") &&
@@ -2148,61 +2109,10 @@ summary_postprocess:
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
       (!normalize_insert_clause_order(&text, &length, &capacity) || !normalize_insert_conflict_order(&text, &length)))
     goto no_memory;
-  if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "WITH fill_period AS (") &&
-      sequel_summary_find_text(source.data, "known_periods AS (") &&
-      sequel_summary_find_text(source.data, "SELECT DISTINCT ON")) {
-    length = 0;
-    text[0] = 0;
-    if (!sequel_summary_append_text(
-            &text, &length, &capacity,
-            "WITH fill_period AS (SELECT … FROM (SELECT unnest(…), unnest(…)) AS f LEFT JOIN LATERAL (SELECT … "
-            "FROM dynamic_portfolio_revision_periods AS p JOIN dynamic_portfolio_revisions AS revision ON revision.id "
-            "= "
-            "p.revision_id WHERE … ORDER BY … LIMIT 1) AS period ON ?), known_periods AS (SELECT … FROM fill_period "
-            "GROUP BY …), scored_period AS (SELECT DISTINCT ON (…) … FROM fill_period AS f JOIN known_periods AS known "
-            "ON "
-            "known.symbol = f.symbol AND known.period_count = ? AND known.fully_known JOIN ticker_backtest_results AS "
-            "r "
-            "ON r.ticker = f.symbol AND r.to_date <= f.evidence_to::date JOIN ticker_backtest_contexts AS "
-            "ticker_context ON "
-            "ticker_context.id = r.portfolio_context_id JOIN portfolio_contexts AS portfolio_context ON "
-            "portfolio_context.id = "
-            "f.context_id AND ticker_context.trade_symbols = portfolio_context.trade_symbols AND "
-            "ticker_context.signal_context_symbols = portfolio_context.signal_context_symbols WHERE … ORDER BY …) "
-            "SELECT … "
-            "FROM scored_period"))
-      goto no_memory;
-  }
-  if (!sequel_query_cte_count(query) || !sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-      (sequel_summary_find_text(source.data, "latest AS (") && sequel_summary_find_text(source.data, "regime AS ("))) {
-    if (text && sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
-        !sequel_summary_find_text(text, "JOIN tradebot_configurations")) {
-      char *where = sequel_summary_find_text(text, " WHERE ");
-      if (where) {
-        const char join_text[] = " JOIN tradebot_configurations AS c ON c.id = s.configuration_id";
-        size_t join_length = sizeof(join_text) - 1;
-        size_t offset = (size_t)(where - text);
-        size_t required = length + join_length + 1;
-        if (required < length)
-          goto no_memory;
-        if (required > capacity) {
-          char *grown = realloc(text, required);
-          if (!grown)
-            goto no_memory;
-          text = grown;
-          capacity = required;
-          where = text + offset;
-        }
-        memmove(where + join_length, where, length - offset + 1);
-        memcpy(where, join_text, join_length);
-        length += join_length;
-      }
-    }
+  {
     if (text && !sequel_summary_find_text(text, " USING ")) {
       char *delete_where = sequel_summary_find_text(text, "DELETE WHERE ");
       const char *delete_from = sequel_summary_find_text(source.data + outer_start, "DELETE FROM ");
-      if (!delete_from)
-        delete_from = sequel_summary_find_text(source.data, "DELETE FROM signals ");
       const char *using = delete_from ? sequel_summary_find_word(source.data, source.length,
                                                                  (size_t)(delete_from - source.data), "USING")
                                       : NULL;
@@ -2245,23 +2155,6 @@ summary_postprocess:
         memcpy(insert, relation, (size_t)(relation_end - relation));
         length += insert_length;
       }
-    }
-    if (text && sequel_summary_find_text(text, " FROM signals AS") && sequel_summary_find_text(text, " ORDER BY")) {
-      char *normalized_from = sequel_summary_find_text(text, " FROM signals AS");
-      const char prefix[] = "SELECT …";
-      size_t prefix_length = sizeof(prefix) - 1;
-      size_t from_length = length - (size_t)(normalized_from + 1 - text);
-      if (capacity < prefix_length + from_length + 1) {
-        char *grown = realloc(text, prefix_length + from_length + 1);
-        if (!grown)
-          goto no_memory;
-        text = grown;
-        capacity = prefix_length + from_length + 1;
-        normalized_from = sequel_summary_find_text(text, " FROM signals AS");
-      }
-      memmove(text + prefix_length, normalized_from + 1, from_length + 1);
-      memcpy(text, prefix, prefix_length);
-      length = prefix_length + from_length;
     }
     if (text && sequel_summary_find_text(source.data, "ON CONFLICT") &&
         sequel_summary_find_text(source.data, "DO UPDATE") && !sequel_summary_find_text(text, "ON CONFLICT")) {
@@ -2729,26 +2622,6 @@ summary_postprocess:
         length = strlen(text);
       }
     }
-    if (!sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "FROM signals s") &&
-        sequel_summary_find_text(source.data, "JOIN strategies st")) {
-      length = 0;
-      text[0] = '\0';
-      if (!sequel_summary_append_text(&text, &length, &capacity,
-                                      "SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id") ||
-          (sequel_summary_find_text(source.data, "JOIN tradebot_configurations") &&
-           (!sequel_summary_append_text(&text, &length, &capacity,
-                                        " JOIN tradebot_configurations AS c ON c.id = s.configuration_id"))) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " WHERE …") ||
-          (sequel_summary_find_text(source.data, "GROUP BY") &&
-           !sequel_summary_append_text(&text, &length, &capacity, " GROUP BY …")) ||
-          (sequel_summary_find_text(source.data, "HAVING") &&
-           !sequel_summary_append_text(&text, &length, &capacity, " HAVING …")) ||
-          (sequel_summary_find_text(source.data, "ORDER BY") &&
-           !sequel_summary_append_text(&text, &length, &capacity, " ORDER BY …")) ||
-          (sequel_summary_find_text(source.data, "LIMIT") &&
-           !sequel_summary_append_text(&text, &length, &capacity, " LIMIT 50")))
-        goto no_memory;
-    }
     if (sequel_summary_find_text(source.data, "LEFT JOIN LATERAL") && sequel_summary_find_text(source.data, " ON ") &&
         sequel_summary_find_text(text, "LEFT JOIN LATERAL") && !sequel_summary_find_text(text, " ON ")) {
       const char *on = sequel_summary_find_text(source.data, " ON ");
@@ -2805,103 +2678,6 @@ summary_postprocess:
         if (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY … LIMIT ?"))
           goto no_memory;
       }
-    }
-    if (text && sequel_summary_find_text(source.data, "WITH bucketed AS (") &&
-        sequel_summary_find_text(source.data, "clustered AS (")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "WITH bucketed AS (SELECT … FROM signals AS s JOIN strategies AS st ON st.id = s.strategy_id WHERE …), "
-              "clustered AS (SELECT … WITHIN GROUP (…) FROM bucketed GROUP BY … HAVING …) SELECT … FROM clustered AS c "
-              "JOIN bucketed AS b ON b.bucket = c.bucket AND b.strategy = c.strategy AND b.asset_type = c.asset_type "
-              "ORDER BY …"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "FROM strategies st") &&
-        sequel_summary_find_text(source.data, "CROSS JOIN LATERAL")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "SELECT … FROM strategies AS st CROSS JOIN LATERAL (SELECT … FROM signals WHERE … ORDER BY … LIMIT 1) "
-              "AS s WHERE … ORDER BY … LIMIT 1"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "WITH filtered AS NOT MATERIALIZED") &&
-        sequel_summary_find_text(source.data, "LATERAL unnest(")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "WITH filtered AS NOT MATERIALIZED (SELECT … FROM tax_liability_events WHERE …), totals AS (SELECT … "
-              "FILTER (…) FILTER (…) FILTER (…) FILTER (…) FROM filtered GROUP BY …), missing AS (SELECT … FROM "
-              "filtered, LATERAL unnest(…) AS item GROUP BY …) SELECT … FROM tax_accounts AS a LEFT JOIN totals AS t "
-              "ON t.account_id = a.account_id LEFT JOIN missing AS m ON m.account_id = a.account_id LEFT JOIN "
-              "tax_history_reconciliation AS h ON h.account_id=a.account_id WHERE … ORDER BY …"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "WITH filtered AS (") &&
-        sequel_summary_find_text(source.data, "tax_shared_summary") &&
-        sequel_summary_find_text(source.data, "LATERAL unnest(")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "WITH filtered AS (SELECT … FROM tax_liability_events AS e WHERE … IN (SELECT … FROM "
-              "tax_shared_summary AS s WHERE …)), missing AS (SELECT … FROM filtered, LATERAL unnest(…) AS item) "
-              "SELECT … (SELECT … FROM missing) FROM filtered"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "jsonb_object_keys(") &&
-        sequel_summary_find_text(source.data, "tax_shared_summary") &&
-        sequel_summary_find_text(source.data, "EXISTS (")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "SELECT … EXISTS (SELECT … FROM tax_shared_summary AS s, LATERAL jsonb_object_keys(…) AS account_id "
-              "WHERE …)"))
-        goto no_memory;
-    }
-    if (!sequel_query_cte_count(query) && text &&
-        sequel_summary_find_text(source.data, "FROM ticker_backtest_results r") &&
-        sequel_summary_find_text(source.data, "GROUP BY generation")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker WHERE … "
-              "(SELECT … FROM ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1) GROUP BY … HAVING … ORDER BY … "
-              "LIMIT ?"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "WITH scoped AS (") &&
-        sequel_summary_find_text(source.data, "latest AS (") && sequel_summary_find_text(source.data, "regime AS (")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "WITH scoped AS (SELECT … FROM ticker_backtest_results AS r WHERE … (SELECT … FROM "
-              "ticker_backtest_results "
-              "GROUP BY … ORDER BY … LIMIT 1)), latest AS (SELECT DISTINCT ON (…) … FROM scoped AS r ORDER BY …), "
-              "regime AS (SELECT … FROM scoped AS r GROUP BY …) SELECT … FROM latest AS r JOIN regime AS g USING "
-              "(ticker) "
-              "LEFT JOIN sec_tickers AS s ON s.ticker = r.ticker ORDER BY …"))
-        goto no_memory;
-    }
-    if (text && sequel_summary_find_text(source.data, "LEFT JOIN ticker_backtest_contexts pc") &&
-        sequel_summary_find_text(source.data, "r.generation = (SELECT generation") &&
-        !sequel_summary_find_text(source.data, "JOIN signal_outcomes")) {
-      length = 0;
-      text[0] = 0;
-      if (!sequel_summary_append_text(
-              &text, &length, &capacity,
-              "SELECT … FROM ticker_backtest_results AS r LEFT JOIN sec_tickers AS t ON t.cik = r.cik AND t.ticker = "
-              "r.ticker "
-              "LEFT JOIN ticker_backtest_contexts AS pc ON pc.id = r.portfolio_context_id WHERE … (SELECT … FROM "
-              "ticker_backtest_results GROUP BY … ORDER BY … LIMIT 1) ORDER BY …"))
-        goto no_memory;
     }
   }
   sequel_summary_redact_rendered_literals(text, &length);
