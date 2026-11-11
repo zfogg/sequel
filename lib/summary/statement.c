@@ -63,6 +63,11 @@ int sequel_summary_append_projection_shape(char **text, size_t *length, size_t *
   if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || !sequel_query_projection_count(query))
     return 1;
   const sequel_projection_info_t *projection = sequel_query_projections(query);
+  if (sequel_query_projection_count(query) > 1 && sequel_query_relation_count(query) == 0) {
+    const char *cardinality = sequel_summary_find_text(source.data, "cardinality(");
+    const char *shape = cardinality && sequel_query_dialect(query) >= SEQUEL_POSTGRESQL ? " cardinality(…)" : " …";
+    return sequel_summary_append_text(text, length, capacity, shape);
+  }
   if (sequel_query_projection_count(query) > 1) {
     bool scalar_list = false;
     /* Scalar-subquery detection is intentionally bounded.  Each projection
