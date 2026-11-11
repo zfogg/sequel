@@ -49,7 +49,8 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
       !sequel_summary_find_text(*text, "DISTINCT ON") &&
       !sequel_summary_append_text(text, length, capacity, " DISTINCT ON"))
     return 0;
-  if (sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "LIMIT ")) {
+  if ((sequel_query_cte_count(query) > 1 || sequel_summary_find_text(source.data, "ticker_backtest_results")) &&
+      sequel_summary_find_text(source.data, "LIMIT ")) {
     size_t source_count = 0;
     size_t rendered_count = 0;
     for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
