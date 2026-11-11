@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -111,7 +112,7 @@ static const char *token_text(sequel_source_view_t source, const sequel_token_t 
 static int is_by_keyword(const sequel_source_view_t source, const sequel_token_t *token) {
   size_t length = 0;
   const char *text = token_text(source, token, &length);
-  return token->kind == SEQUEL_TOKEN_KEYWORD && length == 2 && text[0] == 'B' && text[1] == 'Y';
+  return length == 2 && toupper((unsigned char)text[0]) == 'B' && toupper((unsigned char)text[1]) == 'Y';
 }
 
 static int is_condition_operator(const sequel_token_t *token, size_t paren_depth) {
@@ -137,9 +138,14 @@ static int no_space_after_punctuation(sequel_token_kind_t previous, const char *
          (data[length - 1] == '(' || data[length - 1] == '.' || data[length - 1] == ':');
 }
 
+static int is_as_before_open_paren(const char *data, size_t length, const char *text, size_t text_length) {
+  return text_length == 1 && text[0] == '(' && length >= 2 && data[length - 2] == 'A' && data[length - 1] == 'S';
+}
+
 static int colon_before_literal_needs_space(sequel_token_kind_t previous, const char *data, size_t length,
-                                            sequel_token_kind_t current) {
-  return previous == SEQUEL_TOKEN_PUNCTUATION && length && data[length - 1] == ':' &&
+                                            sequel_token_kind_t current, size_t bracket_depth) {
+  return (previous == SEQUEL_TOKEN_PUNCTUATION || previous == SEQUEL_TOKEN_OPERATOR) && length &&
+         data[length - 1] == ':' && bracket_depth == 0 &&
          (current == SEQUEL_TOKEN_NUMBER || current == SEQUEL_TOKEN_STRING || current == SEQUEL_TOKEN_BOOLEAN ||
           current == SEQUEL_TOKEN_NULL);
 }
@@ -194,7 +200,8 @@ static int is_space_terminated(const char *data, size_t length) { return length 
 
 static int is_clause_header(uint32_t keyword) {
   return keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_SET ||
-         keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
+         keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_GROUP ||
+         keyword == SEQUEL_KEYWORD_ORDER;
 }
 
 static void update_parenthesis_depth(const sequel_source_view_t source, const sequel_token_t *token, size_t *depth) {
@@ -233,6 +240,9 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   const sequel_token_t *previous_token = NULL;
   uint32_t clause = 0;
   size_t paren_depth = 0;
+  size_t bracket_depth = 0;
+  size_t query_paren_depth = 0;
+  size_t cte_paren_depth = 0;
   bool list_clause = false;
   bool pending_clause_body = false;
   for (size_t i = 0; i < token_count; ++i) {
@@ -253,17 +263,19 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       continue;
     }
     bool keyword = is_keyword_token(token);
-    bool clause_start = keyword && is_clause(token->keyword_id) && paren_depth == 0;
+    bool clause_start = keyword && is_clause(token->keyword_id);
     bool condition_operator = is_condition_operator(token, paren_depth);
-    bool select_start = is_select_start(token, paren_depth);
+    bool select_start = keyword && token->keyword_id == SEQUEL_KEYWORD_SELECT;
+    if (select_start && paren_depth)
+      query_paren_depth = paren_depth;
     bool case_boundary = keyword && is_case_boundary(token->keyword_id);
     if (pending_clause_body && !is_by_keyword(source, token)) {
-      if (!append_line_start(&data, &length, &capacity, 1))
+      if (!append_line_start(&data, &length, &capacity, paren_depth + 1))
         goto no_memory;
       pending_clause_body = false;
     }
     if (select_start || clause_start || condition_operator || case_boundary) {
-      size_t indent = (select_start || clause_start) ? 0 : 1;
+      size_t indent = (select_start || clause_start) ? paren_depth : paren_depth + 1;
       if (is_case_boundary(token->keyword_id))
         indent = 1;
       if (!append_line_start(&data, &length, &capacity, indent))
@@ -272,11 +284,23 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         pending_clause_body = true;
     }
     if (is_single_char_punctuation(token)) {
+      if (is_open_paren(source, token) && previous_token && previous_token->range.end >= 2 &&
+          source.data[previous_token->range.end - 2] == 'A' && source.data[previous_token->range.end - 1] == 'S')
+        cte_paren_depth = paren_depth + 1;
       update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
-      if (is_comma(source, token) && paren_depth == 0 && list_clause &&
-          !append_line_start(&data, &length, &capacity, 1))
+      if (symbol == '[')
+        ++bracket_depth;
+      else if (symbol == ']' && bracket_depth)
+        --bracket_depth;
+      if (is_close_paren(source, token) && length && data[length - 1] != '\n' && paren_depth &&
+          (query_paren_depth == paren_depth + 1 || cte_paren_depth == paren_depth + 1) &&
+          !append_line_start(&data, &length, &capacity, paren_depth - 1))
         goto no_memory;
+      if (is_close_paren(source, token) && query_paren_depth == paren_depth + 1)
+        query_paren_depth = 0;
+      if (is_close_paren(source, token) && cte_paren_depth == paren_depth + 1)
+        cte_paren_depth = 0;
     }
     bool punctuation = token->kind == SEQUEL_TOKEN_PUNCTUATION;
     size_t text_length = 0;
@@ -286,6 +310,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       text_length = 1;
     }
     bool no_space_before = no_space_before_punctuation(text, text_length, punctuation);
+    if (is_as_before_open_paren(data, length, text, text_length))
+      no_space_before = false;
     bool cast_operator = is_operator_token(token) && is_cast_operator(text, text_length);
     bool range_colon = is_operator_token(token) && is_range_colon(text, text_length);
     bool after_cast_operator = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
@@ -294,9 +320,11 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
                                source.data[previous_token->range.start + 1] == ':';
     bool after_range_colon = previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
                              previous_token->range.end == previous_token->range.start + 1 &&
-                             source.data[previous_token->range.start] == ':';
-    bool no_space_after_previous = no_space_after_punctuation(previous, data, length) &&
-                                   !colon_before_literal_needs_space(previous, data, length, token->kind);
+                             source.data[previous_token->range.start] == ':' &&
+                             !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+    bool no_space_after_previous =
+        no_space_after_punctuation(previous, data, length) &&
+        !colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
         !no_space_after_previous &&
         (is_word_token(previous) || is_word_token(token->kind) ||
@@ -305,6 +333,11 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
     if (!append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;
+    if (is_comma(source, token) && list_clause) {
+      size_t indent = length && data[length - 1] == ')' ? 0 : paren_depth + 1;
+      if (!append_line_start(&data, &length, &capacity, indent))
+        goto no_memory;
+    }
     if (is_semicolon(source, token) && !append_text(&data, &length, &capacity, "\n", 1))
       goto no_memory;
     previous = token->kind;
