@@ -936,5 +936,30 @@ int main(void) {
     return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
+  {
+    const char *join_sql = "SELECT * FROM a NATURAL LEFT JOIN b JOIN c USING(id,tenant_id) FULL OUTER JOIN d ON d.id=c.id";
+    sequel_source_view_t join_source = {join_sql, strlen(join_sql)};
+    sequel_syntax_document_t *join_syntax = NULL;
+    sequel_query_document_t *join_query = NULL;
+    sequel_parse_options_t join_options;
+    sequel_parse_options_init(&join_options);
+    if (!check(sequel_parse_sql(&join_source, &join_options, NULL, &join_syntax) == SEQUEL_OK,
+               "chained join parse") ||
+        !check(sequel_build_query_document(join_syntax, &join_options, &join_query) == SEQUEL_OK,
+               "chained join query")) {
+      sequel_syntax_document_free(join_syntax);
+      return 1;
+    }
+    const sequel_join_info_t *joins = sequel_query_joins(join_query);
+    if (!check(sequel_query_join_count(join_query) == 3 && !joins[0].has_condition && !joins[1].has_condition &&
+                   joins[2].has_condition,
+               "join conditions attach to their own join")) {
+      sequel_query_document_free(join_query);
+      sequel_syntax_document_free(join_syntax);
+      return 1;
+    }
+    sequel_query_document_free(join_query);
+    sequel_syntax_document_free(join_syntax);
+  }
   return 0;
 }

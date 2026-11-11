@@ -563,6 +563,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                .has_condition = false};
     size_t join_end = statement != SIZE_MAX ? document->statements[statement].range.end : token_count;
     for (size_t j = i + 1; j < token_count && tokens[j].range.start < join_end; ++j) {
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_JOIN)
+        break;
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_USING)
         join.flags |= SEQUEL_JOIN_FLAG_USING;
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
@@ -581,8 +583,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             else if (punctuation == ')' && nesting)
               --nesting;
           }
+          /* A JOIN starts a new relation and therefore owns any later ON.
+           * Do not let the preceding join inherit that condition.  Nested
+           * subqueries are protected by the nesting counter above. */
           if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
-              is_clause_keyword(&tokens[condition_end]))
+              (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN || is_clause_keyword(&tokens[condition_end])))
             break;
           ++condition_end;
         }
