@@ -50,6 +50,19 @@ target_link_libraries(sequel-limits-test PRIVATE sequel::sequel)
 add_test(NAME sequel-limits COMMAND sequel-limits-test)
 # Exercise exact boundaries with the same engine and small test-only constants.
 set(SEQUEL_PARSER_SOURCES
+  ../lib/runtime.c
+  ../lib/diagnostics.c
+  ../lib/contracts.c
+  ../lib/sha256.c
+  ../lib/highlight.c
+  ../lib/compact.c
+  ../lib/api.c
+  ../lib/scan.c
+  ../lib/analysis.c
+  ../lib/analysis_literal.c
+  ../lib/analysis_binding_token.c
+  ../lib/analysis_text.c
+  ../lib/analysis_policy.c
   ../lib/source.c
   ../lib/dialect.c
   ../lib/lexer.c
