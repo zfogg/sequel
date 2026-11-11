@@ -9,6 +9,7 @@
 
 #include "runtime.h"
 #include "runtime_types.h"
+#include "resources.h"
 #include "diagnostics.h"
 #include "util/text.h"
 #include "sha256.h"
