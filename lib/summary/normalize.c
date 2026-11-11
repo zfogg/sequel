@@ -217,3 +217,61 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
   }
   return cursor < end ? sequel_summary_append_bytes(text, length, capacity, source.data + cursor, end - cursor) : 1;
 }
+
+int sequel_summary_normalize_nested_subqueries(char **text, size_t *length, size_t *capacity) {
+  static const char ellipsis[] = "\342\200\246";
+  if (!text || !*text || !length || !capacity)
+    return 1;
+  for (char *cursor = *text; (cursor = sequel_summary_find_text(cursor, "IN (SELECT ")) != NULL;) {
+    char *projection = cursor + strlen("IN (SELECT ");
+    char *from = sequel_summary_find_text(projection, " FROM ");
+    if (!from)
+      break;
+    size_t projection_start = (size_t)(projection - *text);
+    size_t from_start = (size_t)(from - *text);
+    size_t old_length = from_start - projection_start;
+    size_t new_length = sizeof(ellipsis) - 1;
+    if (new_length > old_length) {
+      size_t growth = new_length - old_length;
+      if (*length > SIZE_MAX - growth - 1)
+        return 0;
+      size_t required = *length + growth + 1;
+      if (required > *capacity) {
+        char *grown = realloc(*text, required);
+        if (!grown)
+          return 0;
+        *text = grown;
+        *capacity = required;
+      }
+      memmove(*text + projection_start + new_length, *text + from_start, *length - from_start + 1);
+      *length += growth;
+    } else if (old_length > new_length) {
+      size_t shrink = old_length - new_length;
+      memmove(*text + projection_start + new_length, *text + from_start, *length - from_start + 1);
+      *length -= shrink;
+    }
+    memcpy(*text + projection_start, ellipsis, new_length);
+    cursor = *text + projection_start + new_length;
+    char *using = sequel_summary_find_text(cursor, "USING(");
+    if (using) {
+      size_t offset = (size_t)(using - *text);
+      if (*length == SIZE_MAX)
+        return 0;
+      size_t required = *length + 2;
+      if (required > *capacity) {
+        char *grown = realloc(*text, required);
+        if (!grown)
+          return 0;
+        *text = grown;
+        *capacity = required;
+      }
+      memmove(*text + offset + 6, *text + offset + 5, *length - offset - 4);
+      (*text)[offset + 5] = ' ';
+      *length += 1;
+    }
+    char *limit = sequel_summary_find_text(cursor, "LIMIT ?");
+    if (limit)
+      limit[strlen("LIMIT ")] = '1';
+  }
+  return 1;
+}

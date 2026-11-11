@@ -1564,6 +1564,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
   sequel_summary_redact_rendered_literals(text, &length);
+  if (!sequel_summary_normalize_nested_subqueries(&text, &length, &capacity))
+    goto no_memory;
   for (size_t i = length; i < length; ++i) {
     if (text[i] != '\'')
       continue;
