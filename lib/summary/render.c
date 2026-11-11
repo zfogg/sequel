@@ -2331,8 +2331,9 @@ summary_postprocess:
       goto no_memory;
   }
   if (text) {
-    char *malformed_limit = sequel_summary_find_text(text, " LIMIT sqlc.arg(?) ORDER BY LIMIT ?");
-    if (malformed_limit) {
+    char *malformed_limit = sequel_summary_find_text(text, " LIMIT sqlc.arg(");
+    char *malformed_order = malformed_limit ? sequel_summary_find_text(malformed_limit, " ORDER BY LIMIT ") : NULL;
+    if (malformed_limit && malformed_order) {
       length = (size_t)(malformed_limit - text);
       text[length] = 0;
       if (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY … LIMIT ?"))
