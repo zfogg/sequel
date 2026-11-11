@@ -24,6 +24,22 @@ int sequel_summary_append_statement_shape(char **text, size_t *length, size_t *c
   }
   if (sequel_summary_word(source.data, source.length, 0, "REINDEX"))
     return sequel_summary_append_text(text, length, capacity, "SQL");
+  const bool truncate_statement = sequel_summary_word(source.data, source.length, 0, "TRUNCATE");
+  const bool vacuum_statement = sequel_summary_word(source.data, source.length, 0, "VACUUM");
+  if (truncate_statement || vacuum_statement) {
+    const char *table = source.data + (truncate_statement ? strlen("TRUNCATE") : strlen("VACUUM"));
+    if (table) {
+      while (*table && isspace((unsigned char)*table))
+        ++table;
+      const char *end = table;
+      while (*end && !isspace((unsigned char)*end) && *end != ';')
+        ++end;
+      return sequel_summary_append_bytes(text, length, capacity, source.data, (size_t)(table - source.data)) &&
+                     sequel_summary_append_bytes(text, length, capacity, table, (size_t)(end - table))
+                 ? 1
+                 : -1;
+    }
+  }
   if (statement->operation != SEQUEL_OPERATION_UNKNOWN) {
     return sequel_summary_append_text(text, length, capacity, sequel_summary_operation_name(statement->operation));
   }
