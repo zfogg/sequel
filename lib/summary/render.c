@@ -43,52 +43,17 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
   }
-  bool dollar_recovery = sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
-                         sequel_summary_find_text(source.data, "$");
-  if (dollar_recovery) {
-    const char *operation = statement_count ? sequel_summary_operation_name(statements[0].operation) : "SQL";
-    const char *from = dollar_recovery ? sequel_summary_find_word(source.data, source.length, 0, "FROM") : NULL;
-    const char *table = from ? from + 4 : NULL;
-    while (table && (size_t)(table - source.data) < source.length && isspace((unsigned char)*table))
-      ++table;
-    const char *table_end = table;
-    while (table_end && (size_t)(table_end - source.data) < source.length && !isspace((unsigned char)*table_end) &&
-           *table_end != ';')
-      ++table_end;
-    if (!sequel_summary_append_text(&text, &length, &capacity, operation) ||
-        !sequel_summary_append_text(&text, &length, &capacity, " …") ||
-        (dollar_recovery && (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-                             !sequel_summary_append_bytes(&text, &length, &capacity, table ? table : "…",
-                                                          table ? (size_t)(table_end - table) : 3))))
-      goto no_memory;
+  int dialect_recovery = sequel_summary_append_dialect_recovery(&text, &length, &capacity, query, settings, source,
+                                                                statement_count, statements);
+  if (dialect_recovery < 0)
+    goto no_memory;
+  if (dialect_recovery == 1) {
     *out =
         (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_RECOVERED};
     return SEQUEL_OK;
   }
-  /* A ClickHouse numeric dollar-quoted literal is a single projection.  Keep
-   * that shape stable when formatting has inserted line breaks around it; the
-   * generic projection scanner otherwise mistakes the delimiter for a bind. */
-  if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
-      settings->include_operation && settings->include_tables && statement_count &&
-      sequel_summary_word(source.data, source.length, 0, "SELECT") && sequel_summary_find_text(source.data, "$")) {
-    const char *from = sequel_summary_find_word(source.data, source.length, 0, "FROM");
-    if (from) {
-      const char *table = from + 4;
-      while ((size_t)(table - source.data) < source.length && isspace((unsigned char)*table))
-        ++table;
-      const char *end = table;
-      while ((size_t)(end - source.data) < source.length && !isspace((unsigned char)*end) && *end != ';')
-        ++end;
-      bool distinct_outer = sequel_query_outer_distinct_on(query);
-      if (!sequel_summary_append_text(&text, &length, &capacity,
-                                      distinct_outer ? "SELECT DISTINCT ON (…) " : "SELECT ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
-        goto no_memory;
-      goto summary_postprocess;
-    }
-  }
+  if (dialect_recovery == 2)
+    goto summary_postprocess;
   size_t cte_prefix_end = 0;
   size_t outer_start = 0;
   bool nested_cte_scope = false;

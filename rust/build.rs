@@ -58,6 +58,7 @@ fn main() {
             "lib/formatter.c",
             "lib/fingerprint.c",
             "lib/summary/render.c",
+            "lib/summary/recovery.c",
             "lib/summary/buffer.c",
             "lib/summary/options.c",
             "lib/summary/lexical.c",
