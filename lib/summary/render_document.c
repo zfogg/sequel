@@ -1841,12 +1841,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       }
     }
   }
-  if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
-      sequel_summary_word(source.data, source.length, 0, "CREATE") &&
-      sequel_summary_find_text(source.data, " ORDER BY") && !sequel_summary_find_text(text ? text : "", "ORDER BY")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY"))
-      goto no_memory;
-  }
+  if (!sequel_summary_repair_create_order(&text, &length, &capacity, source, query, statements, statement_count,
+                                          settings->include_predicates))
+    goto no_memory;
   if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) == SEQUEL_CLICKHOUSE &&
       sequel_query_cte_count(query) && text && !strncmp(text, "WITH ", 5)) {
     char *select = sequel_summary_find_text(text, " SELECT ");

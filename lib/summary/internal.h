@@ -79,6 +79,10 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
 
 int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source);
 
+int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                       const sequel_query_document_t *query, const sequel_statement_info_t *statements,
+                                       size_t statement_count, bool include_predicates);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,

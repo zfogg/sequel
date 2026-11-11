@@ -124,3 +124,16 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
   }
   return 1;
 }
+
+int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
+                                       const sequel_query_document_t *query, const sequel_statement_info_t *statements,
+                                       size_t statement_count, bool include_predicates) {
+  if (!text || !*text || !length || !capacity || !query || !statements)
+    return 0;
+  if (include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
+      sequel_summary_word(source.data, source.length, 0, "CREATE") &&
+      sequel_summary_find_text(source.data, " ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY") &&
+      !sequel_summary_append_text(text, length, capacity, " ORDER BY"))
+    return 0;
+  return 1;
+}
