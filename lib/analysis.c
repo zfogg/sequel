@@ -32,7 +32,7 @@ static int shared_token_kind(sequel_token_kind_t kind) {
   }
 }
 
-static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count) {
+sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count) {
   if (!lexed || !out || !count)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -118,7 +118,7 @@ no_memory:
 }
 
 /* Clause boundaries used by the shared layout pass. */
-static bool boundary(token t) {
+bool boundary(token t) {
   const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH",  "FOR",
                          "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
   if (t.clickhouse && (sequel_runtime_keyword(t, "PREWHERE") || sequel_runtime_keyword(t, "SETTINGS") ||

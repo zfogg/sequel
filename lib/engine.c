@@ -204,8 +204,8 @@ static size_t clickhouse_parameter(const char *s, size_t n, size_t i) {
 }
 
 // clang-format off
-static bool boundary(token t);
-static sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
+bool boundary(token t);
+sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
 /* Preserve lexical contents; only whitespace outside lexical tokens changes.
  * Keeping the formatter independent of a grammar also supports driver/sqlc
  * parameters and sanitized telemetry templates that aren't executable SQL. */
@@ -323,7 +323,7 @@ static bool format_spaced_operator(format_token *ts, size_t i, size_t previous) 
                      kw(p, "VALUES") || kw(p, "RETURNING") || kw(p, "AS"));
 }
 
-static bool format_layout(format_token *ts, size_t count, output *b) {
+bool format_layout(format_token *ts, size_t count, output *b) {
   /* Match groups once, then propagate multiline constructs out through their
    * containing function calls. This avoids repeatedly scanning nested SQL. */
   size_t opens[65] = {0}, level = 0;
@@ -756,7 +756,6 @@ done:
 #define calloc sequel_calloc
 #define realloc sequel_realloc
 #define free sequel_dealloc
-#include "analysis.c"
 // clang-format on
 
 #undef malloc

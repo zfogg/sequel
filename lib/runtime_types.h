@@ -34,6 +34,8 @@ typedef struct {
   size_t rendered_offset;
 } format_token;
 
+bool format_layout(format_token *tokens, size_t count, output *buffer);
+
 static inline bool sequel_runtime_keyword(token value, const char *word) {
   return value.word && value.p && sequel_scan_equal(value.p, value.n, word);
 }
