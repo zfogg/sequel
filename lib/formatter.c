@@ -361,7 +361,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       query_paren_depth = paren_depth;
     if (select_start && paren_depth)
       nested_query = true;
-    bool case_boundary = keyword && sequel_keyword_is_case_boundary(token->keyword_id);
+    bool case_boundary = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
     if (pending_clause_body && !upsert_on && !is_by_keyword(source, token)) {
       if (!append_line_start(&data, &length, &capacity, paren_depth + 1 + (projection_subquery ? 1 : 0)))
         goto no_memory;
@@ -521,7 +521,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       ++case_depth;
     else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
       --case_depth;
-    list_clause = sequel_keyword_is_list_clause(clause);
+    list_clause = sequel_keyword_starts_list_clause(clause);
   }
   if (!data) {
     data = malloc(1);
