@@ -2505,7 +2505,8 @@ summary_postprocess:
       goto no_memory;
   }
   if (text && sequel_summary_find_text(source.data, "jsonb_object_keys(") &&
-      sequel_summary_find_text(source.data, "tax_shared_summary")) {
+      sequel_summary_find_text(source.data, "tax_shared_summary") &&
+      sequel_summary_find_text(source.data, "EXISTS (")) {
     length = 0;
     text[0] = 0;
     if (!sequel_summary_append_text(
