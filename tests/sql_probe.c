@@ -8,6 +8,11 @@ static void hex(const char *s) {
     printf("%02x", (unsigned char)*s);
 }
 
+static void hex_n(const char *s, size_t length) {
+  for (size_t i = 0; i < length && s[i]; ++i)
+    printf("%02x", (unsigned char)s[i]);
+}
+
 static int nibble(char c) {
   if (c >= '0' && c <= '9')
     return c - '0';
@@ -67,14 +72,14 @@ int main(int argc, char **argv) {
       putchar('\n');
       continue;
     }
-    sequel_metadata_t metadata;
+    sequel_metadata_t metadata = {0};
     sequel_options_t options = {.dialect = (sequel_dialect_t)dialect,
                                 .max_query_text_bytes = limit,
                                 .omit_query_text = omit != 0,
                                 .keep_in_lists = keep != 0};
     sequel_status_t status = sequel_inspect(query, &options, &metadata);
     printf("%d %d %zu ", (int)status, (int)metadata.truncated, metadata.statement_count);
-    hex(metadata.operation);
+    hex_n(metadata.operation, sizeof(metadata.operation));
     putchar(' ');
     hex(metadata.text);
     putchar(' ');

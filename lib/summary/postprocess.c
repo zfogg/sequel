@@ -42,6 +42,14 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
       }
       ++end;
     }
+    if (end >= *length) {
+      /* Recovery summaries may retain an unterminated literal. Replace the
+       * remainder without forming an underflowing memmove length. */
+      text[i] = '?';
+      *length = i + 1;
+      text[*length] = 0;
+      break;
+    }
     size_t start = i;
     if (start && text[start - 1] == 'E')
       --start;
