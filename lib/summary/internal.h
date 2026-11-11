@@ -74,6 +74,9 @@ int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *ca
 int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                           const char *keyword, const char *replacement);
 
+int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query,
+                               sequel_source_view_t source);
+
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,
                                            const sequel_summary_options_t *settings, sequel_source_view_t source,

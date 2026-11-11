@@ -2655,62 +2655,7 @@ summary_postprocess:
       ++rendered_limits;
     }
   }
-  if (text && sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(text, "LATERAL")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
-      goto no_memory;
-  }
-  if (text && sequel_summary_find_text(source.data, "tradebot_parity")) {
-    size_t source_lateral = 0;
-    size_t rendered_lateral = 0;
-    for (size_t cursor = 0; cursor < source.length;) {
-      const char *lateral = sequel_summary_find_word(source.data, source.length, cursor, "LATERAL");
-      if (!lateral)
-        break;
-      ++source_lateral;
-      cursor = (size_t)(lateral - source.data) + 7;
-    }
-    for (size_t cursor = 0; cursor < length;) {
-      const char *lateral = sequel_summary_find_word(text, length, cursor, "LATERAL");
-      if (!lateral)
-        break;
-      ++rendered_lateral;
-      cursor = (size_t)(lateral - text) + 7;
-    }
-    while (rendered_lateral < source_lateral) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " LATERAL"))
-        goto no_memory;
-      ++rendered_lateral;
-    }
-  }
-  if (text && sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
-      !sequel_summary_find_text(text, "DISTINCT ON")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " DISTINCT ON"))
-      goto no_memory;
-  }
-  if (text && sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "LIMIT ")) {
-    size_t source_limit_count = 0;
-    size_t rendered_limit_count = 0;
-    for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
-      ++source_limit_count;
-    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
-      ++rendered_limit_count;
-    while (rendered_limit_count < source_limit_count) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
-        goto no_memory;
-      ++rendered_limit_count;
-    }
-  }
-  if (text && sequel_summary_find_text(source.data, "tradebot_fill_events")) {
-    char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
-    if (premature_nested_limit) {
-      size_t removed = strlen(" LIMIT ?");
-      size_t offset = (size_t)(premature_nested_limit - text);
-      memmove(premature_nested_limit, premature_nested_limit + removed, length - offset - removed + 1);
-      length -= removed;
-    }
-  }
-  if (text && sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
-      !sequel_summary_preserve_keyword(&text, &length, &capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
+  if (!sequel_summary_repair_tail(&text, &length, &capacity, query, source))
     goto no_memory;
   if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
     goto no_memory;
