@@ -247,7 +247,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   const uint8_t *cursor = serialized->data;
   size_t remaining = serialized->length;
   uint64_t header[17];
-  for (size_t i = 0; i < 16; ++i)
+  for (size_t i = 0; i < 17; ++i)
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[0] != 0x31544451534c4553ull || header[1] != sequel_document_schema_major ||
@@ -260,7 +260,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   if (!add_words(&words, header[5], 10) || !add_words(&words, header[6], 11) || !add_words(&words, header[7], 1) ||
       !add_words(&words, header[8], 5) || !add_words(&words, header[9], 6) || !add_words(&words, header[10], 11) ||
       !add_words(&words, header[11], 10) || !add_words(&words, header[12], 6) || !add_words(&words, header[13], 6) ||
-      !add_words(&words, header[14], 6) || !add_words(&words, header[15], 1))
+      !add_words(&words, header[14], 6) || !add_words(&words, header[15], 4) || !add_words(&words, header[16], 1))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t) || remaining % sizeof(uint64_t) != 0)
     return SEQUEL_ERR_INVALID_ARGUMENT;
