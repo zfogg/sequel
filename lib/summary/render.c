@@ -2326,6 +2326,10 @@ summary_postprocess:
       capacity = replacement_length + 1;
     }
   }
+  if (text && sequel_summary_find_text(source.data, "LIMIT sqlc.arg(") && !sequel_summary_find_text(text, " LIMIT ?")) {
+    if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+      goto no_memory;
+  }
   sequel_summary_redact_rendered_literals(text, &length);
   while (length && isspace((unsigned char)text[length - 1]))
     --length;
