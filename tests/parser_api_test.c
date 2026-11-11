@@ -153,7 +153,7 @@ int main(void) {
 
   sequel_source_view_t positioned = {"α\r\nβ", 6};
   sequel_position_t position;
-  if (!check(sequel_source_position(&positioned, 5, &position) == SEQUEL_OK && position.line == 2 &&
+  if (!check(sequel_source_view_position(&positioned, 5, &position) == SEQUEL_OK && position.line == 2 &&
                  position.column == 2,
              "source position"))
     return 1;
@@ -162,13 +162,12 @@ int main(void) {
   if (!check(sequel_source_create(&positioned, &positioned_options, &positioned_source) == SEQUEL_OK,
              "positioned source object"))
     return 1;
-  if (!check(sequel_source_object_position(positioned_source, 5, &position) == SEQUEL_OK && position.line == 2 &&
+  if (!check(sequel_source_position(positioned_source, 5, &position) == SEQUEL_OK && position.line == 2 &&
                  position.column == 2,
              "source object position"))
     return 1;
   sequel_location_t location;
-  if (!check(sequel_source_object_range_position(positioned_source, (sequel_source_range_t){0, 5}, &location) ==
-                     SEQUEL_OK &&
+  if (!check(sequel_source_range_position(positioned_source, (sequel_source_range_t){0, 5}, &location) == SEQUEL_OK &&
                  location.start.line == 1 && location.end.line == 2,
              "source object range position"))
     return 1;

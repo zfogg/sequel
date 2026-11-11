@@ -90,8 +90,8 @@ static void position_at(const char *data, size_t length, size_t offset, sequel_p
   }
 }
 
-sequel_status_t sequel_source_position(const sequel_source_view_t *source, size_t byte_offset,
-                                       sequel_position_t *position) {
+sequel_status_t sequel_source_view_position(const sequel_source_view_t *source, size_t byte_offset,
+                                            sequel_position_t *position) {
   if (!source || !position)
     return SEQUEL_ERR_NULL;
   if (byte_offset > source->length)
@@ -100,8 +100,8 @@ sequel_status_t sequel_source_position(const sequel_source_view_t *source, size_
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_source_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
-                                             sequel_location_t *location) {
+sequel_status_t sequel_source_view_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
+                                                  sequel_location_t *location) {
   if (!source || !location)
     return SEQUEL_ERR_NULL;
   if (!sequel_source_range_valid(range, source->length))
@@ -112,16 +112,15 @@ sequel_status_t sequel_source_range_position(const sequel_source_view_t *source,
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_source_object_position(const sequel_source_t *source, size_t byte_offset,
-                                              sequel_position_t *position) {
+sequel_status_t sequel_source_position(const sequel_source_t *source, size_t byte_offset, sequel_position_t *position) {
   if (!source)
     return SEQUEL_ERR_NULL;
-  return sequel_source_position(&source->view, byte_offset, position);
+  return sequel_source_view_position(&source->view, byte_offset, position);
 }
 
-sequel_status_t sequel_source_object_range_position(const sequel_source_t *source, sequel_source_range_t range,
-                                                    sequel_location_t *location) {
+sequel_status_t sequel_source_range_position(const sequel_source_t *source, sequel_source_range_t range,
+                                             sequel_location_t *location) {
   if (!source)
     return SEQUEL_ERR_NULL;
-  return sequel_source_range_position(&source->view, range, location);
+  return sequel_source_view_range_position(&source->view, range, location);
 }

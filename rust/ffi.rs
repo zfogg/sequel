@@ -167,14 +167,14 @@ unsafe extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
-    pub fn sequel_source_position(
+    pub fn sequel_source_view_position(
         source: *const sequel_source_view_t,
         byte_offset: usize,
         position: *mut sequel_position_t,
     ) -> sequel_status_t;
 }
 unsafe extern "C" {
-    pub fn sequel_source_range_position(
+    pub fn sequel_source_view_range_position(
         source: *const sequel_source_view_t,
         range: sequel_source_range_t,
         location: *mut sequel_location_t,

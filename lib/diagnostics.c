@@ -61,7 +61,7 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
   diagnostic->incomplete =
       issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP || issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN;
   sequel_location_t location;
-  if (sequel_source_range_position(&source, issue->range, &location) != SEQUEL_OK)
+  if (sequel_source_view_range_position(&source, issue->range, &location) != SEQUEL_OK)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   diagnostic->line = location.start.line;
   diagnostic->column = location.start.column;

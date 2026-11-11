@@ -54,17 +54,16 @@ int sequel_source_range_valid(sequel_source_range_t range, size_t source_length)
 /** Return whether inner is contained by outer. */
 int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_range_t inner);
 
-sequel_status_t sequel_source_position(const sequel_source_view_t *source, size_t byte_offset,
-                                       sequel_position_t *position);
-sequel_status_t sequel_source_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
-                                             sequel_location_t *location);
+sequel_status_t sequel_source_view_position(const sequel_source_view_t *source, size_t byte_offset,
+                                            sequel_position_t *position);
+sequel_status_t sequel_source_view_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
+                                                  sequel_location_t *location);
 
 /** Convert a byte offset using an owned source object. */
-sequel_status_t sequel_source_object_position(const sequel_source_t *source, size_t byte_offset,
-                                              sequel_position_t *position);
+sequel_status_t sequel_source_position(const sequel_source_t *source, size_t byte_offset, sequel_position_t *position);
 
 /** Convert a byte range using an owned source object. */
-sequel_status_t sequel_source_object_range_position(const sequel_source_t *source, sequel_source_range_t range,
-                                                   sequel_location_t *location);
+sequel_status_t sequel_source_range_position(const sequel_source_t *source, sequel_source_range_t range,
+                                             sequel_location_t *location);
 
 SEQUEL_EXTERN_C_END
