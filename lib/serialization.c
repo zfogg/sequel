@@ -4,7 +4,7 @@
 #include <sequel/serialization.h>
 #include <sequel/fingerprint.h>
 
-enum { sequel_document_schema_major = 1u, sequel_document_schema_minor = 3u };
+enum { sequel_document_schema_major = 1u, sequel_document_schema_minor = 4u };
 
 struct sequel_document_bundle {
   sequel_syntax_document_t *syntax;
@@ -207,7 +207,8 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
     for (size_t i = 0; i < count; ++i)
       if (!append_u64(out, joins[i].kind) || !append_range(out, joins[i].range) ||
           !append_u64(out, joins[i].left_relation) || !append_u64(out, joins[i].right_relation) ||
-          !append_u64(out, joins[i].condition_node) || !append_u64(out, joins[i].has_condition))
+          !append_u64(out, joins[i].condition_node) || !append_u64(out, joins[i].has_condition) ||
+          !append_u64(out, joins[i].flags))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_projection_count(query);
     const sequel_projection_info_t *projections = sequel_query_projections(query);
@@ -277,9 +278,9 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   uint64_t words = 0;
   if (!add_words(&words, header[5], 10) || !add_words(&words, header[6], 11) || !add_words(&words, header[7], 1) ||
       !add_words(&words, header[8], 5) || !add_words(&words, header[9], 6) || !add_words(&words, header[10], 11) ||
-      !add_words(&words, header[11], 10) || !add_words(&words, header[12], 6) || !add_words(&words, header[13], 6) ||
-      !add_words(&words, header[14], 6) || !add_words(&words, header[15], 4) || !add_words(&words, header[16], 13) ||
-      !add_words(&words, header[17], 1))
+      !add_words(&words, header[11], 10) || !add_words(&words, header[12], header[2] >= 4 ? 7 : 6) ||
+      !add_words(&words, header[13], 6) || !add_words(&words, header[14], 6) || !add_words(&words, header[15], 4) ||
+      !add_words(&words, header[16], 13) || !add_words(&words, header[17], 1))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t) || remaining % sizeof(uint64_t) != 0)
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -357,8 +358,9 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[12]; ++i) {
-    uint64_t values[6];
-    for (size_t j = 0; j < 6; ++j)
+    uint64_t values[7];
+    size_t value_count = header[2] >= 4 ? 7 : 6;
+    for (size_t j = 0; j < value_count; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
     if (values[0] > SEQUEL_JOIN_CROSS || !serialized_range_valid(values[1], values[2], source->length) ||
