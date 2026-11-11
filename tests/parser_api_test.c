@@ -749,6 +749,19 @@ int main(void) {
   sequel_syntax_document_free(exists_syntax);
   if (!check(saw_case && saw_cast && saw_exists && saw_in, "expression family nodes"))
     return 1;
+  const char window_sql[] = "SELECT row_number() OVER (PARTITION BY account_id ORDER BY created_at) FROM events";
+  sequel_source_view_t window_source = {window_sql, strlen(window_sql)};
+  sequel_syntax_document_t *window_syntax = NULL;
+  if (!check(sequel_parse_sql(&window_source, &options, NULL, &window_syntax) == SEQUEL_OK, "window expression parse"))
+    return 1;
+  size_t window_nodes = 0;
+  const sequel_syntax_node_t *window_node_list = sequel_syntax_nodes(window_syntax, &window_nodes);
+  bool saw_window = false;
+  for (size_t i = 0; i < window_nodes; ++i)
+    saw_window |= window_node_list[i].kind == SEQUEL_SYNTAX_WINDOW_EXPRESSION;
+  if (!check(saw_window, "window expression node"))
+    return 1;
+  sequel_syntax_document_free(window_syntax);
   const char prewhere_sql[] = "SELECT * FROM builds PREWHERE id = 1";
   sequel_source_view_t prewhere_source = {prewhere_sql, strlen(prewhere_sql)};
   sequel_syntax_document_t *prewhere_syntax = NULL;
