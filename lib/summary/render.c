@@ -63,6 +63,28 @@ static bool summary_has_clause(const sequel_query_document_t *query, uint32_t ke
   return false;
 }
 
+static int normalize_projection_shape(char **text, size_t *length, size_t *capacity,
+                                      const sequel_query_document_t *query) {
+  if (sequel_query_projection_count(query) <= 1 || !*text || !sequel_summary_find_text(*text, "SELECT ? FROM "))
+    return 1;
+  char *mark = sequel_summary_find_text(*text, "SELECT ? FROM ") + strlen("SELECT ");
+  size_t extra = sizeof(summary_ellipsis) - 1 - 1;
+  if (*length > SIZE_MAX - extra)
+    return 0;
+  if (*length + extra + 1 > *capacity) {
+    char *grown = realloc(*text, *length + extra + 1);
+    if (!grown)
+      return 0;
+    *text = grown;
+    *capacity = *length + extra + 1;
+    mark = *text + strlen("SELECT ");
+  }
+  memmove(mark + sizeof(summary_ellipsis) - 1, mark + 1, *length - (size_t)(mark - *text) + 1);
+  memcpy(mark, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+  *length += extra;
+  return 1;
+}
+
 static bool summary_has_projection_scope(const sequel_query_document_t *query) {
   const sequel_relation_info_t *relations = sequel_query_relations(query);
   const sequel_join_info_t *joins = sequel_query_joins(query);
@@ -2002,6 +2024,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
     }
   }
 summary_postprocess:
+  if (!normalize_projection_shape(&text, &length, &capacity, query))
+    goto no_memory;
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
       (!normalize_insert_clause_order(&text, &length, &capacity) || !normalize_insert_conflict_order(&text, &length)))
     goto no_memory;
