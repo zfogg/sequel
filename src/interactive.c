@@ -12,14 +12,13 @@
 #include <unistd.h>
 #endif
 #include "input.h"
-#define INTERACTIVE_MAX SEQUEL_INPUT_MAX
 
 /* Used only on fatal input errors. Retain a bounded prefix for source locations. */
 static void reject_input(char **buffer, size_t *capacity, size_t used, const char *line, size_t n,
                          sequel_dialect_t dialect, int json) {
   size_t needed = used + n + 2;
-  if (needed > INTERACTIVE_MAX + 2)
-    needed = INTERACTIVE_MAX + 2;
+  if (needed > SEQUEL_INPUT_MAX + 2)
+    needed = SEQUEL_INPUT_MAX + 2;
   if (!input_reserve(buffer, capacity, needed)) {
     fputs("sequel: out of memory\n", stderr);
     return;
@@ -28,8 +27,8 @@ static void reject_input(char **buffer, size_t *capacity, size_t used, const cha
   if (used && sql[used - 1] != '\n' && sql[used - 1] != '\r')
     sql[used++] = '\n';
   size_t total = used + n, copy = n;
-  if (copy > INTERACTIVE_MAX + 1 - used)
-    copy = INTERACTIVE_MAX + 1 - used;
+  if (copy > SEQUEL_INPUT_MAX + 1 - used)
+    copy = SEQUEL_INPUT_MAX + 1 - used;
   memcpy(sql + used, line, copy);
   sequel_diagnostic_t diagnostic;
   sequel_diagnose_n(sql, total, dialect, &diagnostic);
@@ -93,7 +92,7 @@ int interactive(const sequel_highlight_options_t *options, int json) {
         result = 1;
         goto done;
       }
-      if (!ch || n == INTERACTIVE_MAX) {
+      if (!ch || n == SEQUEL_INPUT_MAX) {
         line[n++] = (char)ch;
         reject_input(&sql, &sql_capacity, finished ? 0 : used, line, n, options->dialect, json);
         result = 1;
@@ -164,7 +163,7 @@ int interactive(const sequel_highlight_options_t *options, int json) {
             print_diagnostic(stderr, &current, json);
             continue;
           }
-          if (length > INTERACTIVE_MAX) {
+          if (length > SEQUEL_INPUT_MAX) {
             fputs("sequel: formatted buffer would exceed 1 GiB; original retained\n", stderr);
             continue;
           }
@@ -201,7 +200,7 @@ int interactive(const sequel_highlight_options_t *options, int json) {
       finished = 0;
     }
     size_t gap = used && sql[used - 1] != '\n' && sql[used - 1] != '\r' ? 1 : 0;
-    if (n + gap > INTERACTIVE_MAX - used) {
+    if (n + gap > SEQUEL_INPUT_MAX - used) {
       reject_input(&sql, &sql_capacity, used, line, n, options->dialect, json);
       result = 1;
       break;

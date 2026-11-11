@@ -30,7 +30,6 @@ typedef struct stat file_info;
 #endif
 
 #include "input.h"
-#define MAX_SQL SEQUEL_INPUT_MAX
 static const char usage[] = "Usage:\n"
                             "  sequel format [OPTIONS] [SQL | PATH ...]\n"
                             "  sequel sanitize [OPTIONS] [SQL | PATH ...]\n\n"
@@ -211,8 +210,8 @@ static int process_input(int format, int d, int embedded, const char *language_n
   int failed = 0;
   if (argument) {
     n = strlen(argument);
-    if (n > MAX_SQL)
-      n = MAX_SQL + 1;
+    if (n > SEQUEL_INPUT_MAX)
+      n = SEQUEL_INPUT_MAX + 1;
     sql = malloc(n + 1);
     if (sql) {
       memcpy(sql, argument, n);
@@ -234,7 +233,7 @@ static int process_input(int format, int d, int embedded, const char *language_n
     free(sql);
     return status != SEQUEL_OK || ferror(stdout);
   }
-  if (n > MAX_SQL || memchr(sql, 0, n)) {
+  if (n > SEQUEL_INPUT_MAX || memchr(sql, 0, n)) {
     sequel_diagnostic_t diagnostic;
     sequel_diagnose_n(sql, n, (sequel_dialect_t)d, &diagnostic);
     print_diagnostic(explaining ? stdout : stderr, &diagnostic, json);
@@ -508,7 +507,7 @@ static int run_with_inputs(int argc, char **argv, const char **inputs) {
       size_t n = 0;
       char *yaml = input_read(file, &n);
       int failed = fclose(file) != 0;
-      failed |= !yaml || n > MAX_SQL;
+      failed |= !yaml || n > SEQUEL_INPUT_MAX;
       if (!failed)
         failed = memchr(yaml, 0, n) != NULL;
       if (!failed)
