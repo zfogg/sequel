@@ -403,6 +403,23 @@ int main(void) {
   if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0,
              "predicate metadata"))
     return 1;
+  const char lowercase_sql[] = "select id from users where id = 42";
+  sequel_source_view_t lowercase_source = {lowercase_sql, strlen(lowercase_sql)};
+  sequel_syntax_document_t *lowercase_syntax = NULL;
+  sequel_query_document_t *lowercase_query = NULL;
+  sequel_text_result_t lowercase_summary = {0};
+  sequel_summary_options_t lowercase_summary_options;
+  sequel_summary_options_init(&lowercase_summary_options);
+  if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK &&
+                 sequel_summarize_query(lowercase_query, &lowercase_summary_options, &lowercase_summary) == SEQUEL_OK &&
+                 lowercase_summary.data && lowercase_summary.length >= strlen("SELECT") &&
+                     !strncmp(lowercase_summary.data, "SELECT", strlen("SELECT")),
+             "lowercase keyword summary"))
+    return 1;
+  sequel_text_result_free(&lowercase_summary);
+  sequel_query_document_free(lowercase_query);
+  sequel_syntax_document_free(lowercase_syntax);
   sequel_diagnostic_list_t semantic_diagnostics = {0}, policy_diagnostics = {0};
   if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK &&
                  sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,
