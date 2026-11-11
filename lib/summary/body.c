@@ -39,6 +39,11 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
   size_t alias = sequel_summary_skip_space(source, close, table_end), alias_end = alias;
   while (alias_end < close && !isspace((unsigned char)source[alias_end]) && source[alias_end] != ')')
     ++alias_end;
+  if (alias < close &&
+      (sequel_summary_word(source, close, alias, "LIMIT") || sequel_summary_word(source, close, alias, "WHERE") ||
+       sequel_summary_word(source, close, alias, "GROUP") || sequel_summary_word(source, close, alias, "ORDER") ||
+       sequel_summary_word(source, close, alias, "OFFSET")))
+    alias_end = alias;
   if (!sequel_summary_append_text(text, length, capacity, " ") ||
       !sequel_summary_append_text(text, length, capacity, not_exists) ||
       !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
