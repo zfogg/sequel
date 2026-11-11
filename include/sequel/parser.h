@@ -5,6 +5,7 @@
 
 #include <sequel/dialect.h>
 #include <sequel/lexer.h>
+#include <sequel/limits.h>
 #include <sequel/status.h>
 #include <sequel/syntax.h>
 

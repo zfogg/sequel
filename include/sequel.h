@@ -19,6 +19,7 @@
 #include <sequel/binds.h>
 #include <sequel/analysis.h>
 #include <sequel/lexer.h>
+#include <sequel/limits.h>
 #include <sequel/parser.h>
 #include <sequel/query.h>
 #include <sequel/source.h>
@@ -28,21 +29,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/** Maximum UTF-8 SQL input length, in bytes (1 GiB). */
-#ifndef SEQUEL_INPUT_MAX
-#define SEQUEL_INPUT_MAX ((size_t)1024 * 1024 * 1024)
-#endif
-
-/** Default maximum sanitized query text length, in bytes (1 GiB). */
-#ifndef SEQUEL_TEXT_MAX
-#define SEQUEL_TEXT_MAX ((size_t)1024 * 1024 * 1024)
-#endif
-
-/** Maximum summary length, in bytes (1 GiB). */
-#ifndef SEQUEL_SUMMARY_MAX
-#define SEQUEL_SUMMARY_MAX ((size_t)1024 * 1024 * 1024)
 #endif
 
 /** Source range, completion state and explanations for a lexical/delimiter issue. */
