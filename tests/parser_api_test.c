@@ -984,7 +984,7 @@ int main(void) {
     sequel_syntax_document_free(comma_syntax);
   }
   {
-    const char *quoted_sql = "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true";
+    const char *quoted_sql = "SELECT * FROM \"Reporting\".\"Order History\" AS \"FROM\" JOIN \"JOIN\" ON true \n";
     sequel_source_view_t quoted_source = {quoted_sql, strlen(quoted_sql)};
     sequel_syntax_document_t *quoted_syntax = NULL;
     sequel_query_document_t *quoted_query = NULL;
