@@ -1707,6 +1707,25 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         length -= (size_t)(from - (delete_using + strlen("DELETE")));
       }
     }
+    if (!sequel_summary_find_text(text, "DELETE FROM")) {
+      const char *delete_from = sequel_summary_find_text(source.data + outer_start, "DELETE FROM ");
+      const char *using = delete_from ? sequel_summary_find_text(delete_from, " USING ") : NULL;
+      if (delete_from && using) {
+        const char *table = delete_from + strlen("DELETE FROM ");
+        const char *table_end = table;
+        while (table_end < using && !isspace((unsigned char)*table_end))
+          ++table_end;
+        const char *relation = using + strlen(" USING ");
+        const char *relation_end = relation;
+        while (relation_end < source.data + source.length && !isspace((unsigned char)*relation_end))
+          ++relation_end;
+        if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " USING ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)))
+          goto no_memory;
+      }
+    }
   }
   if (sequel_query_cte_count(query) && text && sequel_summary_find_text(source.data, " JOIN accounts USING") &&
       !sequel_summary_find_text(text, "JOIN accounts")) {

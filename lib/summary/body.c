@@ -5,6 +5,88 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static size_t summary_matching_parenthesis(const char *source, size_t end, size_t open) {
+  size_t depth = 0;
+  for (size_t cursor = open; cursor < end; ++cursor) {
+    if (source[cursor] == '(')
+      ++depth;
+    else if (source[cursor] == ')' && depth && --depth == 0)
+      return cursor;
+  }
+  return end;
+}
+
+static int sequel_summary_append_exists(char **text, size_t *length, size_t *capacity, const char *source, size_t end,
+                                        size_t expression) {
+  const char *not_exists = sequel_summary_word(source, end, expression, "NOT") ? "NOT EXISTS (" : "EXISTS (";
+  size_t open = expression + (not_exists[0] == 'N' ? 10 : 7);
+  while (open < end && isspace((unsigned char)source[open]))
+    ++open;
+  if (open >= end || source[open] != '(')
+    return 1;
+  size_t close = summary_matching_parenthesis(source, end, open);
+  const char *select_match = sequel_summary_find_word(source, close, open + 1, "SELECT");
+  size_t select = select_match ? (size_t)(select_match - source) : close;
+  if (select >= close)
+    return 1;
+  const char *from_match = sequel_summary_find_word(source, close, select, "FROM");
+  size_t from = from_match ? (size_t)(from_match - source) : close;
+  if (from >= close)
+    return 1;
+  size_t table = sequel_summary_skip_space(source, close, from + 4), table_end = table;
+  while (table_end < close && !isspace((unsigned char)source[table_end]) && source[table_end] != ')')
+    ++table_end;
+  size_t alias = sequel_summary_skip_space(source, close, table_end), alias_end = alias;
+  while (alias_end < close && !isspace((unsigned char)source[alias_end]) && source[alias_end] != ')')
+    ++alias_end;
+  if (!sequel_summary_append_text(text, length, capacity, " ") ||
+      !sequel_summary_append_text(text, length, capacity, not_exists) ||
+      !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
+      !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+      !sequel_summary_append_text(text, length, capacity, " FROM ") ||
+      !sequel_summary_append_bytes(text, length, capacity, source + table, table_end - table) ||
+      (alias < alias_end && (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+                             !sequel_summary_append_bytes(text, length, capacity, source + alias, alias_end - alias))))
+    return 0;
+  size_t cursor = alias_end;
+  while (cursor < close) {
+    const char *join = sequel_summary_find_text(source + cursor, " JOIN ");
+    if (!join || join >= source + close)
+      break;
+    size_t join_offset = (size_t)(join - source);
+    size_t join_table = sequel_summary_skip_space(source, close, join_offset + 6), join_table_end = join_table;
+    while (join_table_end < close && !isspace((unsigned char)source[join_table_end]))
+      ++join_table_end;
+    size_t join_alias = sequel_summary_skip_space(source, close, join_table_end), join_alias_end = join_alias;
+    while (join_alias_end < close && !isspace((unsigned char)source[join_alias_end]))
+      ++join_alias_end;
+    const char *on_match = sequel_summary_find_word(source, close, join_alias_end, "ON");
+    size_t on = on_match ? (size_t)(on_match - source) : close;
+    if (on >= close)
+      break;
+    size_t next = sequel_summary_find_word(source, close, on + 2, "WHERE") - source;
+    if (next >= close)
+      next = close;
+    if (!sequel_summary_append_text(text, length, capacity, " JOIN ") ||
+        !sequel_summary_append_bytes(text, length, capacity, source + join_table, join_table_end - join_table) ||
+        (join_alias < join_alias_end &&
+         (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+          !sequel_summary_append_bytes(text, length, capacity, source + join_alias, join_alias_end - join_alias))) ||
+        !sequel_summary_append_text(text, length, capacity, " ON ") ||
+        !sequel_summary_append_bytes(text, length, capacity, source + on + 2,
+                                     (next > on + 2 ? next : close) - (on + 2)))
+      return 0;
+    cursor = next;
+  }
+  const char *where_match = sequel_summary_find_word(source, close, cursor, "WHERE");
+  size_t where = where_match ? (size_t)(where_match - source) : close;
+  if (where < close &&
+      (!sequel_summary_append_text(text, length, capacity, " WHERE ") ||
+       !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+    return 0;
+  return sequel_summary_append_text(text, length, capacity, ")");
+}
+
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source,
                                        sequel_source_range_t range, bool preserve_limit) {
   size_t start = sequel_summary_skip_space(source, range.end, range.start);
@@ -129,10 +211,24 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     if (first_join && (!where || first_join < source + where) &&
         !sequel_summary_append_bytes(text, length, capacity, source + table_end, (size_t)(where - table_end)))
       return 0;
-    if (!union_all && where < range.end &&
-        (!sequel_summary_append_text(text, length, capacity, " WHERE ") ||
-         !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
-      return 0;
+    if (!union_all && where < range.end) {
+      if (!sequel_summary_append_text(text, length, capacity, " WHERE ") ||
+          !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        return 0;
+      size_t cursor = where;
+      while (cursor < range.end) {
+        const char *exists = sequel_summary_find_text(source + cursor, "EXISTS (");
+        if (!exists || exists >= source + range.end)
+          break;
+        size_t exists_offset = (size_t)(exists - source);
+        size_t expression = exists_offset;
+        if (exists_offset >= 4 && !memcmp(source + exists_offset - 4, "NOT ", 4))
+          expression -= 4;
+        if (!sequel_summary_append_exists(text, length, capacity, source, range.end, expression))
+          return 0;
+        cursor = exists_offset + 8;
+      }
+    }
     if (union_all && union_all < source + range.end) {
       const char *second = sequel_summary_find_text(union_all, "SELECT ");
       const char *second_from = second ? sequel_summary_find_text(second, " FROM ") : NULL;
@@ -231,6 +327,34 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     return 1;
   }
   if (sequel_summary_word(source, range.end, start, "DELETE")) {
+    const char *using_match = sequel_summary_find_word(source, range.end, start, "USING");
+    const char *from_match = sequel_summary_find_word(source, range.end, start, "FROM");
+    if (using_match && (!from_match || using_match < from_match)) {
+      size_t using = (size_t)(using_match - source);
+      size_t table = sequel_summary_skip_space(source, range.end, start + 6), table_end = table;
+      while (table_end < range.end && !isspace((unsigned char)source[table_end]))
+        ++table_end;
+      size_t relation = sequel_summary_skip_space(source, range.end, using + 5), relation_end = relation;
+      while (relation_end < range.end && !isspace((unsigned char)source[relation_end]))
+        ++relation_end;
+      size_t alias = sequel_summary_skip_space(source, range.end, relation_end), alias_end = alias;
+      while (alias_end < range.end && !isspace((unsigned char)source[alias_end]))
+        ++alias_end;
+      if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") ||
+          !sequel_summary_append_bytes(text, length, capacity, source + table, table_end - table) ||
+          !sequel_summary_append_text(text, length, capacity, " USING ") ||
+          !sequel_summary_append_bytes(text, length, capacity, source + relation, relation_end - relation) ||
+          (alias < alias_end &&
+           (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, source + alias, alias_end - alias))))
+        return 0;
+      size_t where = alias_end;
+      while (where < range.end && !sequel_summary_word(source, range.end, where, "WHERE"))
+        ++where;
+      return where >= range.end ||
+             (sequel_summary_append_text(text, length, capacity, " WHERE ") &&
+              sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+    }
     size_t from = start;
     while (from < range.end && !sequel_summary_word(source, range.end, from, "FROM"))
       ++from;
@@ -240,6 +364,24 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") ||
         !sequel_summary_append_bytes(text, length, capacity, source + table, end - table))
       return 0;
+    size_t using = end;
+    while (using < range.end && !sequel_summary_word(source, range.end, using, "USING") &&
+           !sequel_summary_word(source, range.end, using, "WHERE"))
+      ++using;
+    if (using < range.end && sequel_summary_word(source, range.end, using, "USING")) {
+      size_t relation = sequel_summary_skip_space(source, range.end, using + 5), relation_end = relation;
+      while (relation_end < range.end && !isspace((unsigned char)source[relation_end]))
+        ++relation_end;
+      size_t alias = sequel_summary_skip_space(source, range.end, relation_end), alias_end = alias;
+      while (alias_end < range.end && !isspace((unsigned char)source[alias_end]))
+        ++alias_end;
+      if (!sequel_summary_append_text(text, length, capacity, " USING ") ||
+          !sequel_summary_append_bytes(text, length, capacity, source + relation, relation_end - relation) ||
+          (alias < alias_end &&
+           (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, source + alias, alias_end - alias))))
+        return 0;
+    }
     size_t where = end;
     while (where < range.end && !sequel_summary_word(source, range.end, where, "WHERE") &&
            !sequel_summary_word(source, range.end, where, "RETURNING"))
