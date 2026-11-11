@@ -119,6 +119,9 @@ static int render_scalar_projection_summary(char **text, size_t *length, size_t 
     return 0;
   const sequel_projection_info_t *projections = sequel_query_projections(query);
   const sequel_relation_info_t *relations = sequel_query_relations(query);
+  for (size_t i = 0; i < sequel_query_projection_count(query); ++i)
+    if (!sequel_summary_find_text(source.data + projections[i].range.start, "COALESCE((SELECT"))
+      return 0;
   size_t outer = SIZE_MAX;
   for (size_t i = 0; i < sequel_query_relation_count(query); ++i)
     if (!(relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE)) {
