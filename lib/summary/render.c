@@ -1631,9 +1631,8 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
         continue;
       const char *relation_start = source.data + relations[i].range.start;
       const char *global_in = sequel_summary_find_text(source.data, " GLOBAL IN ");
-      const char *plain_in = sequel_summary_find_text(source.data, " IN ");
-      const char *in = global_in ? global_in : plain_in;
-      if (!in || relation_start <= in || !sequel_summary_find_text(relation_start, "SELECT"))
+      const char *in = global_in;
+      if (!in || relation_start <= in)
         continue;
       const char *name = source.data + relations[i].name_range.start;
       size_t name_length = relations[i].name_range.end - relations[i].name_range.start;
@@ -1643,23 +1642,7 @@ sequel_status_t sequel_summarize_query(const sequel_query_document_t *query, con
           !sequel_summary_append_bytes(&text, &length, &capacity, name, name_length) ||
           !sequel_summary_append_text(&text, &length, &capacity, " WHERE"))
         goto no_memory;
-    }
-    const char *subquery = sequel_summary_find_text(source.data, " IN (SELECT");
-    if (!subquery)
-      subquery = sequel_summary_find_text(source.data, " GLOBAL IN (SELECT");
-    const char *from = subquery ? sequel_summary_find_text(subquery + 5, " FROM ") : NULL;
-    if (from) {
-      const char *table = from + 6;
-      while (*table && isspace((unsigned char)*table))
-        ++table;
-      const char *end = table;
-      while (*end && !isspace((unsigned char)*end) && *end != ')')
-        ++end;
-      if (end > table && !sequel_summary_find_text(text, table) &&
-          (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-           !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
-           !sequel_summary_append_text(&text, &length, &capacity, " WHERE")))
-        goto no_memory;
+      break;
     }
   }
   if (settings->include_tables && !sequel_query_cte_count(query) && statement_count &&
