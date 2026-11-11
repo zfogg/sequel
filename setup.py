@@ -34,7 +34,7 @@ setup(
                 "lib/lexer.c",
                 "lib/parser.c",
                 "lib/query.c",
-                "lib/query_arrays.c",
+                "lib/arrays.c",
                 "lib/cte.c",
                 "lib/analysis/tokens.c",
                 "lib/analysis/summary.c",
