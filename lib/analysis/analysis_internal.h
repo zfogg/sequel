@@ -20,6 +20,8 @@ typedef struct {
   size_t n, capacity;
 } analysis_text;
 
+sequel_status_t adapt_lexed_tokens(const sequel_lexed_document_t *lexed, format_token **out, size_t *count);
+
 bool analysis_literal(format_token token, sequel_dialect_t dialect);
 bool analysis_bind_token(format_token token, sequel_dialect_t dialect, const char **key, size_t *length, size_t *number,
                          sequel_bind_style_t *style);
