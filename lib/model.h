@@ -20,6 +20,9 @@ typedef struct {
 } query_array_header;
 
 int sequel_query_array_append(void **array, size_t *count, size_t size, const void *value);
+sequel_status_t sequel_query_build_statements(sequel_query_document_t *document, const sequel_syntax_document_t *syntax,
+                                              const sequel_token_t *tokens, size_t token_count,
+                                              const sequel_source_view_t *source, size_t max_nodes);
 
 static inline void sequel_query_array_free(void *array) {
   if (array)

@@ -103,67 +103,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   if (!document)
     return SEQUEL_ERR_NOMEM;
   document->syntax = syntax;
-  size_t node_count = 0;
-  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   size_t max_nodes = options && options->max_nodes ? options->max_nodes : (size_t)-1;
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
+  size_t node_count = 0;
+  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
-  for (size_t i = 0; i < node_count && document->statement_count < max_nodes; ++i) {
-    sequel_syntax_kind_t kind = nodes[i].kind;
-    if (kind < SEQUEL_SYNTAX_SELECT_STATEMENT || kind > SEQUEL_SYNTAX_UNKNOWN_STATEMENT)
-      continue;
-    sequel_statement_info_t statement = {.range = nodes[i].range,
-                                         .operation = sequel_query_operation_from_syntax(kind),
-                                         .syntax_node = i,
-                                         .query_body = SIZE_MAX};
-    if (!sequel_query_array_append((void **)&document->statements, &document->statement_count, sizeof(statement),
-                                   &statement)) {
-      sequel_query_document_free(document);
-      return SEQUEL_ERR_NOMEM;
-    }
-    if (statement.operation == SEQUEL_OPERATION_UNKNOWN) {
-      size_t first = nodes[i].first_token;
-      while (first < token_count && (is_trivia(&tokens[first]) || (tokens[first].kind == SEQUEL_TOKEN_PUNCTUATION &&
-                                                                   source.data[tokens[first].range.start] == '(')))
-        ++first;
-      if (first >= token_count)
-        continue;
-      const sequel_token_t *first_token = &tokens[first];
-      document->statements[document->statement_count - 1].operation = sequel_query_operation_from_word(
-          source.data + first_token->range.start, first_token->range.end - first_token->range.start);
-      if (document->statements[document->statement_count - 1].operation == SEQUEL_OPERATION_UNKNOWN) {
-        for (size_t candidate = first + 1; candidate < nodes[i].first_token + nodes[i].token_count; ++candidate) {
-          if (is_trivia(&tokens[candidate]))
-            continue;
-          sequel_operation_t recovered = sequel_query_operation_from_word(
-              source.data + tokens[candidate].range.start, tokens[candidate].range.end - tokens[candidate].range.start);
-          if (recovered != SEQUEL_OPERATION_UNKNOWN) {
-            document->statements[document->statement_count - 1].operation = recovered;
-            break;
-          }
-        }
-      }
-    }
-  }
-  if (!document->statement_count && token_count) {
-    for (size_t token = 0; token < token_count; ++token) {
-      if (is_trivia(&tokens[token]))
-        continue;
-      sequel_operation_t recovered = sequel_query_operation_from_word(
-          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
-      if (recovered == SEQUEL_OPERATION_UNKNOWN)
-        continue;
-      sequel_statement_info_t statement = {
-          .range = {0, source.length}, .operation = recovered, .syntax_node = SIZE_MAX, .query_body = SIZE_MAX};
-      if (!sequel_query_array_append((void **)&document->statements, &document->statement_count, sizeof(statement),
-                                     &statement)) {
-        sequel_query_document_free(document);
-        return SEQUEL_ERR_NOMEM;
-      }
-      break;
-    }
+  sequel_status_t statement_status =
+      sequel_query_build_statements(document, syntax, tokens, token_count, &source, max_nodes);
+  if (statement_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return statement_status;
   }
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
