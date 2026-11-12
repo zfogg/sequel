@@ -43,6 +43,23 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
             !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
           return 0;
       }
+      const char *join = sequel_summary_find_text(table_end, " JOIN ");
+      while (join && join < close && (!where || join < where) && (!order || join < order) && (!limit || join < limit)) {
+        const char *join_table = join + strlen(" JOIN ");
+        while (join_table < close && isspace((unsigned char)*join_table))
+          ++join_table;
+        const char *join_end = join_table;
+        while (join_end < close && !isspace((unsigned char)*join_end) && *join_end != ')')
+          ++join_end;
+        const char *on = sequel_summary_find_text(join_end, " ON ");
+        if (!on || on >= close || (where && on >= where))
+          break;
+        if (!sequel_summary_append_text(text, length, capacity, " JOIN ") ||
+            !sequel_summary_append_bytes(text, length, capacity, join_table, (size_t)(join_end - join_table)) ||
+            !sequel_summary_append_text(text, length, capacity, " ON …"))
+          return 0;
+        join = sequel_summary_find_text(on + strlen(" ON "), " JOIN ");
+      }
       if (where && where < close && (!sequel_summary_append_text(text, length, capacity, " WHERE …")))
         return 0;
       if (order && order < close && (!sequel_summary_append_text(text, length, capacity, " ORDER BY …")))
