@@ -76,6 +76,18 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
       const char *order = sequel_summary_find_text(table_end, " ORDER BY ");
       const char *limit = sequel_summary_find_text(table_end, " LIMIT ");
       const char *inner_alias = sequel_summary_find_text(table_end, " AS ");
+      const char *bare_alias = table_end;
+      while (bare_alias < close && isspace((unsigned char)*bare_alias))
+        ++bare_alias;
+      const char *bare_alias_end = bare_alias;
+      while (bare_alias_end < close && !isspace((unsigned char)*bare_alias_end) && *bare_alias_end != ')')
+        ++bare_alias_end;
+      bool has_bare_alias = bare_alias < bare_alias_end && (!where || bare_alias < where) &&
+                            (!order || bare_alias < order) && (!limit || bare_alias < limit) &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "WHERE") &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "ORDER") &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "LIMIT") &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "JOIN");
       if (inner_alias && inner_alias < close && (!where || inner_alias < where) && (!order || inner_alias < order)) {
         const char *alias = inner_alias + strlen(" AS ");
         const char *alias_end = alias;
@@ -83,6 +95,10 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
           ++alias_end;
         if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
             !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
+          return 0;
+      } else if (has_bare_alias) {
+        if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, bare_alias, (size_t)(bare_alias_end - bare_alias)))
           return 0;
       }
       const char *join = sequel_summary_next_join_marker(table_end, close);
