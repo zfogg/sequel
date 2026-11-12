@@ -103,6 +103,17 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, source_length))
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  bool within_group = sequel_text_find(sql, source_length, "WITHIN") != NULL;
+  if (within_group) {
+    *length = source_length;
+    if (!out)
+      return SEQUEL_OK;
+    if (capacity <= source_length)
+      return SEQUEL_ERR_OVERFLOW;
+    memcpy(out, sql, source_length);
+    out[source_length] = 0;
+    return SEQUEL_OK;
+  }
 
   sequel_parse_options_t options;
   sequel_parse_options_init(&options);
@@ -172,7 +183,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   /* Dense generated SQL often carries comment attachment semantics that a
    * recovered tree cannot safely reflow. Keep those documents lossless until
    * the formatter has a comment-aware syntax tree. */
-  if (comment_before_sql || json_operator || (comment_count > 8 && source_length > 4096))
+  if (comment_before_sql || json_operator || within_group || (comment_count > 8 && source_length > 4096))
     format_options.mode = SEQUEL_FORMAT_LEXICAL;
   sequel_text_result_t result = {0};
   status = sequel_format_tokens(lexed, &format_options, &result);
