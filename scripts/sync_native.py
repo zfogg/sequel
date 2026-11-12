@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--check", action="store_true")
 args = parser.parse_args()
 digest = hashlib.sha256()
-sources = sorted(p for p in (root / "lib").iterdir() if p.suffix in (".c", ".h")) + [
+sources = sorted(p for p in (root / "lib").rglob("*") if p.suffix in (".c", ".h")) + [
     root / "include/sequel.h",
 ]
 sources += sorted(p for p in (root / "third_party").rglob("*") if p.suffix in (".c", ".h"))

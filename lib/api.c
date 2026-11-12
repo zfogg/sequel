@@ -30,8 +30,6 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (!n)
-    return SEQUEL_OK;
   if (dialect != SEQUEL_MYSQL && sequel_text_find(sql, n, "_utf8mb4'"))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_parse_options_t options;
@@ -100,6 +98,8 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     return SEQUEL_ERR_OVERFLOW;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
+  if (!n)
+    return SEQUEL_OK;
   if (o.dialect != SEQUEL_MYSQL && sequel_text_find(sql, n, "_utf8mb4'"))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   return sequel_inspection_document(sql, n, &o, out);
