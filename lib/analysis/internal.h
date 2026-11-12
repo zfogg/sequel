@@ -51,6 +51,10 @@ void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *l
 sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
                                                     sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments);
+sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t original,
+                                                    const sequel_text_result_t *formatted,
+                                                    sequel_analysis_source_map_t *map,
+                                                    sequel_analysis_map_segment_t **owned_segments);
 bool sequel_analysis_word(analysis_token_t token, const char *word);
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void sequel_analysis_summary_default(sequel_analysis_t *out);
