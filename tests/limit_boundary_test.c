@@ -1,6 +1,7 @@
 #include <sequel.h>
 #include "../src/input.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #define CHECK(x)                                                                                                       \
   do {                                                                                                                 \
@@ -12,7 +13,8 @@
 
 int main(int argc, char **argv) {
   CHECK(argc == 2);
-  char sql[SEQUEL_INPUT_MAX + 2];
+  char *sql = malloc(SEQUEL_INPUT_MAX + 2);
+  CHECK(sql);
   memset(sql, ' ', SEQUEL_INPUT_MAX + 1);
   sql[SEQUEL_INPUT_MAX] = 0;
   sequel_diagnostic_t diagnostic;
@@ -50,5 +52,6 @@ int main(int argc, char **argv) {
   CHECK(strlen(result.summary) <= SEQUEL_SUMMARY_MAX);
   CHECK(!strcmp(result.summary + strlen(result.summary) - 3, "…"));
   sequel_metadata_free(&result);
+  free(sql);
   return 0;
 }
