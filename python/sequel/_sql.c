@@ -66,8 +66,18 @@ static PyObject *metadata_sql(PyObject *self, PyObject *args) {
   char operation[sizeof(metadata->operation)];
   memcpy(operation, metadata->operation, sizeof(operation));
   operation[sizeof(operation) - 1] = 0;
-  PyObject *result = Py_BuildValue("sssOn", metadata->text, metadata->summary, operation,
-                                   metadata->truncated ? Py_True : Py_False, (Py_ssize_t)metadata->statement_count);
+  PyObject *text = PyUnicode_FromString(metadata->text ? metadata->text : "");
+  PyObject *summary = PyUnicode_FromString(metadata->summary ? metadata->summary : "");
+  PyObject *operation_object = PyUnicode_FromString(operation);
+  PyObject *count = PyLong_FromSize_t(metadata->statement_count);
+  PyObject *result = NULL;
+  if (text && summary && operation_object && count)
+    result = PyTuple_Pack(5, text, summary, operation_object,
+                          metadata->truncated ? Py_True : Py_False, count);
+  Py_XDECREF(text);
+  Py_XDECREF(summary);
+  Py_XDECREF(operation_object);
+  Py_XDECREF(count);
   sequel_metadata_free(metadata);
   PyMem_Free(metadata);
   return result;
