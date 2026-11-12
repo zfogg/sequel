@@ -37,13 +37,70 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   const char *source_value_end = source_value;
   while (isdigit((unsigned char)*source_value_end))
     ++source_value_end;
-  if (source_value_end == source_value)
+  bool source_all = !strncmp(source_value, "ALL", 3);
+  if (source_value_end == source_value && !source_all)
     return 1;
+  if (source_all)
+    source_value_end = source_value + 3;
 
-  bool comma_limit = *source_value_end == ',';
-  bool offset_limit = sequel_summary_find_text(source_value_end, " OFFSET ") != NULL;
-  if (!comma_limit && !offset_limit)
+  const char *delimiter = source_value_end;
+  while (isspace((unsigned char)*delimiter))
+    ++delimiter;
+  bool comma_limit = *delimiter == ',';
+  bool offset_limit = sequel_summary_find_text(delimiter, "OFFSET ") != NULL;
+  if (!comma_limit && !offset_limit) {
+    if (source_all) {
+      char *rendered_limit = NULL;
+      for (char *cursor = *text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
+        rendered_limit = cursor;
+      if (!rendered_limit)
+        return 1;
+      char *rendered_value = rendered_limit + strlen("LIMIT ");
+      if (*rendered_value != '?')
+        return 1;
+      size_t offset = (size_t)(rendered_value - *text);
+      if (*capacity < *length + 2 + 1) {
+        char *grown = realloc(*text, *length + 3);
+        if (!grown)
+          return 0;
+        *text = grown;
+        *capacity = *length + 3;
+        rendered_value = *text + offset;
+      }
+      memmove(rendered_value + 3, rendered_value + 1, *length - offset);
+      memcpy(rendered_value, "ALL", 3);
+      *length += 2;
+      return 1;
+    }
+    const char *operator = source_value_end;
+    while (isspace((unsigned char)*operator))
+      ++operator;
+    if (*operator == '+' || *operator == '-' || *operator == '*' || *operator == '/') {
+      char *rendered_limit = NULL;
+      for (char *cursor = *text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
+        rendered_limit = cursor;
+      if (!rendered_limit)
+        return 1;
+      char *rendered_value = rendered_limit + strlen("LIMIT ");
+      char *rendered_end = rendered_value;
+      while (isdigit((unsigned char)*rendered_end))
+        ++rendered_end;
+      if (rendered_end > rendered_value) {
+        *rendered_value = '?';
+        memmove(rendered_value + 1, rendered_end, *length - (size_t)(rendered_end - *text) + 1);
+        *length -= (size_t)(rendered_end - rendered_value) - 1;
+      }
+    }
+    if (sequel_summary_find_text(source.data, " UNION ") && sequel_summary_find_text(source.data, "LIMIT $")) {
+      char *parameter_limit = NULL;
+      for (char *cursor = *text; (cursor = sequel_summary_find_text(cursor, "LIMIT 1")) != NULL; ++cursor)
+        if (!isdigit((unsigned char)cursor[7]))
+          parameter_limit = cursor;
+      if (parameter_limit)
+        parameter_limit[6] = '?';
+    }
     return 1;
+  }
 
   char *rendered_limit = sequel_summary_find_text(*text, "LIMIT ");
   if (!rendered_limit)
@@ -78,5 +135,74 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   if (comma_limit)
     memcpy(rendered_limit + strlen("LIMIT ") + source_digits, ", ?", suffix_length);
   *length += replacement_length - old_length;
+  return 1;
+}
+
+int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_t *capacity,
+                                              sequel_source_view_t source) {
+  if (!text || !*text || !length || !capacity || !source.data)
+    return 1;
+  const char *source_limit = sequel_summary_find_text(source.data, "LIMIT (SELECT ");
+  if (!source_limit)
+    return 1;
+  const char *source_open = source_limit + strlen("LIMIT ");
+  const char *source_close = source_open;
+  size_t depth = 0;
+  while ((size_t)(source_close - source.data) < source.length) {
+    if (*source_close == '(')
+      ++depth;
+    else if (*source_close == ')' && depth && --depth == 0)
+      break;
+    ++source_close;
+  }
+  if ((size_t)(source_close - source.data) >= source.length)
+    return 1;
+  const char *from = sequel_summary_find_text(source_open, " FROM ");
+  const char *inner_limit = sequel_summary_find_text(source_open, " LIMIT ");
+  if (!from || !inner_limit || from >= source_close || inner_limit >= source_close)
+    return 1;
+  const char *table = from + strlen(" FROM ");
+  const char *table_end = table;
+  while (table_end < source_close && !isspace((unsigned char)*table_end) && *table_end != ')')
+    ++table_end;
+  const char *inner_value = inner_limit + strlen(" LIMIT ");
+  const char *inner_value_end = inner_value;
+  while (inner_value_end < source_close && isdigit((unsigned char)*inner_value_end))
+    ++inner_value_end;
+  if (inner_value == inner_value_end)
+    return 1;
+
+  char *rendered_limit = sequel_summary_find_text(*text, " LIMIT ");
+  char *rendered_inner_limit = rendered_limit ? sequel_summary_find_text(rendered_limit + 7, " LIMIT ?") : NULL;
+  if (!rendered_limit || !rendered_inner_limit)
+    return 1;
+  const char *tail = rendered_inner_limit + strlen(" LIMIT ?");
+  size_t prefix_length = (size_t)(rendered_limit - *text);
+  size_t tail_length = *length - (size_t)(tail - *text);
+  const char prefix[] = " LIMIT ? (SELECT \342\200\246 FROM ";
+  const char separator[] = " LIMIT ";
+  size_t replacement_length = sizeof(prefix) - 1 + (size_t)(table_end - table) + sizeof(separator) - 1 +
+                              (size_t)(inner_value_end - inner_value) + 1;
+  size_t result_length = prefix_length + replacement_length + tail_length;
+  char *result = malloc(result_length + 1);
+  if (!result)
+    return 0;
+  memcpy(result, *text, prefix_length);
+  size_t offset = prefix_length;
+  memcpy(result + offset, prefix, sizeof(prefix) - 1);
+  offset += sizeof(prefix) - 1;
+  memcpy(result + offset, table, (size_t)(table_end - table));
+  offset += (size_t)(table_end - table);
+  memcpy(result + offset, separator, sizeof(separator) - 1);
+  offset += sizeof(separator) - 1;
+  memcpy(result + offset, inner_value, (size_t)(inner_value_end - inner_value));
+  offset += (size_t)(inner_value_end - inner_value);
+  result[offset++] = ')';
+  memcpy(result + offset, tail, tail_length);
+  result[result_length] = '\0';
+  free(*text);
+  *text = result;
+  *length = result_length;
+  *capacity = result_length + 1;
   return 1;
 }

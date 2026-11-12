@@ -2768,6 +2768,10 @@ summary_postprocess:
     sequel_text_result_free(out);
     return SEQUEL_ERR_NOMEM;
   }
+  if (!sequel_summary_restore_scalar_limit_shape(&out->data, &out->length, &out->capacity, source)) {
+    sequel_text_result_free(out);
+    return SEQUEL_ERR_NOMEM;
+  }
   return SEQUEL_OK;
 invalid:
   free(text);
