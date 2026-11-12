@@ -441,24 +441,6 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
     sequel_analysis_append(safe, "", 0);
 }
 
-static void sequel_analysis_clip_map(analysis_map *map, size_t limit) {
-  sequel_current_call->output_bytes -= map->n * sizeof(*map->p);
-  analysis_map clipped = {0};
-  for (size_t i = 0; i < map->n; i++) {
-    sequel_work_tick(1);
-    sequel_map_segment_t s = map->p[i];
-    size_t ts = s.to_start < limit ? s.to_start : limit, te = s.to_end < limit ? s.to_end : limit;
-    if (s.kind == SEQUEL_MAP_COPY && te - ts < s.from_end - s.from_start) {
-      size_t middle = s.from_start + (te - ts);
-      sequel_analysis_segment(&clipped, s.from_start, middle, ts, te, SEQUEL_MAP_COPY);
-      sequel_analysis_segment(&clipped, middle, s.from_end, te, te, SEQUEL_MAP_DELETE);
-    } else
-      sequel_analysis_segment(&clipped, s.from_start, s.from_end, ts, te, ts == te ? SEQUEL_MAP_DELETE : s.kind);
-  }
-  free(map->p);
-  *map = clipped;
-}
-
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
                                  sequel_analysis_t *out) {
   if (!out)

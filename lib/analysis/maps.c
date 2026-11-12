@@ -2,6 +2,27 @@
 
 #include "internal.h"
 
+void sequel_analysis_clip_map(analysis_map *map, size_t limit) {
+  sequel_current_call->output_bytes -= map->n * sizeof(*map->p);
+  analysis_map clipped = {0};
+  for (size_t i = 0; i < map->n; ++i) {
+    sequel_work_tick(1);
+    sequel_map_segment_t segment = map->p[i];
+    size_t to_start = segment.to_start < limit ? segment.to_start : limit;
+    size_t to_end = segment.to_end < limit ? segment.to_end : limit;
+    if (segment.kind == SEQUEL_MAP_COPY && to_end - to_start < segment.from_end - segment.from_start) {
+      size_t middle = segment.from_start + (to_end - to_start);
+      sequel_analysis_segment(&clipped, segment.from_start, middle, to_start, to_end, SEQUEL_MAP_COPY);
+      sequel_analysis_segment(&clipped, middle, segment.from_end, to_end, to_end, SEQUEL_MAP_DELETE);
+    } else {
+      sequel_analysis_segment(&clipped, segment.from_start, segment.from_end, to_start, to_end,
+                              to_start == to_end ? SEQUEL_MAP_DELETE : segment.kind);
+    }
+  }
+  free(map->p);
+  *map = clipped;
+}
+
 void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_end, size_t to_start, size_t to_end,
                              sequel_map_kind_t kind) {
   if (from_start == from_end && to_start == to_end)
@@ -43,8 +64,8 @@ void sequel_analysis_build_format_map(analysis_map *map, const char *source, siz
       }
       const char *source_match =
           memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
-      const char *formatted_match =
-          memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor], formatted_length - formatted_cursor);
+      const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor],
+                                           formatted_length - formatted_cursor);
       if (source_match && (!formatted_match || source_match - source < formatted_match - formatted)) {
         sequel_analysis_segment(map, source_cursor, (size_t)(source_match - source), formatted_cursor, formatted_cursor,
                                 SEQUEL_MAP_DELETE);
