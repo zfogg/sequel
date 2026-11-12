@@ -11,13 +11,16 @@ int main(void) {
       {"SELECT true", SEQUEL_POSTGRESQL},
       {"SELECT false", SEQUEL_POSTGRESQL},
       {" (SELECT * FROM accounts WHERE token='secret' LIMIT 1) b ON a.id=b.id LIMIT $1", SEQUEL_GENERIC},
+      {"SELECT * FROM a LIMIT 5, 10", SEQUEL_CLICKHOUSE},
   };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
     sequel_metadata_options_t options = {.dialect = cases[i].dialect};
-    sequel_metadata_t metadata = {0};
-    (void)sequel_metadata(cases[i].sql, &options, &metadata);
-    sequel_metadata_free(&metadata);
+    for (size_t repeat = 0; repeat < 16; ++repeat) {
+      sequel_metadata_t metadata = {0};
+      (void)sequel_metadata(cases[i].sql, &options, &metadata);
+      sequel_metadata_free(&metadata);
+    }
   }
   return 0;
 }
