@@ -131,11 +131,12 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   const char *source_limit = NULL;
   size_t limit_count = 0;
   for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6) {
-    ++limit_count;
     if (cursor[6] >= '0' && cursor[6] <= '9') {
+      ++limit_count;
       if (!source_limit)
         source_limit = cursor;
-    }
+    } else if (cursor[6] == '?' || cursor[6] == '$' || strncmp(cursor + 6, "sqlc.arg(", 9) == 0)
+      ++limit_count;
   }
   const char *first_name = strstr(source.data, "-- name:");
   bool multiple_named_queries = first_name && strstr(first_name + strlen("-- name:"), "-- name:");
