@@ -114,39 +114,6 @@ static void sequel_analysis_dictionary_clear(analysis_bindings *b) {
   *b = (analysis_bindings){0};
 }
 
-void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
-  size_t count = out->diagnostic_count;
-  sequel_output_tick(sizeof(sequel_diagnostic_t));
-  sequel_diagnostic_t *ds = sequel_analysis_array((void *)out->diagnostics, count + 1, sizeof(*ds));
-  sequel_diagnostics_report(NULL, 0, &ds[count], code, 0, 0);
-  ds[count].offset = start;
-  ds[count].end_offset = end;
-  out->diagnostics = ds;
-  out->diagnostic_count++;
-}
-
-static bool sequel_analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start,
-                                           size_t end) {
-  for (size_t i = 0; i < out->diagnostic_count; ++i)
-    if (out->diagnostics[i].code == code && out->diagnostics[i].offset == start &&
-        out->diagnostics[i].end_offset == end)
-      return true;
-  return false;
-}
-
-static void sequel_analysis_sort_diagnostics(sequel_analysis_t *out) {
-  sequel_diagnostic_t *diagnostics = (sequel_diagnostic_t *)out->diagnostics;
-  for (size_t i = 1; i < out->diagnostic_count; ++i) {
-    sequel_diagnostic_t value = diagnostics[i];
-    size_t j = i;
-    while (j && diagnostics[j - 1].offset > value.offset) {
-      diagnostics[j] = diagnostics[j - 1];
-      --j;
-    }
-    diagnostics[j] = value;
-  }
-}
-
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
 static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t *ts, size_t count, analysis_state *a,
