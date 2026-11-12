@@ -1662,7 +1662,10 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
               limit_has_parameter = true;
               break;
             }
-          bool preserve_limit = !limit_has_parameter || memchr(source.data + start, ',', end - start) != NULL;
+          bool has_offset = sequel_summary_find_text(source.data + end, " OFFSET ") != NULL;
+          bool preserve_limit = !limit_has_parameter &&
+                                (memchr(source.data + start, ',', end - start) != NULL ||
+                                 (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
           if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
               (preserve_limit &&
                !sequel_summary_append_bytes(&text, &length, &capacity, source.data + start, end - start)) ||
