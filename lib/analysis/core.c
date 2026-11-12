@@ -76,12 +76,8 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
 
     sequel_analysis_mark_in_list(ts, count, i, a->options.dialect, a->options.keep_in_lists);
     size_t emitted_before = safe->n;
-    if (gap && safe->n) {
-      size_t at = safe->n;
-      sequel_analysis_append_text(safe, " ", 1);
-      if (map)
-        sequel_analysis_segment(map, start, start, at, safe->n, SEQUEL_MAP_INSERT);
-    }
+    if (gap)
+      sequel_analysis_emit_gap(safe, map, start);
     gap = false;
     sequel_analysis_emit_token(t, ts, t.matching > i ? t.matching : 0, a, safe, map, literal, bind);
     if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i)

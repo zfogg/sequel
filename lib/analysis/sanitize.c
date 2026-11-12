@@ -1,5 +1,14 @@
 #include "internal.h"
 
+void sequel_analysis_emit_gap(analysis_text *safe, analysis_map *map, size_t source_offset) {
+  if (!safe->n)
+    return;
+  size_t before = safe->n;
+  sequel_analysis_append_text(safe, " ", 1);
+  if (map)
+    sequel_analysis_segment(map, source_offset, source_offset, before, safe->n, SEQUEL_MAP_INSERT);
+}
+
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind) {
   size_t start = token.source_offset;
