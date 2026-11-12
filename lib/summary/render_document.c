@@ -2658,9 +2658,16 @@ summary_postprocess:
     source_last_limit = limit;
     cursor = (size_t)(limit - source.data) + strlen("LIMIT");
   }
-  if (source_last_limit && (size_t)(source_last_limit - source.data) + 6 < source.length &&
-      isdigit((unsigned char)source_last_limit[6])) {
-    const char *expression = source_last_limit + 6;
+  /* Nested LIMIT clauses must not affect restoration of the outer value. */
+  sequel_source_range_t outer_limit_value = sequel_query_outer_limit_value_range(query);
+  bool outer_limit_is_numeric =
+      outer_limit_value.end > outer_limit_value.start && outer_limit_value.end <= source.length;
+  if (outer_limit_is_numeric)
+    for (size_t i = outer_limit_value.start; i < outer_limit_value.end; ++i)
+      if (!isdigit((unsigned char)source.data[i]))
+        outer_limit_is_numeric = false;
+  if (outer_limit_is_numeric) {
+    const char *expression = source.data + outer_limit_value.end;
     while (isdigit((unsigned char)*expression))
       ++expression;
     while (isspace((unsigned char)*expression))
@@ -2680,19 +2687,20 @@ summary_postprocess:
       }
     }
   }
-  if (sequel_query_outer_limit(query) && source_last_limit && source_last_limit[6] == '$') {
+  if (sequel_query_outer_limit(query) && outer_limit_value.end > outer_limit_value.start &&
+      outer_limit_value.end <= source.length && source.data[outer_limit_value.start] == '$') {
     char *last_limit = NULL;
     for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
       last_limit = cursor;
     if (last_limit && !memcmp(last_limit, "LIMIT 1", sizeof("LIMIT 1") - 1))
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
-  if (source_last_limit && source_last_limit[6] == '1') {
+  if (outer_limit_value.end == outer_limit_value.start + 1 && source.data[outer_limit_value.start] == '1') {
     char *last_limit = NULL;
     for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
       last_limit = cursor;
     if (last_limit)
-      last_limit[6] = source_last_limit[6];
+      last_limit[6] = source.data[outer_limit_value.start];
   }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
       sequel_summary_find_text(source.data, "JOIN") && !sequel_summary_find_text(text, "JOIN")) {
