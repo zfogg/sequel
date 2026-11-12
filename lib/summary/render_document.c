@@ -916,6 +916,16 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
             --open;
           if (open < source.data + source.length && *open == '(')
             close = sequel_summary_matching_close(open, source.data + source.length);
+          /* Clause searches start at the inner FROM, so an outer clause must
+           * never be mistaken for part of this relation. */
+          if (close) {
+            if (where && where >= close)
+              where = NULL;
+            if (order && order >= close)
+              order = NULL;
+            if (limit && limit >= close)
+              limit = NULL;
+          }
           if (subquery && from && !where && limit && close) {
             const char *table = from + 6;
             while (*table && isspace((unsigned char)*table))
@@ -930,6 +940,19 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
             const char *table_end = table;
             while (*table_end && !isspace((unsigned char)*table_end))
               ++table_end;
+            const char *inner_alias = table_end;
+            while (*inner_alias && isspace((unsigned char)*inner_alias))
+              ++inner_alias;
+            if (!strncmp(inner_alias, "AS ", 3)) {
+              inner_alias += 3;
+              while (*inner_alias && isspace((unsigned char)*inner_alias))
+                ++inner_alias;
+            }
+            const char *inner_alias_end = inner_alias;
+            while (*inner_alias_end && !isspace((unsigned char)*inner_alias_end) && *inner_alias_end != ')')
+              ++inner_alias_end;
+            if (inner_alias >= limit || inner_alias_end > limit)
+              inner_alias = inner_alias_end = table_end;
             const char *alias = close + 1;
             while (*alias && isspace((unsigned char)*alias))
               ++alias;
@@ -952,6 +975,10 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                              sizeof(summary_ellipsis) - 1) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
                 !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+                (inner_alias_end > inner_alias &&
+                 (!sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+                  !sequel_summary_append_bytes(&text, &length, &capacity, inner_alias,
+                                               (size_t)(inner_alias_end - inner_alias)))) ||
                 !sequel_summary_append_redacted_range(&text, &length, &capacity, query, (size_t)(limit - source.data),
                                                       (size_t)(close + 1 - source.data)) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
