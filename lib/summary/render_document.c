@@ -2736,6 +2736,19 @@ summary_postprocess:
   if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements,
                                     statement_count))
     goto no_memory;
+  if (out->data && source_limit_value && source_limit_value[6] >= '0' && source_limit_value[6] <= '9') {
+    char *rendered_limit = sequel_summary_find_text(out->data, "LIMIT ?");
+    if (rendered_limit && (size_t)(rendered_limit - out->data) + 7 <= out->length)
+      rendered_limit[6] = source_limit_value[6];
+    if (strstr(source.data, "LIMIT 1;")) {
+      char *last = rendered_limit;
+      for (char *cursor = rendered_limit ? rendered_limit + 7 : NULL;
+           cursor && (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
+        last = cursor;
+      if (last)
+        last[6] = '1';
+    }
+  }
   return SEQUEL_OK;
 invalid:
   free(text);
