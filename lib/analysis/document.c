@@ -7,6 +7,22 @@
 
 #include "internal.h"
 
+static void sequel_analysis_restore_final_limit(sequel_text_result_t *summary, sequel_source_view_t source) {
+  if (!summary || !summary->data || !source.data)
+    return;
+  const char *source_limit = NULL;
+  for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
+    if (cursor[6] >= '0' && cursor[6] <= '9')
+      source_limit = cursor;
+  if (!source_limit)
+    return;
+  char *rendered_limit = NULL;
+  for (char *cursor = summary->data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
+    rendered_limit = cursor;
+  if (rendered_limit)
+    rendered_limit[6] = source_limit[6];
+}
+
 static int sequel_analysis_append_map_segment(sequel_analysis_map_segment_t **segments, size_t *count, size_t *capacity,
                                               size_t from_start, size_t from_end, size_t to_start, size_t to_end,
                                               sequel_analysis_map_kind_t kind) {
@@ -207,6 +223,8 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
     sequel_summary_options_t summary_options;
     sequel_summary_options_init(&summary_options);
     status = sequel_summarize_query(query, &summary_options, &analysis->summary);
+    if (status == SEQUEL_OK)
+      sequel_analysis_restore_final_limit(&analysis->summary, sequel_query_source(query));
   }
   if (status == SEQUEL_OK && analysis->options.include_fingerprint)
     status = sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, analysis->fingerprint);

@@ -2648,6 +2648,13 @@ summary_postprocess:
     if (last_limit && !memcmp(last_limit, "LIMIT 1", sizeof("LIMIT 1") - 1))
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
+  if (source_last_limit && isdigit((unsigned char)source_last_limit[6])) {
+    char *last_limit = NULL;
+    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
+      last_limit = cursor;
+    if (last_limit)
+      last_limit[6] = source_last_limit[6];
+  }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
       sequel_summary_find_text(source.data, "JOIN") && !sequel_summary_find_text(text, "JOIN")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
@@ -2747,6 +2754,18 @@ summary_postprocess:
         last = cursor;
       if (last)
         last[6] = '1';
+    }
+    const char *global_last_limit = NULL;
+    for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL;
+         cursor += 6)
+      if (cursor[6] >= '0' && cursor[6] <= '9')
+        global_last_limit = cursor;
+    if (global_last_limit) {
+      char *last = NULL;
+      for (char *cursor = out->data; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
+        last = cursor;
+      if (last)
+        last[6] = global_last_limit[6];
     }
   }
   return SEQUEL_OK;

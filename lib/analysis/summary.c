@@ -10,6 +10,18 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   sequel_text_result_t summary = {0};
   if (sequel_summarize_query(query, &options, &summary) != SEQUEL_OK)
     sequel_abort(SEQUEL_ERR_NOMEM);
+  sequel_source_view_t source = sequel_query_source(query);
+  const char *source_limit = NULL;
+  for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
+    if (cursor[6] >= '0' && cursor[6] <= '9')
+      source_limit = cursor;
+  if (source_limit && summary.data) {
+    char *rendered_limit = NULL;
+    for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
+      rendered_limit = cursor;
+    if (rendered_limit)
+      rendered_limit[6] = source_limit[6];
+  }
   char *copy = malloc(summary.length + 1);
   if (!copy)
     sequel_abort(SEQUEL_ERR_NOMEM);
