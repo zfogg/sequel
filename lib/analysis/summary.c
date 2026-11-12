@@ -142,14 +142,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   if (!locking_clause)
     locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
-  size_t source_limit_depth = 0;
-  for (const char *cursor = source.data; source_limit && cursor < source_limit; ++cursor) {
-    if (*cursor == '(')
-      ++source_limit_depth;
-    else if (*cursor == ')' && source_limit_depth)
-      --source_limit_depth;
-  }
-  if (source_limit && !multiple_named_queries && !source_limit_depth && !first_statement_has_locking_limit &&
+  if (source_limit && !multiple_named_queries && !first_statement_has_locking_limit &&
       !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
