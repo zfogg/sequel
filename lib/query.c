@@ -736,6 +736,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           join.has_condition = true;
           join.condition_range =
               (sequel_source_range_t){tokens[condition_start].range.start, tokens[condition_end - 1].range.end};
+          join.range.end = join.condition_range.end;
           join.condition_node = sequel_query_expression_node_for_range(document->syntax, join.condition_range);
         }
         break;

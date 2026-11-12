@@ -888,6 +888,8 @@ int main(void) {
                  sequel_query_joins(lateral_query)[0].has_condition &&
                  sequel_query_joins(lateral_query)[0].condition_range.end >
                      sequel_query_joins(lateral_query)[0].condition_range.start &&
+                 sequel_query_joins(lateral_query)[0].range.end ==
+                     sequel_query_joins(lateral_query)[0].condition_range.end &&
                  sequel_query_joins(lateral_query)[0].condition_node != SIZE_MAX &&
                  (sequel_query_joins(lateral_query)[0].flags & SEQUEL_JOIN_FLAG_LATERAL) != 0 &&
                  sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
