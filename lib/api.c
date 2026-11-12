@@ -146,6 +146,8 @@ sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metada
 }
 
 sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
+  if (out)
+    *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
   if (!sql)
     return SEQUEL_ERR_NULL;
   size_t n = 0;
