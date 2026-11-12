@@ -179,8 +179,14 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     goto done;
   }
   if (issue_count) {
-    status = SEQUEL_OK;
-    goto done;
+    const sequel_parse_issue_t *issues = sequel_syntax_issues(syntax, NULL);
+    for (size_t i = 0; i < issue_count; ++i) {
+      if (issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN ||
+          issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE) {
+        status = SEQUEL_ERR_INVALID_ARGUMENT;
+        goto done;
+      }
+    }
   }
   if (!sequel_inspection_document_has_query_body(syntax)) {
     status = SEQUEL_OK;
