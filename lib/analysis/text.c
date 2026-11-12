@@ -1,6 +1,28 @@
 /* Normalize list punctuation after the shared sanitizer has emitted text. */
 #include "internal.h"
 
+void sequel_analysis_append_text(analysis_text *text, const char *data, size_t length) {
+  sequel_work_tick(length);
+  if (length > SIZE_MAX - text->n - 1)
+    sequel_abort(SEQUEL_ERR_LIMIT);
+  size_t needed = text->n + length + 1;
+  if (needed > text->capacity) {
+    size_t next = text->capacity ? text->capacity : 32;
+    while (next < needed) {
+      if (next > SIZE_MAX / 2) {
+        next = needed;
+        break;
+      }
+      next *= 2;
+    }
+    text->p = realloc(text->p, next);
+    text->capacity = next;
+  }
+  memcpy(text->p + text->n, data, length);
+  text->n += length;
+  text->p[text->n] = 0;
+}
+
 void sequel_analysis_utf8_cut(char *text, size_t limit) {
   size_t length = strlen(text);
   if (length <= limit)

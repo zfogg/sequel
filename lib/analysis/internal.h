@@ -43,6 +43,7 @@ bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
                                 size_t *number, sequel_bind_style_t *style);
 void sequel_analysis_compact_list_text(analysis_text *text);
+void sequel_analysis_append_text(analysis_text *text, const char *data, size_t length);
 void sequel_analysis_utf8_cut(char *text, size_t limit);
 void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_end, size_t to_start, size_t to_end,
                              sequel_map_kind_t kind);

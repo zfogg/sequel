@@ -79,28 +79,6 @@ void *sequel_analysis_array(void *pointer, size_t count, size_t element) {
   return realloc(pointer, next);
 }
 
-static void sequel_analysis_append(analysis_text *b, const char *p, size_t n) {
-  sequel_work_tick(n);
-  if (n > SIZE_MAX - b->n - 1)
-    sequel_abort(SEQUEL_ERR_LIMIT);
-  size_t need = b->n + n + 1;
-  if (need > b->capacity) {
-    size_t next = b->capacity ? b->capacity : 32;
-    while (next < need) {
-      if (next > SIZE_MAX / 2) {
-        next = need;
-        break;
-      }
-      next *= 2;
-    }
-    b->p = realloc(b->p, next);
-    b->capacity = next;
-  }
-  memcpy(b->p + b->n, p, n);
-  b->n += n;
-  b->p[b->n] = 0;
-}
-
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish
  * SQLite binding namespaces; fingerprint frames exclude those spellings. */
 static uint64_t sequel_analysis_key_hash(const char *p, size_t n) {
@@ -394,14 +372,14 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
     size_t emitted_before = safe->n;
     if (gap && safe->n) {
       size_t at = safe->n;
-      sequel_analysis_append(safe, " ", 1);
+      sequel_analysis_append_text(safe, " ", 1);
       if (map)
         sequel_analysis_segment(map, start, start, at, safe->n, SEQUEL_MAP_INSERT);
     }
     gap = false;
     size_t before = safe->n;
     if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i) {
-      sequel_analysis_append(safe, "(?", 2);
+      sequel_analysis_append_text(safe, "(?", 2);
       if (map) {
         sequel_analysis_segment(map, start, end, before, before + 1, SEQUEL_MAP_COPY);
         size_t close = ts[t.matching].source_offset;
@@ -418,10 +396,10 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
             break;
           }
       if (sqlite_suffix != SIZE_MAX) {
-        sequel_analysis_append(safe, "?", 1);
-        sequel_analysis_append(safe, t.t.p + sqlite_suffix, t.t.n - sqlite_suffix);
+        sequel_analysis_append_text(safe, "?", 1);
+        sequel_analysis_append_text(safe, t.t.p + sqlite_suffix, t.t.n - sqlite_suffix);
       } else {
-        sequel_analysis_append(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
+        sequel_analysis_append_text(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
       }
       if (map)
         sequel_analysis_segment(map, start, end, before, safe->n,
@@ -438,7 +416,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
   if (consumed < n && map)
     sequel_analysis_segment(map, consumed, n, safe->n, safe->n, SEQUEL_MAP_DELETE);
   if (!safe->p)
-    sequel_analysis_append(safe, "", 0);
+    sequel_analysis_append_text(safe, "", 0);
 }
 
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
