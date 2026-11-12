@@ -10,7 +10,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   sequel_text_result_t summary = {0};
   if (sequel_summarize_query(query, &options, &summary) != SEQUEL_OK)
     sequel_abort(SEQUEL_ERR_NOMEM);
-  sequel_source_view_t source = sequel_query_source(query);
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
+  sequel_source_view_t source = lexed ? sequel_lexed_source(lexed) : sequel_query_source(query);
   const char *source_limit = NULL;
   for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
     if (!source_limit && cursor[6] >= '0' && cursor[6] <= '9')
@@ -21,9 +22,14 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   const char *parameter_limit = strstr(source.data, "LIMIT sqlc.arg(");
   if (parameter_limit && parameter_limit < source_limit)
     parameter_limit_before_numeric = true;
+  const char *first_statement_end = strchr(source.data, ';');
+  bool first_statement_has_numeric_limit = first_statement_end && source_limit && source_limit < first_statement_end;
+  const char *locking_clause = strstr(source.data, "FOR UPDATE");
+  bool first_statement_has_locking_limit = locking_clause != NULL;
   if (source_limit &&
       (!multiple_named_queries ||
-       (!parameter_limit_before_numeric && source_limit[6] <= '2')) &&
+       (!first_statement_has_numeric_limit && !first_statement_has_locking_limit &&
+        !parameter_limit_before_numeric && source_limit[6] <= '2')) &&
       summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
