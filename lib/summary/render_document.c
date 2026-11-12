@@ -11,6 +11,53 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, size_t *length) {
+  char *result = malloc(source.length + 1);
+  if (!result)
+    return NULL;
+  size_t written = 0;
+  for (size_t i = 0; i < source.length;) {
+    if (i + 1 < source.length && source.data[i] == '-' && source.data[i + 1] == '-') {
+      i += 2;
+      while (i < source.length && source.data[i] != '\n' && source.data[i] != '\r')
+        ++i;
+      continue;
+    }
+    if (i + 1 < source.length && source.data[i] == '/' && source.data[i + 1] == '*') {
+      i += 2;
+      while (i + 1 < source.length && !(source.data[i] == '*' && source.data[i + 1] == '/'))
+        ++i;
+      i += i + 1 < source.length ? 2 : 0;
+      continue;
+    }
+    if (source.data[i] == '\'') {
+      result[written++] = '?';
+      ++i;
+      while (i < source.length) {
+        if (source.data[i] == '\'' && (i + 1 >= source.length || source.data[i + 1] != '\'')) {
+          ++i;
+          break;
+        }
+        i += source.data[i] == '\'' ? 2 : 1;
+      }
+      continue;
+    }
+    if (source.data[i] >= '0' && source.data[i] <= '9') {
+      result[written++] = '?';
+      while (i < source.length && source.data[i] >= '0' && source.data[i] <= '9')
+        ++i;
+      continue;
+    }
+    result[written++] = source.data[i++];
+  }
+  while (written && (result[written - 1] == ';' || result[written - 1] == ' ' || result[written - 1] == '\n' ||
+                     result[written - 1] == '\r' || result[written - 1] == '\t'))
+    --written;
+  result[written] = 0;
+  *length = written;
+  return result;
+}
+
 static void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, sequel_source_view_t source) {
   if (!text || !source.data)
     return;
@@ -103,6 +150,18 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (special_route == 2)
     goto summary_postprocess;
   if (statement_count > 1 && settings->redact_literals) {
+    if (sequel_query_dialect(query) == SEQUEL_DUCKDB) {
+      size_t duckdb_length = 0;
+      char *duckdb_summary = sequel_summary_duckdb_multi_source(source, &duckdb_length);
+      if (!duckdb_summary)
+        goto no_memory;
+      free(text);
+      *out = (sequel_text_result_t){.data = duckdb_summary,
+                                    .length = duckdb_length,
+                                    .capacity = source.length + 1,
+                                    .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+      return SEQUEL_OK;
+    }
     sequel_text_result_t sanitized = {0};
     if (sequel_sanitize_tokens(sequel_syntax_lexed(sequel_query_syntax(query)),
                                SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
