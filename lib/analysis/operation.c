@@ -34,6 +34,10 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     out->operation[0] = 0;
     return;
   }
+  if (sequel_query_statement_count(query) > 1 && strstr(source.data, "-- name:")) {
+    out->operation[0] = 0;
+    return;
+  }
   const char *name = NULL;
   switch (statement[0].operation) {
   case SEQUEL_OPERATION_SELECT:

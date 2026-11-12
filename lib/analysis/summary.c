@@ -15,7 +15,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
     if (cursor[6] >= '0' && cursor[6] <= '9')
       source_limit = cursor;
-  if (source_limit && summary.data) {
+  bool named_query_file = strstr(source.data, "-- name:") != NULL;
+  if (source_limit && !named_query_file && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
