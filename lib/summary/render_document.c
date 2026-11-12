@@ -1853,7 +1853,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       *duplicate_nested = 0;
       length = (size_t)(duplicate_nested - text);
     }
-    if (sequel_summary_find_text(source.data, " LIMIT ")) {
+    if (sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(source.data, "JOIN LATERAL")) {
       char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
       if (premature_nested_limit) {
         memmove(premature_nested_limit, premature_nested_limit + strlen(" LIMIT ?"),
