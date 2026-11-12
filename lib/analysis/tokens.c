@@ -3,6 +3,16 @@
 
 #include "internal.h"
 
+bool sequel_analysis_word(analysis_token_t token, const char *word) {
+  size_t length = strlen(word);
+  if (token.kind != 1 || token.t.n != length)
+    return false;
+  for (size_t i = 0; i < length; ++i)
+    if (toupper((unsigned char)token.t.p[i]) != toupper((unsigned char)word[i]))
+      return false;
+  return true;
+}
+
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:

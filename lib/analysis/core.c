@@ -147,16 +147,6 @@ static void sequel_analysis_sort_diagnostics(sequel_analysis_t *out) {
   }
 }
 
-bool sequel_analysis_word(analysis_token_t t, const char *word) {
-  size_t n = strlen(word);
-  if (t.kind != 1 || t.t.n != n)
-    return false;
-  for (size_t i = 0; i < n; ++i)
-    if (toupper((unsigned char)t.t.p[i]) != toupper((unsigned char)word[i]))
-      return false;
-  return true;
-}
-
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
 static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t *ts, size_t count, analysis_state *a,

@@ -45,6 +45,7 @@ typedef struct {
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
 bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
+bool sequel_analysis_word(analysis_token_t token, const char *word);
 const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length);
 const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
@@ -75,7 +76,6 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
                                                     const sequel_text_result_t *formatted,
                                                     sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments);
-bool sequel_analysis_word(analysis_token_t token, const char *word);
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
 void sequel_analysis_summary_default(sequel_analysis_t *out);
 sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
