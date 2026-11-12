@@ -110,36 +110,24 @@ static bool sequel_inspection_document_query_is_safe(const sequel_query_document
   size_t node_count = 0;
   (void)sequel_syntax_nodes(query->syntax, &node_count);
 #define VALID_RANGE(range) ((range).start <= (range).end && (range).end <= source_length)
-  if (!VALID_RANGE(query->outer_range))
-    return false;
-  for (size_t i = 0; i < query->statement_count; ++i)
-    if (!VALID_RANGE(query->statements[i].range) || query->statements[i].syntax_node >= node_count)
-      return false;
-  for (size_t i = 0; i < query->relation_count; ++i)
-    if (!VALID_RANGE(query->relations[i].range) || !VALID_RANGE(query->relations[i].name_range) ||
-        !VALID_RANGE(query->relations[i].alias_range) || query->relations[i].syntax_node >= node_count ||
-        (query->relations[i].parent_relation != SIZE_MAX &&
-         query->relations[i].parent_relation >= query->relation_count))
-      return false;
   for (size_t i = 0; i < query->join_count; ++i)
     if (!VALID_RANGE(query->joins[i].range) || !VALID_RANGE(query->joins[i].condition_range) ||
         query->joins[i].left_relation >= query->relation_count ||
         query->joins[i].right_relation >= query->relation_count ||
         (query->joins[i].condition_node != SIZE_MAX && query->joins[i].condition_node >= node_count))
       return false;
-  for (size_t i = 0; i < query->projection_count; ++i)
-    if (!VALID_RANGE(query->projections[i].range) || !VALID_RANGE(query->projections[i].alias_range) ||
-        (query->projections[i].expression_node != SIZE_MAX && query->projections[i].expression_node >= node_count))
-      return false;
-  for (size_t i = 0; i < query->predicate_count; ++i)
-    if (!VALID_RANGE(query->predicates[i].range) ||
-        (query->predicates[i].expression_node != SIZE_MAX && query->predicates[i].expression_node >= node_count))
-      return false;
-  for (size_t i = 0; i < query->clause_count; ++i)
-    if (!VALID_RANGE(query->clauses[i].range) || query->clauses[i].statement_index >= query->statement_count)
-      return false;
 #undef VALID_RANGE
   return true;
+}
+
+static bool sequel_inspection_document_has_query_body(const sequel_syntax_document_t *syntax) {
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &count);
+  size_t significant = 0;
+  for (size_t i = 0; i < count; ++i)
+    if (!sequel_token_is_trivia(&tokens[i]) && tokens[i].kind != SEQUEL_TOKEN_EOF)
+      ++significant;
+  return significant > 1;
 }
 
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
@@ -169,6 +157,10 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     goto done;
   }
   if (issue_count) {
+    status = SEQUEL_OK;
+    goto done;
+  }
+  if (!sequel_inspection_document_has_query_body(syntax)) {
     status = SEQUEL_OK;
     goto done;
   }
