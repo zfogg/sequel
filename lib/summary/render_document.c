@@ -2529,7 +2529,8 @@ summary_postprocess:
       length -= (size_t)(boundary - premature_limit);
     }
   }
-  if (!sequel_summary_normalize_order_limit(&text, &length, &capacity))
+  if (!sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+      !sequel_summary_normalize_order_limit(&text, &length, &capacity))
     goto no_memory;
   for (char *premature_limit = text; premature_limit;) {
     premature_limit = sequel_summary_find_text(premature_limit, " LIMIT ? ORDER BY ");
