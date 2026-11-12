@@ -38,7 +38,7 @@ static PyObject *diagnose_sql(PyObject *self, PyObject *args) {
   return diagnostic_dict(&d);
 }
 
-static PyObject *inspect_sql(PyObject *self, PyObject *args) {
+static PyObject *metadata_sql(PyObject *self, PyObject *args) {
   const char *sql;
   int dialect, omit, keep;
   Py_ssize_t limit;
@@ -48,7 +48,7 @@ static PyObject *inspect_sql(PyObject *self, PyObject *args) {
     PyErr_SetString(PyExc_ValueError, "query text limit must be between 0 and SEQUEL_TEXT_MAX (1 GiB)");
     return NULL;
   }
-  sequel_options_t options = {0};
+  sequel_metadata_options_t options = {0};
   options.dialect = (sequel_dialect_t)dialect;
   options.max_query_text_bytes = (size_t)limit;
   options.omit_query_text = omit;
@@ -56,11 +56,11 @@ static PyObject *inspect_sql(PyObject *self, PyObject *args) {
   sequel_metadata_t *metadata = PyMem_Malloc(sizeof(*metadata));
   if (!metadata)
     return PyErr_NoMemory();
-  sequel_status_t status = sequel_inspect(sql, &options, metadata);
+  sequel_status_t status = sequel_metadata(sql, &options, metadata);
   if (status != SEQUEL_OK) {
     sequel_metadata_free(metadata);
     PyMem_Free(metadata);
-    PyErr_SetString(PyExc_ValueError, "SQL inspection rejected input");
+    PyErr_SetString(PyExc_ValueError, "SQL metadata extraction rejected input");
     return NULL;
   }
   PyObject *result = Py_BuildValue("sssOn", metadata->text, metadata->summary, metadata->operation,
@@ -347,7 +347,7 @@ static PyMethodDef methods[] = {
     {"highlight", highlight_sql, METH_VARARGS, "Highlight SQL as escaped HTML or truecolor ANSI."},
     {"colorschemes", colorschemes, METH_NOARGS, "List bundled Base16 names."},
     {"sanitize", sanitize_sql, METH_VARARGS, "Selectively remove comments and replace literals."},
-    {"inspect", inspect_sql, METH_VARARGS, "Inspect using the shared C engine."},
+    {"metadata", metadata_sql, METH_VARARGS, "Extract metadata using the shared C parser."},
     {"format", format_sql, METH_VARARGS, "Format without sanitizing."},
     {"parse_document", parse_document_sql, METH_VARARGS,
      "Parse into shared token, statement, relation and issue records."},

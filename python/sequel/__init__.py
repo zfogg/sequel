@@ -22,8 +22,8 @@ from .diagnostics import Diagnostic, SQLDiagnosticError, diagnose, diagnose_all
 from .dialect import Dialect
 from .formatting import format_sql, format_sql_or_original
 from .highlighting import Appearance, HighlightMode, colorschemes, highlight_sql
-from .inspection import Query, SQLInspectionError, inspect
 from .limits import DEFAULT_MAX_QUERY_TEXT_BYTES, DEFAULT_MAX_SUMMARY_BYTES, MAX_INPUT_BYTES
+from .metadata import Query, SQLInspectionError, SQLMetadataError, inspect, metadata
 from .parser import parse_document
 from .sanitization import sanitize
 
@@ -56,11 +56,13 @@ __all__ = [
     "HighlightMode",
     "Query",
     "SQLInspectionError",
+    "SQLMetadataError",
     "colorschemes",
     "format_sql",
     "format_sql_or_original",
     "highlight_sql",
     "inspect",
+    "metadata",
     "parse_document",
     "sanitize",
 ]
