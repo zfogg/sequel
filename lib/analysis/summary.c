@@ -151,8 +151,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
   bool has_distinct_on = strstr(source.data, "DISTINCT ON") != NULL;
-  bool starts_with_cte =
-      strncmp(source.data, "WITH ", 5) == 0 || strstr(source.data, "WITH selected_generation") != NULL;
+  bool starts_with_cte = strstr(source.data, "WITH ") != NULL;
   if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries &&
       !starts_with_cte && !first_statement_has_locking_limit && !has_distinct_on && !parameter_limit_before_numeric &&
       !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' && summary.data) {
