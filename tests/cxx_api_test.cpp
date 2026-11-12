@@ -44,7 +44,7 @@ int main() {
   assert(suppressed->text().empty());
   assert(suppressed->omission_reason() == "policy");
 
-  auto inspected = sequel::inspect("SELECT id FROM users");
+  auto inspected = sequel::metadata_for("SELECT id FROM users");
   assert(inspected);
   assert(!inspected->text().empty());
   auto moved = std::move(*inspected);
