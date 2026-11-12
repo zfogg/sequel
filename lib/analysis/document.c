@@ -226,6 +226,13 @@ const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_que
   return analysis && analysis->options.include_bindings ? sequel_query_parameters(analysis->query) : NULL;
 }
 
+const sequel_statement_info_t *sequel_query_analysis_statements(const sequel_query_analysis_t *analysis,
+                                                                size_t *count) {
+  if (count)
+    *count = analysis ? sequel_query_statement_count(analysis->query) : 0;
+  return analysis ? sequel_query_statements(analysis->query) : NULL;
+}
+
 const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query_analysis_t *analysis, size_t *count) {
   if (count)
     *count = analysis && analysis->options.include_relations ? sequel_query_relation_count(analysis->query) : 0;
