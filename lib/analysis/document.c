@@ -7,6 +7,94 @@
 
 #include "internal.h"
 
+static int sequel_analysis_append_map_segment(sequel_analysis_map_segment_t **segments, size_t *count, size_t *capacity,
+                                              size_t from_start, size_t from_end, size_t to_start, size_t to_end,
+                                              sequel_analysis_map_kind_t kind) {
+  if (from_start == from_end && to_start == to_end)
+    return 1;
+  if (*count == *capacity) {
+    size_t next = *capacity ? *capacity * 2 : 32;
+    if (next < *count || next > SIZE_MAX / sizeof(**segments))
+      return 0;
+    sequel_analysis_map_segment_t *grown = realloc(*segments, next * sizeof(*grown));
+    if (!grown)
+      return 0;
+    *segments = grown;
+    *capacity = next;
+  }
+  (*segments)[(*count)++] = (sequel_analysis_map_segment_t){from_start, from_end, to_start, to_end, kind};
+  return 1;
+}
+
+static sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t original,
+                                                           const sequel_text_result_t *formatted,
+                                                           sequel_analysis_source_map_t *map,
+                                                           sequel_analysis_map_segment_t **owned_segments) {
+  sequel_source_view_t rendered = {formatted->data, formatted->length};
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.retain_comments = true;
+  options.retain_whitespace = true;
+  sequel_lexed_document_t *rendered_lexed = NULL;
+  sequel_status_t status = sequel_lex(&rendered, &options, NULL, &rendered_lexed);
+  if (status != SEQUEL_OK)
+    return status;
+  sequel_lexed_document_t *original_lexed = NULL;
+  status = sequel_lex(&original, &options, NULL, &original_lexed);
+  if (status != SEQUEL_OK) {
+    sequel_lexed_document_free(rendered_lexed);
+    return status;
+  }
+  size_t original_count = 0, rendered_count = 0;
+  const sequel_token_t *original_tokens = sequel_lexed_tokens(original_lexed, &original_count);
+  const sequel_token_t *rendered_tokens = sequel_lexed_tokens(rendered_lexed, &rendered_count);
+  sequel_analysis_map_segment_t *segments = NULL;
+  size_t count = 0, capacity = 0, from = 0, to = 0, rendered_index = 0;
+  for (size_t i = 0; i < original_count; ++i) {
+    const sequel_token_t *source_token = &original_tokens[i];
+    if (source_token->kind == SEQUEL_TOKEN_EOF || source_token->kind == SEQUEL_TOKEN_WHITESPACE)
+      continue;
+    size_t source_length = source_token->range.end - source_token->range.start;
+    size_t match = rendered_index;
+    while (match < rendered_count) {
+      const sequel_token_t *candidate = &rendered_tokens[match];
+      if (candidate->kind != SEQUEL_TOKEN_EOF && candidate->kind != SEQUEL_TOKEN_WHITESPACE &&
+          candidate->range.end - candidate->range.start == source_length &&
+          !memcmp(original.data + source_token->range.start, rendered.data + candidate->range.start, source_length))
+        break;
+      ++match;
+    }
+    if (match == rendered_count)
+      continue;
+    const sequel_token_t *candidate = &rendered_tokens[match];
+    if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, source_token->range.start, to,
+                                            candidate->range.start, SEQUEL_ANALYSIS_MAP_REPLACE) ||
+        !sequel_analysis_append_map_segment(&segments, &count, &capacity, source_token->range.start,
+                                            source_token->range.end, candidate->range.start, candidate->range.end,
+                                            SEQUEL_ANALYSIS_MAP_COPY)) {
+      free(segments);
+      sequel_lexed_document_free(original_lexed);
+      sequel_lexed_document_free(rendered_lexed);
+      return SEQUEL_ERR_NOMEM;
+    }
+    from = source_token->range.end;
+    to = candidate->range.end;
+    rendered_index = match + 1;
+  }
+  if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, original.length, to, rendered.length,
+                                          SEQUEL_ANALYSIS_MAP_REPLACE)) {
+    free(segments);
+    sequel_lexed_document_free(original_lexed);
+    sequel_lexed_document_free(rendered_lexed);
+    return SEQUEL_ERR_NOMEM;
+  }
+  sequel_lexed_document_free(original_lexed);
+  sequel_lexed_document_free(rendered_lexed);
+  *map = (sequel_analysis_source_map_t){original.length, rendered.length, segments, count};
+  *owned_segments = segments;
+  return SEQUEL_OK;
+}
+
 struct sequel_query_analysis {
   const sequel_query_document_t *query;
   sequel_query_analysis_options_t options;
@@ -18,7 +106,7 @@ struct sequel_query_analysis {
   sequel_analysis_source_map_t sanitized_map;
   sequel_analysis_map_segment_t *sanitized_segments;
   sequel_analysis_source_map_t formatted_map;
-  sequel_analysis_map_segment_t formatted_segment;
+  sequel_analysis_map_segment_t *formatted_segments;
 };
 
 static int sequel_analysis_cancelled(const sequel_cancellation_t *cancellation) {
@@ -135,10 +223,12 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           &analysis->sanitized_sql, &analysis->sanitized_map, &analysis->sanitized_segments);
     }
     if (status == SEQUEL_OK && analysis->formatted_sql.data) {
-      analysis->formatted_segment = (sequel_analysis_map_segment_t){
-          0, sequel_query_source(query).length, 0, analysis->formatted_sql.length, SEQUEL_ANALYSIS_MAP_REPLACE};
-      analysis->formatted_map = (sequel_analysis_source_map_t){
-          sequel_query_source(query).length, analysis->formatted_sql.length, &analysis->formatted_segment, 1};
+      sequel_source_view_t formatted_source =
+          analysis->sanitized_sql.data
+              ? (sequel_source_view_t){analysis->sanitized_sql.data, analysis->sanitized_sql.length}
+              : sequel_lexed_source(sequel_syntax_lexed(syntax));
+      status = sequel_analysis_build_formatted_map(formatted_source, &analysis->formatted_sql, &analysis->formatted_map,
+                                                   &analysis->formatted_segments);
     }
   }
   if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
@@ -169,6 +259,7 @@ void sequel_query_analysis_free(sequel_query_analysis_t *analysis) {
   sequel_text_result_free(&analysis->sanitized_sql);
   sequel_text_result_free(&analysis->formatted_sql);
   free(analysis->sanitized_segments);
+  free(analysis->formatted_segments);
   free(analysis);
 }
 

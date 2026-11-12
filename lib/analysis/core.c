@@ -102,6 +102,49 @@ static void sequel_analysis_segment(analysis_map *b, size_t fs, size_t fe, size_
   b->p[b->n++] = (sequel_map_segment_t){fs, fe, ts, te, kind};
 }
 
+static void sequel_analysis_build_format_map(analysis_map *map, const char *source, size_t source_length,
+                                             const char *formatted, size_t formatted_length) {
+  size_t source_cursor = 0, formatted_cursor = 0;
+  while (source_cursor < source_length && formatted_cursor < formatted_length) {
+    if (source[source_cursor] != formatted[formatted_cursor]) {
+      const char *source_match =
+          memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
+      const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor],
+                                           formatted_length - formatted_cursor);
+      if (source_match && (!formatted_match || source_match - source < formatted_match - formatted)) {
+        sequel_analysis_segment(map, source_cursor, (size_t)(source_match - source), formatted_cursor, formatted_cursor,
+                                SEQUEL_MAP_DELETE);
+        source_cursor = (size_t)(source_match - source);
+        continue;
+      }
+      if (formatted_match) {
+        sequel_analysis_segment(map, source_cursor, source_cursor, formatted_cursor,
+                                (size_t)(formatted_match - formatted), SEQUEL_MAP_INSERT);
+        formatted_cursor = (size_t)(formatted_match - formatted);
+        continue;
+      }
+      sequel_analysis_segment(map, source_cursor, source_cursor + 1, formatted_cursor, formatted_cursor + 1,
+                              SEQUEL_MAP_REPLACE);
+      ++source_cursor;
+      ++formatted_cursor;
+      continue;
+    }
+    size_t run_start = source_cursor;
+    while (source_cursor < source_length && formatted_cursor < formatted_length &&
+           source[source_cursor] == formatted[formatted_cursor]) {
+      ++source_cursor;
+      ++formatted_cursor;
+    }
+    if (source_cursor > run_start)
+      sequel_analysis_segment(map, run_start, source_cursor, formatted_cursor - (source_cursor - run_start),
+                              formatted_cursor, SEQUEL_MAP_COPY);
+  }
+  sequel_analysis_segment(map, source_cursor, source_length, formatted_cursor, formatted_length,
+                          source_cursor == source_length         ? SEQUEL_MAP_INSERT
+                          : formatted_cursor == formatted_length ? SEQUEL_MAP_DELETE
+                                                                 : SEQUEL_MAP_REPLACE);
+}
+
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish
  * SQLite binding namespaces; fingerprint frames exclude those spellings. */
 static uint64_t sequel_analysis_key_hash(const char *p, size_t n) {
@@ -640,24 +683,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
             if (maps) {
               analysis_map *format_map = calloc(1, sizeof(*format_map));
               if (format_map) {
-                size_t source_cursor = 0, formatted_cursor = 0;
-                while (source_cursor < safe.n && formatted_cursor < formatted_result.length) {
-                  const char *source_question = memchr(safe.p + source_cursor, '?', safe.n - source_cursor);
-                  const char *formatted_question =
-                      memchr(formatted_result.data + formatted_cursor, '?', formatted_result.length - formatted_cursor);
-                  if (!source_question || !formatted_question)
-                    break;
-                  size_t source_question_offset = (size_t)(source_question - safe.p);
-                  size_t formatted_question_offset = (size_t)(formatted_question - formatted_result.data);
-                  sequel_analysis_segment(format_map, source_cursor, source_question_offset, formatted_cursor,
-                                          formatted_question_offset, SEQUEL_MAP_REPLACE);
-                  sequel_analysis_segment(format_map, source_question_offset, source_question_offset + 1,
-                                          formatted_question_offset, formatted_question_offset + 1, SEQUEL_MAP_COPY);
-                  source_cursor = source_question_offset + 1;
-                  formatted_cursor = formatted_question_offset + 1;
-                }
-                sequel_analysis_segment(format_map, source_cursor, safe.n, formatted_cursor, formatted_result.length,
-                                        SEQUEL_MAP_REPLACE);
+                sequel_analysis_build_format_map(format_map, safe.p, safe.n, formatted_result.data,
+                                                 formatted_result.length);
                 out->sanitized_to_formatted =
                     (sequel_source_map_t){safe.n, formatted_result.length, format_map->p, format_map->n};
               }
