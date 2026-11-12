@@ -83,6 +83,14 @@ sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, si
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
                                  const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
 
+/**
+ * Reparse a document after replacing [edit->start, edit->old_end).
+ *
+ * The returned document owns its replacement source and lexical document; it
+ * is independent of both `previous` and `edit` after this call returns.
+ * Unchanged ranges retain equivalent source coordinates, but callers must not
+ * depend on pointer identity for tokens or syntax nodes.
+ */
 sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
                                const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
                                sequel_syntax_document_t **out);
