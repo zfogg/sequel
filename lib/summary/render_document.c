@@ -2103,8 +2103,8 @@ summary_postprocess:
     }
     if (text && !sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
         sequel_summary_find_text(source.data, " FROM ") && sequel_summary_find_text(source.data, ", ") &&
-        sequel_summary_find_text(source.data, " WHERE ") &&
-        !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") && !sequel_summary_has_projection_scope(query)) {
+        sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+        !sequel_summary_has_projection_scope(query)) {
       const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
       const char *where = sequel_summary_find_text(from, " WHERE ");
       if (where && memchr(from, ',', (size_t)(where - from))) {
