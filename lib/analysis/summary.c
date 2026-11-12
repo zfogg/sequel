@@ -22,13 +22,11 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   const char *parameter_limit = strstr(source.data, "LIMIT sqlc.arg(");
   if (parameter_limit && parameter_limit < source_limit)
     parameter_limit_before_numeric = true;
-  const char *first_statement_end = strchr(source.data, ';');
-  bool first_statement_has_numeric_limit = first_statement_end && source_limit && source_limit < first_statement_end;
   const char *locking_clause = strstr(source.data, "FOR UPDATE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
   if (source_limit &&
       (!multiple_named_queries ||
-       (!first_statement_has_numeric_limit && !first_statement_has_locking_limit &&
+       (!first_statement_has_locking_limit &&
         !parameter_limit_before_numeric && source_limit[6] <= '2')) &&
       summary.data) {
     char *rendered_limit = NULL;
