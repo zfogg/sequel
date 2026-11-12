@@ -129,9 +129,14 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
   sequel_source_view_t source = lexed ? sequel_lexed_source(lexed) : sequel_query_source(query);
   const char *source_limit = NULL;
-  for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
-    if (!source_limit && cursor[6] >= '0' && cursor[6] <= '9')
-      source_limit = cursor;
+  size_t numeric_limit_count = 0;
+  for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6) {
+    if (cursor[6] >= '0' && cursor[6] <= '9') {
+      if (!source_limit)
+        source_limit = cursor;
+      ++numeric_limit_count;
+    }
+  }
   const char *first_name = strstr(source.data, "-- name:");
   bool multiple_named_queries = first_name && strstr(first_name + strlen("-- name:"), "-- name:");
   bool parameter_limit_before_numeric = false;
@@ -142,7 +147,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   if (!locking_clause)
     locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
-  if (source_limit && !multiple_named_queries && !first_statement_has_locking_limit &&
+  if (source_limit && numeric_limit_count == 1 && !multiple_named_queries && !first_statement_has_locking_limit &&
       !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
