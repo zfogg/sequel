@@ -157,6 +157,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
 void sequel_query_document_free(sequel_query_document_t *document);
 size_t sequel_query_statement_count(const sequel_query_document_t *document);
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document);
+size_t sequel_query_scope_statement_count(const sequel_query_document_t *document);
+const sequel_statement_info_t *sequel_query_scope_statements(const sequel_query_document_t *document);
 size_t sequel_query_relation_count(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
 const sequel_relation_info_t *sequel_query_relation(const sequel_query_document_t *document, size_t index);

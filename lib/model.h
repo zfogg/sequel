@@ -50,6 +50,8 @@ struct sequel_query_document {
   const sequel_syntax_document_t *syntax;
   sequel_statement_info_t *statements;
   size_t statement_count;
+  sequel_statement_info_t *scope_statements;
+  size_t scope_statement_count;
   sequel_relation_info_t *relations;
   size_t relation_count;
   sequel_cte_info_t *ctes;

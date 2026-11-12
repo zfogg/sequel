@@ -514,6 +514,25 @@ int main(void) {
   sequel_text_result_free(&quoted_join_summary);
   sequel_query_document_free(quoted_join_query);
   sequel_syntax_document_free(quoted_join_syntax);
+  const char nested_relation_sql[] = "SELECT * FROM accounts a JOIN LATERAL (SELECT id FROM events WHERE "
+                                     "events.account_id = a.id LIMIT 1) AS e ON true";
+  sequel_source_view_t nested_relation_source = {nested_relation_sql, strlen(nested_relation_sql)};
+  sequel_syntax_document_t *nested_relation_syntax = NULL;
+  sequel_query_document_t *nested_relation_query = NULL;
+  if (!check(sequel_parse_sql(&nested_relation_source, &options, NULL, &nested_relation_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(nested_relation_syntax, &options, &nested_relation_query) == SEQUEL_OK &&
+                 sequel_query_scope_statement_count(nested_relation_query) > 0,
+             "nested statement scope"))
+    return 1;
+  bool linked_nested_relation = false;
+  for (size_t i = 0; i < sequel_query_relation_count(nested_relation_query); ++i)
+    if (sequel_query_relations(nested_relation_query)[i].kind == SEQUEL_RELATION_SUBQUERY &&
+        sequel_query_relations(nested_relation_query)[i].subquery_statement != SIZE_MAX)
+      linked_nested_relation = true;
+  if (!check(linked_nested_relation, "nested relation statement association"))
+    return 1;
+  sequel_query_document_free(nested_relation_query);
+  sequel_syntax_document_free(nested_relation_syntax);
   sequel_diagnostic_list_t semantic_diagnostics = {0}, policy_diagnostics = {0};
   if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK &&
                  sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,

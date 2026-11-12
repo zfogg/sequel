@@ -8,6 +8,7 @@ void sequel_query_document_free(sequel_query_document_t *document) {
   if (!document)
     return;
   sequel_query_array_free(document->statements);
+  sequel_query_array_free(document->scope_statements);
   sequel_query_array_free(document->relations);
   sequel_query_array_free(document->ctes);
   sequel_query_array_free(document->parameters);
@@ -24,6 +25,14 @@ size_t sequel_query_statement_count(const sequel_query_document_t *document) {
 
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document) {
   return document ? document->statements : NULL;
+}
+
+size_t sequel_query_scope_statement_count(const sequel_query_document_t *document) {
+  return document ? document->scope_statement_count : 0;
+}
+
+const sequel_statement_info_t *sequel_query_scope_statements(const sequel_query_document_t *document) {
+  return document ? document->scope_statements : NULL;
 }
 
 size_t sequel_query_relation_count(const sequel_query_document_t *document) {

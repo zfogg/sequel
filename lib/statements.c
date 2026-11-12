@@ -54,6 +54,31 @@ sequel_status_t sequel_query_build_statements(sequel_query_document_t *document,
     }
   }
 
+  /* Subquery statements have their own scope and must not inflate the
+   * top-level statement collection used by operation and summary consumers. */
+  for (size_t i = 0; i < node_count; ++i) {
+    if (nodes[i].kind != SEQUEL_SYNTAX_SUBQUERY)
+      continue;
+    size_t first = nodes[i].first_token;
+    while (first < token_count && is_trivia(&tokens[first]))
+      ++first;
+    if (first < token_count && tokens[first].kind == SEQUEL_TOKEN_PUNCTUATION)
+      ++first;
+    while (first < token_count && is_trivia(&tokens[first]))
+      ++first;
+    if (first >= token_count)
+      continue;
+    sequel_statement_info_t statement = {
+        .range = nodes[i].range,
+        .operation = sequel_query_operation_from_word(source->data + tokens[first].range.start,
+                                                      tokens[first].range.end - tokens[first].range.start),
+        .syntax_node = i,
+        .query_body = SIZE_MAX};
+    if (!sequel_query_array_append((void **)&document->scope_statements, &document->scope_statement_count,
+                                   sizeof(statement), &statement))
+      return SEQUEL_ERR_NOMEM;
+  }
+
   if (!document->statement_count && token_count) {
     for (size_t token = 0; token < token_count; ++token) {
       if (is_trivia(&tokens[token]))

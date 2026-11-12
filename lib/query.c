@@ -72,6 +72,19 @@ static uint64_t range_hash(const sequel_source_view_t *source, sequel_source_ran
   return hash;
 }
 
+static size_t sequel_query_scope_for_range(const sequel_query_document_t *document, sequel_source_range_t range) {
+  size_t match = SIZE_MAX;
+  for (size_t i = 0; i < document->scope_statement_count; ++i) {
+    if (!sequel_source_range_contains(document->scope_statements[i].range, range))
+      continue;
+    if (match == SIZE_MAX ||
+        document->scope_statements[i].range.end - document->scope_statements[i].range.start <
+            document->scope_statements[match].range.end - document->scope_statements[match].range.start)
+      match = i;
+  }
+  return match;
+}
+
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
                                             const sequel_parse_options_t *options, sequel_query_document_t **out) {
   if (!syntax || !out)
@@ -445,6 +458,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .parent_relation = SIZE_MAX,
                                          .subquery_statement = SIZE_MAX,
                                          .flags = SEQUEL_RELATION_FLAG_NESTED_SCOPE};
+      relation.subquery_statement = sequel_query_scope_for_range(document, relation.name_range);
       if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
                                      &relation)) {
         sequel_query_document_free(document);
@@ -634,6 +648,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (function_relation)
       relation.name_range.end = tokens[name].range.end;
+    if (relation.kind == SEQUEL_RELATION_SUBQUERY)
+      relation.subquery_statement = sequel_query_scope_for_range(document, relation.range);
     if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
                                    &relation)) {
       sequel_query_document_free(document);
