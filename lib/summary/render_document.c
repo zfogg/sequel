@@ -441,9 +441,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
           size_t on = end;
           while (on < source.length && isspace((unsigned char)source.data[on]))
             ++on;
-          if (sequel_summary_word(source.data, source.length, on, "ON") &&
-              !sequel_summary_append_text(&text, &length, &capacity, " ON ..."))
-            goto no_memory;
+            if (sequel_summary_word(source.data, source.length, on, "ON") && settings->redact_relations &&
+                !sequel_summary_append_text(&text, &length, &capacity, " ON ..."))
+              goto no_memory;
         }
       }
     }
@@ -841,6 +841,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                 goto no_memory;
               break;
             }
+              if (!sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
+                goto no_memory;
+              break;
           }
         }
         bool nested = false;
