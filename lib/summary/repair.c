@@ -198,6 +198,60 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
   return 1;
 }
 
+int sequel_summary_repair_mysql_update_aliases(char **text, size_t *length, size_t *capacity,
+                                               const sequel_query_document_t *query, sequel_source_view_t source,
+                                               size_t outer_start) {
+  if (!text || !*text || !length || !capacity || !query)
+    return 0;
+  if (sequel_query_dialect(query) != SEQUEL_MYSQL || !sequel_summary_find_text(source.data, " JOIN "))
+    return 1;
+  for (size_t cursor = outer_start; cursor < source.length;) {
+    const char *join = sequel_summary_find_word(source.data, source.length, cursor, "JOIN");
+    if (!join)
+      break;
+    const char *table = join + strlen("JOIN");
+    while (table < source.data + source.length && isspace((unsigned char)*table))
+      ++table;
+    const char *table_end = table;
+    while (table_end < source.data + source.length && !isspace((unsigned char)*table_end))
+      ++table_end;
+    const char *alias = table_end;
+    while (alias < source.data + source.length && isspace((unsigned char)*alias))
+      ++alias;
+    const char *alias_end = alias;
+    while (alias_end < source.data + source.length && !isspace((unsigned char)*alias_end))
+      ++alias_end;
+    if (table_end > table && alias_end > alias &&
+        !sequel_summary_word(source.data, source.length, (size_t)(alias - source.data), "ON")) {
+      size_t table_length = (size_t)(table_end - table), alias_length = (size_t)(alias_end - alias);
+      size_t pattern_length = strlen("JOIN ") + table_length + 1 + alias_length;
+      char *pattern = malloc(pattern_length + 1);
+      if (!pattern)
+        return 0;
+      memcpy(pattern, "JOIN ", strlen("JOIN "));
+      memcpy(pattern + strlen("JOIN "), table, table_length);
+      pattern[strlen("JOIN ") + table_length] = ' ';
+      memcpy(pattern + strlen("JOIN ") + table_length + 1, alias, alias_length);
+      pattern[pattern_length] = 0;
+      char *match = sequel_summary_find_text(*text, pattern);
+      free(pattern);
+      if (match) {
+        size_t offset = (size_t)(match - *text) + strlen("JOIN ") + table_length;
+        char *grown = realloc(*text, *length + 4);
+        if (!grown)
+          return 0;
+        *text = grown;
+        memmove(*text + offset + 4, *text + offset + 1, *length - offset);
+        memcpy(*text + offset, " AS ", 4);
+        *length += 3;
+        *capacity = *length + 1;
+      }
+    }
+    cursor = (size_t)(join - source.data) + strlen("JOIN");
+  }
+  return 1;
+}
+
 int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                        const sequel_query_document_t *query, const sequel_statement_info_t *statements,
                                        size_t statement_count, bool include_predicates) {
