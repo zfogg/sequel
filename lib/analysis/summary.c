@@ -151,16 +151,17 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
   bool has_distinct_on = strstr(source.data, "DISTINCT ON") != NULL;
-  if (source_limit && limit_count == 1 && !multiple_named_queries && !first_statement_has_locking_limit &&
-      !has_distinct_on && !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && summary.data) {
+  if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries &&
+      !first_statement_has_locking_limit && !has_distinct_on && !parameter_limit_before_numeric &&
+      !isdigit((unsigned char)source_limit[7]) && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") &&
-      !strstr(source.data, "LIMIT $")) {
+  if (summary.data && !strstr(source.data, "UPDATE ") && strstr(source.data, "ORDER BY") &&
+      strstr(source.data, "LIMIT 1") && !strstr(source.data, "LIMIT $")) {
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
