@@ -643,10 +643,20 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN)
       continue;
+    size_t scope = SIZE_MAX;
+    for (size_t r = 0; r < document->relation_count; ++r) {
+      if (!sequel_source_range_contains(document->relations[r].range, tokens[i].range))
+        continue;
+      if (scope == SIZE_MAX || document->relations[r].range.end - document->relations[r].range.start <
+                                   document->relations[scope].range.end - document->relations[scope].range.start)
+        scope = r;
+    }
     size_t left = SIZE_MAX;
     size_t right = SIZE_MAX;
     for (size_t r = 0; r < document->relation_count; ++r) {
       const sequel_source_range_t relation_range = document->relations[r].range;
+      if (document->relations[r].parent_relation != scope)
+        continue;
       if (relation_range.end <= tokens[i].range.start &&
           (left == SIZE_MAX || relation_range.end > document->relations[left].range.end))
         left = r;
