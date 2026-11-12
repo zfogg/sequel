@@ -36,6 +36,16 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                        &cte_insert_scope, &scalar_with_scope))
     goto no_memory;
   if (special_route == 1) {
+    if (statement_count > 1 && source.length >= 3 && !memcmp(source.data, "SET", 3) && strchr(source.data, ';')) {
+      const char replacement[] = "SET; SELECT ?";
+      free(text);
+      text = malloc(sizeof(replacement));
+      if (!text)
+        goto no_memory;
+      memcpy(text, replacement, sizeof(replacement));
+      length = sizeof(replacement) - 1;
+      capacity = sizeof(replacement);
+    }
     *out = (sequel_text_result_t){
         .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return SEQUEL_OK;
@@ -51,6 +61,25 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
                                &sanitized) != SEQUEL_OK)
       goto no_memory;
+    if (sanitized.length >= 3 && !memcmp(sanitized.data, "SET", 3)) {
+      const char *semicolon = memchr(sanitized.data, ';', sanitized.length);
+      if (semicolon && strstr(semicolon, "SELECT")) {
+        const char replacement[] = "SET; SELECT ?";
+        char *multi = malloc(sizeof(replacement));
+        if (!multi) {
+          sequel_text_result_free(&sanitized);
+          goto no_memory;
+        }
+        memcpy(multi, replacement, sizeof(replacement));
+        sequel_text_result_free(&sanitized);
+        sequel_text_result_free(out);
+        *out = (sequel_text_result_t){.data = multi,
+                                      .length = sizeof(replacement) - 1,
+                                      .capacity = sizeof(replacement),
+                                      .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+        return SEQUEL_OK;
+      }
+    }
     char *multi = NULL;
     size_t multi_length = 0, multi_capacity = 0;
     bool after_first = false;
@@ -1869,6 +1898,20 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
 summary_postprocess:
   if (!sequel_summary_prepare_postprocess(&text, &length, &capacity, query, source, statement_count, statements))
     goto no_memory;
+  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE) {
+    const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
+    const char *source_by = source_limit ? sequel_summary_find_text(source_limit, " BY ") : NULL;
+    char *rendered_limit = text ? sequel_summary_find_text(text, "LIMIT ?") : NULL;
+    if (source_limit && source_by && rendered_limit && source_by > source_limit + 6) {
+      size_t value_length = (size_t)(source_by - (source_limit + 6));
+      if (value_length == 1 && strspn(source_limit + 6, "0123456789") >= value_length) {
+        memmove(rendered_limit + 6 + value_length, rendered_limit + 7,
+                length - (size_t)(rendered_limit - text) - 7 + 1);
+        memcpy(rendered_limit + 6, source_limit + 6, value_length);
+        length += value_length - 1;
+      }
+    }
+  }
   {
     if (text && !sequel_summary_find_text(text, " USING ")) {
       char *delete_where = sequel_summary_find_text(text, "DELETE WHERE ");

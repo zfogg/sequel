@@ -4,6 +4,13 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
   if (!query || !out || !sequel_query_statement_count(query))
     return;
   const sequel_statement_info_t *statement = sequel_query_statements(query);
+  sequel_source_view_t source = sequel_query_source(query);
+  if (source.length >= 3 && (source.data[0] == 'S' || source.data[0] == 's') &&
+      (source.data[1] == 'E' || source.data[1] == 'e') && (source.data[2] == 'T' || source.data[2] == 't') &&
+      strchr(source.data, ';')) {
+    out->operation[0] = 0;
+    return;
+  }
   const char *name = NULL;
   switch (statement[0].operation) {
   case SEQUEL_OPERATION_SELECT:
@@ -31,7 +38,6 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     name = "EXPLAIN";
     break;
   default: {
-    sequel_source_view_t source = sequel_query_source(query);
     size_t start = statement[0].range.start;
     size_t end = start;
     while (start < statement[0].range.end && isspace((unsigned char)source.data[start]))
