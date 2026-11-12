@@ -239,6 +239,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   bool between_pending = false;
   bool projection_subquery = false;
   bool window_paren = false;
+  bool within_group_paren = false;
   bool cte_just_closed = false;
   size_t case_function_count = 0;
   size_t case_depth = 0;
@@ -280,6 +281,9 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           sequel_formatter_is_join_modifier(source, previous_token)) &&
         !(token->keyword_id == SEQUEL_KEYWORD_ON && previous_token &&
           sequel_formatter_token_is_word(source, previous_token, "DISTINCT")) &&
+        !(token->keyword_id == SEQUEL_KEYWORD_GROUP && previous_token &&
+          sequel_formatter_token_is_word(source, previous_token, "WITHIN")) &&
+        !(token->keyword_id == SEQUEL_KEYWORD_ORDER && within_group_paren) &&
         !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
     bool condition_operator =
@@ -351,6 +355,19 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         cte_paren_depth = paren_depth + 1;
       sequel_formatter_update_parenthesis_depth(source, token, &paren_depth);
       char symbol = source.data[token->range.start];
+      if (symbol == '(' && previous_token && sequel_formatter_token_is_word(source, previous_token, "GROUP")) {
+        size_t before_group = i - 1;
+        while (before_group > 0 && tokens[before_group].kind == SEQUEL_TOKEN_WHITESPACE)
+          --before_group;
+        if (sequel_formatter_token_is_word(source, &tokens[before_group], "GROUP")) {
+          while (before_group > 0 && tokens[before_group - 1].kind == SEQUEL_TOKEN_WHITESPACE)
+            --before_group;
+          if (before_group > 0 && sequel_formatter_token_is_word(source, &tokens[before_group - 1], "WITHIN"))
+            within_group_paren = true;
+        }
+      }
+      else if (symbol == ')' && within_group_paren)
+        within_group_paren = false;
       if (symbol == '[')
         ++bracket_depth;
       else if (symbol == ']' && bracket_depth)
