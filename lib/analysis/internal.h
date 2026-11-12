@@ -42,6 +42,23 @@ typedef struct {
   size_t n, capacity;
 } analysis_text;
 
+typedef struct {
+  const char *key;
+  size_t length, slot, identity;
+  uint64_t hash;
+  bool occupied, owned, numbered;
+} analysis_binding;
+
+typedef struct {
+  analysis_binding *p;
+  size_t count, capacity, maximum, identities;
+} analysis_bindings;
+
+analysis_binding *sequel_analysis_binding_slot(analysis_bindings *bindings, const char *key, size_t length,
+                                               size_t number);
+analysis_binding *sequel_analysis_numeric_identity(analysis_bindings *bindings, size_t slot);
+void sequel_analysis_dictionary_clear(analysis_bindings *bindings);
+
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
 bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
