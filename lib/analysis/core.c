@@ -21,19 +21,8 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       gap = false;
     }
     bool suppressed = collapse_end != SIZE_MAX && i < collapse_end;
-    if (!suppressed && start > consumed) {
-      if (map)
-        sequel_analysis_segment(map, consumed, start, safe->n, safe->n, SEQUEL_MAP_DELETE);
-      gap = true;
-    }
-    consumed = end;
-    if (t.kind >= 3) {
-      if (map && !suppressed)
-        sequel_analysis_segment(map, start, end, safe->n, safe->n, SEQUEL_MAP_DELETE);
-      if (!suppressed)
-        gap = true;
+    if (sequel_analysis_consume_trivia(t, suppressed, &consumed, safe, map, &gap))
       continue;
-    }
     bool literal = sequel_analysis_literal(t, a->options.dialect);
     const char *key;
     size_t key_length, number;

@@ -9,6 +9,25 @@ void sequel_analysis_emit_gap(analysis_text *safe, analysis_map *map, size_t sou
     sequel_analysis_segment(map, source_offset, source_offset, before, safe->n, SEQUEL_MAP_INSERT);
 }
 
+bool sequel_analysis_consume_trivia(analysis_token_t token, bool suppressed, size_t *consumed, analysis_text *safe,
+                                    analysis_map *map, bool *gap) {
+  size_t start = token.source_offset;
+  size_t end = start + token.t.n;
+  if (!suppressed && start > *consumed) {
+    if (map)
+      sequel_analysis_segment(map, *consumed, start, safe->n, safe->n, SEQUEL_MAP_DELETE);
+    *gap = true;
+  }
+  *consumed = end;
+  if (token.kind < 3)
+    return false;
+  if (map && !suppressed)
+    sequel_analysis_segment(map, start, end, safe->n, safe->n, SEQUEL_MAP_DELETE);
+  if (!suppressed)
+    *gap = true;
+  return true;
+}
+
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind) {
   size_t start = token.source_offset;

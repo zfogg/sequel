@@ -76,6 +76,8 @@ bool sequel_analysis_source_contains(sequel_source_view_t source, const char *ne
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind);
 void sequel_analysis_emit_gap(analysis_text *safe, analysis_map *map, size_t source_offset);
+bool sequel_analysis_consume_trivia(analysis_token_t token, bool suppressed, size_t *consumed, analysis_text *safe,
+                                    analysis_map *map, bool *gap);
 void sequel_fingerprint_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number);
 void sequel_fingerprint_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
 void sequel_fingerprint_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
