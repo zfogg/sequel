@@ -1,6 +1,13 @@
 """Build the Python binding against this checkout's C library sources."""
 
+from pathlib import Path
+
 from setuptools import Extension, setup
+
+
+library_sources = sorted(
+    str(path) for path in Path("lib").rglob("*.c") if path.as_posix() != "lib/analysis/tokens.c"
+)
 
 setup(
     ext_modules=[
@@ -8,64 +15,7 @@ setup(
             "sequel._sql",
             sources=[
                 "python/sequel/_sql.c",
-                "lib/engine.c",
-                "lib/runtime.c",
-                "lib/contracts.c",
-                "lib/sha256.c",
-                "lib/highlight.c",
-                "lib/compact.c",
-                "lib/api.c",
-                "lib/analysis/analysis.c",
-                "lib/analysis/layout.c",
-                "lib/analysis/locations.c",
-                "lib/analysis/operation.c",
-                "lib/analysis/lifecycle.c",
-                "lib/bindings.c",
-                "lib/statements.c",
-                "lib/joins.c",
-                "lib/expressions.c",
-                "lib/analysis/analysis_literal.c",
-                "lib/analysis/analysis_binding_token.c",
-                "lib/analysis/analysis_text.c",
-                "lib/analysis/analysis_policy.c",
-                "lib/source.c",
-                "lib/dialect.c",
-                "lib/lexer.c",
-                "lib/parser.c",
-                "lib/query.c",
-                "lib/arrays.c",
-                "lib/cte.c",
-                "lib/analysis/tokens.c",
-                "lib/analysis/summary.c",
-                "lib/access.c",
-                "lib/diagnostics.c",
-                "lib/analysis/document.c",
-                "lib/serialization.c",
-                "lib/formatter.c",
-                "lib/fingerprint.c",
-                "lib/format_buffer.c",
-                "lib/format_rules.c",
-                "lib/summary/entry.c",
-                "lib/summary/document.c",
-                "lib/summary/render.c",
-                "lib/summary/render_document.c",
-                "lib/summary/routes.c",
-                "lib/summary/special.c",
-                "lib/summary/repair.c",
-                "lib/summary/recovery.c",
-                "lib/summary/normalize.c",
-                "lib/summary/buffer.c",
-                "lib/summary/options.c",
-                "lib/summary/lexical.c",
-                "lib/summary/operation.c",
-                "lib/summary/clause.c",
-                "lib/summary/body.c",
-                "lib/summary/relation.c",
-                "lib/summary/postprocess.c",
-                "lib/summary/statement.c",
-                "lib/summary/subquery.c",
-                "lib/sanitizer.c",
-                "lib/util/utf8.c",
+                *library_sources,
                 "third_party/utf8proc/utf8proc.c",
             ],
             include_dirs=["include", "third_party/utf8proc"],
