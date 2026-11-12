@@ -753,15 +753,15 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
               nested = true;
               break;
             }
-        if (nested && i != 0) {
+        bool relation_is_lateral = relations[i].name_range.end - relations[i].name_range.start == 7 &&
+                                   !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
+        if (nested && i != 0 && !relation_is_lateral) {
           continue;
         }
         if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) && join_index == SIZE_MAX) {
           continue;
         }
         bool nested_relation = (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0;
-        bool relation_is_lateral = relations[i].name_range.end - relations[i].name_range.start == 7 &&
-                                   !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
         if (!relation_is_lateral && relations[i].parent_relation != SIZE_MAX &&
             relations[relations[i].parent_relation].kind == SEQUEL_RELATION_SUBQUERY &&
             sequel_source_range_contains(relations[relations[i].parent_relation].range, relations[i].range)) {
@@ -2536,6 +2536,17 @@ summary_postprocess:
     premature_limit = sequel_summary_find_text(premature_limit, " LIMIT ? ORDER BY ");
     if (!premature_limit)
       break;
+    size_t nesting = 0;
+    for (char *cursor = text; cursor < premature_limit; ++cursor) {
+      if (*cursor == '(')
+        ++nesting;
+      else if (*cursor == ')' && nesting)
+        --nesting;
+    }
+    if (nesting) {
+      premature_limit += strlen(" LIMIT ?");
+      continue;
+    }
     memmove(premature_limit, premature_limit + strlen(" LIMIT ?"),
             length - (size_t)(premature_limit - text) - strlen(" LIMIT ?") + 1);
     length -= strlen(" LIMIT ?");

@@ -115,6 +115,17 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
   if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ")) {
     char *nested_limit = sequel_summary_find_text(*text, " LIMIT ? ORDER BY ");
     if (nested_limit) {
+      size_t nesting = 0;
+      for (char *cursor = *text; cursor < nested_limit; ++cursor) {
+        if (*cursor == '(')
+          ++nesting;
+        else if (*cursor == ')' && nesting)
+          --nesting;
+      }
+      if (nesting)
+        nested_limit = NULL;
+    }
+    if (nested_limit) {
       size_t removed = strlen(" LIMIT ?");
       size_t offset = (size_t)(nested_limit - *text);
       memmove(nested_limit, nested_limit + removed, *length - offset - removed + 1);
