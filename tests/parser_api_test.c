@@ -1305,5 +1305,21 @@ int main(void) {
     sequel_query_document_free(comma_limit_query);
     sequel_syntax_document_free(comma_limit_syntax);
   }
+  {
+    const char borrowed_sql[] = "SELECT id FROM borrowed_source";
+    sequel_source_view_t borrowed_view = {borrowed_sql, strlen(borrowed_sql)};
+    sequel_lexed_document_t *borrowed_lexed = NULL;
+    sequel_syntax_document_t *borrowed_syntax = NULL;
+    if (!check(sequel_lex(&borrowed_view, &options, NULL, &borrowed_lexed) == SEQUEL_OK &&
+                   sequel_parse(borrowed_lexed, &options, NULL, &borrowed_syntax) == SEQUEL_OK,
+               "borrowed parse pipeline"))
+      return 1;
+    sequel_syntax_document_free(borrowed_syntax);
+    if (!check(sequel_lexed_token_count(borrowed_lexed) > 0, "syntax free preserves borrowed lexer")) {
+      sequel_lexed_document_free(borrowed_lexed);
+      return 1;
+    }
+    sequel_lexed_document_free(borrowed_lexed);
+  }
   return 0;
 }
