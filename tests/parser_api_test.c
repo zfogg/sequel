@@ -600,6 +600,12 @@ int main(void) {
                  sequel_build_query_document(portability_syntax, &portability_options, &portability_query) == SEQUEL_OK,
              "portability document"))
     return 1;
+  sequel_query_analysis_t *mismatched_analysis = (sequel_query_analysis_t *)(uintptr_t)1;
+  if (!check(sequel_analyze_document(syntax, portability_query, &analysis_options, NULL, &mismatched_analysis) ==
+                     SEQUEL_ERR_INVALID_ARGUMENT &&
+                 mismatched_analysis == NULL,
+             "reject mismatched analysis documents"))
+    return 1;
   sequel_query_analysis_options_t portability_analysis_options = analysis_options;
   portability_analysis_options.include_portability = true;
   portability_analysis_options.target_dialect = SEQUEL_GENERIC;
