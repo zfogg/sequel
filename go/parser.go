@@ -29,6 +29,7 @@ import "C"
 
 import (
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
@@ -116,6 +117,9 @@ type Document struct {
 
 // Parse lexes, parses and indexes SQL using the shared native parser model.
 func Parse(source string, dialect Dialect) (*Document, error) {
+	if strings.IndexByte(source, 0) >= 0 {
+		return nil, fmt.Errorf("sequel parse rejected embedded NUL byte")
+	}
 	options := C.sequel_parse_options_t{}
 	C.sequel_parse_options_init(&options)
 	options.dialect = nativeDialect(dialect)

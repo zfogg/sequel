@@ -33,6 +33,12 @@ func TestParseExposesLosslessTokensAndQueryModel(t *testing.T) {
 	}
 }
 
+func TestParseRejectsEmbeddedNUL(t *testing.T) {
+	if _, err := Parse("SELECT\x00 1", DialectGeneric); err == nil {
+		t.Fatal("Parse accepted an embedded NUL byte")
+	}
+}
+
 func TestParseReturnsLayeredDiagnostics(t *testing.T) {
 	document, err := Parse("SELECT * FROM users; SELECT 1", DialectGeneric)
 	if err != nil {
