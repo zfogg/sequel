@@ -1407,17 +1407,17 @@ unsafe extern "C" {
         out: *mut ::std::os::raw::c_char,
     ) -> sequel_status_t;
 }
-#[doc = " Inspection policy. Initialize to zero to use generic SQL and default limits."]
+#[doc = " Metadata policy. Initialize to zero to use generic SQL and default limits."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct sequel_options_t {
+pub struct sequel_metadata_options_t {
     pub dialect: sequel_dialect_t,
     #[doc = " Zero uses SEQUEL_TEXT_MAX. Values above SEQUEL_TEXT_MAX are rejected."]
     pub max_query_text_bytes: usize,
     pub omit_query_text: bool,
     pub keep_in_lists: bool,
 }
-#[doc = " Bounded, sanitized query text and structural metadata from sequel_inspect.\n Text is allocated to fit the actual result, not the maximum limits.\n Do not copy this owning struct or modify its pointers. Release it with\n sequel_metadata_free before reuse, including after a failed inspection."]
+#[doc = " Bounded, sanitized query text and structural metadata from sequel_metadata.\n Text is allocated to fit the actual result, not the maximum limits.\n Do not copy this owning struct or modify its pointers. Release it with\n sequel_metadata_free before reuse, including after a failed metadata extraction."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct sequel_metadata_t {
@@ -1430,14 +1430,14 @@ pub struct sequel_metadata_t {
     pub _storage: *mut ::std::os::raw::c_void,
 }
 unsafe extern "C" {
-    #[doc = " Release inspection storage and reset metadata. NULL is allowed. Only call\n on a zero-initialized struct or one initialized by sequel_inspect. Safe to repeat."]
+    #[doc = " Release metadata storage and reset metadata. NULL is allowed. Only call\n on a zero-initialized struct or one initialized by sequel_metadata. Safe to repeat."]
     pub fn sequel_metadata_free(metadata: *mut sequel_metadata_t);
 }
 unsafe extern "C" {
-    #[doc = " Dialect-independent inspection, usable without SQLite. Never reads bind\n values. Malformed quoting fails closed: text is empty and summary is SQL.\n Input is limited to SEQUEL_INPUT_MAX and nesting to 64 levels. Output is UTF-8\n bounded. out need not be initialized, but any previous result must be freed."]
-    pub fn sequel_inspect(
+    #[doc = " Dialect-independent metadata extraction, usable without SQLite. Never reads bind\n values. Malformed quoting fails closed: text is empty and summary is SQL.\n Input is limited to SEQUEL_INPUT_MAX and nesting to 64 levels. Output is UTF-8\n bounded. out need not be initialized, but any previous result must be freed."]
+    pub fn sequel_metadata(
         sql: *const ::std::os::raw::c_char,
-        options: *const sequel_options_t,
+        options: *const sequel_metadata_options_t,
         out: *mut sequel_metadata_t,
     ) -> sequel_status_t;
 }
