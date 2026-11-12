@@ -26,7 +26,7 @@ static int sequel_query_token_is_join_modifier(const sequel_source_view_t *sourc
   const char *modifiers[] = {"NATURAL", "LEFT",  "RIGHT",   "FULL", "OUTER", "CROSS", "GLOBAL",
                              "ANY",     "INNER", "LATERAL", "ASOF", "SEMI",  "ANTI",  "POSITIONAL"};
   for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); ++i)
-    if (length == strlen(modifiers[i]) && !_strnicmp(source->data + token->range.start, modifiers[i], length))
+    if (sequel_text_equal_ci(source->data + token->range.start, length, modifiers[i]))
       return 1;
   return 0;
 }
@@ -52,7 +52,7 @@ static int sequel_query_token_is_in_subquery(const sequel_token_t *tokens, size_
         size_t length = tokens[next].range.end - tokens[next].range.start;
         bool select_keyword =
             tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT;
-        bool select_spelling = length == 6 && !_strnicmp(source->data + tokens[next].range.start, "SELECT", length);
+        bool select_spelling = sequel_text_equal_ci(source->data + tokens[next].range.start, length, "SELECT");
         if (select_keyword || select_spelling)
           subquery_depth = depth;
       }

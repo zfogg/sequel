@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "inspection.h"
+#include "util/text.h"
 
 void sequel_inspection_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements,
                                      size_t statement_count, char *operation, size_t operation_capacity) {
@@ -11,7 +12,7 @@ void sequel_inspection_set_operation(const sequel_source_view_t *source, const s
   size_t first = 0;
   while (first < source->length && isspace((unsigned char)source->data[first]))
     ++first;
-  if (first + 3 <= source->length && !_strnicmp(source->data + first, "SET", 3) &&
+  if (first + 3 <= source->length && sequel_text_equal_ci(source->data + first, 3, "SET") &&
       (first + 3 == source->length || !isalpha((unsigned char)source->data[first + 3]))) {
     operation[0] = 0;
     return;
@@ -43,11 +44,11 @@ void sequel_inspection_set_operation(const sequel_source_view_t *source, const s
     size_t start = 0;
     while (start < source->length && isspace((unsigned char)source->data[start]))
       ++start;
-    if (start + 5 <= source->length && !_strnicmp(source->data + start, "BEGIN", 5))
+    if (start + 5 <= source->length && sequel_text_equal_ci(source->data + start, 5, "BEGIN"))
       name = "BEGIN";
-    else if (start + 6 <= source->length && !_strnicmp(source->data + start, "COMMIT", 6))
+    else if (start + 6 <= source->length && sequel_text_equal_ci(source->data + start, 6, "COMMIT"))
       name = "COMMIT";
-    else if (start + 8 <= source->length && !_strnicmp(source->data + start, "ROLLBACK", 8))
+    else if (start + 8 <= source->length && sequel_text_equal_ci(source->data + start, 8, "ROLLBACK"))
       name = "ROLLBACK";
   }
   if (*name) {

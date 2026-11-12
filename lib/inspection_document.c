@@ -9,6 +9,7 @@
 #include "inspection_text.h"
 #include "tokens.h"
 #include "util/utf8.h"
+#include "util/text.h"
 
 static void sequel_inspection_document_normalize_parameters(sequel_text_result_t *summary) {
   if (!summary || !summary->data)
@@ -158,10 +159,10 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   size_t first_sql = 0;
   while (first_sql < source.length && isspace((unsigned char)source.data[first_sql]))
     ++first_sql;
-  if (first_sql + 3 <= source.length && !_strnicmp(source.data + first_sql, "SET", 3) &&
+  if (first_sql + 3 <= source.length && sequel_text_equal_ci(source.data + first_sql, 3, "SET") &&
       (first_sql + 3 == source.length || !isalpha((unsigned char)source.data[first_sql + 3])) &&
       memchr(source.data + first_sql, ';', source.length - first_sql) && summary.data &&
-      !_strnicmp(summary.data, "SELECT", 6)) {
+      sequel_text_equal_ci(summary.data, 6, "SELECT")) {
     const char prefix[] = "SET; ";
     size_t prefix_length = sizeof(prefix) - 1;
     char *expanded = realloc(summary.data, summary.length + prefix_length + 1);
