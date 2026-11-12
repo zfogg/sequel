@@ -17,7 +17,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
       source_limit = cursor;
   const char *first_name = strstr(source.data, "-- name:");
   bool multiple_named_queries = first_name && strstr(first_name + strlen("-- name:"), "-- name:");
-  if (source_limit && !multiple_named_queries && summary.data) {
+  if (source_limit && (!multiple_named_queries || source_limit[6] == '1') && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
