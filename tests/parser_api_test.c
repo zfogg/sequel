@@ -42,6 +42,13 @@ static bool count_clauses(const sequel_query_document_t *document, size_t index,
   return true;
 }
 
+static bool count_ctes(const sequel_query_document_t *document, size_t index, void *userdata) {
+  (void)document;
+  (void)index;
+  ++*(size_t *)userdata;
+  return true;
+}
+
 int main(void) {
   const sequel_dialect_definition_t *postgres = sequel_dialect_definition(SEQUEL_POSTGRESQL);
   if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0,
@@ -910,6 +917,11 @@ int main(void) {
                  sequel_build_query_document(materialized_cte_syntax, &options, &materialized_cte_query) == SEQUEL_OK &&
                  sequel_query_cte_count(materialized_cte_query) == 1,
              "not materialized cte metadata"))
+    return 1;
+  size_t visited_ctes = 0;
+  sequel_query_visitor_t cte_visitor = {.cte = count_ctes, .userdata = &visited_ctes};
+  if (!check(sequel_query_visit(materialized_cte_query, &cte_visitor) == SEQUEL_OK && visited_ctes == 1,
+             "CTE query visitor"))
     return 1;
   sequel_query_document_free(materialized_cte_query);
   sequel_syntax_document_free(materialized_cte_syntax);
