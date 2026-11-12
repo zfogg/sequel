@@ -2458,7 +2458,12 @@ summary_postprocess:
       numeric = isdigit((unsigned char)*cursor) != 0;
     if (numeric) {
       char *rendered_limit = NULL;
-      for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; ++cursor)
+      char *outer_order = NULL;
+      for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "ORDER BY")) != NULL;
+           cursor += strlen("ORDER BY"))
+        outer_order = cursor;
+      char *limit_start = outer_order ? outer_order : text;
+      for (char *cursor = limit_start; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; ++cursor)
         rendered_limit = cursor;
       if (rendered_limit && (size_t)(value_end - value) == sizeof("1") - 1)
         memcpy(rendered_limit, value, sizeof("1") - 1);
