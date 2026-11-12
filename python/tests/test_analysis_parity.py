@@ -13,7 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from sequel import Dialect, analyze, diagnose, inspect
+from sequel import Dialect, analyze, diagnose, metadata
+
+inspect = metadata
 
 ROOT = Path(__file__).resolve().parents[2]
 

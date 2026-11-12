@@ -39,6 +39,3 @@ def metadata(
         raise SQLMetadataError("SQL metadata extraction rejected input") from exc
 
 
-# Retained at the package boundary while callers migrate to metadata().
-inspect = metadata
-SQLInspectionError = SQLMetadataError

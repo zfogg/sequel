@@ -30,8 +30,24 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
   case SEQUEL_OPERATION_EXPLAIN:
     name = "EXPLAIN";
     break;
-  default:
+  default: {
+    sequel_source_view_t source = sequel_query_source(query);
+    size_t start = statement[0].range.start;
+    size_t end = start;
+    while (start < statement[0].range.end && isspace((unsigned char)source.data[start]))
+      ++start;
+    while (start + (end - start) < statement[0].range.end &&
+           (isalnum((unsigned char)source.data[start + (end - start)]) ||
+            source.data[start + (end - start)] == '_'))
+      ++end;
+    size_t length = end > start ? end - start : 0;
+    if (length >= sizeof(out->operation))
+      length = sizeof(out->operation) - 1;
+    for (size_t i = 0; i < length; ++i)
+      out->operation[i] = (char)toupper((unsigned char)source.data[start + i]);
+    out->operation[length] = 0;
     return;
+  }
   }
   snprintf(out->operation, sizeof(out->operation), "%s", name);
 }
