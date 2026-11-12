@@ -66,7 +66,13 @@ void sequel_parse_options_init(sequel_parse_options_t *options);
 sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options,
                            const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out);
 
-/** Parse a lexical document into a recovered syntax document. */
+/**
+ * Parse a lexical document into a recovered syntax document.
+ *
+ * The returned syntax document borrows `lexed`; callers must keep it alive
+ * until the syntax document is released. `sequel_parse_sql` transfers the
+ * lexical document's ownership to the returned syntax document instead.
+ */
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
                              const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
 

@@ -27,6 +27,8 @@ typedef struct {
 
 typedef struct sequel_document_bundle sequel_document_bundle_t;
 
+/** A deserialized bundle owns its source, syntax, query, and diagnostics. */
+
 void sequel_serialization_options_init(sequel_serialization_options_t *options);
 void sequel_buffer_free(sequel_buffer_t *buffer);
 sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,

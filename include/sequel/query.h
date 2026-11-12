@@ -152,6 +152,10 @@ typedef struct {
   void *userdata;
 } sequel_query_visitor_t;
 
+/**
+ * Build a normalized query view that borrows the supplied syntax document.
+ * The syntax document and its lexical source must outlive the query document.
+ */
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
                                             const sequel_parse_options_t *options, sequel_query_document_t **out);
 void sequel_query_document_free(sequel_query_document_t *document);
