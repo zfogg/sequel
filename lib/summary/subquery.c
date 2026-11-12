@@ -43,7 +43,7 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
     return 0;
   const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
   if (outer_limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
-                      !sequel_summary_append_text(text, length, capacity, outer_limit[7] == '$' ? "?" : "1")))
+                      !sequel_summary_append_text(text, length, capacity, "?")))
     return 0;
   return 2;
 }

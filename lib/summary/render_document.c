@@ -2774,57 +2774,9 @@ summary_postprocess:
   }
   if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
     sequel_summary_restore_clickhouse_limit_by(text, length, source);
-  const char *source_limit_value = sequel_summary_find_text(source.data, "LIMIT ");
-  if (text && source_limit_value && source_limit_value[6] >= '0' && source_limit_value[6] <= '9') {
-    char *rendered_limit = sequel_summary_find_text(text, "LIMIT ?");
-    if (rendered_limit && (size_t)(rendered_limit - text) + 7 <= length)
-      rendered_limit[6] = source_limit_value[6];
-    const char *last_source_limit = source_limit_value;
-    for (const char *cursor = source_limit_value + 6; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL;
-         cursor += 6)
-      if (cursor[6] >= '0' && cursor[6] <= '9')
-        last_source_limit = cursor;
-    char *last_rendered_limit = rendered_limit;
-    for (char *cursor = rendered_limit ? rendered_limit + 7 : NULL;
-         cursor && (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
-      last_rendered_limit = cursor;
-    if (last_source_limit != source_limit_value && last_rendered_limit &&
-        (size_t)(last_rendered_limit - text) + 7 <= length)
-      last_rendered_limit[6] = last_source_limit[6];
-  }
   if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements,
                                     statement_count))
     goto no_memory;
-  if (out->data && source_limit_value && source_limit_value[6] >= '0' && source_limit_value[6] <= '9') {
-    char *rendered_limit = sequel_summary_find_text(out->data, "LIMIT ?");
-    if (rendered_limit && (size_t)(rendered_limit - out->data) + 7 <= out->length)
-      rendered_limit[6] = source_limit_value[6];
-    if (strstr(source.data, "LIMIT 1;")) {
-      char *last = rendered_limit;
-      for (char *cursor = rendered_limit ? rendered_limit + 7 : NULL;
-           cursor && (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
-        last = cursor;
-      if (last)
-        last[6] = '1';
-    }
-    const char *global_last_limit = NULL;
-    for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL;
-         cursor += 6)
-      if (cursor[6] >= '0' && cursor[6] <= '9')
-        global_last_limit = cursor;
-    if (global_last_limit) {
-      char *last = NULL;
-      for (char *cursor = out->data; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
-        last = cursor;
-      if (last)
-        last[6] = global_last_limit[6];
-    }
-  }
-  if (out->data && sequel_summary_find_text(source.data, "LIMIT (")) {
-    char *outer_limit = sequel_summary_find_text(out->data, "LIMIT ");
-    if (outer_limit && outer_limit[6] >= '0' && outer_limit[6] <= '9')
-      outer_limit[6] = '?';
-  }
   return SEQUEL_OK;
 invalid:
   free(text);
