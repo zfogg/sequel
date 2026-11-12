@@ -108,13 +108,16 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   if (!rendered_limit)
     return 1;
   char *rendered_value = rendered_limit + strlen("LIMIT ");
-  while (isdigit((unsigned char)*rendered_value))
-    ++rendered_value;
-  if (rendered_value == rendered_limit + strlen("LIMIT "))
+  char *rendered_value_end = rendered_value;
+  while (isdigit((unsigned char)*rendered_value_end))
+    ++rendered_value_end;
+  if (rendered_value_end == rendered_value && *rendered_value_end != '?')
     return 1;
 
   size_t source_digits = (size_t)(source_value_end - source_value);
-  size_t rendered_digits = (size_t)(rendered_value - (rendered_limit + strlen("LIMIT ")));
+  size_t rendered_digits = (size_t)(rendered_value_end - rendered_value);
+  if (rendered_digits == 0)
+    rendered_digits = 1;
   size_t suffix_length = comma_limit ? strlen(", ?") : 0;
   size_t replacement_length = source_digits + suffix_length;
   size_t old_length = rendered_digits;
@@ -131,8 +134,8 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
     rendered_value = rendered_limit + strlen("LIMIT ") + rendered_digits;
   }
   if (replacement_length != old_length)
-    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value,
-            *length - (size_t)(rendered_value - *text) + 1);
+    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value + (rendered_digits == 1 && *rendered_value == '?' ? 1 : 0),
+            *length - (size_t)(rendered_value - *text) - (rendered_digits == 1 && *rendered_value == '?' ? 1 : 0) + 1);
   memcpy(rendered_limit + strlen("LIMIT "), source_value, source_digits);
   if (comma_limit)
     memcpy(rendered_limit + strlen("LIMIT ") + source_digits, ", ?", suffix_length);
