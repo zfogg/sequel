@@ -174,6 +174,11 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       second_limit[6] = lateral ? '1' : '?';
     }
   }
+  if (summary.data && numeric_limit_count == 2 && strstr(source.data, "COALESCE")) {
+    char *first_limit = strstr(summary.data, "LIMIT ?");
+    if (first_limit)
+      first_limit[6] = '1';
+  }
   if (summary.data && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && source_limit && strstr(source.data, " BY ")) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
