@@ -53,7 +53,7 @@ enum {
   SEQUEL_DIAGNOSTIC_HINT_MAX = 256,
 };
 
-/** Legacy fixed diagnostic record retained while callers migrate to lists. */
+/** Fixed diagnostic record for single-diagnostic convenience APIs. */
 typedef struct sequel_diagnostic {
   sequel_diagnostic_code_t code;
   sequel_severity_t severity;
