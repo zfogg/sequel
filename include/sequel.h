@@ -107,6 +107,10 @@ void sequel_metadata_free(sequel_metadata_t *metadata);
  * bounded. out need not be initialized, but any previous result must be freed. */
 sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out);
 
+/** Length-aware metadata extraction for caller-owned UTF-8 bytes. Embedded NUL bytes are rejected. */
+sequel_status_t sequel_metadata_n(const char *sql, size_t length, const sequel_metadata_options_t *options,
+                                  sequel_metadata_t *out);
+
 /** Sanitizes into a caller-owned buffer. capacity includes the NUL
  * terminator; limit is the maximum emitted bytes (zero uses SEQUEL_TEXT_MAX).
  * Capacity need only fit the actual output or its truncated prefix plus NUL;

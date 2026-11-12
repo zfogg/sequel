@@ -122,7 +122,8 @@ void sequel_metadata_free(sequel_metadata_t *metadata) {
   }
 }
 
-sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
+sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metadata_options_t *options,
+                                  sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
@@ -131,11 +132,10 @@ sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t
   sequel_metadata_options_t o = options ? *options : (sequel_metadata_options_t){0};
   if (o.dialect > SEQUEL_CLICKHOUSE || o.dialect < SEQUEL_GENERIC || o.max_query_text_bytes > SEQUEL_TEXT_MAX)
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  size_t n = 0;
-  while (n <= SEQUEL_INPUT_MAX && sql[n])
-    ++n;
   if (n > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
+  if (memchr(sql, 0, n))
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   if (!sequel_utf8_valid(sql, n))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (!n)
@@ -143,4 +143,13 @@ sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t
   if (o.dialect != SEQUEL_MYSQL && sequel_text_find(sql, n, "_utf8mb4'"))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   return sequel_metadata_document(sql, n, &o, out);
+}
+
+sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
+  if (!sql)
+    return SEQUEL_ERR_NULL;
+  size_t n = 0;
+  while (n <= SEQUEL_INPUT_MAX && sql[n])
+    ++n;
+  return n > SEQUEL_INPUT_MAX ? SEQUEL_ERR_OVERFLOW : sequel_metadata_n(sql, n, options, out);
 }

@@ -46,6 +46,10 @@ int main(void) {
   CHECK(!*result.text && !strcmp(result.summary, "SQL"));
   sequel_metadata_free(&result);
   CHECK(sequel_metadata("SELECT 'broken", NULL, &result) != SEQUEL_OK);
+  {
+    const char embedded[] = {'S', 'E', 'L', 0, 'E', 'C', 'T'};
+    CHECK(sequel_metadata_n(embedded, sizeof(embedded), &options, &result) == SEQUEL_ERR_INVALID_ARGUMENT);
+  }
   sequel_metadata_free(&result);
   char small[16];
   bool truncated;
