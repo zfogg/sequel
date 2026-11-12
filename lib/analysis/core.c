@@ -585,8 +585,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     out->omission_reason = "malformed";
   } else {
     const char *ambiguous = NULL;
-    if ((o.dialect == SEQUEL_MYSQL && (ambiguous = sequel_text_find(sql, n, "$$"))) ||
-        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_GENERIC) &&
+    if (((o.dialect == SEQUEL_MYSQL || o.dialect == SEQUEL_SQLITE) &&
+         (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n))) ||
+        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_GENERIC || o.dialect == SEQUEL_SQLITE ||
+          o.dialect == SEQUEL_DUCKDB) &&
          (ambiguous = sequel_text_find(sql, n, "\\'"))) ||
         (o.dialect == SEQUEL_SQLITE && (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n)))) {
       call->ambiguous_literal = true;
@@ -625,6 +627,22 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       count = 0;
       scanned = 0;
     }
+    if (o.dialect == SEQUEL_POSTGRESQL && count != SIZE_MAX)
+      for (size_t i = 0; i < count; ++i) {
+        bool contiguous_question_number = tokens[i].t.n > 1 && tokens[i].t.p[0] == '?' &&
+                                          isdigit((unsigned char)tokens[i].t.p[1]);
+        if (!contiguous_question_number && i + 1 < count)
+          contiguous_question_number = sequel_runtime_symbol(tokens[i].t, '?') &&
+                                       tokens[i + 1].source_offset == tokens[i].source_offset + 1 &&
+                                       tokens[i + 1].t.n && isdigit((unsigned char)tokens[i + 1].t.p[0]);
+        if (contiguous_question_number) {
+          size_t end = tokens[i].source_offset + tokens[i].t.n;
+          if (i + 1 < count && end == tokens[i + 1].source_offset)
+            end += tokens[i + 1].t.n;
+          sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_INVALID_PARAMETER, tokens[i].source_offset, end);
+          break;
+        }
+      }
     if (call->ambiguous_literal) {
       diagnostic_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
                         call->ambiguous_offset + 2);
