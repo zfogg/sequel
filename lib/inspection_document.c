@@ -123,11 +123,23 @@ static bool sequel_inspection_document_query_is_safe(const sequel_query_document
 static bool sequel_inspection_document_has_query_body(const sequel_syntax_document_t *syntax) {
   size_t count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &count);
+  sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(syntax));
   size_t significant = 0;
+  size_t first = SIZE_MAX;
   for (size_t i = 0; i < count; ++i)
-    if (!sequel_token_is_trivia(&tokens[i]) && tokens[i].kind != SEQUEL_TOKEN_EOF)
+    if (!sequel_token_is_trivia(&tokens[i]) && tokens[i].kind != SEQUEL_TOKEN_EOF) {
+      if (first == SIZE_MAX)
+        first = i;
       ++significant;
-  return significant > 1;
+    }
+  if (significant > 1)
+    return true;
+  if (first == SIZE_MAX)
+    return false;
+  size_t length = tokens[first].range.end - tokens[first].range.start;
+  const char *word = source.data + tokens[first].range.start;
+  return sequel_text_equal_ci(word, length, "BEGIN") || sequel_text_equal_ci(word, length, "COMMIT") ||
+         sequel_text_equal_ci(word, length, "ROLLBACK");
 }
 
 static bool sequel_inspection_document_has_recoverable_join_shape(const sequel_syntax_document_t *syntax) {
@@ -166,6 +178,12 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   parse_options.retain_whitespace = true;
   parse_options.tolerant = true;
   parse_options.recover_errors = true;
+  if (parse_options.dialect == SEQUEL_CLICKHOUSE) {
+    sequel_diagnostic_t diagnostic = {0};
+    sequel_status_t diagnostic_status = sequel_diagnose_n(sql, length, parse_options.dialect, &diagnostic);
+    if (diagnostic_status != SEQUEL_OK && diagnostic.code == SEQUEL_DIAG_UNSUPPORTED_PAYLOAD)
+      return diagnostic_status;
+  }
   sequel_source_view_t source = {sql, length};
   sequel_syntax_document_t *syntax = NULL;
   sequel_query_document_t *query = NULL;
@@ -180,9 +198,17 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   }
   if (issue_count) {
     const sequel_parse_issue_t *issues = sequel_syntax_issues(syntax, NULL);
+    size_t token_count = 0;
+    const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &token_count);
     for (size_t i = 0; i < issue_count; ++i) {
-      if (issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN ||
-          issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE) {
+      bool unterminated_token = false;
+      if (issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN)
+        for (size_t t = 0; t < token_count; ++t)
+          if (tokens[t].range.start == issues[i].range.start && (tokens[t].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED))
+            unterminated_token = true;
+      if (unterminated_token ||
+          (issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE &&
+           (issues[i].range.start >= source.length || source.data[issues[i].range.start] != ']'))) {
         status = SEQUEL_ERR_INVALID_ARGUMENT;
         goto done;
       }

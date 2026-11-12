@@ -37,6 +37,7 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   char *data = NULL;
   size_t length = 0, capacity = 0;
+  size_t square_depth = 0;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF)
@@ -45,6 +46,13 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       goto invalid;
     if (token->flags & (SEQUEL_TOKEN_FLAG_UNTERMINATED | SEQUEL_TOKEN_FLAG_RECOVERED)) {
       goto invalid;
+    }
+    if (token->kind == SEQUEL_TOKEN_PUNCTUATION && token->range.end == token->range.start + 1) {
+      char punctuation = source.data[token->range.start];
+      if (punctuation == '[')
+        ++square_depth;
+      else if (punctuation == ']' && square_depth)
+        --square_depth;
     }
     if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) {
       bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count &&
@@ -72,6 +80,8 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
                                 token->range.end - token->range.start))
       goto no_memory;
   }
+  if (square_depth)
+    goto invalid;
   if (!data) {
     data = malloc(1);
     if (!data)
