@@ -992,16 +992,18 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                 outer_on && sequel_summary_word(outer_on + 4, (size_t)(outer_on_end - (outer_on + 4)), 0, "true");
             const char *inner_alias = table_end;
             const char *inner_alias_end = table_end;
-            if (cross_lateral) {
-              inner_alias = table_end;
+            while (*inner_alias && isspace((unsigned char)*inner_alias))
+              ++inner_alias;
+            if (!strncmp(inner_alias, "AS ", 3)) {
+              inner_alias += 3;
               while (*inner_alias && isspace((unsigned char)*inner_alias))
                 ++inner_alias;
-              inner_alias_end = inner_alias;
-              while (*inner_alias_end && !isspace((unsigned char)*inner_alias_end) && *inner_alias_end != ')')
-                ++inner_alias_end;
-              if (inner_alias >= where || inner_alias_end > where)
-                inner_alias = inner_alias_end = table_end;
             }
+            inner_alias_end = inner_alias;
+            while (*inner_alias_end && !isspace((unsigned char)*inner_alias_end) && *inner_alias_end != ')')
+              ++inner_alias_end;
+            if (inner_alias >= where || inner_alias_end > where)
+              inner_alias = inner_alias_end = table_end;
             const char *alias = close + 1;
             while (*alias && isspace((unsigned char)*alias))
               ++alias;
@@ -1017,7 +1019,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                              sizeof(summary_ellipsis) - 1) ||
                 !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
                 !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-                (cross_lateral && inner_alias_end > inner_alias &&
+                (inner_alias_end > inner_alias &&
                  (!sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
                   !sequel_summary_append_bytes(&text, &length, &capacity, inner_alias,
                                                (size_t)(inner_alias_end - inner_alias)))) ||
