@@ -9,6 +9,17 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static bool sequel_summary_range_is_bracketed(sequel_source_view_t source, size_t end) {
+  size_t depth = 0;
+  for (size_t i = 0; i < end && i < source.length; ++i) {
+    if (source.data[i] == '[')
+      ++depth;
+    else if (source.data[i] == ']' && depth)
+      --depth;
+  }
+  return depth != 0;
+}
+
 int sequel_summary_normalize_insert_clause_order(char **text, size_t *length, size_t *capacity) {
   char *returning = sequel_summary_find_text(*text, " RETURNING ");
   char *where = sequel_summary_find_text(*text, " WHERE ");
@@ -251,7 +262,10 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
     if (token_start > cursor &&
         !sequel_summary_append_bytes(text, length, capacity, source.data + cursor, token_start - cursor))
       return 0;
-    bool redact = !bracket_depth &&
+    bool token_opens_bracket = token_start < token_end && source.data[token_start] == '[';
+    bool token_follows_bracket = token_start > start && source.data[token_start - 1] == '[';
+    bool redact = !bracket_depth && !token_opens_bracket && !token_follows_bracket &&
+                  !sequel_summary_range_is_bracketed(source, token_start) &&
                   ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER);
     if (redact) {
       if (!sequel_summary_append_text(text, length, capacity, "?"))
