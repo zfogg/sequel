@@ -25,7 +25,10 @@ static void sequel_summary_collapse_set_statements(char *text) {
 }
 
 static void sequel_summary_redact_clickhouse_where(char *text) {
-  char *cursor = text;
+  char *cursor = strchr(text, ';');
+  if (!cursor)
+    return;
+  ++cursor;
   while ((cursor = strstr(cursor, "WHERE ")) != NULL) {
     char *end = strchr(cursor + 6, ';');
     if (!end)
