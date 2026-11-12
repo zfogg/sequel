@@ -2546,10 +2546,6 @@ summary_postprocess:
     if (!sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "JOIN", " JOIN"))
       goto no_memory;
   }
-  if (text && sequel_query_join_count(query) && sequel_summary_find_word(source.data, source.length, 0, "ON")) {
-    if (!sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "ON", " ON"))
-      goto no_memory;
-  }
   if (text && sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT)) {
     size_t source_limits =
         sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
