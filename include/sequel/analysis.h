@@ -9,10 +9,9 @@
 
 typedef struct sequel_query_analysis sequel_query_analysis_t;
 
-/* Legacy analysis ABI retained in the analysis domain while callers migrate
- * to sequel_query_analysis_t.  Keep these layouts stable for bindings. */
-#ifndef SEQUEL_ANALYSIS_LEGACY_TYPES
-#define SEQUEL_ANALYSIS_LEGACY_TYPES
+/* Stable aggregate analysis ABI. Rich query analysis is exposed below. */
+#ifndef SEQUEL_ANALYSIS_TYPES_DEFINED
+#define SEQUEL_ANALYSIS_TYPES_DEFINED
 #define SEQUEL_ANALYSIS_VERSION 1u
 #define SEQUEL_DIAGNOSTIC_VERSION 1u
 
