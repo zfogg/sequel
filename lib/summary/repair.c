@@ -154,6 +154,23 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
         return 0;
     }
   }
+  if (sequel_summary_find_word(source.data, source.length, 0, "INSERT") &&
+      sequel_summary_find_text(source.data, "ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY")) {
+    char *conflict = sequel_summary_find_text(*text, "ON CONFLICT");
+    if (conflict) {
+      const char insertion[] = " ORDER BY …";
+      size_t amount = sizeof(insertion) - 1;
+      size_t offset = (size_t)(conflict - *text);
+      char *grown = realloc(*text, *length + amount + 1);
+      if (!grown)
+        return 0;
+      *text = grown;
+      memmove(*text + offset + amount, *text + offset, *length - offset + 1);
+      memcpy(*text + offset, insertion, amount);
+      *length += amount;
+      *capacity = *length + 1;
+    }
+  }
   if (sequel_summary_word(source.data, source.length, 0, "DELETE") &&
       sequel_summary_find_text(source.data, " ORDER BY ")) {
     const char *from = sequel_summary_find_text(source.data, " FROM ");

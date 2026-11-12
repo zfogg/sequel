@@ -1802,6 +1802,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     goto no_memory;
   if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
+  if (!sequel_summary_remove_insert_projection_tail(text, &length))
+    goto no_memory;
 summary_postprocess:
   if (!sequel_summary_prepare_postprocess(&text, &length, &capacity, query, source, statement_count, statements))
     goto no_memory;
@@ -2561,6 +2563,8 @@ summary_postprocess:
     }
   }
   if (!sequel_summary_repair_tail(&text, &length, &capacity, query, source))
+    goto no_memory;
+  if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
   if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
     goto no_memory;

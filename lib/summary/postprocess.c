@@ -58,15 +58,32 @@ int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity
   if (!sequel_summary_remove_insert_projection_tail(*text, length))
     return 0;
   size_t compacted = 0;
+  bool pending_space = false;
   for (size_t read = 0; read < *length; ++read) {
-    if (isspace((unsigned char)(*text)[read]) &&
-        ((compacted && (*text)[compacted - 1] == '(') || (read + 1 < *length && (*text)[read + 1] == ')')))
+    if (isspace((unsigned char)(*text)[read])) {
+      pending_space = compacted != 0;
       continue;
+    }
+    if (pending_space && compacted && (*text)[compacted - 1] != '(' && (*text)[read] != ')')
+      (*text)[compacted++] = ' ';
     (*text)[compacted++] = (*text)[read];
+    pending_space = false;
   }
   *length = compacted;
   while (*length && isspace((unsigned char)(*text)[*length - 1]))
     --*length;
+  for (char *match = strstr(*text, ")ON CONFLICT"); match; match = strstr(match + 1, ")ON CONFLICT")) {
+    size_t offset = (size_t)(match - *text) + 1;
+    memmove(*text + offset + 1, *text + offset, *length - offset + 1);
+    (*text)[offset] = ' ';
+    ++*length;
+  }
+  for (char *match = strstr(*text, "…ON CONFLICT"); match; match = strstr(match + 1, "…ON CONFLICT")) {
+    size_t offset = (size_t)(match - *text) + 3;
+    memmove(*text + offset + 1, *text + offset, *length - offset + 1);
+    (*text)[offset] = ' ';
+    ++*length;
+  }
   if (*length == SIZE_MAX)
     return 0;
   if (*capacity <= *length) {

@@ -55,7 +55,7 @@ int sequel_summary_normalize_insert_conflict_order(char **text, size_t *length) 
 }
 
 int sequel_summary_remove_insert_projection_tail(char *text, size_t *length) {
-  char *conflict = sequel_summary_find_text(text, " ON CONFLICT");
+  char *conflict = sequel_summary_find_text(text, "ON CONFLICT");
   if (!conflict)
     return 1;
   char *tail = conflict;
@@ -69,7 +69,7 @@ int sequel_summary_remove_insert_projection_tail(char *text, size_t *length) {
   char *open = strstr(text, " AS p(");
   if (open) {
     char *close = strchr(open + 6, ')');
-    if (close && close < sequel_summary_find_text(text, " ON CONFLICT")) {
+    if (close && close < sequel_summary_find_text(text, "ON CONFLICT")) {
       for (char *cursor = open + 6; cursor < close;) {
         if (isspace((unsigned char)*cursor)) {
           char *next = cursor + 1;
@@ -84,7 +84,12 @@ int sequel_summary_remove_insert_projection_tail(char *text, size_t *length) {
       }
     }
   }
-  char *separator = strstr(text, "), ON CONFLICT");
+  char *separator = strstr(text, "),ON CONFLICT");
+  if (separator) {
+    memmove(separator + 1, separator + 2, *length - (size_t)(separator - text) - 1);
+    --*length;
+  }
+  separator = strstr(text, "), ON CONFLICT");
   if (separator) {
     memmove(separator + 1, separator + 2, *length - (size_t)(separator - text) - 1);
     --*length;
