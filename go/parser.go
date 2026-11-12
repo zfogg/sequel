@@ -22,6 +22,12 @@ static size_t sequel_go_relation_name_start(const sequel_relation_info_t *relati
 static size_t sequel_go_relation_name_end(const sequel_relation_info_t *relation) { return relation->name_range.end; }
 static size_t sequel_go_relation_alias_start(const sequel_relation_info_t *relation) { return relation->alias_range.start; }
 static size_t sequel_go_relation_alias_end(const sequel_relation_info_t *relation) { return relation->alias_range.end; }
+static size_t sequel_go_cte_start(const sequel_cte_info_t *cte) { return cte->range.start; }
+static size_t sequel_go_cte_end(const sequel_cte_info_t *cte) { return cte->range.end; }
+static size_t sequel_go_cte_name_start(const sequel_cte_info_t *cte) { return cte->name_range.start; }
+static size_t sequel_go_cte_name_end(const sequel_cte_info_t *cte) { return cte->name_range.end; }
+static size_t sequel_go_cte_body_start(const sequel_cte_info_t *cte) { return cte->body_range.start; }
+static size_t sequel_go_cte_body_end(const sequel_cte_info_t *cte) { return cte->body_range.end; }
 static size_t sequel_go_diagnostic_start(const sequel_diagnostic_record_t *diagnostic) { return diagnostic->range.start; }
 static size_t sequel_go_diagnostic_end(const sequel_diagnostic_record_t *diagnostic) { return diagnostic->range.end; }
 */
@@ -71,6 +77,13 @@ type LayeredDiagnostic struct {
 type QueryDocument struct {
 	Statements []StatementInfo
 	Relations  []RelationInfo
+	CTEs       []CTEInfo
+}
+
+type CTEInfo struct {
+	Start, End         int
+	NameStart, NameEnd int
+	BodyStart, BodyEnd int
 }
 
 type StatementInfo struct {
@@ -233,6 +246,13 @@ func (d *Document) Query() QueryDocument {
 	}
 	for i, item := range unsafe.Slice(relationPtr, int(relationCount)) {
 		out.Relations[i] = RelationInfo{Kind: int(item.kind), Start: int(C.sequel_go_relation_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), End: int(C.sequel_go_relation_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), NameStart: int(C.sequel_go_relation_name_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), NameEnd: int(C.sequel_go_relation_name_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), AliasStart: int(C.sequel_go_relation_alias_start(&unsafe.Slice(relationPtr, int(relationCount))[i])), AliasEnd: int(C.sequel_go_relation_alias_end(&unsafe.Slice(relationPtr, int(relationCount))[i])), Statement: int(item.statement_index), SyntaxNode: int(item.syntax_node), Parent: int(item.parent_relation), SubqueryStatement: int(item.subquery_statement), Flags: uint32(item.flags)}
+	}
+	ctePtr := C.sequel_query_ctes(d.query)
+	cteCount := C.sequel_query_cte_count(d.query)
+	out.CTEs = make([]CTEInfo, int(cteCount))
+	for i := range unsafe.Slice(ctePtr, int(cteCount)) {
+		item := &unsafe.Slice(ctePtr, int(cteCount))[i]
+		out.CTEs[i] = CTEInfo{Start: int(C.sequel_go_cte_start(item)), End: int(C.sequel_go_cte_end(item)), NameStart: int(C.sequel_go_cte_name_start(item)), NameEnd: int(C.sequel_go_cte_name_end(item)), BodyStart: int(C.sequel_go_cte_body_start(item)), BodyEnd: int(C.sequel_go_cte_body_end(item))}
 	}
 	return out
 }

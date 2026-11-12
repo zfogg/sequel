@@ -39,6 +39,18 @@ func TestParseRejectsEmbeddedNUL(t *testing.T) {
 	}
 }
 
+func TestParseExposesCTERanges(t *testing.T) {
+	document, err := Parse("WITH recent AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM recent", DialectPostgreSQL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer document.Close()
+	ctes := document.Query().CTEs
+	if len(ctes) != 1 || ctes[0].NameEnd-ctes[0].NameStart != len("recent") || ctes[0].BodyEnd <= ctes[0].BodyStart {
+		t.Fatalf("unexpected CTE metadata: %#v", ctes)
+	}
+}
+
 func TestParseReturnsLayeredDiagnostics(t *testing.T) {
 	document, err := Parse("SELECT * FROM users; SELECT 1", DialectGeneric)
 	if err != nil {
