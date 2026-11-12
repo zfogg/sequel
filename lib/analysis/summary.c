@@ -45,8 +45,9 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       if (rendered_limit)
         rendered_limit[6] = limit[6];
     }
-    const bool preserve_array_indexes =
-        sequel_query_dialect(query) == SEQUEL_SQLITE || sequel_query_dialect(query) == SEQUEL_POSTGRESQL;
+    const bool preserve_array_indexes = sequel_query_dialect(query) == SEQUEL_GENERIC ||
+                                        sequel_query_dialect(query) == SEQUEL_SQLITE ||
+                                        sequel_query_dialect(query) == SEQUEL_POSTGRESQL;
     const char *source_index = original.data;
     char *rendered_index = copy;
     while (preserve_array_indexes && (source_index = strchr(source_index, '[')) != NULL) {
@@ -119,8 +120,9 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   if (summary.length && summary.data)
     memcpy(copy, summary.data, summary.length);
   copy[summary.length] = 0;
-  const bool preserve_array_indexes =
-      sequel_query_dialect(query) == SEQUEL_SQLITE || sequel_query_dialect(query) == SEQUEL_POSTGRESQL;
+  const bool preserve_array_indexes = sequel_query_dialect(query) == SEQUEL_GENERIC ||
+                                      sequel_query_dialect(query) == SEQUEL_SQLITE ||
+                                      sequel_query_dialect(query) == SEQUEL_POSTGRESQL;
   const char *source_index = source.data;
   char *rendered_index = copy;
   size_t output_length = summary.length;
