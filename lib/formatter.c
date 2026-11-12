@@ -112,13 +112,14 @@ static int sequel_formatter_has_case_before_matching_close(sequel_source_view_t 
 
 static int sequel_formatter_no_space_before_punctuation(const char *text, size_t length, int punctuation) {
   return punctuation && length == 1 &&
-         (text[0] == '(' || text[0] == '[' || text[0] == '.' || text[0] == ',' || text[0] == ':' || text[0] == ')' ||
-          text[0] == ';');
+         (text[0] == '(' || text[0] == '[' || text[0] == '{' || text[0] == '.' || text[0] == ',' || text[0] == ':' ||
+          text[0] == ')' || text[0] == ';' || text[0] == ']' || text[0] == '}');
 }
 
 static int sequel_formatter_no_space_after_punctuation(sequel_token_kind_t previous, const char *data, size_t length) {
   return previous == SEQUEL_TOKEN_PUNCTUATION && length &&
-         (data[length - 1] == '(' || data[length - 1] == '[' || data[length - 1] == '.' || data[length - 1] == ':');
+         (data[length - 1] == '(' || data[length - 1] == '[' || data[length - 1] == '{' || data[length - 1] == '.' ||
+          data[length - 1] == ':');
 }
 
 static int sequel_formatter_compact_json_operator(const sequel_token_t *token, sequel_source_view_t source,
@@ -432,6 +433,10 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     bool no_space_after_previous =
         sequel_formatter_no_space_after_punctuation(previous, data, length) &&
         !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+    if (previous_token &&
+        (previous_token->kind == SEQUEL_TOKEN_PUNCTUATION || previous_token->kind == SEQUEL_TOKEN_OPERATOR) &&
+        previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == ':')
+      no_space_after_previous = true;
     if (previous_token && text_length && text[0] == '@') {
       size_t previous_length = 0;
       const char *previous_text = sequel_formatter_token_text(source, previous_token, &previous_length);
@@ -447,15 +452,24 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if (previous_token && token->kind == SEQUEL_TOKEN_OPERATOR && previous_token->range.end == token->range.start &&
         (sequel_token_is_operator(previous_token) || sequel_token_is_single_punctuation(previous_token)))
       no_space_after_previous = true;
+    bool question_after_equals = previous_token && token->kind == SEQUEL_TOKEN_OPERATOR && text_length == 1 &&
+                                 text[0] == '?' && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
+                                 previous_token->range.end == previous_token->range.start + 1 &&
+                                 source.data[previous_token->range.start] == '=';
+    bool adjacent_string_newline =
+        previous_token && previous_token->kind == SEQUEL_TOKEN_STRING && token->kind == SEQUEL_TOKEN_STRING &&
+        memchr(source.data + previous_token->range.end, '\n', token->range.start - previous_token->range.end);
     if (sequel_token_is_operator(token) && !range_colon && !no_space_after_previous &&
         !sequel_formatter_compact_json_operator(token, source, data, length) && !cast_operator && !range_colon &&
         length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
         !sequel_format_append_space(&data, &length, &capacity))
       goto no_memory;
     if (!cast_operator && !range_colon && !after_cast_operator && !after_range_colon && !no_space_before &&
-        !no_space_after_previous && (sequel_token_kind_is_word(previous) || sequel_token_kind_is_word(token->kind)) &&
+        (!no_space_after_previous || question_after_equals) &&
+        (sequel_token_kind_is_word(previous) || sequel_token_kind_is_word(token->kind) || question_after_equals) &&
         !(follows_closed_cte && previous == SEQUEL_TOKEN_PUNCTUATION && data[length - 1] == ','))
-      if (!sequel_format_append_space(&data, &length, &capacity))
+      if (adjacent_string_newline ? !sequel_format_append_text(&data, &length, &capacity, "\n", 1)
+                                  : !sequel_format_append_space(&data, &length, &capacity))
         goto no_memory;
     if (!sequel_format_append_text(&data, &length, &capacity, text, text_length))
       goto no_memory;

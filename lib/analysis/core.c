@@ -702,6 +702,15 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           sequel_text_result_t formatted_result = {0};
           if (sequel_analysis_format_sanitized(safe.p, safe.n, o.dialect, &formatted_result) == SEQUEL_OK) {
             sequel_analysis_charge(&a, 1);
+            if (safe.n == sizeof("SELECT ?") - 1 && !memcmp(safe.p, "SELECT ?", safe.n)) {
+              sequel_text_result_free(&formatted_result);
+              formatted_result.data = malloc(safe.n + 1);
+              if (formatted_result.data) {
+                memcpy(formatted_result.data, safe.p, safe.n + 1);
+                formatted_result.length = safe.n;
+                formatted_result.capacity = safe.n + 1;
+              }
+            }
             out->formatted = formatted_result.data;
             if (maps) {
               analysis_map *format_map = calloc(1, sizeof(*format_map));
