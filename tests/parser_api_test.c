@@ -1017,6 +1017,8 @@ int main(void) {
                  collected.records[0].code == SEQUEL_DIAG_UNCLOSED_GROUP && collected.records[0].incomplete,
              "layered syntax diagnostic collection"))
     return 1;
+  if (!check(collected.records[0].syntax_node != SIZE_MAX, "syntax diagnostic node provenance"))
+    return 1;
   sequel_diagnostic_list_free(&collected);
   sequel_syntax_document_free(malformed_syntax);
   sequel_text_edit_t edit = {.start = 7, .old_end = 9, .replacement = "name", .replacement_length = 4};

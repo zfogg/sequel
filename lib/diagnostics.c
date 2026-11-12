@@ -657,6 +657,16 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
   size_t count = 0;
   const sequel_parse_issue_t *issues = sequel_syntax_issues(syntax, &count);
   for (size_t i = 0; i < count; ++i) {
+    size_t syntax_node = SIZE_MAX;
+    size_t node_count = 0;
+    const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
+    for (size_t node = 0; node < node_count; ++node) {
+      if (!sequel_source_range_contains(nodes[node].range, issues[i].range))
+        continue;
+      if (syntax_node == SIZE_MAX || nodes[node].range.end - nodes[node].range.start <
+                                         nodes[syntax_node].range.end - nodes[syntax_node].range.start)
+        syntax_node = node;
+    }
     sequel_diagnostic_code_t code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
     switch (issues[i].code) {
     case SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE:
@@ -680,7 +690,7 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
                                                          : SEQUEL_WARNING,
                                          .range = issues[i].range,
                                          .statement_index = issues[i].statement_index,
-                                         .syntax_node = SIZE_MAX,
+                                         .syntax_node = syntax_node,
                                          .incomplete = issues[i].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP ||
                                                        issues[i].code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
                                          .recovered = issues[i].recovery != SEQUEL_RECOVERY_NONE};
