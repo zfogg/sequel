@@ -91,6 +91,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/query_visit.c
   ../lib/syntax_visit.c
   ../lib/parse_entry.c
+  ../lib/reparse.c
   ../lib/analysis/document.c
   ../lib/serialization.c
   ../lib/formatter.c
