@@ -283,8 +283,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           sequel_formatter_token_is_word(source, previous_token, "DISTINCT")) &&
         !(token->keyword_id == SEQUEL_KEYWORD_GROUP && previous_token &&
           sequel_formatter_token_is_word(source, previous_token, "WITHIN")) &&
-        !(token->keyword_id == SEQUEL_KEYWORD_ORDER && within_group_paren) &&
-        !upsert_on && !values_function && !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
+        !(token->keyword_id == SEQUEL_KEYWORD_ORDER && within_group_paren) && !upsert_on && !values_function &&
+        !(token->keyword_id == SEQUEL_KEYWORD_VALUES && paren_depth > 0) &&
         !(window_paren && (token->keyword_id == SEQUEL_KEYWORD_ORDER || token->keyword_id == SEQUEL_KEYWORD_GROUP));
     bool condition_operator =
         sequel_format_is_condition_operator(token, paren_depth, cte_paren_depth) && !between_pending;
@@ -365,8 +365,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
           if (before_group > 0 && sequel_formatter_token_is_word(source, &tokens[before_group - 1], "WITHIN"))
             within_group_paren = true;
         }
-      }
-      else if (symbol == ')' && within_group_paren)
+      } else if (symbol == ')' && within_group_paren)
         within_group_paren = false;
       if (symbol == '[')
         ++bracket_depth;
@@ -446,7 +445,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
     if (previous_token && token->kind == SEQUEL_TOKEN_OPERATOR && previous_token->range.end == token->range.start &&
         (sequel_token_is_operator(previous_token) || sequel_token_is_single_punctuation(previous_token)))
       no_space_after_previous = true;
-    if (sequel_token_is_operator(token) && !no_space_after_previous &&
+    if (sequel_token_is_operator(token) && !range_colon && !no_space_after_previous &&
         !sequel_formatter_compact_json_operator(token, source, data, length) && !cast_operator && !range_colon &&
         length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
         !sequel_format_append_space(&data, &length, &capacity))
