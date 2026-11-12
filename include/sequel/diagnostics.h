@@ -115,6 +115,10 @@ typedef struct {
   size_t capacity;
 } sequel_diagnostic_list_t;
 
+/** Project one structured record into the fixed diagnostic representation. */
+sequel_status_t sequel_diagnostic_project(const char *source, size_t source_length,
+                                          const sequel_diagnostic_record_t *record, sequel_diagnostic_t *out);
+
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 
 /** Append one record, growing the owned list; returns false on overflow or allocation failure. */

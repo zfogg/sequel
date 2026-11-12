@@ -542,6 +542,16 @@ sequel_status_t sequel_diagnostics_validate_input(const char *sql, size_t n, seq
 
 size_t sequel_diagnostic_catalog_count(void) { return sizeof(diagnostic_messages) / sizeof(diagnostic_messages[0]); }
 
+sequel_status_t sequel_diagnostic_project(const char *source, size_t source_length,
+                                          const sequel_diagnostic_record_t *record, sequel_diagnostic_t *out) {
+  if (!record || !out)
+    return SEQUEL_ERR_NULL;
+  sequel_diagnostics_report(source, source_length, out, record->code, record->range.start, record->range.end);
+  out->incomplete = record->incomplete != 0;
+  out->statement_complete = record->statement_complete != 0;
+  return SEQUEL_OK;
+}
+
 sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;

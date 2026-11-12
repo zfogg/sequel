@@ -65,30 +65,60 @@ void print_diagnostic(FILE *stream, const sequel_diagnostic_t *d, int json) {
 }
 
 sequel_status_t diagnose_all(FILE *stream, const char *sql, size_t length, sequel_dialect_t dialect, int json) {
-  sequel_analysis_options_t options = {0};
-  options.dialect = dialect;
-  options.omit_query_text = true;
-  options.omit_source_maps = true;
-  options.omit_bind_descriptors = true;
-  sequel_analysis_t analysis;
-  sequel_status_t status = sequel_analyze_n(sql, length, &options, &analysis);
+  sequel_source_view_t source = {sql, length};
+  sequel_parse_options_t parse_options;
+  sequel_parse_options_init(&parse_options);
+  parse_options.dialect = dialect;
+  parse_options.retain_comments = true;
+  parse_options.tolerant = true;
+  parse_options.recover_errors = true;
+  sequel_syntax_document_t *syntax = NULL;
+  sequel_query_document_t *query = NULL;
+  sequel_query_analysis_t *analysis = NULL;
+  sequel_status_t status = sequel_parse_sql(&source, &parse_options, NULL, &syntax);
+  if (status == SEQUEL_OK)
+    status = sequel_build_query_document(syntax, &parse_options, &query);
+  if (status == SEQUEL_OK) {
+    sequel_query_analysis_options_t options;
+    sequel_query_analysis_options_init(&options);
+    options.include_summary = false;
+    options.include_fingerprint = false;
+    options.include_bindings = false;
+    options.include_relations = false;
+    options.include_projections = false;
+    options.include_predicates = false;
+    options.include_sanitized_sql = false;
+    options.include_formatted_sql = false;
+    options.include_source_maps = false;
+    status = sequel_analyze_document(syntax, query, &options, NULL, &analysis);
+  }
+  const sequel_diagnostic_list_t *diagnostics = analysis ? sequel_query_analysis_diagnostics(analysis) : NULL;
   if (json) {
-    fprintf(stream, "{\"schema_version\":%u,\"original_length\":%zu,\"status\":", SEQUEL_DIAGNOSTIC_VERSION,
-            analysis.original_length);
-    diagnostic_json_text(stream, analysis.status);
+    fprintf(stream, "{\"schema_version\":%u,\"original_length\":%zu,\"status\":",
+            SEQUEL_DIAGNOSTIC_VERSION, length);
+    diagnostic_json_text(stream, status == SEQUEL_OK ? "ok" : "error");
     fputs(",\"diagnostics\":[", stream);
-    for (size_t i = 0; i < analysis.diagnostic_count; ++i) {
+    for (size_t i = 0; diagnostics && i < diagnostics->count; ++i) {
+      const sequel_diagnostic_record_t *record = &diagnostics->records[i];
+      sequel_diagnostic_t converted = {0};
+      sequel_diagnostic_project(sql, length, record, &converted);
       if (i)
         fputc(',', stream);
-      diagnostic_json(stream, &analysis.diagnostics[i]);
+      diagnostic_json(stream, &converted);
     }
     fputs("]}\n", stream);
-  } else if (!analysis.diagnostic_count) {
+  } else if (!diagnostics || !diagnostics->count) {
     fputs("sequel: no lexical or delimiter issues found\n", stream);
   } else {
-    for (size_t i = 0; i < analysis.diagnostic_count; ++i)
-      print_diagnostic(stream, &analysis.diagnostics[i], 0);
+    for (size_t i = 0; i < diagnostics->count; ++i) {
+      const sequel_diagnostic_record_t *record = &diagnostics->records[i];
+      sequel_diagnostic_t converted = {0};
+      sequel_diagnostic_project(sql, length, record, &converted);
+      print_diagnostic(stream, &converted, 0);
+    }
   }
-  sequel_analysis_free(&analysis);
+  sequel_query_analysis_free(analysis);
+  sequel_query_document_free(query);
+  sequel_syntax_document_free(syntax);
   return status;
 }
