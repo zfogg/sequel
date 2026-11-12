@@ -25,8 +25,15 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   const sequel_statement_info_t *statements = sequel_query_statements(query);
   sequel_source_view_t source = sequel_query_source(query);
   int special_route = 0;
-  if (!sequel_summary_begin_render(&text, &length, &capacity, query, settings, source, statement_count, statements,
-                                   &special_route))
+  size_t cte_prefix_end = 0;
+  size_t outer_start = 0;
+  bool nested_cte_scope = false;
+  bool insert_values_scope = false;
+  bool cte_insert_scope = false;
+  bool scalar_with_scope = false;
+  if (!sequel_summary_prepare_document(&text, &length, &capacity, query, settings, source, statement_count, statements,
+                                       &special_route, &cte_prefix_end, &outer_start, &nested_cte_scope,
+                                       &cte_insert_scope, &scalar_with_scope))
     goto no_memory;
   if (special_route == 1) {
     *out = (sequel_text_result_t){
@@ -35,39 +42,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   }
   if (special_route == 2)
     goto summary_postprocess;
-  size_t cte_prefix_end = 0;
-  size_t outer_start = 0;
   const sequel_source_range_t outer_range = sequel_query_outer_range(query);
-  bool nested_cte_scope = false;
-  bool insert_values_scope = false;
-  bool cte_insert_scope = false;
-  bool scalar_with_scope =
-      sequel_summary_word(source.data, source.length, 0, "WITH") && sequel_query_cte_count(query) == 0;
-  int table_prefix =
-      sequel_summary_append_table_prefix(&text, &length, &capacity, query, settings, source, statement_count);
-  if (!table_prefix)
-    goto no_memory;
-  if (table_prefix == 2)
+  if (special_route == 2)
     goto summary_postprocess;
-  if (settings->include_operation && sequel_query_cte_count(query)) {
-    const sequel_cte_info_t *ctes = sequel_query_ctes(query);
-    bool recursive = source.length >= 13 && sequel_summary_find_text(source.data, "WITH RECURSIVE") == source.data;
-    if (!sequel_summary_append_cte_definitions(&text, &length, &capacity, source, ctes, sequel_query_cte_count(query),
-                                               recursive, &cte_prefix_end))
-      goto no_memory;
-    if (sequel_query_outer_distinct_on(query) &&
-        (!sequel_summary_append_text(&text, &length, &capacity, "SELECT DISTINCT ON (…) …")))
-      goto no_memory;
-    if (!sequel_summary_append_nested_cte_projection(&text, &length, &capacity, source, &nested_cte_scope))
-      goto no_memory;
-    if (!sequel_summary_append_cte_insert_shape(&text, &length, &capacity, source, ctes, sequel_query_cte_count(query),
-                                                &cte_insert_scope))
-      goto no_memory;
-    outer_start = sequel_query_outer_range(query).start;
-  }
-  if (settings->include_operation && scalar_with_scope &&
-      !sequel_summary_append_text(&text, &length, &capacity, "WITH "))
-    goto no_memory;
   if (statement_count > 1 && settings->redact_literals) {
     sequel_text_result_t sanitized = {0};
     if (sequel_sanitize_tokens(sequel_syntax_lexed(sequel_query_syntax(query)),
