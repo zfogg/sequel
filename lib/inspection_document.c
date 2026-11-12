@@ -105,13 +105,6 @@ static void sequel_inspection_document_restore_array_indexes(sequel_text_result_
 
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
-  size_t open_brackets = 0, close_brackets = 0;
-  for (size_t index = 0; index < length; ++index) {
-    open_brackets += sql[index] == '[';
-    close_brackets += sql[index] == ']';
-  }
-  if (open_brackets > close_brackets)
-    return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = options ? options->dialect : SEQUEL_GENERIC;
