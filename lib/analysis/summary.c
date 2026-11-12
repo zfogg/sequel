@@ -16,6 +16,35 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       sequel_abort(SEQUEL_ERR_NOMEM);
     memcpy(copy, sanitized, sanitized_length);
     copy[sanitized_length] = 0;
+    size_t write = 0;
+    for (size_t read = 0; read < sanitized_length;) {
+      if (copy[read] != ';') {
+        copy[write++] = copy[read++];
+        continue;
+      }
+      while (write && copy[write - 1] == ' ')
+        --write;
+      if (!write || copy[write - 1] != ';')
+        copy[write++] = ';';
+      ++read;
+      while (read < sanitized_length && isspace((unsigned char)copy[read]))
+        ++read;
+      if (read < sanitized_length && copy[read] != ';')
+        copy[write++] = ' ';
+    }
+    sanitized_length = write;
+    while (sanitized_length &&
+           (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
+      --sanitized_length;
+    const char *limit = strstr(sanitized, "LIMIT ");
+    if (limit && isdigit((unsigned char)limit[6]) && !isdigit((unsigned char)limit[7])) {
+      char *rendered_limit = NULL;
+      for (char *cursor = copy; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
+        rendered_limit = cursor;
+      if (rendered_limit)
+        rendered_limit[6] = limit[6];
+    }
+    copy[sanitized_length] = 0;
     out->summary = copy;
     return;
   }
