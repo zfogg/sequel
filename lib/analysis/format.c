@@ -23,7 +23,7 @@ sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length
   if (sequel_syntax_issue_count(syntax) != 0) {
     sequel_syntax_document_free(syntax);
     sequel_lexed_document_free(lexed);
-    return SEQUEL_ERR_INVALID;
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
