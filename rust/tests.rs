@@ -283,7 +283,7 @@ fn selective_sanitization_and_formatting() {
         summarize("SELECT * FROM things", d).unwrap(),
         "SELECT … FROM things"
     );
-    assert_eq!(inspect("SELECT 1", d).unwrap().text, "SELECT ?");
+    assert_eq!(metadata("SELECT 1", d).unwrap().text, "SELECT ?");
 }
 #[test]
 fn html_ansi_themes_overrides_and_incomplete() {

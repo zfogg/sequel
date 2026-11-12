@@ -127,8 +127,8 @@ uv run --extra test pytest
 The distribution is `sequel`; its import is `sequel`.
 
 ```python
-from sequel import Dialect, inspect, format_sql
-query = inspect("SELECT * FROM users WHERE token='secret'", dialect=Dialect.POSTGRESQL)
+from sequel import Dialect, metadata, format_sql
+query = metadata("SELECT * FROM users WHERE token='secret'", dialect=Dialect.POSTGRESQL)
 print(query.text, query.summary)
 print(format_sql("select a,b from users", dialect=Dialect.POSTGRESQL))
 ```

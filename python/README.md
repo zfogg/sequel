@@ -15,7 +15,7 @@ ClickHouse. The package requires Python 3.11 or newer.
   comments, quoted identifiers, and bind markers; formatting never executes SQL.
 - `sanitize` removes comments and replaces literals and bind markers with bounded
   placeholders, with selective flags and UTF-8-aware input/output limits.
-- `inspect` returns immutable query text, structural summaries, operations,
+- `metadata` returns immutable query text, structural summaries, operations,
   statement counts, truncation metadata, and dialect-aware safety checks without
   accepting or retaining bind values.
 - `analyze` provides sanitized text, fingerprints, statement ranges, bind
@@ -41,7 +41,7 @@ uv add sequel
 ```python
 import sequel
 
-query = sequel.inspect(
+query = sequel.metadata(
     "SELECT * FROM users WHERE id = 42",
     dialect=sequel.Dialect.POSTGRESQL,
 )
@@ -55,7 +55,7 @@ formatted = sequel.format_sql(
 safe = sequel.sanitize("SELECT * FROM users WHERE token = 'secret'")
 ```
 
-`inspect` removes literals, comments, and bind markers while preserving safe
+`metadata` removes literals, comments, and bind markers while preserving safe
 query structure. `format_sql` formats SQL without executing it, and `sanitize`
 produces a bounded representation suitable for telemetry or diagnostics.
 
