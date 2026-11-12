@@ -522,12 +522,16 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   if (source.length && source.data[source.length - 1] != '\n' && length && data[length - 1] == '\n')
     data[--length] = 0;
   if (sequel_lexed_dialect(lexed) == SEQUEL_DUCKDB && strstr(source.data, "':")) {
-    for (char *colon = strstr(data, "': "); colon; colon = strstr(colon + 1, "': ")) {
-      const char *source_colon = strstr(source.data, "':");
-      if (source_colon && source_colon[2] != ' ' && source_colon[2] != '\t' && source_colon[2] != '\n') {
-        memmove(colon + 2, colon + 3, length - (size_t)(colon - data) - 2);
+    const char *source_key = source.data;
+    char *formatted_key = data;
+    while ((source_key = strstr(source_key, "':")) != NULL && (formatted_key = strstr(formatted_key, "':")) != NULL) {
+      if (source_key[2] != ' ' && source_key[2] != '\t' && source_key[2] != '\n' && formatted_key[2] == ' ') {
+        memmove(formatted_key + 2, formatted_key + 3, length - (size_t)(formatted_key - data) - 2);
         --length;
+      } else {
+        formatted_key += 2;
       }
+      source_key += 2;
     }
   }
   sequel_text_result_free(out);
