@@ -58,6 +58,33 @@ int main(void) {
   if (!check(sequel_dialect_clause(SEQUEL_POSTGRESQL, SEQUEL_KEYWORD_ORDER) != NULL, "dialect resolves clauses"))
     return 1;
 
+  {
+    const char source_text[] = "SELECT\nπ";
+    sequel_source_view_t view = {source_text, strlen(source_text)};
+    sequel_source_options_t copied_options = {
+        .view = view, .storage = SEQUEL_SOURCE_COPIED, .dialect = SEQUEL_POSTGRESQL};
+    sequel_source_t *copied = NULL;
+    if (!check(sequel_source_create(&view, &copied_options, &copied) == SEQUEL_OK && copied, "create copied source"))
+      return 1;
+    sequel_position_t position = {0};
+    sequel_location_t location = {0};
+    if (!check(sequel_source_position(copied, 7, &position) == SEQUEL_OK && position.line == 2 && position.column == 1,
+               "source byte position") ||
+        !check(sequel_source_range_position(copied, (sequel_source_range_t){7, view.length}, &location) == SEQUEL_OK &&
+                   location.start.line == 2 && location.end.column == 2,
+               "source range location"))
+      return 1;
+    sequel_source_free(copied);
+    sequel_source_options_t borrowed_options = {
+        .view = view, .storage = SEQUEL_SOURCE_BORROWED, .dialect = SEQUEL_POSTGRESQL};
+    sequel_source_t *borrowed = NULL;
+    if (!check(sequel_source_create(&view, &borrowed_options, &borrowed) == SEQUEL_OK &&
+                   sequel_source_view(borrowed).data == source_text,
+               "create borrowed source"))
+      return 1;
+    sequel_source_free(borrowed);
+  }
+
   sequel_parse_options_t formatter_options;
   sequel_parse_options_init(&formatter_options);
   formatter_options.dialect = SEQUEL_POSTGRESQL;
