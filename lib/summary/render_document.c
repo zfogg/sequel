@@ -1411,7 +1411,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (settings->include_predicates && sequel_query_predicate_count(query) &&
       !(statement_count && sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
         sequel_summary_find_text(source.data, " SET ") && sequel_summary_find_text(source.data, " FROM ")) &&
-      !sequel_summary_find_text(source.data, " JOIN LATERAL ") && !sequel_summary_find_text(source.data, " JOIN (")) {
+      !sequel_summary_find_text(source.data, "JOIN LATERAL") && !sequel_summary_find_text(source.data, " JOIN (")) {
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     size_t predicate_index = 0;
     while (predicate_index < sequel_query_predicate_count(query) &&
@@ -1505,7 +1505,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   } else if (settings->include_predicates && statement_count && statements[0].operation != SEQUEL_OPERATION_CREATE &&
              !(sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
                sequel_summary_find_text(source.data, " SET ") && sequel_summary_find_text(source.data, " FROM ")) &&
-             !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+             !sequel_summary_find_text(source.data, "JOIN LATERAL") &&
              !sequel_summary_find_text(source.data, " JOIN (")) {
   skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
@@ -2001,7 +2001,7 @@ summary_postprocess:
       *end = '\0';
       length = (size_t)(end - text);
     }
-    if (text && sequel_summary_find_text(source.data, " JOIN LATERAL ")) {
+    if (text && sequel_summary_find_text(source.data, "JOIN LATERAL")) {
       char *inner = sequel_summary_find_text(text, "(SELECT *");
       if (inner) {
         const char replacement[] = "(SELECT …";
@@ -2103,7 +2103,7 @@ summary_postprocess:
     }
     if (text && !sequel_query_cte_count(query) && statements[0].operation == SEQUEL_OPERATION_SELECT &&
         sequel_summary_find_text(source.data, " FROM ") && sequel_summary_find_text(source.data, ", ") &&
-        sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+        sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, "JOIN LATERAL") &&
         !sequel_summary_has_projection_scope(query)) {
       const char *from = sequel_summary_find_text(source.data, " FROM ") + 6;
       const char *where = sequel_summary_find_text(from, " WHERE ");
@@ -2511,7 +2511,7 @@ summary_postprocess:
         (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?")))
       goto no_memory;
   }
-  if (text && sequel_query_statement_count(query) == 1 && !sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+  if (text && sequel_query_statement_count(query) == 1 && !sequel_summary_find_text(source.data, "JOIN LATERAL") &&
       !sequel_summary_find_text(source.data, "LEFT JOIN LATERAL") &&
       !sequel_summary_find_text(source.data, " UNION ") && !sequel_summary_find_text(source.data, " INTERSECT ") &&
       !sequel_summary_find_text(source.data, " EXCEPT ")) {
@@ -2529,7 +2529,7 @@ summary_postprocess:
       length -= (size_t)(boundary - premature_limit);
     }
   }
-  if (!sequel_summary_find_text(source.data, " JOIN LATERAL ") &&
+  if (!sequel_summary_find_text(source.data, "JOIN LATERAL") &&
       !sequel_summary_normalize_order_limit(&text, &length, &capacity))
     goto no_memory;
   size_t source_limit_count = 0;
@@ -2537,30 +2537,29 @@ summary_postprocess:
   for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, " LIMIT ")) != NULL;
        cursor += strlen(" LIMIT "))
     ++source_limit_count;
-  for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, " LIMIT ")) != NULL;
-       cursor += strlen(" LIMIT "))
+  for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, " LIMIT ")) != NULL; cursor += strlen(" LIMIT "))
     ++rendered_limit_count;
   const char *first_lateral = strstr(source.data, "JOIN LATERAL");
   bool multiple_lateral = first_lateral && strstr(first_lateral + strlen("JOIN LATERAL"), "JOIN LATERAL");
   if (rendered_limit_count > source_limit_count && !multiple_lateral)
     for (char *premature_limit = text; premature_limit;) {
-    premature_limit = sequel_summary_find_text(premature_limit, " LIMIT ? ORDER BY ");
-    if (!premature_limit)
-      break;
-    size_t nesting = 0;
-    for (char *cursor = text; cursor < premature_limit; ++cursor) {
-      if (*cursor == '(')
-        ++nesting;
-      else if (*cursor == ')' && nesting)
-        --nesting;
-    }
-    if (nesting) {
-      premature_limit += strlen(" LIMIT ?");
-      continue;
-    }
-    memmove(premature_limit, premature_limit + strlen(" LIMIT ?"),
-            length - (size_t)(premature_limit - text) - strlen(" LIMIT ?") + 1);
-    length -= strlen(" LIMIT ?");
+      premature_limit = sequel_summary_find_text(premature_limit, " LIMIT ? ORDER BY ");
+      if (!premature_limit)
+        break;
+      size_t nesting = 0;
+      for (char *cursor = text; cursor < premature_limit; ++cursor) {
+        if (*cursor == '(')
+          ++nesting;
+        else if (*cursor == ')' && nesting)
+          --nesting;
+      }
+      if (nesting) {
+        premature_limit += strlen(" LIMIT ?");
+        continue;
+      }
+      memmove(premature_limit, premature_limit + strlen(" LIMIT ?"),
+              length - (size_t)(premature_limit - text) - strlen(" LIMIT ?") + 1);
+      length -= strlen(" LIMIT ?");
     }
   if (sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED")) {
     char *limit = sequel_summary_find_text(text, " LIMIT ?");
