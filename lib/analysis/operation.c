@@ -16,6 +16,10 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     out->operation[0] = 0;
     return;
   }
+  if (statement[0].operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " SELECT ")) {
+    out->operation[0] = 0;
+    return;
+  }
   const char *name = NULL;
   switch (statement[0].operation) {
   case SEQUEL_OPERATION_SELECT:
