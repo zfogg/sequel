@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <sequel/source.h>
+#include <sequel/status.h>
 
 SEQUEL_EXTERN_C_BEGIN
 
@@ -46,5 +47,34 @@ typedef struct {
   uint32_t keyword_id;
   uint32_t dialect_id;
 } sequel_token_t;
+
+typedef struct sequel_lexed_document sequel_lexed_document_t;
+typedef struct sequel_diagnostic_record sequel_diagnostic_record_t;
+
+/** Release a lexical document. NULL is permitted. */
+void sequel_lexed_document_free(sequel_lexed_document_t *document);
+
+/** Return the source retained by a lexical document. */
+sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document);
+
+/** Return the owned source object retained by a lexical document. */
+const sequel_source_t *sequel_lexed_source_object(const sequel_lexed_document_t *document);
+
+/** Return the immutable lexical token array. */
+const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count);
+
+/** Return the immutable token count in a lexical document. */
+size_t sequel_lexed_token_count(const sequel_lexed_document_t *document);
+
+/** Return the dialect used to classify the document. */
+sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);
+
+/** Return lexical diagnostics retained by the document. The array is borrowed. */
+size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document);
+const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document);
+
+/** Return the exact source bytes covered by a token. */
+sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
+                                  size_t *length);
 
 SEQUEL_EXTERN_C_END

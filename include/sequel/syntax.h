@@ -3,7 +3,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <sequel/source.h>
+#include <sequel/lexer.h>
+
+typedef struct sequel_lexed_document sequel_lexed_document_t;
+typedef struct sequel_syntax_document sequel_syntax_document_t;
 
 SEQUEL_EXTERN_C_BEGIN
 
@@ -77,5 +80,26 @@ typedef struct {
   size_t token_count;
   uint32_t production_id;
 } sequel_syntax_node_t;
+
+/** Release a syntax document. NULL is permitted. */
+void sequel_syntax_document_free(sequel_syntax_document_t *document);
+
+/** Return the lexical document retained by a syntax document. */
+const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document);
+
+/** Return the immutable syntax-node array. */
+const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *document, size_t *count);
+
+/** Return one immutable syntax node, or NULL for an invalid index. */
+const sequel_syntax_node_t *sequel_syntax_node(const sequel_syntax_document_t *document, size_t node_index);
+
+/** Return the number of syntax nodes in the document. */
+size_t sequel_syntax_node_count(const sequel_syntax_document_t *document);
+
+/** Return child node indexes for a syntax node. */
+const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+/** Return the immutable token span covered by a syntax node. */
+const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
 
 SEQUEL_EXTERN_C_END

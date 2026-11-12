@@ -11,7 +11,6 @@
 
 SEQUEL_EXTERN_C_BEGIN
 
-typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
 typedef struct sequel_diagnostic_record sequel_diagnostic_record_t;
 
@@ -89,53 +88,9 @@ void sequel_parse_options_init(sequel_parse_options_t *options);
 sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options,
                            const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out);
 
-/** Release a lexical document. NULL is permitted. */
-void sequel_lexed_document_free(sequel_lexed_document_t *document);
-
-/** Return the source retained by a lexical document. */
-sequel_source_view_t sequel_lexed_source(const sequel_lexed_document_t *document);
-
-/** Return the owned source object retained by a lexical document. */
-const sequel_source_t *sequel_lexed_source_object(const sequel_lexed_document_t *document);
-
-/** Return the immutable lexical token array. */
-const sequel_token_t *sequel_lexed_tokens(const sequel_lexed_document_t *document, size_t *count);
-
-/** Return the immutable token count in a lexical document. */
-size_t sequel_lexed_token_count(const sequel_lexed_document_t *document);
-sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);
-
-/** Return lexical diagnostics retained by the document. The array is borrowed. */
-size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document);
-const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document);
-
-sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
-                                  size_t *length);
-
 /** Parse a lexical document into a recovered syntax document. */
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
                              const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
-
-/** Release a syntax document. NULL is permitted. */
-void sequel_syntax_document_free(sequel_syntax_document_t *document);
-
-/** Return the lexical document retained by a syntax document. */
-const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document);
-
-/** Return the immutable syntax-node array. */
-const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *document, size_t *count);
-
-/** Return one immutable syntax node, or NULL for an invalid index. */
-const sequel_syntax_node_t *sequel_syntax_node(const sequel_syntax_document_t *document, size_t node_index);
-
-/** Return the number of syntax nodes in the document. */
-size_t sequel_syntax_node_count(const sequel_syntax_document_t *document);
-
-/** Return child node indexes for a syntax node. */
-const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
-
-/** Return the immutable token span covered by a syntax node. */
-const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
 
 const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count);
 
