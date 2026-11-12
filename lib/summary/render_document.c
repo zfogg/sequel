@@ -2566,6 +2566,23 @@ summary_postprocess:
     goto no_memory;
   if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
+  if (sequel_summary_word(source.data, source.length, 0, "UPDATE") && sequel_summary_find_text(source.data, " JOIN ")) {
+    for (char *alias = sequel_summary_find_text(text, "flags f"); alias;
+         alias = sequel_summary_find_text(alias + sizeof("flags AS f") - 1, "flags f")) {
+      size_t offset = (size_t)(alias - text);
+      size_t old_length = sizeof("flags f") - 1;
+      size_t new_length = sizeof("flags AS f") - 1;
+      char *grown = realloc(text, length + new_length - old_length + 1);
+      if (!grown)
+        goto no_memory;
+      text = grown;
+      alias = text + offset;
+      memmove(alias + new_length, alias + old_length, length - offset - old_length + 1);
+      memcpy(alias, "flags AS f", new_length);
+      length += new_length - old_length;
+      capacity = length + 1;
+    }
+  }
   if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
     goto no_memory;
   return SEQUEL_OK;
