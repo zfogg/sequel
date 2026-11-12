@@ -136,6 +136,10 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   status = sequel_build_query_document(syntax, &parse_options, &query);
   if (status != SEQUEL_OK)
     goto done;
+  if (sequel_query_statement_count(query) == 0) {
+    status = SEQUEL_OK;
+    goto done;
+  }
   status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax),
                                   SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized);
   if (status != SEQUEL_OK)
