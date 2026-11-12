@@ -28,6 +28,13 @@ static bool saw_from(const sequel_syntax_document_t *document, size_t node_index
   return true;
 }
 
+static bool stop_syntax_visit(const sequel_syntax_document_t *document, size_t node_index, void *userdata) {
+  (void)document;
+  (void)node_index;
+  (void)userdata;
+  return false;
+}
+
 static bool count_relations(const sequel_query_document_t *document, size_t index, void *userdata) {
   (void)document;
   (void)index;
@@ -780,6 +787,9 @@ int main(void) {
   int found_from = 0;
   sequel_syntax_visitor_t visitor = {.enter_node = saw_from, .userdata = &found_from};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_OK && found_from, "syntax visitor"))
+    return 1;
+  visitor = (sequel_syntax_visitor_t){.enter_node = stop_syntax_visit};
+  if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_ERR_CANCELLED, "syntax visitor cancellation"))
     return 1;
   const char expression_sql[] =
       "SELECT CASE WHEN id IN (1, 2) THEN CAST(value AS INTEGER) ELSE EXISTS (SELECT 1) END FROM t";

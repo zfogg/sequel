@@ -729,7 +729,7 @@ static int sequel_parser_visit_node(const sequel_syntax_document_t *document, si
   if (node_index >= document->node_count)
     return 0;
   if (visitor->enter_node && !visitor->enter_node(document, node_index, visitor->userdata))
-    return 1;
+    return 0;
   const sequel_syntax_node_t *node = &document->nodes[node_index];
   for (size_t i = 0; i < node->child_count; ++i)
     if (!sequel_parser_visit_node(document, document->children[node->first_child + i], visitor))
