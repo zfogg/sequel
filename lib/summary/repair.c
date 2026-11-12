@@ -126,6 +126,10 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
   if (sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
       !sequel_summary_preserve_keyword(text, length, capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
     return 0;
+  if (sequel_summary_find_word(source.data, source.length, 0, "RETURNING") &&
+      !sequel_summary_find_text(*text, "RETURNING") &&
+      !sequel_summary_append_text(text, length, capacity, " RETURNING …"))
+    return 0;
   return 1;
 }
 
