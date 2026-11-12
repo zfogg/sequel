@@ -439,6 +439,15 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       if (previous_length && previous_text[previous_length - 1] == '@')
         no_space_after_previous = true;
     }
+    if (previous_token &&
+        (previous_token->kind == SEQUEL_TOKEN_PUNCTUATION || previous_token->kind == SEQUEL_TOKEN_OPERATOR) &&
+        previous_token->range.end == previous_token->range.start + 1 &&
+        source.data[previous_token->range.start] == ':' && previous_token->range.end < source.length &&
+        isspace((unsigned char)source.data[previous_token->range.end]) &&
+        (token->kind == SEQUEL_TOKEN_NUMBER || token->kind == SEQUEL_TOKEN_STRING ||
+         token->kind == SEQUEL_TOKEN_BOOLEAN || token->kind == SEQUEL_TOKEN_NULL)) {
+      no_space_after_previous = false;
+    }
     if (previous_token && sequel_token_is_operator(previous_token) &&
         previous_token->range.end == previous_token->range.start + 1 && source.data[previous_token->range.start] == '#')
       no_space_after_previous = true;
@@ -512,6 +521,15 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   }
   if (source.length && source.data[source.length - 1] != '\n' && length && data[length - 1] == '\n')
     data[--length] = 0;
+  if (sequel_lexed_dialect(lexed) == SEQUEL_DUCKDB && strstr(source.data, "':")) {
+    for (char *colon = strstr(data, "': "); colon; colon = strstr(colon + 1, "': ")) {
+      const char *source_colon = strstr(source.data, "':");
+      if (source_colon && source_colon[2] != ' ' && source_colon[2] != '\t' && source_colon[2] != '\n') {
+        memmove(colon + 2, colon + 3, length - (size_t)(colon - data) - 2);
+        --length;
+      }
+    }
+  }
   sequel_text_result_free(out);
   *out = (sequel_text_result_t){data, length, capacity, settings->mode};
   return SEQUEL_OK;
