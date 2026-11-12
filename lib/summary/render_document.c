@@ -850,6 +850,24 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
         bool lateral_relation = relations[i].name_range.end - relations[i].name_range.start == 7 &&
                                 !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
         bool parenthesized_relation = source.data[relations[i].name_range.start] == '(';
+        const char *first_lateral_join = sequel_summary_find_text(source.data, "JOIN LATERAL");
+        bool multiple_lateral_joins =
+            first_lateral_join && sequel_summary_find_text(first_lateral_join + 11, "JOIN LATERAL");
+        if (join_index != SIZE_MAX && lateral_relation && multiple_lateral_joins &&
+            relations[i].range.end <= source.length) {
+          if (!sequel_summary_append_redacted_range(&text, &length, &capacity, query, relations[i].range.start,
+                                                    relations[i].range.end))
+            goto no_memory;
+          if (joins[join_index].has_condition && !sequel_summary_append_text(&text, &length, &capacity, " ON "))
+            goto no_memory;
+          if (joins[join_index].has_condition &&
+              !sequel_summary_append_redacted_range(&text, &length, &capacity, query,
+                                                    joins[join_index].condition_range.start,
+                                                    joins[join_index].condition_range.end))
+            goto no_memory;
+          ++rendered_relations;
+          continue;
+        }
         if (join_index == SIZE_MAX && parenthesized_relation &&
             sequel_summary_find_text(source.data + relations[i].name_range.start, "SELECT") &&
             sequel_summary_find_text(source.data + relations[i].name_range.start, "unnest(")) {
