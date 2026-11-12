@@ -54,7 +54,15 @@ static size_t sequel_summary_count_keyword(const char *source, size_t length, co
     }
     const char *match = sequel_summary_find_word(source, length, cursor, keyword);
     if (match) {
-      ++count;
+      /* DISTINCT ON is a projection modifier, not a join condition.  Keep
+       * the generic keyword repair pass from manufacturing an extra trailing
+       * ON when a summary already preserves that modifier. */
+      bool projection_on =
+          !strcmp(keyword, "ON") && match >= source + 9 && !memcmp(match - 9, "DISTINCT ", sizeof("DISTINCT ") - 1);
+      bool conflict_on =
+          !strcmp(keyword, "ON") && !strncmp(match + keyword_length, " CONFLICT", sizeof(" CONFLICT") - 1);
+      if (!projection_on && !conflict_on)
+        ++count;
       cursor = (size_t)(match - source) + keyword_length;
     } else {
       ++cursor;
