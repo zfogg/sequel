@@ -12,7 +12,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       --sanitized_length;
     if (sanitized_length && sanitized[sanitized_length - 1] == ';')
       --sanitized_length;
-    char *copy = malloc(sanitized_length + 1);
+    char *copy = malloc(sanitized_length + original.length + 1);
     if (!copy)
       sequel_abort(SEQUEL_ERR_NOMEM);
     memcpy(copy, sanitized, sanitized_length);
@@ -44,6 +44,27 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
         rendered_limit = cursor;
       if (rendered_limit)
         rendered_limit[6] = limit[6];
+    }
+    const char *source_index = original.data;
+    char *rendered_index = copy;
+    while ((source_index = strchr(source_index, '[')) != NULL) {
+      const char *source_end = source_index + 1;
+      while (source_end < original.data + original.length && isdigit((unsigned char)*source_end))
+        ++source_end;
+      if (source_end == source_index + 1 || source_end >= original.data + original.length || *source_end != ']') {
+        ++source_index;
+        continue;
+      }
+      rendered_index = strstr(rendered_index, "[?]");
+      if (!rendered_index)
+        break;
+      size_t digits = (size_t)(source_end - source_index - 1);
+      size_t suffix = strlen(rendered_index + 3);
+      memmove(rendered_index + digits + 2, rendered_index + 3, suffix + 1);
+      memcpy(rendered_index + 1, source_index + 1, digits);
+      rendered_index += digits + 2;
+      source_index = source_end + 1;
+      sanitized_length += digits - 1;
     }
     copy[sanitized_length] = 0;
     if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
