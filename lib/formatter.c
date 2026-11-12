@@ -137,9 +137,9 @@ static int sequel_formatter_is_as_before_open_paren(const char *data, size_t len
 
 static int sequel_formatter_colon_before_literal_needs_space(sequel_token_kind_t previous, const char *data,
                                                              size_t length, sequel_token_kind_t current,
-                                                             size_t bracket_depth) {
+                                                             size_t bracket_depth, size_t brace_depth) {
   return (previous == SEQUEL_TOKEN_PUNCTUATION || previous == SEQUEL_TOKEN_OPERATOR) && length &&
-         data[length - 1] == ':' && bracket_depth == 0 &&
+         data[length - 1] == ':' && (bracket_depth == 0 || brace_depth > 0) &&
          (current == SEQUEL_TOKEN_NUMBER || current == SEQUEL_TOKEN_STRING || current == SEQUEL_TOKEN_BOOLEAN ||
           current == SEQUEL_TOKEN_NULL);
 }
@@ -233,6 +233,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
   uint32_t clause = 0;
   size_t paren_depth = 0;
   size_t bracket_depth = 0;
+  size_t brace_depth = 0;
   size_t query_paren_depth = 0;
   size_t cte_paren_depth = 0;
   bool nested_query = false;
@@ -372,6 +373,10 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         ++bracket_depth;
       else if (symbol == ']' && bracket_depth)
         --bracket_depth;
+      else if (symbol == '{')
+        ++brace_depth;
+      else if (symbol == '}' && brace_depth)
+        --brace_depth;
       if (sequel_formatter_is_close_paren(source, token) && length && data[length - 1] != '\n' &&
           (query_paren_depth == paren_depth + 1 || (nested_query && paren_depth == 0) ||
            (projection_subquery && paren_depth == 0)) &&
@@ -429,10 +434,12 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         previous_token && previous_token->kind == SEQUEL_TOKEN_OPERATOR &&
         previous_token->range.end == previous_token->range.start + 1 &&
         source.data[previous_token->range.start] == ':' &&
-        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth,
+                                                           brace_depth);
     bool no_space_after_previous =
         sequel_formatter_no_space_after_punctuation(previous, data, length) &&
-        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth);
+        !sequel_formatter_colon_before_literal_needs_space(previous, data, length, token->kind, bracket_depth,
+                                                           brace_depth);
     if (previous_token && text_length && text[0] == '@') {
       size_t previous_length = 0;
       const char *previous_text = sequel_formatter_token_text(source, previous_token, &previous_length);
