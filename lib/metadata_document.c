@@ -287,6 +287,13 @@ sequel_status_t sequel_metadata_document(const char *sql, size_t length, const s
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
+  /* A recovered dialect-specific query may legitimately have no rendered
+   * summary.  Never use a stale length with a null data pointer when packing
+   * the owned metadata storage. */
+  if (!summary.data)
+    summary.length = 0;
+  if (!sanitized.data)
+    sanitized.length = 0;
   if (parse_options.dialect == SEQUEL_CLICKHOUSE)
     sequel_metadata_document_remove_clickhouse_comments(&summary);
   sequel_metadata_document_restore_outer_limit(&summary, query, source);
