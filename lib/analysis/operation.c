@@ -1,5 +1,16 @@
 #include "internal.h"
 
+static bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word) {
+  size_t word_length = strlen(word);
+  for (size_t i = 0; i + word_length <= source.length; ++i) {
+    if ((i == 0 || !isalnum((unsigned char)source.data[i - 1])) &&
+        (i + word_length == source.length || !isalnum((unsigned char)source.data[i + word_length])) &&
+        sequel_query_word_equals_ci(source.data + i, word_length, word))
+      return true;
+  }
+  return false;
+}
+
 void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   if (!query || !out || !sequel_query_statement_count(query))
     return;
@@ -17,8 +28,9 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     return;
   }
   if (sequel_query_statement_count(query) > 1 && statement[0].operation == SEQUEL_OPERATION_INSERT &&
-      strstr(source.data, " SELECT ") &&
-      strstr(source.data + (source.length > 8 ? 8 : source.length), "-- name:")) {
+      sequel_analysis_source_contains_word(source, "SELECT") &&
+      (strstr(source.data, "\n-- name:") || strstr(source.data, "\r\n-- name:") ||
+       (strchr(source.data, ';') && strchr(strchr(source.data, ';') + 1, ';')))) {
     out->operation[0] = 0;
     return;
   }
