@@ -74,11 +74,7 @@ typedef struct {
   uint32_t flags;
 } sequel_cte_info_t;
 
-enum {
-  SEQUEL_CTE_FLAG_NONE = 0,
-  SEQUEL_CTE_FLAG_MATERIALIZED = 1u << 0,
-  SEQUEL_CTE_FLAG_NOT_MATERIALIZED = 1u << 1
-};
+enum { SEQUEL_CTE_FLAG_NONE = 0, SEQUEL_CTE_FLAG_MATERIALIZED = 1u << 0, SEQUEL_CTE_FLAG_NOT_MATERIALIZED = 1u << 1 };
 
 enum { SEQUEL_RELATION_FLAG_NESTED_SCOPE = 1u << 0, SEQUEL_RELATION_FLAG_PROJECTION_SCOPE = 1u << 1 };
 
@@ -147,6 +143,7 @@ typedef struct {
 typedef struct {
   bool (*statement)(const sequel_query_document_t *document, size_t statement_index, void *userdata);
   bool (*clause)(const sequel_query_document_t *document, size_t clause_index, void *userdata);
+  bool (*cte)(const sequel_query_document_t *document, size_t cte_index, void *userdata);
   bool (*relation)(const sequel_query_document_t *document, size_t relation_index, void *userdata);
   bool (*parameter)(const sequel_query_document_t *document, size_t parameter_index, void *userdata);
   bool (*join)(const sequel_query_document_t *document, size_t join_index, void *userdata);
