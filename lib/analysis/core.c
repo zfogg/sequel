@@ -15,11 +15,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
     sequel_work_tick(1);
     analysis_token_t t = ts[i];
     size_t start = t.source_offset, end = start + t.t.n;
-    if (collapse_end != SIZE_MAX && i == collapse_end) {
-      consumed = start;
-      collapse_end = SIZE_MAX;
-      gap = false;
-    }
+    sequel_analysis_update_collapse(i, &collapse_end, &consumed, start, &gap);
     bool suppressed = collapse_end != SIZE_MAX && i < collapse_end;
     if (sequel_analysis_consume_trivia(t, suppressed, &consumed, safe, map, &gap))
       continue;

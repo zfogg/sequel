@@ -28,6 +28,15 @@ bool sequel_analysis_consume_trivia(analysis_token_t token, bool suppressed, siz
   return true;
 }
 
+bool sequel_analysis_update_collapse(size_t index, size_t *collapse_end, size_t *consumed, size_t start, bool *gap) {
+  if (*collapse_end == SIZE_MAX || index != *collapse_end)
+    return false;
+  *consumed = start;
+  *collapse_end = SIZE_MAX;
+  *gap = false;
+  return true;
+}
+
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind) {
   size_t start = token.source_offset;
