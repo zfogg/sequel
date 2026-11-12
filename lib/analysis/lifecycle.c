@@ -1,5 +1,23 @@
 #include "internal.h"
 
+void *sequel_analysis_array(void *pointer, size_t count, size_t element) {
+  if (count > SIZE_MAX / element)
+    sequel_abort(SEQUEL_ERR_LIMIT);
+  size_t bytes = count * element,
+         capacity = pointer ? ((sequel_allocation *)pointer - 1)->h.bytes - sizeof(sequel_allocation) : 0;
+  if (bytes <= capacity)
+    return pointer;
+  size_t next = capacity ? capacity : element * 8;
+  while (next < bytes) {
+    if (next > SIZE_MAX / 2) {
+      next = bytes;
+      break;
+    }
+    next *= 2;
+  }
+  return realloc(pointer, next);
+}
+
 void sequel_analysis_charge(analysis_state *state, size_t bytes) {
   (void)state;
   sequel_output_tick(bytes);
