@@ -13,21 +13,17 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   sequel_source_view_t source = sequel_query_source(query);
   const char *source_limit = NULL;
   for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
-    if (cursor[6] >= '0' && cursor[6] <= '9')
+    if (!source_limit && cursor[6] >= '0' && cursor[6] <= '9')
       source_limit = cursor;
   const char *first_name = strstr(source.data, "-- name:");
   bool multiple_named_queries = first_name && strstr(first_name + strlen("-- name:"), "-- name:");
-  size_t numeric_limit_count = 0;
-  for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6)
-    if (cursor[6] >= '0' && cursor[6] <= '9')
-      ++numeric_limit_count;
   bool parameter_limit_before_numeric = false;
   const char *parameter_limit = strstr(source.data, "LIMIT sqlc.arg(");
   if (parameter_limit && parameter_limit < source_limit)
     parameter_limit_before_numeric = true;
   if (source_limit &&
       (!multiple_named_queries ||
-       (source_limit[6] == '1' && !parameter_limit_before_numeric && numeric_limit_count <= 4)) &&
+       (!parameter_limit_before_numeric && source_limit[6] <= '2')) &&
       summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
