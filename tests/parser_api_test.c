@@ -733,7 +733,7 @@ int main(void) {
              "deserialize rejects unsupported newer schema"))
     return 1;
   uint64_t corrupt_range = UINT64_MAX;
-  memcpy(serialized.data + 18 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
+  memcpy(serialized.data + 19 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
   if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
              "serialized range validation"))
     return 1;
