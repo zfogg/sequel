@@ -50,6 +50,27 @@ static void diagnostic_json(FILE *stream, const sequel_diagnostic_t *d) {
   fputc('}', stream);
 }
 
+static bool diagnostic_is_input_failure(sequel_diagnostic_code_t code) {
+  return code == SEQUEL_DIAG_CONTROL_CHARACTER || code == SEQUEL_DIAG_INVALID_UTF8 ||
+         code == SEQUEL_DIAG_NESTING_LIMIT;
+}
+
+static bool diagnostic_is_duplicate(const sequel_diagnostic_list_t *diagnostics,
+                                    const sequel_diagnostic_record_t *candidate) {
+  for (size_t i = 0; i < diagnostics->count; ++i) {
+    const sequel_diagnostic_record_t *existing = &diagnostics->records[i];
+    if (existing->code == candidate->code && existing->range.start == candidate->range.start &&
+        existing->range.end == candidate->range.end)
+      return true;
+  }
+  return false;
+}
+
+static bool diagnostic_is_unterminated(sequel_diagnostic_code_t code) {
+  return code == SEQUEL_DIAG_UNTERMINATED_STRING || code == SEQUEL_DIAG_UNTERMINATED_COMMENT ||
+         code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER || code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
+}
+
 /* All strings are fixed library-owned explanations, not SQL or user content. */
 void print_diagnostic(FILE *stream, const sequel_diagnostic_t *d, int json) {
   const char *severity = d->severity == SEQUEL_ERROR ? "error" : d->severity == SEQUEL_WARNING ? "warning" : "note";
@@ -73,33 +94,53 @@ sequel_status_t diagnose_all(FILE *stream, const char *sql, size_t length, seque
   parse_options.tolerant = true;
   parse_options.recover_errors = true;
   sequel_syntax_document_t *syntax = NULL;
-  sequel_query_document_t *query = NULL;
-  sequel_query_analysis_t *analysis = NULL;
-  sequel_status_t status = sequel_parse_sql(&source, &parse_options, NULL, &syntax);
-  if (status == SEQUEL_OK)
-    status = sequel_build_query_document(syntax, &parse_options, &query);
-  if (status == SEQUEL_OK) {
-    sequel_query_analysis_options_t options;
-    sequel_query_analysis_options_init(&options);
-    options.include_summary = false;
-    options.include_fingerprint = false;
-    options.include_bindings = false;
-    options.include_relations = false;
-    options.include_projections = false;
-    options.include_predicates = false;
-    options.include_sanitized_sql = false;
-    options.include_formatted_sql = false;
-    options.include_source_maps = false;
-    status = sequel_analyze_document(syntax, query, &options, NULL, &analysis);
+  sequel_diagnostic_list_t diagnostics = {0};
+  sequel_diagnostic_t input_diagnostic = {0};
+  sequel_status_t input_status = sequel_diagnose_n(sql, length, dialect, &input_diagnostic);
+  const bool input_failure = input_status != SEQUEL_OK && diagnostic_is_input_failure(input_diagnostic.code);
+  sequel_status_t status = input_failure ? input_status : sequel_parse_sql(&source, &parse_options, NULL, &syntax);
+  if (input_failure) {
+    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_LEXICAL,
+                                         .code = input_diagnostic.code,
+                                         .severity = input_diagnostic.severity,
+                                         .range = {input_diagnostic.offset, input_diagnostic.end_offset}};
+    if (!sequel_diagnostic_list_append(&diagnostics, record))
+      status = SEQUEL_ERR_NOMEM;
   }
-  const sequel_diagnostic_list_t *diagnostics = analysis ? sequel_query_analysis_diagnostics(analysis) : NULL;
+  if (status == SEQUEL_OK) {
+    /* The CLI's --all contract is lexical/delimiter diagnostics.  Query
+     * lints belong to the analysis API and would both leak implementation
+     * policy into this command and duplicate recovered token failures. */
+    status = sequel_collect_syntax_diagnostics(syntax, &diagnostics);
+    if (status == SEQUEL_OK) {
+      sequel_diagnostic_list_t lexical = {0};
+      status = sequel_collect_lexical_diagnostics(sequel_syntax_lexed(syntax), &lexical);
+      for (size_t i = 0; status == SEQUEL_OK && i < lexical.count; ++i) {
+        const sequel_diagnostic_record_t *record = &lexical.records[i];
+        if (record->code == SEQUEL_DIAG_UNSUPPORTED_LAYOUT || diagnostic_is_duplicate(&diagnostics, record))
+          continue;
+        bool syntax_has_unterminated = false;
+        for (size_t j = 0; j < diagnostics.count; ++j)
+          syntax_has_unterminated |= diagnostic_is_unterminated(diagnostics.records[j].code);
+        if (syntax_has_unterminated && diagnostic_is_unterminated(record->code))
+          continue;
+        if (!sequel_diagnostic_list_append(&diagnostics, *record))
+          status = SEQUEL_ERR_NOMEM;
+      }
+      sequel_diagnostic_list_free(&lexical);
+    }
+  }
+  sequel_diagnostic_list_sort(&diagnostics);
+  if (status == SEQUEL_OK && diagnostics.count)
+    status = SEQUEL_ERR_INVALID_ARGUMENT;
+  const sequel_diagnostic_list_t *diagnostic_view = &diagnostics;
   if (json) {
     fprintf(stream, "{\"schema_version\":%u,\"original_length\":%zu,\"status\":",
             SEQUEL_DIAGNOSTIC_VERSION, length);
-    diagnostic_json_text(stream, status == SEQUEL_OK ? "ok" : "error");
+    diagnostic_json_text(stream, status == SEQUEL_OK ? "ok" : "malformed");
     fputs(",\"diagnostics\":[", stream);
-    for (size_t i = 0; diagnostics && i < diagnostics->count; ++i) {
-      const sequel_diagnostic_record_t *record = &diagnostics->records[i];
+    for (size_t i = 0; i < diagnostic_view->count; ++i) {
+      const sequel_diagnostic_record_t *record = &diagnostic_view->records[i];
       sequel_diagnostic_t converted = {0};
       sequel_diagnostic_project(sql, length, record, &converted);
       if (i)
@@ -107,18 +148,17 @@ sequel_status_t diagnose_all(FILE *stream, const char *sql, size_t length, seque
       diagnostic_json(stream, &converted);
     }
     fputs("]}\n", stream);
-  } else if (!diagnostics || !diagnostics->count) {
+  } else if (!diagnostic_view->count) {
     fputs("sequel: no lexical or delimiter issues found\n", stream);
   } else {
-    for (size_t i = 0; i < diagnostics->count; ++i) {
-      const sequel_diagnostic_record_t *record = &diagnostics->records[i];
+    for (size_t i = 0; i < diagnostic_view->count; ++i) {
+      const sequel_diagnostic_record_t *record = &diagnostic_view->records[i];
       sequel_diagnostic_t converted = {0};
       sequel_diagnostic_project(sql, length, record, &converted);
       print_diagnostic(stream, &converted, 0);
     }
   }
-  sequel_query_analysis_free(analysis);
-  sequel_query_document_free(query);
+  sequel_diagnostic_list_free(&diagnostics);
   sequel_syntax_document_free(syntax);
   return status;
 }

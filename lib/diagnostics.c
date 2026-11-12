@@ -689,13 +689,24 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
       break;
     case SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN:
       code = SEQUEL_DIAG_UNTERMINATED_STRING;
+      {
+        sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(syntax));
+        if (issues[i].range.start + 1 < source.length && source.data[issues[i].range.start] == '/' &&
+            source.data[issues[i].range.start + 1] == '*')
+          code = SEQUEL_DIAG_UNTERMINATED_COMMENT;
+      }
       break;
     case SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN:
       code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
       {
         sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(syntax));
-        if (issues[i].range.start < source.length && source.data[issues[i].range.start] == '{')
-          code = SEQUEL_DIAG_INVALID_PARAMETER;
+        if (issues[i].range.start < source.length) {
+          const char token = source.data[issues[i].range.start];
+          if (token == '{')
+            code = SEQUEL_DIAG_INVALID_PARAMETER;
+          else if (token == ')' || token == ']' || token == '}')
+            code = SEQUEL_DIAG_UNMATCHED_CLOSE;
+        }
       }
       break;
     }
