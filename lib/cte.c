@@ -46,7 +46,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
       ++cursor;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor < token_count && sequel_token_is_identifier(&tokens[cursor])) {
+      if (cursor < token_count) {
         size_t modifier = tokens[cursor].range.end - tokens[cursor].range.start;
         if ((modifier == 12 &&
              sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED")) ||
@@ -54,8 +54,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
           ++cursor;
           while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
             ++cursor;
-          if (modifier == 3 && cursor < token_count && sequel_token_is_identifier(&tokens[cursor]) &&
-              tokens[cursor].range.end - tokens[cursor].range.start == 12 &&
+          if (modifier == 3 && cursor < token_count && tokens[cursor].range.end - tokens[cursor].range.start == 12 &&
               sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED"))
             ++cursor;
           while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))

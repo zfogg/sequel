@@ -875,6 +875,18 @@ int main(void) {
     return 1;
   sequel_query_document_free(limited_cte_query);
   sequel_syntax_document_free(limited_cte_syntax);
+  const char materialized_cte_sql[] =
+      "WITH filtered AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM filtered";
+  sequel_source_view_t materialized_cte_source = {materialized_cte_sql, strlen(materialized_cte_sql)};
+  sequel_syntax_document_t *materialized_cte_syntax = NULL;
+  sequel_query_document_t *materialized_cte_query = NULL;
+  if (!check(sequel_parse_sql(&materialized_cte_source, &options, NULL, &materialized_cte_syntax) == SEQUEL_OK &&
+                 sequel_build_query_document(materialized_cte_syntax, &options, &materialized_cte_query) == SEQUEL_OK &&
+                 sequel_query_cte_count(materialized_cte_query) == 1,
+             "not materialized cte metadata"))
+    return 1;
+  sequel_query_document_free(materialized_cte_query);
+  sequel_syntax_document_free(materialized_cte_syntax);
   const char lateral_sql[] =
       "SELECT s.id FROM signals s JOIN LATERAL (SELECT * FROM bars WHERE symbol=s.symbol LIMIT 1) b ON true";
   sequel_source_view_t lateral_source = {lateral_sql, strlen(lateral_sql)};
