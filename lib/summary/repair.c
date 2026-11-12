@@ -92,7 +92,7 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
   if (sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(*text, "LATERAL") &&
       !sequel_summary_append_text(text, length, capacity, " LATERAL"))
     return 0;
-  if (sequel_query_join_count(query) &&
+  if (sequel_query_join_count(query) && !sequel_summary_find_text(*text, "JOIN LATERAL") &&
       !sequel_summary_append_missing_keyword(text, length, capacity, source, "LATERAL", " LATERAL"))
     return 0;
   if (sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
