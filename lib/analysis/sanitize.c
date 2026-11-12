@@ -26,3 +26,21 @@ void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens
     sequel_analysis_segment(map, start, end, before, safe->n,
                             literal || bind ? SEQUEL_MAP_REPLACE : SEQUEL_MAP_COPY);
 }
+
+void sequel_analysis_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number) {
+  unsigned char kind = 'B';
+  sha_update(hash, &kind, 1);
+  sha_u64(hash, ++*fingerprint_number);
+  sha_frame(hash, 'Y', "", 0, false);
+}
+
+void sequel_analysis_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
+  sha_frame(hash,
+            token.kind == 1   ? 'W'
+            : token.kind == 2 ? 'Q'
+                              : 'T',
+            token.t.p, token.t.n,
+            token.kind == 1 &&
+                (token.t.keyword || (dialect != SEQUEL_MYSQL && dialect != SEQUEL_CLICKHOUSE) ||
+                 isupper((unsigned char)token.t.p[0])));
+}
