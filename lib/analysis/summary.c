@@ -160,7 +160,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && !strstr(source.data, "UPDATE ") && strstr(source.data, "ORDER BY") &&
+  if (summary.data && !strstr(source.data, "UPDATE ") && !has_distinct_on && strstr(source.data, "ORDER BY") &&
       strstr(source.data, "LIMIT 1") && !strstr(source.data, "LIMIT $")) {
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
