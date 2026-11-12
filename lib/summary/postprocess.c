@@ -163,6 +163,16 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length, sequel_
         --bracket_depth;
       continue;
     }
+    if (bracket_depth && isdigit((unsigned char)text[i])) {
+      size_t end = i + 1;
+      while (end < *length && isdigit((unsigned char)text[end]))
+        ++end;
+      text[i] = '?';
+      memmove(text + i + 1, text + end, *length - end + 1);
+      *length -= end - i - 1;
+      ++i;
+      continue;
+    }
     if (bracket_depth && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))
       continue;
     if (text[i] != '$')

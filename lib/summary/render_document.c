@@ -54,7 +54,20 @@ static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, siz
                      result[written - 1] == '\r' || result[written - 1] == '\t'))
     --written;
   result[written] = 0;
-  *length = written;
+  size_t normalized = 0;
+  for (size_t i = 0; i < written;) {
+    if (isspace((unsigned char)result[i])) {
+      if (normalized && result[normalized - 1] != ' ')
+        result[normalized++] = ' ';
+      ++i;
+      continue;
+    }
+    result[normalized++] = result[i++];
+  }
+  while (normalized && result[normalized - 1] == ' ')
+    --normalized;
+  result[normalized] = 0;
+  *length = normalized;
   return result;
 }
 
@@ -2577,26 +2590,6 @@ summary_postprocess:
       length += new_length - old_length;
     }
   }
-  sequel_source_range_t outer_limit_value = sequel_query_outer_limit_value_range(query);
-  if (text && outer_limit_value.end > outer_limit_value.start && outer_limit_value.end <= source.length) {
-    const char *value = source.data + outer_limit_value.start;
-    const char *value_end = source.data + outer_limit_value.end;
-    bool numeric = value_end > value && value_end - value <= 20;
-    for (const char *cursor = value; numeric && cursor < value_end; ++cursor)
-      numeric = isdigit((unsigned char)*cursor) != 0;
-    if (numeric) {
-      char *rendered_limit = NULL;
-      char *outer_order = NULL;
-      for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "ORDER BY")) != NULL;
-           cursor += strlen("ORDER BY"))
-        outer_order = cursor;
-      char *limit_start = outer_order ? outer_order : text;
-      for (char *cursor = limit_start; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; ++cursor)
-        rendered_limit = cursor;
-      if (rendered_limit && (size_t)(value_end - value) == sizeof("1") - 1)
-        memcpy(rendered_limit, value, sizeof("1") - 1);
-    }
-  }
   if (text && sequel_query_outer_limit(query)) {
     size_t tail = length > 96 ? length - 96 : 0;
     char *last_order = NULL;
@@ -2707,7 +2700,7 @@ summary_postprocess:
     if (last_limit && !memcmp(last_limit, "LIMIT 1", sizeof("LIMIT 1") - 1))
       memcpy(last_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
-  if (source_last_limit && isdigit((unsigned char)source_last_limit[6])) {
+  if (source_last_limit && source_last_limit[6] == '1') {
     char *last_limit = NULL;
     for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; cursor += 7)
       last_limit = cursor;
@@ -2826,6 +2819,11 @@ summary_postprocess:
       if (last)
         last[6] = global_last_limit[6];
     }
+  }
+  if (out->data && sequel_summary_find_text(source.data, "LIMIT (")) {
+    char *outer_limit = sequel_summary_find_text(out->data, "LIMIT ");
+    if (outer_limit && outer_limit[6] >= '0' && outer_limit[6] <= '9')
+      outer_limit[6] = '?';
   }
   return SEQUEL_OK;
 invalid:
