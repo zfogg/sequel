@@ -1,5 +1,10 @@
 #include "internal.h"
 
+void sequel_analysis_charge(analysis_state *state, size_t bytes) {
+  (void)state;
+  sequel_output_tick(bytes);
+}
+
 void sequel_analysis_empty(sequel_analysis_t *out, size_t n, sequel_dialect_t dialect) {
   *out = (sequel_analysis_t){0};
   out->schema_version = SEQUEL_ANALYSIS_VERSION;

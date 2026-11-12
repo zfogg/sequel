@@ -51,16 +51,6 @@ typedef struct {
   size_t count, capacity, maximum, identities;
 } analysis_bindings;
 
-typedef struct {
-  sequel_analysis_t *out;
-  sequel_analysis_options_t options;
-} analysis_state;
-
-static void sequel_analysis_charge(analysis_state *a, size_t bytes) {
-  (void)a;
-  sequel_output_tick(bytes);
-}
-
 void *sequel_analysis_array(void *pointer, size_t count, size_t element) {
   if (count > SIZE_MAX / element)
     sequel_abort(SEQUEL_ERR_LIMIT);
