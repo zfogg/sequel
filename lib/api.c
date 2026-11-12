@@ -118,7 +118,7 @@ sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool 
 void sequel_metadata_free(sequel_metadata_t *metadata) {
   if (metadata) {
     free(metadata->_storage);
-    *metadata = (sequel_metadata_t){.text = "", .summary = "SQL"};
+    *metadata = (sequel_metadata_t){.text = "", .summary = "SQL", .operation = ""};
   }
 }
 
@@ -126,7 +126,7 @@ sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metada
                                   sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
-  *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
+  *out = (sequel_metadata_t){.text = "", .summary = "SQL", .operation = ""};
   if (!sql)
     return SEQUEL_ERR_NULL;
   sequel_metadata_options_t o = options ? *options : (sequel_metadata_options_t){0};
@@ -147,7 +147,7 @@ sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metada
 
 sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
   if (out)
-    *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
+    *out = (sequel_metadata_t){.text = "", .summary = "SQL", .operation = ""};
   if (!sql)
     return SEQUEL_ERR_NULL;
   size_t n = 0;

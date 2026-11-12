@@ -9,6 +9,11 @@ from sequel import Dialect, SQLMetadataError
 inspect = sqltrace.metadata
 SQLInspectionError = SQLMetadataError
 
+
+def test_non_query_metadata_has_empty_operation():
+    result = inspect("-- comment only")
+    assert result.operation == ""
+
 CLICKHOUSE_CASES = json.loads(
     (Path(__file__).resolve().parents[2] / "tests/sql_clickhouse.json").read_text(encoding="utf-8")
 )
