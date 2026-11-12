@@ -72,9 +72,9 @@ bool sequel_analysis_source_contains_word(sequel_source_view_t source, const cha
 bool sequel_analysis_source_contains(sequel_source_view_t source, const char *needle);
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind);
-void sequel_analysis_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number);
-void sequel_analysis_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
-void sequel_analysis_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
+void sequel_fingerprint_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number);
+void sequel_fingerprint_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
+void sequel_fingerprint_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect);
 const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length);
 const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,

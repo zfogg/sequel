@@ -62,16 +62,16 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       sha_update(hash, &kind, 1);
       sha_u64(hash, canonical->identity);
       if (style == SEQUEL_BIND_TYPED) {
-        sequel_analysis_hash_bind_type(hash, t, a->options.dialect);
+        sequel_fingerprint_hash_bind_type(hash, t, a->options.dialect);
       } else
         sha_frame(hash, 'Y', "", 0, false);
       if (!a->options.omit_bind_descriptors) {
         sequel_analysis_append_bind_descriptor(out, &bind_count, identity->slot, statement, start, end, style);
       }
     } else if (literal) {
-      sequel_analysis_hash_literal(hash, &fingerprint_next);
+      sequel_fingerprint_hash_literal(hash, &fingerprint_next);
     } else
-      sequel_analysis_hash_token(hash, t, a->options.dialect);
+      sequel_fingerprint_hash_token(hash, t, a->options.dialect);
     if (t.kind == 0 && sequel_runtime_symbol(t.t, ';')) {
       fingerprint_next = 0;
       sequel_analysis_dictionary_clear(&dictionary);

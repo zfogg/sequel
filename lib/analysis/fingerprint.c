@@ -1,13 +1,13 @@
 #include "internal.h"
 
-void sequel_analysis_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number) {
+void sequel_fingerprint_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number) {
   unsigned char kind = 'B';
   sha_update(hash, &kind, 1);
   sha_u64(hash, ++*fingerprint_number);
   sha_frame(hash, 'Y', "", 0, false);
 }
 
-void sequel_analysis_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
+void sequel_fingerprint_hash_token(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
   sha_frame(hash,
             token.kind == 1   ? 'W'
             : token.kind == 2 ? 'Q'
@@ -18,7 +18,7 @@ void sequel_analysis_hash_token(sequel_sha256 *hash, analysis_token_t token, seq
                  isupper((unsigned char)token.t.p[0])));
 }
 
-void sequel_analysis_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
+void sequel_fingerprint_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
   sequel_sha256 type_hash;
   sha_init(&type_hash);
   const char *colon = memchr(token.t.p, ':', token.t.n);
