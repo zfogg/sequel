@@ -116,6 +116,8 @@ int sequel_summary_repair_outer_limit(char **text, size_t *length, size_t *capac
                                       const sequel_query_document_t *query);
 
 void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, sequel_source_view_t source);
+int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size_t *capacity,
+                                               sequel_source_view_t source);
 
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity,
                                            const sequel_query_document_t *query,

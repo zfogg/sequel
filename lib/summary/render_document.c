@@ -2764,6 +2764,10 @@ summary_postprocess:
   if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements,
                                     statement_count))
     goto no_memory;
+  if (!sequel_summary_restore_numeric_limit_shape(&out->data, &out->length, &out->capacity, source)) {
+    sequel_text_result_free(out);
+    return SEQUEL_ERR_NOMEM;
+  }
   return SEQUEL_OK;
 invalid:
   free(text);
