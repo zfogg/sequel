@@ -38,8 +38,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
     const char *key;
     size_t key_length, number;
     sequel_bind_style_t style;
-    while (statement + 1 < out->statement_count && start >= out->statements[statement].end_offset)
-      statement++;
+    statement = sequel_analysis_statement_index(out, start, statement);
     bool bind = !literal && sequel_analysis_bind_token(t, a->options.dialect, &key, &key_length, &number, &style);
     if (bind) {
       char numeric[32];
@@ -123,8 +122,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       sequel_analysis_dictionary_clear(&dictionary);
       sequel_analysis_dictionary_clear(&slot_dictionary);
     }
-    while (statement + 1 < out->statement_count && start >= out->statements[statement].end_offset)
-      statement++;
+    statement = sequel_analysis_statement_index(out, start, statement);
     if (suppressed) {
       gap = false;
       continue;

@@ -95,6 +95,7 @@ bool sequel_analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnos
 void sequel_analysis_sort_diagnostics(sequel_analysis_t *out);
 int sequel_analysis_append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source);
 void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
+size_t sequel_analysis_statement_index(const sequel_analysis_t *analysis, size_t offset, size_t hint);
 void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
 sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
                                                     sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,

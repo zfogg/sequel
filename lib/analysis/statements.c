@@ -11,6 +11,15 @@ void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t 
   out->statement_count++;
 }
 
+size_t sequel_analysis_statement_index(const sequel_analysis_t *analysis, size_t offset, size_t hint) {
+  if (!analysis || !analysis->statement_count)
+    return 0;
+  size_t index = hint < analysis->statement_count ? hint : analysis->statement_count - 1;
+  while (index + 1 < analysis->statement_count && offset >= analysis->statements[index].end_offset)
+    index++;
+  return index;
+}
+
 void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out) {
   size_t count = 0, start = SIZE_MAX, last = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
