@@ -2319,28 +2319,6 @@ summary_postprocess:
       memcpy(select, replacement, new_length);
       length = strlen(text);
     }
-    if (sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
-        sequel_summary_find_text(source.data, " JOIN ")) {
-      char *alias = sequel_summary_find_text(text, "flags f");
-      if (alias) {
-        const char replacement[] = "flags AS f";
-        size_t old_length = 7;
-        size_t new_length = sizeof(replacement) - 1;
-        if (new_length > old_length) {
-          size_t offset = (size_t)(alias - text);
-          size_t required = length + new_length - old_length + 1;
-          char *grown = realloc(text, required);
-          if (!grown)
-            goto no_memory;
-          text = grown;
-          capacity = required;
-          alias = text + offset;
-        }
-        memmove(alias + sizeof(replacement) - 1, alias + 7, strlen(alias + 7) + 1);
-        memcpy(alias, replacement, sizeof(replacement) - 1);
-        length = strlen(text);
-      }
-    }
     if (sequel_summary_find_text(source.data, "LEFT JOIN LATERAL") && sequel_summary_find_text(source.data, " ON ") &&
         sequel_summary_find_text(text, "LEFT JOIN LATERAL") && !sequel_summary_find_text(text, " ON ")) {
       const char *on = sequel_summary_find_text(source.data, " ON ");
@@ -2593,21 +2571,51 @@ summary_postprocess:
     goto no_memory;
   if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
-  if (sequel_summary_word(source.data, source.length, 0, "UPDATE") && sequel_summary_find_text(source.data, " JOIN ")) {
-    for (char *alias = sequel_summary_find_text(text, "flags f"); alias;
-         alias = sequel_summary_find_text(alias + sizeof("flags AS f") - 1, "flags f")) {
-      size_t offset = (size_t)(alias - text);
-      size_t old_length = sizeof("flags f") - 1;
-      size_t new_length = sizeof("flags AS f") - 1;
-      char *grown = realloc(text, length + new_length - old_length + 1);
-      if (!grown)
-        goto no_memory;
-      text = grown;
-      alias = text + offset;
-      memmove(alias + new_length, alias + old_length, length - offset - old_length + 1);
-      memcpy(alias, "flags AS f", new_length);
-      length += new_length - old_length;
-      capacity = length + 1;
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
+      sequel_summary_find_text(source.data, " JOIN ")) {
+    for (size_t cursor = outer_start; cursor < source.length;) {
+      const char *join = sequel_summary_find_word(source.data, source.length, cursor, "JOIN");
+      if (!join)
+        break;
+      const char *table = join + strlen("JOIN");
+      while (table < source.data + source.length && isspace((unsigned char)*table))
+        ++table;
+      const char *table_end = table;
+      while (table_end < source.data + source.length && !isspace((unsigned char)*table_end))
+        ++table_end;
+      const char *alias = table_end;
+      while (alias < source.data + source.length && isspace((unsigned char)*alias))
+        ++alias;
+      const char *alias_end = alias;
+      while (alias_end < source.data + source.length && !isspace((unsigned char)*alias_end))
+        ++alias_end;
+      if (table_end > table && alias_end > alias &&
+          !sequel_summary_word(source.data, source.length, (size_t)(alias - source.data), "ON")) {
+        size_t table_length = (size_t)(table_end - table), alias_length = (size_t)(alias_end - alias);
+        size_t pattern_length = strlen("JOIN ") + table_length + 1 + alias_length;
+        char *pattern = malloc(pattern_length + 1);
+        if (!pattern)
+          goto no_memory;
+        memcpy(pattern, "JOIN ", strlen("JOIN "));
+        memcpy(pattern + strlen("JOIN "), table, table_length);
+        pattern[strlen("JOIN ") + table_length] = ' ';
+        memcpy(pattern + strlen("JOIN ") + table_length + 1, alias, alias_length);
+        pattern[pattern_length] = 0;
+        char *match = sequel_summary_find_text(text, pattern);
+        free(pattern);
+        if (match) {
+          size_t offset = (size_t)(match - text) + strlen("JOIN ") + table_length;
+          char *grown = realloc(text, length + 4);
+          if (!grown)
+            goto no_memory;
+          text = grown;
+          memmove(text + offset + 4, text + offset + 1, length - offset);
+          memcpy(text + offset, " AS ", 4);
+          length += 3;
+          capacity = length + 1;
+        }
+      }
+      cursor = (size_t)(join - source.data) + strlen("JOIN");
     }
   }
   if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
