@@ -72,6 +72,18 @@ int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity
   *length = compacted;
   while (*length && isspace((unsigned char)(*text)[*length - 1]))
     --*length;
+  size_t separator_count = 0;
+  for (const char *cursor = *text; (cursor = strstr(cursor, ")ON CONFLICT")) != NULL; cursor += 1)
+    ++separator_count;
+  for (const char *cursor = *text; (cursor = strstr(cursor, "…ON CONFLICT")) != NULL; cursor += 1)
+    ++separator_count;
+  if (separator_count && *length + separator_count + 1 > *capacity) {
+    char *grown = realloc(*text, *length + separator_count + 1);
+    if (!grown)
+      return 0;
+    *text = grown;
+    *capacity = *length + separator_count + 1;
+  }
   for (char *match = strstr(*text, ")ON CONFLICT"); match; match = strstr(match + 1, ")ON CONFLICT")) {
     size_t offset = (size_t)(match - *text) + 1;
     memmove(*text + offset + 1, *text + offset, *length - offset + 1);
