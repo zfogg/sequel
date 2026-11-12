@@ -835,9 +835,15 @@ int main(void) {
   sequel_source_view_t limited_cte_source = {limited_cte_sql, strlen(limited_cte_sql)};
   sequel_syntax_document_t *limited_cte_syntax = NULL;
   sequel_query_document_t *limited_cte_query = NULL;
+  sequel_source_range_t limited_range = {0};
+  sequel_source_range_t limited_value_range = {0};
   if (!check(sequel_parse_sql(&limited_cte_source, &options, NULL, &limited_cte_syntax) == SEQUEL_OK &&
                  sequel_build_query_document(limited_cte_syntax, &options, &limited_cte_query) == SEQUEL_OK &&
-                 sequel_query_outer_limit(limited_cte_query),
+                 sequel_query_outer_limit(limited_cte_query) &&
+                 (limited_range = sequel_query_outer_limit_range(limited_cte_query)).end > limited_range.start &&
+                 (limited_value_range = sequel_query_outer_limit_value_range(limited_cte_query)).end >
+                     limited_value_range.start &&
+                 !strncmp(limited_cte_sql + limited_value_range.start, "10", 2),
              "cte outer limit metadata"))
     return 1;
   sequel_query_document_free(limited_cte_query);
