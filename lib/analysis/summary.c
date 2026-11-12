@@ -7,6 +7,7 @@
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
                                         size_t sanitized_length, sequel_analysis_t *out) {
   if (query && sequel_query_statement_count(query) > 1 && sanitized) {
+    sequel_source_view_t original = sequel_query_source(query);
     while (sanitized_length && isspace((unsigned char)sanitized[sanitized_length - 1]))
       --sanitized_length;
     if (sanitized_length && sanitized[sanitized_length - 1] == ';')
@@ -36,7 +37,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     while (sanitized_length &&
            (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
       --sanitized_length;
-    const char *limit = strstr(sanitized, "LIMIT ");
+    const char *limit = strstr(original.data, "LIMIT ");
     if (limit && isdigit((unsigned char)limit[6]) && !isdigit((unsigned char)limit[7])) {
       char *rendered_limit = NULL;
       for (char *cursor = copy; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
@@ -45,6 +46,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
         rendered_limit[6] = limit[6];
     }
     copy[sanitized_length] = 0;
+    if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
+      copy[0] = 0;
     out->summary = copy;
     return;
   }
