@@ -1642,7 +1642,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       }
   }
   if (settings->include_tables && statement_count && sequel_query_outer_limit(query) &&
-      !sequel_summary_find_text(text ? text : "", "LATERAL (") && !sequel_summary_find_text(source.data, " JOIN (")) {
+      !sequel_summary_find_text(text ? text : "", "LATERAL (") && !sequel_summary_find_text(source.data, " JOIN (") &&
+      !sequel_summary_find_text(source.data, " LIMIT (SELECT ")) {
     for (size_t i = outer_start; i < source.length; ++i)
       if (sequel_summary_word(source.data, source.length, i, "LIMIT")) {
         size_t start = i + 5;
@@ -1662,7 +1663,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
               limit_has_parameter = true;
               break;
             }
-          bool has_offset = sequel_summary_find_text(source.data + end, " OFFSET ") != NULL;
+          bool has_offset = sequel_summary_find_text(source.data + start, " OFFSET ") != NULL;
           bool preserve_limit = !limit_has_parameter &&
                                 (memchr(source.data + start, ',', end - start) != NULL ||
                                  (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
