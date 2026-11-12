@@ -10,6 +10,7 @@ int main(void) {
       {"UPDATE users u JOIN flags f ON u.id=f.user_id SET u.active=1 WHERE f.secret='SECRET'", SEQUEL_MYSQL},
       {"SELECT true", SEQUEL_POSTGRESQL},
       {"SELECT false", SEQUEL_POSTGRESQL},
+      {" (SELECT * FROM accounts WHERE token='secret' LIMIT 1) b ON a.id=b.id LIMIT $1", SEQUEL_GENERIC},
   };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {

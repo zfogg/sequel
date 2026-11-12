@@ -2547,14 +2547,16 @@ summary_postprocess:
       goto no_memory;
   }
   const char *source_last_limit = NULL;
-  for (size_t cursor = outer_start; cursor < outer_range.end && cursor < source.length;) {
-    const char *limit = sequel_summary_find_word(source.data, outer_range.end, cursor, "LIMIT");
+  size_t outer_search_end = outer_range.end < source.length ? outer_range.end : source.length;
+  for (size_t cursor = outer_start; cursor < outer_search_end && cursor < source.length;) {
+    const char *limit = sequel_summary_find_word(source.data, outer_search_end, cursor, "LIMIT");
     if (!limit)
       break;
     source_last_limit = limit;
     cursor = (size_t)(limit - source.data) + strlen("LIMIT");
   }
-  if (source_last_limit && isdigit((unsigned char)source_last_limit[6])) {
+  if (source_last_limit && (size_t)(source_last_limit - source.data) + 6 < source.length &&
+      isdigit((unsigned char)source_last_limit[6])) {
     const char *expression = source_last_limit + 6;
     while (isdigit((unsigned char)*expression))
       ++expression;
