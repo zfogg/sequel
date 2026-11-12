@@ -35,6 +35,7 @@ int main() {
   assert(structured);
   assert(structured->diagnostics() && structured->diagnostics()->count > 0);
   assert(structured->syntax() && structured->statement_count() == 1 && structured->parameter_count() == 0);
+  assert(structured->join_count() == 0);
 
   auto lints = sequel::analyze("UPDATE users SET name = 'x';", {.dialect_value = sequel::dialect::sqlite,
                                                                   .include_lints = true});

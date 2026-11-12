@@ -157,6 +157,18 @@ std::size_t query_analysis::parameter_count() const noexcept {
   return query_ ? sequel_query_parameter_count(query_) : 0;
 }
 
+std::size_t query_analysis::join_count() const noexcept {
+  return query_ ? sequel_query_join_count(query_) : 0;
+}
+
+std::size_t query_analysis::projection_count() const noexcept {
+  return query_ ? sequel_query_projection_count(query_) : 0;
+}
+
+std::size_t query_analysis::predicate_count() const noexcept {
+  return query_ ? sequel_query_predicate_count(query_) : 0;
+}
+
 std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options) {
   metadata result;
   auto code = sequel_metadata_n(sql.data(), sql.size(), &options, &result.native_);

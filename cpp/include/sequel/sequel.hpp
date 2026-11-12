@@ -158,6 +158,9 @@ public:
   [[nodiscard]] std::size_t statement_count() const noexcept;
   [[nodiscard]] std::size_t relation_count() const noexcept;
   [[nodiscard]] std::size_t parameter_count() const noexcept;
+  [[nodiscard]] std::size_t join_count() const noexcept;
+  [[nodiscard]] std::size_t projection_count() const noexcept;
+  [[nodiscard]] std::size_t predicate_count() const noexcept;
 
 private:
   friend std::expected<query_analysis, error> analyze_query(std::string_view, analysis_options);
