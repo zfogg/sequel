@@ -1104,13 +1104,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
           }
         }
         int okay = sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]);
-        if (okay && join_index != SIZE_MAX && joins[join_index].has_condition &&
-            joins[join_index].condition_range.end > joins[join_index].condition_range.start) {
-          okay = sequel_summary_append_text(&text, &length, &capacity, " ON ") &&
-                 sequel_summary_append_redacted_range(&text, &length, &capacity, query,
-                                                      joins[join_index].condition_range.start,
-                                                      joins[join_index].condition_range.end);
-        }
+        if (okay && join_index != SIZE_MAX)
+          okay = sequel_summary_append_join_condition(&text, &length, &capacity, query, &joins[join_index]);
         if (okay && join_index != SIZE_MAX && !joins[join_index].has_condition) {
           size_t condition_start = relations[i].alias_range.end > relations[i].range.end ? relations[i].alias_range.end
                                                                                          : relations[i].range.end;
