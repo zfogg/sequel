@@ -150,7 +150,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
   if (special_route == 2)
     goto summary_postprocess;
   if (statement_count > 1 && settings->redact_literals) {
-    if (sequel_query_dialect(query) == SEQUEL_DUCKDB) {
+    if (strstr(source.data, "--") || strstr(source.data, "/*")) {
       size_t duckdb_length = 0;
       char *duckdb_summary = sequel_summary_duckdb_multi_source(source, &duckdb_length);
       if (!duckdb_summary)
