@@ -149,14 +149,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       }
       collapse_end = t.matching;
     } else {
-      size_t sqlite_suffix = SIZE_MAX;
-      if (bind && a->options.dialect == SEQUEL_SQLITE && t.t.n > 3 && t.t.p[0] == '$' &&
-          sequel_runtime_letter((unsigned char)t.t.p[1]))
-        for (size_t offset = 1; offset + 1 < t.t.n; ++offset)
-          if (t.t.p[offset] == ':' && t.t.p[offset + 1] == ':') {
-            sqlite_suffix = offset;
-            break;
-          }
+      size_t sqlite_suffix = sequel_analysis_sqlite_suffix(t, a->options.dialect, bind);
       if (sqlite_suffix != SIZE_MAX) {
         sequel_analysis_append_text(safe, "?", 1);
         sequel_analysis_append_text(safe, t.t.p + sqlite_suffix, t.t.n - sqlite_suffix);

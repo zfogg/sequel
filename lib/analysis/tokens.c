@@ -49,6 +49,16 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
     tokens[open].matching = item;
 }
 
+size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind) {
+  if (!is_bind || dialect != SEQUEL_SQLITE || token.t.n <= 3 || token.t.p[0] != '$' ||
+      !sequel_runtime_letter((unsigned char)token.t.p[1]))
+    return SIZE_MAX;
+  for (size_t offset = 1; offset + 1 < token.t.n; ++offset)
+    if (token.t.p[offset] == ':' && token.t.p[offset + 1] == ':')
+      return offset;
+  return SIZE_MAX;
+}
+
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:

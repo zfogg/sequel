@@ -65,6 +65,7 @@ bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
 bool sequel_analysis_word(analysis_token_t token, const char *word);
 void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index,
                                   sequel_dialect_t dialect, bool keep_in_lists);
+size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind);
 const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length);
 const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
