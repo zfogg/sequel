@@ -3,6 +3,26 @@
 
 #include "internal.h"
 
+bool sequel_summary_has_outer_from(const sequel_query_document_t *query) {
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
+  sequel_source_view_t source = sequel_query_source(query);
+  size_t depth = 0;
+  for (size_t i = 0; i < count; ++i) {
+    if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1) {
+      char punctuation = source.data[tokens[i].range.start];
+      if (punctuation == '(')
+        ++depth;
+      else if (punctuation == ')' && depth)
+        --depth;
+    } else if (!depth && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == SEQUEL_KEYWORD_FROM) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int sequel_summary_append_relation_name(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
                                         const sequel_relation_info_t *relation) {
   size_t start = relation->name_range.start;

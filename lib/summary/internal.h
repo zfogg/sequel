@@ -60,6 +60,7 @@ int sequel_summary_append_clickhouse_create_shape(char **text, size_t *length, s
                                                   const sequel_query_document_t *query, sequel_source_view_t source,
                                                   const sequel_statement_info_t *statement);
 bool sequel_summary_has_projection_scope(const sequel_query_document_t *query);
+bool sequel_summary_has_outer_from(const sequel_query_document_t *query);
 const char *sequel_summary_matching_close(const char *open, const char *end);
 int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity,
                                          const sequel_query_document_t *query, size_t start, size_t end);
