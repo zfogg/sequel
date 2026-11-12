@@ -59,6 +59,7 @@ struct sequel_query_document {
   bool outer_distinct_on;
   bool outer_limit;
   sequel_source_range_t outer_limit_range;
+  sequel_source_range_t outer_limit_clause_range;
   sequel_source_range_t outer_limit_value_range;
   sequel_source_range_t outer_range;
   sequel_parameter_info_t *parameters;

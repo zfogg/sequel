@@ -65,6 +65,10 @@ sequel_source_range_t sequel_query_outer_limit_range(const sequel_query_document
   return document ? document->outer_limit_range : (sequel_source_range_t){0, 0};
 }
 
+sequel_source_range_t sequel_query_outer_limit_clause_range(const sequel_query_document_t *document) {
+  return document ? document->outer_limit_clause_range : (sequel_source_range_t){0, 0};
+}
+
 sequel_source_range_t sequel_query_outer_limit_value_range(const sequel_query_document_t *document) {
   return document ? document->outer_limit_value_range : (sequel_source_range_t){0, 0};
 }

@@ -169,6 +169,9 @@ bool sequel_query_outer_limit(const sequel_query_document_t *document);
 
 sequel_source_range_t sequel_query_outer_limit_range(const sequel_query_document_t *document);
 
+/** Return the complete outer LIMIT clause, including comma or OFFSET operands. */
+sequel_source_range_t sequel_query_outer_limit_clause_range(const sequel_query_document_t *document);
+
 sequel_source_range_t sequel_query_outer_limit_value_range(const sequel_query_document_t *document);
 sequel_source_range_t sequel_query_outer_range(const sequel_query_document_t *document);
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
