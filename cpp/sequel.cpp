@@ -116,7 +116,7 @@ query_analysis::~query_analysis() {
 query_analysis::query_analysis(query_analysis &&other) noexcept
     : syntax_(other.syntax_), query_(other.query_), analysis_(other.analysis_), summary_(std::move(other.summary_)),
       sanitized_(std::move(other.sanitized_)), formatted_(std::move(other.formatted_)),
-      fingerprint_(std::move(other.fingerprint_)) {
+      fingerprint_(std::move(other.fingerprint_)), operation_(std::move(other.operation_)) {
   other.syntax_ = nullptr;
   other.query_ = nullptr;
   other.analysis_ = nullptr;
@@ -134,6 +134,7 @@ query_analysis &query_analysis::operator=(query_analysis &&other) noexcept {
     sanitized_ = std::move(other.sanitized_);
     formatted_ = std::move(other.formatted_);
     fingerprint_ = std::move(other.fingerprint_);
+    operation_ = std::move(other.operation_);
     other.syntax_ = nullptr;
     other.query_ = nullptr;
     other.analysis_ = nullptr;
@@ -262,6 +263,39 @@ std::expected<query_analysis, error> analyze_query(std::string_view sql, analysi
   char fingerprint[SEQUEL_FINGERPRINT_LENGTH] = {0};
   if (sequel_query_analysis_fingerprint(result.analysis_, fingerprint) == SEQUEL_OK)
     result.fingerprint_ = fingerprint;
+  if (sequel_query_statement_count(result.query_)) {
+    switch (sequel_query_statements(result.query_)[0].operation) {
+    case SEQUEL_OPERATION_SELECT:
+      result.operation_ = "SELECT";
+      break;
+    case SEQUEL_OPERATION_INSERT:
+      result.operation_ = "INSERT";
+      break;
+    case SEQUEL_OPERATION_UPDATE:
+      result.operation_ = "UPDATE";
+      break;
+    case SEQUEL_OPERATION_DELETE:
+      result.operation_ = "DELETE";
+      break;
+    case SEQUEL_OPERATION_MERGE:
+      result.operation_ = "MERGE";
+      break;
+    case SEQUEL_OPERATION_CREATE:
+      result.operation_ = "CREATE";
+      break;
+    case SEQUEL_OPERATION_ALTER:
+      result.operation_ = "ALTER";
+      break;
+    case SEQUEL_OPERATION_DROP:
+      result.operation_ = "DROP";
+      break;
+    case SEQUEL_OPERATION_EXPLAIN:
+      result.operation_ = "EXPLAIN";
+      break;
+    default:
+      break;
+    }
+  }
   return result;
 }
 

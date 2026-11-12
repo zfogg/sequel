@@ -34,6 +34,7 @@ int main() {
                                                                                  .include_lints = true});
   assert(structured);
   assert(structured->diagnostics() && structured->diagnostics()->count > 0);
+  assert(structured->operation() == "UPDATE");
   assert(structured->syntax() && structured->statement_count() == 1 && structured->parameter_count() == 0);
   assert(structured->join_count() == 0);
 

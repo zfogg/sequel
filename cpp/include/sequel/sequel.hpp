@@ -128,8 +128,8 @@ public:
   [[nodiscard]] std::string_view text() const noexcept { return text_; }
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
-  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
   [[nodiscard]] bool truncated() const noexcept { return native_.truncated; }
   [[nodiscard]] const sequel_analysis_t &native() const noexcept { return native_; }
 
@@ -153,6 +153,7 @@ public:
   [[nodiscard]] std::string_view sanitized() const noexcept { return sanitized_; }
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
   [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
   [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
   [[nodiscard]] std::size_t statement_count() const noexcept;
@@ -167,7 +168,7 @@ private:
   sequel_syntax_document_t *syntax_ = nullptr;
   sequel_query_document_t *query_ = nullptr;
   sequel_query_analysis_t *analysis_ = nullptr;
-  std::string summary_, sanitized_, formatted_, fingerprint_;
+  std::string summary_, sanitized_, formatted_, fingerprint_, operation_;
 };
 
 [[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql,
