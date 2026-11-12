@@ -1,6 +1,6 @@
 #include <sequel/query.h>
 
-#include "model.h"
+#include "../model.h"
 
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor) {
   if (!document || !visitor)

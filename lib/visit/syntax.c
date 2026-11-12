@@ -1,6 +1,6 @@
 #include <sequel/parser.h>
 
-#include "model.h"
+#include "../model.h"
 
 static int sequel_syntax_visit_node(const sequel_syntax_document_t *document, size_t node_index,
                                     const sequel_syntax_visitor_t *visitor) {
