@@ -33,6 +33,12 @@ int main(void) {
   CHECK(sequel_collect_lexical_diagnostics(lexed, &lexical_diagnostics) == SEQUEL_OK);
   CHECK(lexical_diagnostics.count >= 1 &&
         lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL);
+  sequel_diagnostic_t projected = {0};
+  CHECK(sequel_diagnostic_project(lexical_source.data, lexical_source.length, &lexical_diagnostics.records[0],
+                                  &projected) == SEQUEL_OK &&
+        projected.code == lexical_diagnostics.records[0].code &&
+        projected.offset == lexical_diagnostics.records[0].range.start &&
+        projected.end_offset == lexical_diagnostics.records[0].range.end);
   sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_lexed_document_free(lexed);
   sequel_syntax_document_t *syntax = NULL;
