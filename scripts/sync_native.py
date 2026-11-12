@@ -15,12 +15,21 @@ sources = sorted(p for p in (root / "lib").iterdir() if p.suffix in (".c", ".h")
 sources += sorted(p for p in (root / "third_party").rglob("*") if p.suffix in (".c", ".h"))
 for path in sources:
     digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes().replace(b"\r\n", b"\n"))
-data = (
-    f"/* C engine SHA256: {digest.hexdigest()} */\n"
-    '#include "../lib/engine.c"\n#include "../lib/util/utf8.c"\n'
-    '#include "../third_party/utf8proc/utf8proc.c"\n'
-)
 target = root / "go/native.c"
+generated = root / "go"
+if not args.check:
+    for path in generated.glob("native_lib_*.c"):
+        path.unlink()
+library_sources = [
+    path
+    for path in sorted(root.glob("lib/**/*.c"))
+    if path.relative_to(root).as_posix() not in {"lib/engine.c", "lib/util/utf8.c", "lib/analysis/tokens.c"}
+]
+if not args.check:
+    for path in library_sources:
+        name = "native_lib_" + "_".join(path.relative_to(root).with_suffix("").parts) + ".c"
+        (generated / name).write_text(f'#include "../{path.relative_to(root).as_posix()}"\n', encoding="utf-8", newline="\n")
+data = f'/* C engine SHA256: {digest.hexdigest()} */\n#include "../lib/engine.c"\n#include "../lib/util/utf8.c"\n#include "../third_party/utf8proc/utf8proc.c"\n'
 if target.read_text(encoding="utf-8") != data:
     if args.check:
         raise SystemExit("Run uv run python scripts/sync_native.py after editing the C engine")
