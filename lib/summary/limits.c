@@ -119,24 +119,6 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   if (rendered_digits == 0)
     rendered_digits = 1;
   size_t suffix_length = comma_limit ? strlen(", ?") : 0;
-  if (offset_limit && !comma_limit && rendered_digits == 1) {
-    size_t prefix_length = (size_t)(rendered_value - *text);
-    size_t suffix_offset = prefix_length + rendered_digits;
-    size_t suffix = *length - suffix_offset;
-    size_t replacement_length = prefix_length + source_digits + suffix;
-    char *replacement = malloc(replacement_length + 1);
-    if (!replacement)
-      return 0;
-    memcpy(replacement, *text, prefix_length);
-    memcpy(replacement + prefix_length, source_value, source_digits);
-    memcpy(replacement + prefix_length + source_digits, *text + suffix_offset, suffix);
-    replacement[replacement_length] = '\0';
-    free(*text);
-    *text = replacement;
-    *length = replacement_length;
-    *capacity = replacement_length + 1;
-    return 1;
-  }
   size_t replacement_length = source_digits + suffix_length;
   size_t old_length = rendered_digits;
   if (comma_limit && sequel_summary_find_text(rendered_value, ","))
@@ -170,6 +152,38 @@ int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, siz
   const char *source_offset = sequel_summary_find_text(source.data, "OFFSET ");
   if (!source_offset)
     return 1;
+  const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
+  const char *source_limit_value = source_limit ? source_limit + strlen("LIMIT ") : NULL;
+  const char *source_limit_end = source_limit_value;
+  while (source_limit_end && isdigit((unsigned char)*source_limit_end))
+    ++source_limit_end;
+  char *rendered_limit = sequel_summary_find_text(*text, "LIMIT ");
+  if (source_limit_value && source_limit_end > source_limit_value && rendered_limit) {
+    char *rendered_value = rendered_limit + strlen("LIMIT ");
+    char *rendered_end = rendered_value;
+    while (isdigit((unsigned char)*rendered_end))
+      ++rendered_end;
+    if (rendered_end == rendered_value && *rendered_value == '?')
+      rendered_end++;
+    if (rendered_end > rendered_value) {
+      size_t prefix = (size_t)(rendered_value - *text);
+      size_t suffix_offset = (size_t)(rendered_end - *text);
+      size_t suffix = *length - suffix_offset;
+      size_t digits = (size_t)(source_limit_end - source_limit_value);
+      size_t result_length = prefix + digits + suffix;
+      char *result = malloc(result_length + 1);
+      if (!result)
+        return 0;
+      memcpy(result, *text, prefix);
+      memcpy(result + prefix, source_limit_value, digits);
+      memcpy(result + prefix + digits, *text + suffix_offset, suffix);
+      result[result_length] = '\0';
+      free(*text);
+      *text = result;
+      *length = result_length;
+      *capacity = result_length + 1;
+    }
+  }
   const char *source_value = source_offset + strlen("OFFSET ");
   const char *source_end = source_value;
   while (isdigit((unsigned char)*source_end))
