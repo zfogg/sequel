@@ -339,9 +339,13 @@ sequel_status_t sequel_metadata_document(const char *sql, size_t length, const s
     status = SEQUEL_ERR_NOMEM;
     goto done;
   }
-  memcpy(storage, sanitized.data, text_length);
+  if (text_length)
+    memcpy(storage, sanitized.data, text_length);
   storage[text_length] = 0;
-  memcpy(storage + text_length + 1, summary.data, summary_length + 1);
+  if (summary.data)
+    memcpy(storage + text_length + 1, summary.data, summary_length + 1);
+  else
+    storage[text_length + 1] = 0;
   out->_storage = storage;
   out->text = storage;
   out->summary = storage + text_length + 1;
