@@ -155,15 +155,16 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       strncmp(source.data, "WITH ", 5) == 0 || strstr(source.data, "WITH selected_generation") != NULL;
   if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries &&
       !starts_with_cte && !first_statement_has_locking_limit && !has_distinct_on && !parameter_limit_before_numeric &&
-      !isdigit((unsigned char)source_limit[7]) && summary.data) {
+      !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && !strstr(source.data, "UPDATE ") && !starts_with_cte && !has_distinct_on &&
-      strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") && !strstr(source.data, "LIMIT $")) {
+  if (summary.data && source_limit && source_limit[7] != ':' && !strstr(source.data, "UPDATE ") && !starts_with_cte &&
+      !has_distinct_on && strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") &&
+      !strstr(source.data, "LIMIT $")) {
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
@@ -183,7 +184,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       first_limit[6] = '1';
   }
   const char *lateral = strstr(source.data, "CROSS JOIN LATERAL");
-  if (summary.data && lateral && !strstr(lateral + 18, "CROSS JOIN LATERAL")) {
+  if (summary.data && lateral && source_limit && source_limit[7] != ':' &&
+      !strstr(lateral + 18, "CROSS JOIN LATERAL")) {
     char *first_limit = strstr(summary.data, "LIMIT ?");
     if (first_limit)
       first_limit[6] = '1';
