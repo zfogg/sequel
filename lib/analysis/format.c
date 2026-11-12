@@ -14,10 +14,22 @@ sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length
   sequel_status_t status = sequel_lex(&source, &parse_options, NULL, &lexed);
   if (status != SEQUEL_OK)
     return status;
+  sequel_syntax_document_t *syntax = NULL;
+  status = sequel_parse(lexed, &parse_options, NULL, &syntax);
+  if (status != SEQUEL_OK) {
+    sequel_lexed_document_free(lexed);
+    return status;
+  }
+  if (sequel_syntax_issue_count(syntax) != 0) {
+    sequel_syntax_document_free(syntax);
+    sequel_lexed_document_free(lexed);
+    return SEQUEL_ERR_INVALID;
+  }
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
   format_options.mode = SEQUEL_FORMAT_SYNTAX_AWARE;
   status = sequel_format_tokens(lexed, &format_options, out);
+  sequel_syntax_document_free(syntax);
   sequel_lexed_document_free(lexed);
   return status;
 }
