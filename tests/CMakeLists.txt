@@ -100,6 +100,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/document.c
   ../lib/summary/render_document.c
   ../lib/summary/routes.c
+  ../lib/summary/cte.c
   ../lib/summary/entry.c
   ../lib/summary/special.c
   ../lib/summary/recovery.c
