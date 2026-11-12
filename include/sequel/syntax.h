@@ -8,6 +8,28 @@
 typedef struct sequel_lexed_document sequel_lexed_document_t;
 typedef struct sequel_syntax_document sequel_syntax_document_t;
 
+typedef enum {
+  SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE = 1,
+  SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP,
+  SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
+  SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN
+} sequel_parse_issue_code_t;
+
+typedef enum {
+  SEQUEL_RECOVERY_NONE = 0,
+  SEQUEL_RECOVERY_INSERTED_TOKEN,
+  SEQUEL_RECOVERY_SKIPPED_TOKEN,
+  SEQUEL_RECOVERY_SYNCHRONIZED_CLAUSE,
+  SEQUEL_RECOVERY_OPAQUE_REGION
+} sequel_recovery_kind_t;
+
+typedef struct {
+  sequel_parse_issue_code_t code;
+  sequel_recovery_kind_t recovery;
+  sequel_source_range_t range;
+  size_t statement_index;
+} sequel_parse_issue_t;
+
 SEQUEL_EXTERN_C_BEGIN
 
 typedef enum {
@@ -101,5 +123,11 @@ const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, s
 
 /** Return the immutable token span covered by a syntax node. */
 const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+/** Return recovered syntax issues retained by the document. */
+const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count);
+
+/** Return the number of recovered syntax issues in the document. */
+size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document);
 
 SEQUEL_EXTERN_C_END
