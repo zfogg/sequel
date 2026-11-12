@@ -66,11 +66,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       } else
         sha_frame(hash, 'Y', "", 0, false);
       if (!a->options.omit_bind_descriptors) {
-        sequel_output_tick(sizeof(sequel_bind_descriptor_t));
-        sequel_bind_descriptor_t *bs = sequel_analysis_array((void *)out->binds, out->bind_count + 1, sizeof(*bs));
-        bs[out->bind_count] = (sequel_bind_descriptor_t){++bind_count, identity->slot, statement, start, end, style};
-        out->binds = bs;
-        out->bind_count++;
+        sequel_analysis_append_bind_descriptor(out, &bind_count, identity->slot, statement, start, end, style);
       }
     } else if (literal) {
       sequel_analysis_hash_literal(hash, &fingerprint_next);

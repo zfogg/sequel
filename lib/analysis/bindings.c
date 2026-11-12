@@ -78,3 +78,14 @@ void sequel_analysis_dictionary_clear(analysis_bindings *bindings) {
   free(bindings->p);
   *bindings = (analysis_bindings){0};
 }
+
+void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot,
+                                            size_t statement, size_t start, size_t end, sequel_bind_style_t style) {
+  sequel_output_tick(sizeof(sequel_bind_descriptor_t));
+  sequel_bind_descriptor_t *binds =
+      sequel_analysis_array((void *)analysis->binds, analysis->bind_count + 1, sizeof(*binds));
+  binds[analysis->bind_count] =
+      (sequel_bind_descriptor_t){++*bind_number, slot, statement, start, end, style};
+  analysis->binds = binds;
+  analysis->bind_count++;
+}

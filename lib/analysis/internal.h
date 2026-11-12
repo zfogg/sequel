@@ -58,6 +58,8 @@ analysis_binding *sequel_analysis_binding_slot(analysis_bindings *bindings, cons
                                                size_t number);
 analysis_binding *sequel_analysis_numeric_identity(analysis_bindings *bindings, size_t slot);
 void sequel_analysis_dictionary_clear(analysis_bindings *bindings);
+void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot, size_t statement,
+                                            size_t start, size_t end, sequel_bind_style_t style);
 
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
