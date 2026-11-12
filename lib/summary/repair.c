@@ -69,15 +69,6 @@ int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *c
     return 0;
   size_t source_count = sequel_summary_count_keyword(source.data, source.length, keyword);
   size_t rendered_count = sequel_summary_count_keyword(*text, *length, keyword);
-  if (!strcmp(keyword, "ON") && sequel_summary_find_text(source.data, "tradebot_parity") &&
-      sequel_summary_find_text(source.data, "ON CONFLICT"))
-    source_count = 1;
-  /* The SQLC corpus contains prose comments with clause words; keep this
-   * narrowly scoped correction for sources that retain those comments after
-   * the caller has already normalized the query range. */
-  if (!strcmp(keyword, "ON") && sequel_summary_find_text(source.data, "MAKE_INTERVAL") &&
-      sequel_summary_find_text(source.data, "on other") && source_count > 0)
-    --source_count;
   while (rendered_count < source_count) {
     if (!sequel_summary_append_text(text, length, capacity, replacement))
       return 0;
@@ -93,15 +84,14 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
   if (sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(*text, "LATERAL") &&
       !sequel_summary_append_text(text, length, capacity, " LATERAL"))
     return 0;
-  if (sequel_summary_find_text(source.data, "tradebot_parity") &&
+  if (sequel_query_join_count(query) &&
       !sequel_summary_append_missing_keyword(text, length, capacity, source, "LATERAL", " LATERAL"))
     return 0;
   if (sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
       !sequel_summary_find_text(*text, "DISTINCT ON") &&
       !sequel_summary_append_text(text, length, capacity, " DISTINCT ON"))
     return 0;
-  if ((sequel_query_cte_count(query) > 1 || sequel_summary_find_text(source.data, "ticker_backtest_results")) &&
-      sequel_summary_find_text(source.data, "LIMIT ")) {
+  if (sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "LIMIT ")) {
     size_t source_count = 0;
     size_t rendered_count = 0;
     for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; cursor += 6)
@@ -114,7 +104,7 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
       ++rendered_count;
     }
   }
-  if (sequel_summary_find_text(source.data, "tradebot_fill_events")) {
+  if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ")) {
     char *nested_limit = sequel_summary_find_text(*text, " LIMIT ? ORDER BY ");
     if (nested_limit) {
       size_t removed = strlen(" LIMIT ?");

@@ -1779,7 +1779,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       *duplicate_nested = 0;
       length = (size_t)(duplicate_nested - text);
     }
-    if (sequel_summary_find_text(source.data, "tradebot_fill_events")) {
+    if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ")) {
       char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
       if (premature_nested_limit) {
         memmove(premature_nested_limit, premature_nested_limit + strlen(" LIMIT ?"),
@@ -2510,44 +2510,17 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN … ON ?"))
       goto no_memory;
   }
-  if (text &&
-      (sequel_summary_find_text(source.data, "tradebot_fill_events") ||
-       sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-       sequel_summary_find_text(source.data, "tradebot_parity")) &&
-      sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
+  if (text && sequel_query_join_count(query) && sequel_summary_find_word(source.data, source.length, 0, "JOIN")) {
     if (!sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "JOIN", " JOIN"))
       goto no_memory;
   }
-  if (text &&
-      (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-       sequel_summary_find_text(source.data, "tradebot_fill_events") ||
-       sequel_summary_find_text(source.data, "tradebot_parity")) &&
-      (sequel_summary_find_text(source.data, "tradebot_parity") ||
-       sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
-       sequel_summary_find_text(source.data, "selected_generation")) &&
-      sequel_summary_find_word(source.data, source.length, 0, "ON")) {
+  if (text && sequel_query_join_count(query) && sequel_summary_find_word(source.data, source.length, 0, "ON")) {
     if (!sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "ON", " ON"))
       goto no_memory;
   }
-  if (text &&
-      (sequel_summary_find_text(source.data, "ticker_backtest_results") ||
-       sequel_summary_find_text(source.data, "tradebot_parity")) &&
-      (sequel_summary_find_text(source.data, "tradebot_parity") ||
-       sequel_summary_find_text(source.data, "MAKE_INTERVAL") ||
-       sequel_summary_find_text(source.data, "selected_generation"))) {
+  if (text && sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT)) {
     size_t source_limits =
-        sequel_summary_find_text(source.data, "tradebot_parity")
-            ? 0
-            : sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
-    if (sequel_summary_find_text(source.data, "tradebot_parity")) {
-      for (size_t cursor = 0; cursor < source.length;) {
-        const char *limit = sequel_summary_find_word(source.data, source.length, cursor, "LIMIT");
-        if (!limit)
-          break;
-        ++source_limits;
-        cursor = (size_t)(limit - source.data) + 5;
-      }
-    }
+        sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
     size_t rendered_limits = 0;
     for (size_t cursor = 0; cursor < length;) {
       const char *limit = sequel_summary_find_word(text, length, cursor, "LIMIT");
