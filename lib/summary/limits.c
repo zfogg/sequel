@@ -133,9 +133,10 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
     rendered_limit = sequel_summary_find_text(*text, "LIMIT ");
     rendered_value = rendered_limit + strlen("LIMIT ") + rendered_digits;
   }
+  size_t rendered_prefix = rendered_digits == 1 && *rendered_value == '?' ? 1 : 0;
   if (replacement_length != old_length)
-    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value + (rendered_digits == 1 && *rendered_value == '?' ? 1 : 0),
-            *length - (size_t)(rendered_value - *text) - (rendered_digits == 1 && *rendered_value == '?' ? 1 : 0) + 1);
+    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value + rendered_prefix,
+            *length - (size_t)(rendered_value - *text) - rendered_prefix + 1);
   memcpy(rendered_limit + strlen("LIMIT "), source_value, source_digits);
   if (comma_limit)
     memcpy(rendered_limit + strlen("LIMIT ") + source_digits, ", ?", suffix_length);
