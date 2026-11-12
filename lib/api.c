@@ -4,9 +4,9 @@
 
 #include <sequel.h>
 #include <sequel/parser.h>
-#include "inspection.h"
-#include "inspection_document.h"
-#include "inspection_text.h"
+#include "metadata.h"
+#include "metadata_document.h"
+#include "metadata_text.h"
 #include "tokens.h"
 #include "util/text.h"
 #include "util/utf8.h"
@@ -95,9 +95,9 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
     }
   }
   if (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS)
-    sequel_inspection_normalize_text(result.data);
+    sequel_metadata_normalize_text(result.data);
   *truncated = result.length > limit;
-  sequel_inspection_cut_utf8(result.data, limit);
+  sequel_metadata_cut_utf8(result.data, limit);
   result.length = strlen(result.data);
   if (result.length >= capacity) {
     sequel_text_result_free(&result);
@@ -142,5 +142,5 @@ sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options,
     return SEQUEL_OK;
   if (o.dialect != SEQUEL_MYSQL && sequel_text_find(sql, n, "_utf8mb4'"))
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  return sequel_inspection_document(sql, n, &o, out);
+  return sequel_metadata_document(sql, n, &o, out);
 }

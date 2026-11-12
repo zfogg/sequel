@@ -1,10 +1,10 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "inspection_text.h"
+#include "metadata_text.h"
 #include "util/utf8.h"
 
-void sequel_inspection_cut_utf8(char *text, size_t limit) {
+void sequel_metadata_cut_utf8(char *text, size_t limit) {
   size_t length = strlen(text);
   if (length <= limit)
     return;
@@ -14,7 +14,7 @@ void sequel_inspection_cut_utf8(char *text, size_t limit) {
     text[--limit] = 0;
 }
 
-void sequel_inspection_normalize_text(char *text) {
+void sequel_metadata_normalize_text(char *text) {
   if (!text)
     return;
   size_t read = 0, write = 0;
@@ -69,7 +69,7 @@ void sequel_inspection_normalize_text(char *text) {
   text[write] = 0;
 }
 
-void sequel_inspection_trim_prefix(sequel_text_result_t *result) {
+void sequel_metadata_trim_prefix(sequel_text_result_t *result) {
   if (!result || !result->data)
     return;
   size_t prefix = 0;

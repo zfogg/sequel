@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "inspection.h"
+#include "metadata.h"
 #include "util/text.h"
 
-void sequel_inspection_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements,
+void sequel_metadata_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements,
                                      size_t statement_count, char *operation, size_t operation_capacity) {
   if (!source || !statements || !operation || !operation_capacity || !statement_count)
     return;

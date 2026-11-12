@@ -4,15 +4,15 @@
 
 #include <sequel/parser.h>
 
-#include "inspection.h"
-#include "inspection_document.h"
-#include "inspection_text.h"
+#include "metadata.h"
+#include "metadata_document.h"
+#include "metadata_text.h"
 #include "model.h"
 #include "tokens.h"
 #include "util/utf8.h"
 #include "util/text.h"
 
-static void sequel_inspection_document_normalize_parameters(sequel_text_result_t *summary) {
+static void sequel_metadata_document_normalize_parameters(sequel_text_result_t *summary) {
   if (!summary || !summary->data)
     return;
   for (size_t i = 0; i + 1 < summary->length; ++i) {
@@ -27,7 +27,7 @@ static void sequel_inspection_document_normalize_parameters(sequel_text_result_t
   }
 }
 
-static void sequel_inspection_document_restore_outer_limit(sequel_text_result_t *summary,
+static void sequel_metadata_document_restore_outer_limit(sequel_text_result_t *summary,
                                                            const sequel_query_document_t *query,
                                                            sequel_source_view_t source) {
   if (!summary || !summary->data || !query)
@@ -46,7 +46,7 @@ static void sequel_inspection_document_restore_outer_limit(sequel_text_result_t 
   memcpy(limit + strlen("LIMIT "), source.data + value.start, sizeof("1") - 1);
 }
 
-static void sequel_inspection_document_remove_clickhouse_comments(sequel_text_result_t *summary) {
+static void sequel_metadata_document_remove_clickhouse_comments(sequel_text_result_t *summary) {
   if (!summary || !summary->data)
     return;
   size_t write = 0;
@@ -65,7 +65,7 @@ static void sequel_inspection_document_remove_clickhouse_comments(sequel_text_re
   summary->length = write;
 }
 
-static void sequel_inspection_document_restore_array_literals(sequel_text_result_t *summary,
+static void sequel_metadata_document_restore_array_literals(sequel_text_result_t *summary,
                                                               const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
     return;
@@ -99,7 +99,7 @@ static void sequel_inspection_document_restore_array_literals(sequel_text_result
   }
 }
 
-static void sequel_inspection_document_restore_array_indexes(sequel_text_result_t *summary,
+static void sequel_metadata_document_restore_array_indexes(sequel_text_result_t *summary,
                                                              const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
     return;
@@ -142,7 +142,7 @@ static void sequel_inspection_document_restore_array_indexes(sequel_text_result_
   }
 }
 
-static bool sequel_inspection_document_query_is_safe(const sequel_query_document_t *query, size_t source_length) {
+static bool sequel_metadata_document_query_is_safe(const sequel_query_document_t *query, size_t source_length) {
   if (!query)
     return false;
   size_t node_count = 0;
@@ -158,7 +158,7 @@ static bool sequel_inspection_document_query_is_safe(const sequel_query_document
   return true;
 }
 
-static bool sequel_inspection_document_has_query_body(const sequel_syntax_document_t *syntax) {
+static bool sequel_metadata_document_has_query_body(const sequel_syntax_document_t *syntax) {
   size_t count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &count);
   sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(syntax));
@@ -180,7 +180,7 @@ static bool sequel_inspection_document_has_query_body(const sequel_syntax_docume
          sequel_text_equal_ci(word, length, "ROLLBACK");
 }
 
-static bool sequel_inspection_document_has_recoverable_join_shape(const sequel_syntax_document_t *syntax) {
+static bool sequel_metadata_document_has_recoverable_join_shape(const sequel_syntax_document_t *syntax) {
   size_t count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &count);
   for (size_t i = 0; i < count; ++i) {
@@ -202,7 +202,7 @@ static bool sequel_inspection_document_has_recoverable_join_shape(const sequel_s
   return true;
 }
 
-sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
+sequel_status_t sequel_metadata_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
   size_t first_nonspace = 0;
   while (first_nonspace < length && isspace((unsigned char)sql[first_nonspace]))
@@ -250,11 +250,11 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
       }
     }
   }
-  if (!sequel_inspection_document_has_query_body(syntax)) {
+  if (!sequel_metadata_document_has_query_body(syntax)) {
     status = SEQUEL_OK;
     goto done;
   }
-  if (!sequel_inspection_document_has_recoverable_join_shape(syntax)) {
+  if (!sequel_metadata_document_has_recoverable_join_shape(syntax)) {
     status = SEQUEL_OK;
     goto done;
   }
@@ -265,7 +265,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     status = SEQUEL_OK;
     goto done;
   }
-  if (!sequel_inspection_document_query_is_safe(query, source.length)) {
+  if (!sequel_metadata_document_query_is_safe(query, source.length)) {
     status = SEQUEL_OK;
     goto done;
   }
@@ -273,12 +273,12 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
                                   SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized);
   if (status != SEQUEL_OK)
     goto done;
-  sequel_inspection_trim_prefix(&sanitized);
+  sequel_metadata_trim_prefix(&sanitized);
   if (options && !options->keep_in_lists)
     status = sequel_tokens_collapse_in_lists(&sanitized, parse_options.dialect);
   if (status != SEQUEL_OK)
     goto done;
-  sequel_inspection_normalize_text(sanitized.data);
+  sequel_metadata_normalize_text(sanitized.data);
   sanitized.length = strlen(sanitized.data);
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
@@ -288,8 +288,8 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   if (status != SEQUEL_OK)
     goto done;
   if (parse_options.dialect == SEQUEL_CLICKHOUSE)
-    sequel_inspection_document_remove_clickhouse_comments(&summary);
-  sequel_inspection_document_restore_outer_limit(&summary, query, source);
+    sequel_metadata_document_remove_clickhouse_comments(&summary);
+  sequel_metadata_document_restore_outer_limit(&summary, query, source);
   size_t first_sql = 0;
   while (first_sql < source.length && isspace((unsigned char)source.data[first_sql]))
     ++first_sql;
@@ -316,9 +316,9 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
       summary.length -= 2;
     }
   }
-  sequel_inspection_document_normalize_parameters(&summary);
-  sequel_inspection_document_restore_array_literals(&summary, &sanitized);
-  sequel_inspection_document_restore_array_indexes(&summary, &sanitized);
+  sequel_metadata_document_normalize_parameters(&summary);
+  sequel_metadata_document_restore_array_literals(&summary, &sanitized);
+  sequel_metadata_document_restore_array_indexes(&summary, &sanitized);
   if (summary.length > SEQUEL_SUMMARY_MAX) {
     size_t limit = sequel_utf8_prefix(summary.data, summary.length, SEQUEL_SUMMARY_MAX - 3);
     memcpy(summary.data + limit, "…", 3);
@@ -340,12 +340,12 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   out->summary = storage + text_length + 1;
   out->statement_count = sequel_query_statement_count(query);
   const sequel_statement_info_t *statements = sequel_query_statements(query);
-  sequel_inspection_set_operation(&source, statements, out->statement_count, out->operation, sizeof(out->operation));
+  sequel_metadata_set_operation(&source, statements, out->statement_count, out->operation, sizeof(out->operation));
   out->truncated =
       text_length > (options && options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX);
   if (out->truncated) {
     size_t limit = options->max_query_text_bytes ? options->max_query_text_bytes : SEQUEL_TEXT_MAX;
-    sequel_inspection_cut_utf8((char *)out->text, limit);
+    sequel_metadata_cut_utf8((char *)out->text, limit);
   }
   status = SEQUEL_OK;
 done:

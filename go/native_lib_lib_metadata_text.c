@@ -1,1 +1,1 @@
-#include "../lib/inspection_text.c"
+#include "../lib/metadata_text.c"

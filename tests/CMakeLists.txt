@@ -61,7 +61,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/highlight.c
   ../lib/compact.c
   ../lib/api.c
-  ../lib/inspection_document.c
+  ../lib/metadata_document.c
   ../lib/analysis/core.c
   ../lib/analysis/maps.c
   ../lib/analysis/statements.c
@@ -93,8 +93,8 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/formatter.c
   ../lib/format_buffer.c
   ../lib/format_rules.c
-  ../lib/inspection.c
-  ../lib/inspection_text.c
+  ../lib/metadata.c
+  ../lib/metadata_text.c
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c
