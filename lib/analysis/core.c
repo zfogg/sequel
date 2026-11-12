@@ -535,6 +535,13 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     sequel_abort(SEQUEL_ERR_LIMIT);
   call->live = call->peak = sizeof(*call);
   sequel_work_tick(1);
+  /* The Go binding calls sequel_analyze_n directly, so it does not pass
+   * through the length-scanning wrapper's cancellation checks. Poll here at
+   * bounded source intervals before entering the shared parse pipeline. */
+  if (o.cancelled)
+    for (size_t offset = 0; offset < n; offset += 256)
+      if (o.cancelled(o.cancel_userdata))
+        sequel_abort(SEQUEL_ERR_CANCELLED);
   analysis_state a = {out, o};
   sequel_diagnostic_t first;
   sequel_status_t valid = diagnostic_input(sql, n, o.dialect, &first);
