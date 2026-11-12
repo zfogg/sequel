@@ -23,7 +23,7 @@ static const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t
   return NULL;
 }
 
-static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length, sequel_dialect_t dialect) {
+static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length) {
   const char *cursor = sql;
   while ((cursor = sequel_text_find(cursor, (size_t)(sql + length - cursor), "\\'")) != NULL) {
     const char *quote = cursor;
@@ -33,7 +33,7 @@ static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size
         break;
     }
     bool extended = quote > sql && (quote[-1] == 'E' || quote[-1] == 'e');
-    if (dialect != SEQUEL_GENERIC || !extended)
+    if (!extended)
       return cursor;
     cursor += 2;
   }
@@ -604,9 +604,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     const char *ambiguous = NULL;
     if (((o.dialect == SEQUEL_MYSQL || o.dialect == SEQUEL_SQLITE) &&
          (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n))) ||
-        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_DUCKDB ||
-          o.dialect == SEQUEL_GENERIC) &&
-         (ambiguous = sequel_analysis_ambiguous_escaped_quote(sql, n, o.dialect))) ||
+        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_DUCKDB || o.dialect == SEQUEL_GENERIC ||
+          o.dialect == SEQUEL_SQLITE) &&
+         (ambiguous = sequel_analysis_ambiguous_escaped_quote(sql, n))) ||
         (o.dialect == SEQUEL_SQLITE && (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n)))) {
       call->ambiguous_literal = true;
       call->ambiguous_offset = (size_t)(ambiguous - sql);
