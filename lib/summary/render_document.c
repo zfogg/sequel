@@ -760,7 +760,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
           continue;
         }
         bool nested_relation = (relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0;
-        if (relations[i].parent_relation != SIZE_MAX &&
+        bool relation_is_lateral = relations[i].name_range.end - relations[i].name_range.start == 7 &&
+                                   !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7);
+        if (!relation_is_lateral && relations[i].parent_relation != SIZE_MAX &&
             relations[relations[i].parent_relation].kind == SEQUEL_RELATION_SUBQUERY &&
             sequel_source_range_contains(relations[relations[i].parent_relation].range, relations[i].range)) {
           /* Nested relations are rendered as part of their parent subquery.
