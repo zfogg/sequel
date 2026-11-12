@@ -502,7 +502,19 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       }
       collapse_end = t.matching;
     } else {
-      sequel_analysis_append(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
+      size_t sqlite_suffix = SIZE_MAX;
+      if (bind && a->options.dialect == SEQUEL_SQLITE && t.t.n > 3 && t.t.p[0] == '$')
+        for (size_t offset = 1; offset + 1 < t.t.n; ++offset)
+          if (t.t.p[offset] == ':' && t.t.p[offset + 1] == ':') {
+            sqlite_suffix = offset;
+            break;
+          }
+      if (sqlite_suffix != SIZE_MAX) {
+        sequel_analysis_append(safe, "?", 1);
+        sequel_analysis_append(safe, t.t.p + sqlite_suffix, t.t.n - sqlite_suffix);
+      } else {
+        sequel_analysis_append(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
+      }
       if (map)
         sequel_analysis_segment(map, start, end, before, safe->n,
                                 literal || bind ? SEQUEL_MAP_REPLACE : SEQUEL_MAP_COPY);
