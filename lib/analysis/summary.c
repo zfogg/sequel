@@ -104,11 +104,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     else if (*cursor == ')' && source_limit_depth)
       --source_limit_depth;
   }
-  const bool preserve_numeric_limit =
-      sequel_query_dialect(query) == SEQUEL_GENERIC || sequel_query_dialect(query) == SEQUEL_SQLITE;
-  if (source_limit && preserve_numeric_limit && !multiple_named_queries && !source_limit_depth &&
-      !first_statement_has_locking_limit && !parameter_limit_before_numeric &&
-      !isdigit((unsigned char)source_limit[7]) && summary.data) {
+  if (source_limit && !multiple_named_queries && !source_limit_depth && !first_statement_has_locking_limit &&
+      !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
