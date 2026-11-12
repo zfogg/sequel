@@ -154,6 +154,10 @@ public:
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
   [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+  [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+  [[nodiscard]] std::size_t statement_count() const noexcept;
+  [[nodiscard]] std::size_t relation_count() const noexcept;
+  [[nodiscard]] std::size_t parameter_count() const noexcept;
 
 private:
   friend std::expected<query_analysis, error> analyze_query(std::string_view, analysis_options);

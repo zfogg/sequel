@@ -145,6 +145,18 @@ const sequel_diagnostic_list_t *query_analysis::diagnostics() const noexcept {
   return sequel_query_analysis_diagnostics(analysis_);
 }
 
+std::size_t query_analysis::statement_count() const noexcept {
+  return query_ ? sequel_query_statement_count(query_) : 0;
+}
+
+std::size_t query_analysis::relation_count() const noexcept {
+  return query_ ? sequel_query_relation_count(query_) : 0;
+}
+
+std::size_t query_analysis::parameter_count() const noexcept {
+  return query_ ? sequel_query_parameter_count(query_) : 0;
+}
+
 std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options) {
   metadata result;
   auto code = sequel_metadata_n(sql.data(), sql.size(), &options, &result.native_);
