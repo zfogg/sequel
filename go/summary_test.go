@@ -128,6 +128,7 @@ func FuzzSummary(f *testing.F) {
 	f.Add("SELECT $$secret$$")
 	f.Add("SELECT * FROM a JOIN b ON b.tags=ARRAY['secret', 'private'] AND b.id IN (SELECT id FROM c LIMIT 1)")
 	f.Add("SELECT * FROM a JOIN b ON CASE WHEN a.id>1 THEN b.id ELSE a.id END=a.id LEFT JOIN c USING(id)")
+	f.Add("SELECT * FROM a JOIN b ON CASE WHEN a.id>1 THEN b.id ELSE a.id END=a.id LEFT JOIN FT JOIN(id)")
 	f.Fuzz(func(t *testing.T, query string) {
 		if len(query) > 65536 {
 			t.Skip()
