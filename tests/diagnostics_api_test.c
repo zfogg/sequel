@@ -26,6 +26,15 @@ int main(void) {
   sequel_source_view_t parsed_source = {"SELECT (1]", strlen("SELECT (1]")};
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
+  sequel_source_view_t lexical_source = {"SELECT 'unterminated", strlen("SELECT 'unterminated")};
+  sequel_lexed_document_t *lexed = NULL;
+  CHECK(sequel_lex(&lexical_source, &parse_options, NULL, &lexed) == SEQUEL_OK && lexed);
+  sequel_diagnostic_list_t lexical_diagnostics = {0};
+  CHECK(sequel_collect_lexical_diagnostics(lexed, &lexical_diagnostics) == SEQUEL_OK);
+  CHECK(lexical_diagnostics.count >= 1 &&
+        lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL);
+  sequel_diagnostic_list_free(&lexical_diagnostics);
+  sequel_lexed_document_free(lexed);
   sequel_syntax_document_t *syntax = NULL;
   CHECK(sequel_parse_sql(&parsed_source, &parse_options, NULL, &syntax) == SEQUEL_OK && syntax);
   sequel_diagnostic_list_t syntax_diagnostics = {0};
