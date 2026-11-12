@@ -11,6 +11,22 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
+static void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, sequel_source_view_t source) {
+  if (!text || !source.data)
+    return;
+  const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
+  const char *source_by = source_limit ? sequel_summary_find_text(source_limit, " BY ") : NULL;
+  char *rendered_limit = sequel_summary_find_text(text, "LIMIT ?");
+  if (!source_limit || !source_by || !rendered_limit || source_by != source_limit + 7 ||
+      source_limit[6] < '0' || source_limit[6] > '9')
+    return;
+  if ((size_t)(rendered_limit - text) + 7 <= length)
+    rendered_limit[6] = source_limit[6];
+  rendered_limit = sequel_summary_find_text(rendered_limit + 7, "LIMIT ?");
+  if (rendered_limit && (size_t)(rendered_limit - text) + 7 <= length)
+    rendered_limit[6] = source_limit[6];
+}
+
 sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
                                                     const sequel_summary_options_t *options,
                                                     sequel_text_result_t *out) {
@@ -35,6 +51,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                                        &special_route, &cte_prefix_end, &outer_start, &nested_cte_scope,
                                        &cte_insert_scope, &scalar_with_scope))
     goto no_memory;
+  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
+    sequel_summary_restore_clickhouse_limit_by(text, length, source);
   if (special_route == 1) {
     if (statement_count > 1 && source.length >= 3 && !memcmp(source.data, "SET", 3) && strchr(source.data, ';')) {
       const char replacement[] = "SET; SELECT ?";
@@ -1898,20 +1916,6 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
 summary_postprocess:
   if (!sequel_summary_prepare_postprocess(&text, &length, &capacity, query, source, statement_count, statements))
     goto no_memory;
-  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE) {
-    const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
-    const char *source_by = source_limit ? sequel_summary_find_text(source_limit, " BY ") : NULL;
-    char *rendered_limit = text ? sequel_summary_find_text(text, "LIMIT ?") : NULL;
-    if (source_limit && source_by && rendered_limit && source_by > source_limit + 6) {
-      size_t value_length = (size_t)(source_by - (source_limit + 6));
-      if (value_length == 1 && strspn(source_limit + 6, "0123456789") >= value_length) {
-        memmove(rendered_limit + 6 + value_length, rendered_limit + 7,
-                length - (size_t)(rendered_limit - text) - 7 + 1);
-        memcpy(rendered_limit + 6, source_limit + 6, value_length);
-        length += value_length - 1;
-      }
-    }
-  }
   {
     if (text && !sequel_summary_find_text(text, " USING ")) {
       char *delete_where = sequel_summary_find_text(text, "DELETE WHERE ");
@@ -2680,6 +2684,8 @@ summary_postprocess:
       ++rendered_limits;
     }
   }
+  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
+    sequel_summary_restore_clickhouse_limit_by(text, length, source);
   if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements,
                                     statement_count))
     goto no_memory;
