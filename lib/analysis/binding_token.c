@@ -18,8 +18,10 @@ bool sequel_analysis_bind_token(analysis_token_t t, sequel_dialect_t d, const ch
     return true;
   }
   if (n >= 4 && p[0] == '%' && p[1] == '(' && p[n - 2] == ')' && p[n - 1] == 's') {
-    *key = "";
-    *length = 0;
+    /* Keep format-style positional binds in a separate namespace while
+     * intentionally ignoring the client-side name for query shape. */
+    *key = "\x01";
+    *length = 1;
     *style = SEQUEL_BIND_NAMED;
     return true;
   }
