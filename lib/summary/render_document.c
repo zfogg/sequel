@@ -1816,7 +1816,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
       *duplicate_nested = 0;
       length = (size_t)(duplicate_nested - text);
     }
-    if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ")) {
+    if (sequel_summary_find_text(source.data, " LIMIT ")) {
       char *premature_nested_limit = sequel_summary_find_text(text, " LIMIT ? ORDER BY ");
       if (premature_nested_limit) {
         memmove(premature_nested_limit, premature_nested_limit + strlen(" LIMIT ?"),
@@ -2490,6 +2490,14 @@ summary_postprocess:
   }
   if (!sequel_summary_normalize_order_limit(&text, &length, &capacity))
     goto no_memory;
+  for (char *premature_limit = text; premature_limit;) {
+    premature_limit = sequel_summary_find_text(premature_limit, " LIMIT ? ORDER BY ");
+    if (!premature_limit)
+      break;
+    memmove(premature_limit, premature_limit + strlen(" LIMIT ?"),
+            length - (size_t)(premature_limit - text) - strlen(" LIMIT ?") + 1);
+    length -= strlen(" LIMIT ?");
+  }
   if (sequel_summary_find_text(source.data, "FOR UPDATE SKIP LOCKED")) {
     char *limit = sequel_summary_find_text(text, " LIMIT ?");
     if (limit)
