@@ -310,7 +310,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       query_paren_depth = paren_depth;
     if (select_start && paren_depth)
       nested_query = true;
-    bool case_boundary_keyword = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
+    bool ends_case_branch = keyword && sequel_keyword_ends_case_branch(token->keyword_id);
     bool grouped_condition = sequel_formatter_is_open_paren(source, token) && previous_token &&
                              (sequel_formatter_token_is_word(source, previous_token, "AND") ||
                               sequel_formatter_token_is_word(source, previous_token, "OR") ||
@@ -320,7 +320,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
         goto no_memory;
       pending_clause_body = false;
     }
-    if (select_start || clause_start || upsert_on || window_boundary || condition_operator || case_boundary_keyword ||
+    if (select_start || clause_start || upsert_on || window_boundary || condition_operator || ends_case_branch ||
         nested_case_start || function_case_start || join_modifier) {
       size_t indent = (select_start || clause_start || upsert_on) ? paren_depth : paren_depth + 1;
       if (window_boundary)
@@ -510,7 +510,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       ++case_depth;
     else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
       --case_depth;
-    list_clause_context_active = sequel_keyword_starts_list_clause(clause);
+    list_clause_context_active = sequel_keyword_uses_comma_separated_list(clause);
   }
   if (!data) {
     data = malloc(1);
