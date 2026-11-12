@@ -712,38 +712,3 @@ const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *docum
     *count = node->token_count;
   return tokens + node->first_token;
 }
-
-sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
-                               const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
-                               sequel_syntax_document_t **out) {
-  if (!previous || !edit || !out)
-    return SEQUEL_ERR_NULL;
-  *out = NULL;
-  if (!previous->lexed)
-    return SEQUEL_ERR_INVALID_ARGUMENT;
-  sequel_source_view_t old_source = sequel_lexed_source(previous->lexed);
-  if (edit->start > edit->old_end || edit->old_end > old_source.length ||
-      (edit->replacement_length && !edit->replacement))
-    return SEQUEL_ERR_INVALID_ARGUMENT;
-  size_t removed = edit->old_end - edit->start;
-  if (old_source.length - removed > SIZE_MAX - edit->replacement_length)
-    return SEQUEL_ERR_OVERFLOW;
-  size_t length = old_source.length - removed + edit->replacement_length;
-  char *data = malloc(length ? length : 1);
-  if (!data)
-    return SEQUEL_ERR_NOMEM;
-  memcpy(data, old_source.data, edit->start);
-  memcpy(data + edit->start, edit->replacement, edit->replacement_length);
-  memcpy(data + edit->start + edit->replacement_length, old_source.data + edit->old_end,
-         old_source.length - edit->old_end);
-  sequel_source_view_t source = {data, length};
-  sequel_parse_options_t inherited;
-  if (!options) {
-    sequel_parse_options_init(&inherited);
-    inherited.dialect = sequel_lexed_dialect(previous->lexed);
-    options = &inherited;
-  }
-  sequel_status_t status = sequel_parse_sql(&source, options, cancellation, out);
-  free(data);
-  return status;
-}
