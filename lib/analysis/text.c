@@ -39,10 +39,12 @@ void sequel_analysis_compact_list_text(analysis_text *text) {
     char c = text->p[read++];
     if (c == '(' || c == ',') {
       text->p[write++] = c;
-      while (read < text->n && text->p[read] == ' ')
-        ++read;
-      if (c == '(' && read + 1 < text->n && text->p[read] == '?' && text->p[read + 1] == '?')
-        ++read;
+      if (c == '(') {
+        while (read < text->n && text->p[read] == ' ')
+          ++read;
+        if (read + 1 < text->n && text->p[read] == '?' && text->p[read + 1] == '?')
+          ++read;
+      }
       continue;
     }
     if (c == ' ' && read < text->n && (text->p[read] == ',' || text->p[read] == ')'))
