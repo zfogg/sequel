@@ -111,12 +111,34 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  char *copy = malloc(summary.length + 1);
+  char *copy = malloc(summary.length + source.length + 1);
   if (!copy)
     sequel_abort(SEQUEL_ERR_NOMEM);
   if (summary.length && summary.data)
     memcpy(copy, summary.data, summary.length);
   copy[summary.length] = 0;
+  const char *source_index = source.data;
+  char *rendered_index = copy;
+  size_t output_length = summary.length;
+  while ((source_index = strchr(source_index, '[')) != NULL) {
+    const char *source_end = source_index + 1;
+    while (source_end < source.data + source.length && isdigit((unsigned char)*source_end))
+      ++source_end;
+    if (source_end == source_index + 1 || source_end >= source.data + source.length || *source_end != ']') {
+      ++source_index;
+      continue;
+    }
+    rendered_index = strstr(rendered_index, "[?]");
+    if (!rendered_index)
+      break;
+    size_t digits = (size_t)(source_end - source_index - 1);
+    memmove(rendered_index + digits + 2, rendered_index + 3, strlen(rendered_index + 3) + 1);
+    memcpy(rendered_index + 1, source_index + 1, digits);
+    rendered_index += digits + 2;
+    source_index = source_end + 1;
+    output_length += digits - 1;
+  }
+  copy[output_length] = 0;
   out->summary = copy;
   sequel_text_result_free(&summary);
 }
