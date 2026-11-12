@@ -117,7 +117,7 @@ int sequel_summary_repair_outer_limit(char **text, size_t *length, size_t *capac
 
 void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, sequel_source_view_t source);
 int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size_t *capacity,
-                                               sequel_source_view_t source);
+                                               sequel_source_view_t source, sequel_source_range_t clause_range);
 int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_t *capacity,
                                               sequel_source_view_t source);
 

@@ -24,11 +24,13 @@ void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, seque
 }
 
 int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size_t *capacity,
-                                               sequel_source_view_t source) {
+                                               sequel_source_view_t source, sequel_source_range_t clause_range) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 1;
 
-  const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
+  const char *source_limit = (clause_range.end > clause_range.start && clause_range.end <= source.length)
+                                 ? source.data + clause_range.start
+                                 : sequel_summary_find_text(source.data, "LIMIT ");
   if (!source_limit)
     return 1;
   const char *source_value = source_limit + strlen("LIMIT ");
