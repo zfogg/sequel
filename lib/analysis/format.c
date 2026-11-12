@@ -25,6 +25,21 @@ sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length
     sequel_lexed_document_free(lexed);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
+  size_t case_count = 0;
+  size_t end_count = 0;
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  for (size_t i = 0; i < token_count; ++i) {
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_CASE)
+      ++case_count;
+    else if (tokens[i].keyword_id == SEQUEL_KEYWORD_END)
+      ++end_count;
+  }
+  if (case_count > end_count) {
+    sequel_syntax_document_free(syntax);
+    sequel_lexed_document_free(lexed);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
   format_options.mode = SEQUEL_FORMAT_SYNTAX_AWARE;
