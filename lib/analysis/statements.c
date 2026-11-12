@@ -25,7 +25,8 @@ void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *l
       start = token->range.start;
     last = token->range.end;
     if (sequel_token_is_symbol(source, token, ';')) {
-      sequel_analysis_add_statement(out, start, last);
+      if (start < token->range.start)
+        sequel_analysis_add_statement(out, start, last);
       start = SIZE_MAX;
     }
   }
