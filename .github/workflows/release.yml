@@ -21,6 +21,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.13'
@@ -54,6 +56,8 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: '14.0'
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
@@ -109,6 +113,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.13'
@@ -146,6 +152,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*

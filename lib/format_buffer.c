@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdint.h>
+
 #include "format_buffer.h"
 
 int sequel_format_append_text(char **data, size_t *length, size_t *capacity, const char *text, size_t amount) {

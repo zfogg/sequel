@@ -441,7 +441,6 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       if (map)
         sequel_analysis_segment(map, start, start, at, safe->n, SEQUEL_MAP_INSERT);
     }
-    bool token_gap = gap;
     gap = false;
     size_t before = safe->n;
     if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i) {
