@@ -951,7 +951,8 @@ int main(void) {
     const sequel_join_info_t *join = sequel_query_joins(modifiers_query);
     if (!check((join[0].flags & (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING)) ==
                    (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING),
-               "outer and using join modifier flags"))
+               "outer and using join modifier flags") ||
+        !check(join[0].range.end == modifiers_source.length, "using join range includes delimiter"))
       return 1;
     sequel_query_document_free(modifiers_query);
     sequel_syntax_document_free(modifiers_syntax);

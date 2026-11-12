@@ -679,8 +679,27 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t j = i + 1; j < token_count && tokens[j].range.start < join_end; ++j) {
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_JOIN)
         break;
-      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_USING)
+      if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_USING) {
         join.flags |= SEQUEL_JOIN_FLAG_USING;
+        size_t open = j + 1;
+        while (open < token_count && sequel_token_is_trivia(&tokens[open]))
+          ++open;
+        if (open < token_count && sequel_token_is_symbol(source, &tokens[open], '(')) {
+          size_t close = open + 1;
+          size_t nesting = 1;
+          for (; close < token_count && tokens[close].range.start < join_end; ++close) {
+            if (!sequel_token_is_single_punctuation(&tokens[close]))
+              continue;
+            char punctuation = source.data[tokens[close].range.start];
+            if (punctuation == '(')
+              ++nesting;
+            else if (punctuation == ')' && --nesting == 0)
+              break;
+          }
+          if (close < token_count && nesting == 0)
+            join.range.end = tokens[close].range.end;
+        }
+      }
       if (tokens[j].kind == SEQUEL_TOKEN_KEYWORD && tokens[j].keyword_id == SEQUEL_KEYWORD_ON) {
         join.has_condition = true;
         size_t condition_start = j + 1;
