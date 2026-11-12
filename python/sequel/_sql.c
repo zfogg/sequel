@@ -63,7 +63,10 @@ static PyObject *metadata_sql(PyObject *self, PyObject *args) {
     PyErr_SetString(PyExc_ValueError, "SQL metadata extraction rejected input");
     return NULL;
   }
-  PyObject *result = Py_BuildValue("sssOn", metadata->text, metadata->summary, metadata->operation,
+  char operation[sizeof(metadata->operation)];
+  memcpy(operation, metadata->operation, sizeof(operation));
+  operation[sizeof(operation) - 1] = 0;
+  PyObject *result = Py_BuildValue("sssOn", metadata->text, metadata->summary, operation,
                                    metadata->truncated ? Py_True : Py_False, (Py_ssize_t)metadata->statement_count);
   sequel_metadata_free(metadata);
   PyMem_Free(metadata);
