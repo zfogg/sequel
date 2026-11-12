@@ -54,6 +54,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   sequel_summary_options_t options;
   sequel_summary_options_init(&options);
   options.include_bind_count = false;
+  options.redact_relations = true;
   sequel_text_result_t summary = {0};
   if (sequel_summarize_query(query, &options, &summary) != SEQUEL_OK)
     sequel_abort(SEQUEL_ERR_NOMEM);
