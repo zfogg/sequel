@@ -133,6 +133,12 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
           sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
+        document->outer_limit_range = tokens[token].range;
+        size_t value = token + 1;
+        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
+          ++value;
+        if (value < token_count)
+          document->outer_limit_value_range = tokens[value].range;
         break;
       }
     }
@@ -181,6 +187,12 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
           sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
+        document->outer_limit_range = tokens[token].range;
+        size_t value = token + 1;
+        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
+          ++value;
+        if (value < token_count)
+          document->outer_limit_value_range = tokens[value].range;
         break;
       }
     }

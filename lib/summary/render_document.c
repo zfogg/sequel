@@ -2385,15 +2385,14 @@ summary_postprocess:
     }
     size_t rendered_tail_start = text && length > 32 ? length - 32 : 0;
     if (text && sequel_query_outer_limit(query) && !sequel_summary_find_text(text + rendered_tail_start, "LIMIT")) {
-      const char *limit = sequel_summary_find_word(source.data, outer_range.end, outer_start, "LIMIT");
-      const char *value = limit ? limit + strlen("LIMIT") : NULL;
-      while (value && value < source.data + outer_range.end && isspace((unsigned char)*value))
-        ++value;
-      const char *value_end = value;
-      while (value_end && value_end < source.data + outer_range.end && isdigit((unsigned char)*value_end))
-        ++value_end;
+      sequel_source_range_t value_range = sequel_query_outer_limit_value_range(query);
+      const char *value = value_range.end > value_range.start && value_range.end <= source.length
+                              ? source.data + value_range.start
+                              : NULL;
+      const char *value_end = value ? source.data + value_range.end : NULL;
       if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
-          (value && value_end > value &&
+          (value && value_end > value && value_end - value <= 20 &&
+           strspn(value, "0123456789") >= (size_t)(value_end - value) &&
            !sequel_summary_append_bytes(&text, &length, &capacity, value, (size_t)(value_end - value))) ||
           (!value || value_end == value) && !sequel_summary_append_text(&text, &length, &capacity, "?"))
         goto no_memory;
@@ -2425,6 +2424,21 @@ summary_postprocess:
       memmove(named_limit + new_length, close + 1, strlen(close + 1) + 1);
       memcpy(named_limit, replacement, new_length);
       length += new_length - old_length;
+    }
+  }
+  sequel_source_range_t outer_limit_value = sequel_query_outer_limit_value_range(query);
+  if (text && outer_limit_value.end > outer_limit_value.start && outer_limit_value.end <= source.length) {
+    const char *value = source.data + outer_limit_value.start;
+    const char *value_end = source.data + outer_limit_value.end;
+    bool numeric = value_end > value && value_end - value <= 20;
+    for (const char *cursor = value; numeric && cursor < value_end; ++cursor)
+      numeric = isdigit((unsigned char)*cursor) != 0;
+    if (numeric) {
+      char *rendered_limit = NULL;
+      for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT ?")) != NULL; ++cursor)
+        rendered_limit = cursor;
+      if (rendered_limit && (size_t)(value_end - value) == sizeof("1") - 1)
+        memcpy(rendered_limit, value, sizeof("1") - 1);
     }
   }
   if (text && sequel_query_outer_limit(query)) {
