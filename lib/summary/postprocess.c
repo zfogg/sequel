@@ -147,7 +147,7 @@ int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *ca
   return 1;
 }
 
-void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
+void sequel_summary_redact_rendered_literals(char *text, size_t *length, sequel_dialect_t dialect) {
   if (!text || !length)
     return;
   if (sequel_summary_find_text(text, " OVER (…) FILTER (…) FROM "))
@@ -163,7 +163,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
         --bracket_depth;
       continue;
     }
-    if (bracket_depth)
+    if (bracket_depth && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))
       continue;
     if (text[i] != '$')
       continue;
@@ -194,7 +194,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
         --bracket_depth;
       continue;
     }
-    if (bracket_depth)
+    if (bracket_depth && (dialect == SEQUEL_GENERIC || dialect == SEQUEL_SQLITE))
       continue;
     if (text[i] != '\'')
       continue;

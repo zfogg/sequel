@@ -1587,7 +1587,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     goto no_memory;
   if (!sequel_summary_repair_group_order(&text, &length, &capacity, source))
     goto no_memory;
-  sequel_summary_redact_rendered_literals(text, &length);
+  sequel_summary_redact_rendered_literals(text, &length, sequel_query_dialect(query));
   if (!sequel_summary_normalize_nested_subqueries(&text, &length, &capacity))
     goto no_memory;
   for (size_t i = length; i < length; ++i) {
@@ -1741,18 +1741,6 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
             length - (size_t)(using_with_space - text) - compact_length + 1);
     memcpy(using_with_space, normalized_with_space, normalized_length);
     length += extra;
-  }
-  for (size_t i = 0; i + 2 < length; ++i) {
-    if (text[i] != '[' || !isdigit((unsigned char)text[i + 1]))
-      continue;
-    size_t end = i + 1;
-    while (end < length && isdigit((unsigned char)text[end]))
-      ++end;
-    if (end < length && text[end] == ']') {
-      text[i + 1] = '?';
-      memmove(text + i + 2, text + end, length - end + 1);
-      length -= end - (i + 2);
-    }
   }
   if (sequel_summary_find_text(source.data, "GROUPING SETS") && sequel_summary_find_text(source.data, "HAVING") &&
       sequel_summary_find_text(text, " GROUP BY") && !sequel_summary_find_text(text, " HAVING")) {
@@ -2436,7 +2424,7 @@ summary_postprocess:
       }
     }
   }
-  sequel_summary_redact_rendered_literals(text, &length);
+  sequel_summary_redact_rendered_literals(text, &length, sequel_query_dialect(query));
   for (char *duplicate_left = sequel_summary_find_text(text, "LEFT LEFT JOIN"); duplicate_left;
        duplicate_left = sequel_summary_find_text(duplicate_left + 5, "LEFT LEFT JOIN")) {
     memmove(duplicate_left + 5, duplicate_left + 10, strlen(duplicate_left + 10) + 1);
