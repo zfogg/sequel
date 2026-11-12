@@ -65,7 +65,9 @@ public:
   [[nodiscard]] std::size_t syntax_issue_count() const noexcept;
   [[nodiscard]] std::size_t statement_count() const noexcept;
   [[nodiscard]] std::size_t relation_count() const noexcept;
+
   [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+
   [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
 
 private:
@@ -84,9 +86,13 @@ public:
   metadata &operator=(metadata &&other) noexcept;
 
   [[nodiscard]] std::string_view text() const noexcept { return text_; }
+
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
   [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] bool truncated() const noexcept { return truncated_; }
+
   [[nodiscard]] std::size_t statement_count() const noexcept { return statement_count_; }
 
 private:
@@ -124,13 +130,21 @@ public:
   analysis &operator=(analysis &&other) noexcept;
 
   [[nodiscard]] std::string_view status_text() const noexcept { return status_; }
+
   [[nodiscard]] std::string_view omission_reason() const noexcept { return omission_reason_; }
+
   [[nodiscard]] std::string_view text() const noexcept { return text_; }
+
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
+
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+
   [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] bool truncated() const noexcept { return native_.truncated; }
+
   [[nodiscard]] const sequel_analysis_t &native() const noexcept { return native_; }
 
 private:
@@ -149,13 +163,21 @@ public:
   query_analysis &operator=(query_analysis &&other) noexcept;
 
   [[nodiscard]] const sequel_diagnostic_list_t *diagnostics() const noexcept;
+
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
   [[nodiscard]] std::string_view sanitized() const noexcept { return sanitized_; }
+
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
+
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+
   [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+
   [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+
   [[nodiscard]] std::size_t statement_count() const noexcept;
   [[nodiscard]] std::size_t relation_count() const noexcept;
   [[nodiscard]] std::size_t parameter_count() const noexcept;
@@ -171,16 +193,13 @@ private:
   std::string summary_, sanitized_, formatted_, fingerprint_, operation_;
 };
 
-[[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql,
-                                                           sequel_metadata_options_t options = {});
+[[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options = {});
 
-[[nodiscard]] std::expected<document, error> parse(std::string_view sql,
-                                                   dialect dialect_value = dialect::generic);
+[[nodiscard]] std::expected<document, error> parse(std::string_view sql, dialect dialect_value = dialect::generic);
 
 [[nodiscard]] std::expected<analysis, error> analyze(std::string_view sql, analysis_options options = {});
 
-[[nodiscard]] std::expected<query_analysis, error> analyze_query(std::string_view sql,
-                                                                 analysis_options options = {});
+[[nodiscard]] std::expected<query_analysis, error> analyze_query(std::string_view sql, analysis_options options = {});
 
 [[nodiscard]] std::expected<std::string, error> sanitize(std::string_view sql, dialect dialect_value = dialect::generic,
                                                          bool collapse_in_lists = false, std::size_t limit = 0);

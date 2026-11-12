@@ -9,8 +9,7 @@
 
 static bool has_code(const sequel::analysis &value, const char *code) {
   for (std::size_t i = 0; i < value.native().diagnostic_count; ++i)
-    if (value.native().diagnostics[i].code ==
-        static_cast<sequel_diagnostic_code_t>(value.native().diagnostics[i].code))
+    if (value.native().diagnostics[i].code == static_cast<sequel_diagnostic_code_t>(value.native().diagnostics[i].code))
       if (std::string(sequel_diagnostic_code_name(value.native().diagnostics[i].code)) == code)
         return true;
   return false;
@@ -29,17 +28,17 @@ int main() {
   assert(!analyzed->operation().empty());
   assert(!analyzed->fingerprint().empty());
 
-  auto structured = sequel::analyze_query("UPDATE users SET name = 'x';", sequel::analysis_options{
-                                                                                 .dialect_value = sequel::dialect::sqlite,
-                                                                                 .include_lints = true});
+  auto structured =
+      sequel::analyze_query("UPDATE users SET name = 'x';",
+                            sequel::analysis_options{.dialect_value = sequel::dialect::sqlite, .include_lints = true});
   assert(structured);
   assert(structured->diagnostics() && structured->diagnostics()->count > 0);
   assert(structured->operation() == "UPDATE");
   assert(structured->syntax() && structured->statement_count() == 1 && structured->parameter_count() == 0);
   assert(structured->join_count() == 0);
 
-  auto lints = sequel::analyze("UPDATE users SET name = 'x';", {.dialect_value = sequel::dialect::sqlite,
-                                                                  .include_lints = true});
+  auto lints = sequel::analyze("UPDATE users SET name = 'x';",
+                               {.dialect_value = sequel::dialect::sqlite, .include_lints = true});
   assert(lints);
   assert(has_code(*lints, "unbounded_write"));
   assert(lints->native().diagnostics[0].severity == SEQUEL_WARNING);
