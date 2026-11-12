@@ -50,6 +50,41 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
     ++delimiter;
   bool comma_limit = *delimiter == ',';
   bool offset_limit = sequel_summary_find_text(delimiter, "OFFSET ") != NULL;
+  bool simple_query =
+      !sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, " GROUP BY ") &&
+      !sequel_summary_find_text(source.data, " HAVING ") && !sequel_summary_find_text(source.data, " ORDER BY ") &&
+      !sequel_summary_find_text(source.data, " JOIN ") && !sequel_summary_find_text(source.data, " UNION ") &&
+      !sequel_summary_find_text(source.data, " INTERSECT ") && !sequel_summary_find_text(source.data, " EXCEPT ");
+  if (simple_query && !comma_limit && !offset_limit && *delimiter == '\0') {
+    char *rendered_limit = sequel_summary_find_text(*text, "LIMIT ");
+    if (rendered_limit) {
+      char *rendered_value = rendered_limit + strlen("LIMIT ");
+      char *rendered_end = rendered_value;
+      while (isdigit((unsigned char)*rendered_end))
+        ++rendered_end;
+      if (rendered_end == rendered_value && *rendered_value == '?')
+        ++rendered_end;
+      if (rendered_end > rendered_value) {
+        size_t prefix = (size_t)(rendered_value - *text);
+        size_t suffix_offset = (size_t)(rendered_end - *text);
+        size_t suffix = *length - suffix_offset;
+        size_t digits = (size_t)(source_value_end - source_value);
+        size_t result_length = prefix + digits + suffix;
+        char *result = malloc(result_length + 1);
+        if (!result)
+          return 0;
+        memcpy(result, *text, prefix);
+        memcpy(result + prefix, source_value, digits);
+        memcpy(result + prefix + digits, *text + suffix_offset, suffix);
+        result[result_length] = '\0';
+        free(*text);
+        *text = result;
+        *length = result_length;
+        *capacity = result_length + 1;
+        return 1;
+      }
+    }
+  }
   if (!comma_limit && !offset_limit) {
     if (source_all) {
       char *rendered_limit = NULL;
