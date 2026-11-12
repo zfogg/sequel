@@ -23,6 +23,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   if (parameter_limit && parameter_limit < source_limit)
     parameter_limit_before_numeric = true;
   const char *locking_clause = strstr(source.data, "FOR UPDATE");
+  if (!locking_clause)
+    locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
   if (source_limit &&
       (!multiple_named_queries ||
