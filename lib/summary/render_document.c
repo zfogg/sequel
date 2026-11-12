@@ -37,6 +37,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     goto summary_postprocess;
   size_t cte_prefix_end = 0;
   size_t outer_start = 0;
+  const sequel_source_range_t outer_range = sequel_query_outer_range(query);
   bool nested_cte_scope = false;
   bool insert_values_scope = false;
   bool cte_insert_scope = false;
@@ -2384,7 +2385,17 @@ summary_postprocess:
     }
     size_t rendered_tail_start = text && length > 32 ? length - 32 : 0;
     if (text && sequel_query_outer_limit(query) && !sequel_summary_find_text(text + rendered_tail_start, "LIMIT")) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
+      const char *limit = sequel_summary_find_word(source.data, outer_range.end, outer_start, "LIMIT");
+      const char *value = limit ? limit + strlen("LIMIT") : NULL;
+      while (value && value < source.data + outer_range.end && isspace((unsigned char)*value))
+        ++value;
+      const char *value_end = value;
+      while (value_end && value_end < source.data + outer_range.end && isdigit((unsigned char)*value_end))
+        ++value_end;
+      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
+          (value && value_end > value &&
+           !sequel_summary_append_bytes(&text, &length, &capacity, value, (size_t)(value_end - value))) ||
+          (!value || value_end == value) && !sequel_summary_append_text(&text, &length, &capacity, "?"))
         goto no_memory;
     }
     if (text) {
@@ -2459,7 +2470,6 @@ summary_postprocess:
         !sequel_summary_append_text(&text, &length, &capacity, " FOR UPDATE SKIP LOCKED"))
       goto no_memory;
   }
-  const sequel_source_range_t outer_range = sequel_query_outer_range(query);
   const char *source_last_limit = NULL;
   for (size_t cursor = outer_start; cursor < outer_range.end && cursor < source.length;) {
     const char *limit = sequel_summary_find_word(source.data, outer_range.end, cursor, "LIMIT");
