@@ -310,7 +310,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       query_paren_depth = paren_depth;
     if (select_start && paren_depth)
       nested_query = true;
-    bool case_boundary_keyword = keyword && sequel_keyword_is_case_boundary(token->keyword_id);
+    bool case_boundary_keyword = keyword && sequel_keyword_is_case_expression_boundary(token->keyword_id);
     bool grouped_condition = sequel_formatter_is_open_paren(source, token) && previous_token &&
                              (sequel_formatter_token_is_word(source, previous_token, "AND") ||
                               sequel_formatter_token_is_word(source, previous_token, "OR") ||
@@ -510,7 +510,7 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       ++case_depth;
     else if (token->keyword_id == SEQUEL_KEYWORD_END && case_depth)
       --case_depth;
-    list_clause_context_active = sequel_keyword_is_list_clause(clause);
+    list_clause_context_active = sequel_keyword_starts_list_clause(clause);
   }
   if (!data) {
     data = malloc(1);

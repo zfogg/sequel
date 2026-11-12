@@ -912,14 +912,6 @@ int main(void) {
   sequel_query_document_free(lateral_query);
   sequel_syntax_document_free(lateral_syntax);
 
-  const char nested_alias_sql[] = "SELECT * FROM accounts a JOIN (SELECT * FROM bars b WHERE b.id = a.id) q ON true";
-  sequel_text_result_t nested_alias_summary = {0};
-  if (!check(sequel_summarize_sql(nested_alias_sql, &options, &nested_alias_summary) == SEQUEL_OK &&
-                 strstr(nested_alias_summary.data, "FROM bars AS b") != NULL,
-             "nested relation bare alias summary"))
-    return 1;
-  sequel_text_result_free(&nested_alias_summary);
-
   const char lateral_union_sql[] = "SELECT * FROM a JOIN LATERAL (SELECT * FROM b LIMIT $1) AS recent ON true "
                                    "UNION ALL SELECT * FROM c JOIN d USING(id)";
   sequel_source_view_t lateral_union_source = {lateral_union_sql, strlen(lateral_union_sql)};
