@@ -8,6 +8,7 @@
 #include <sequel/parser.h>
 
 #include "util/utf8.h"
+#include "util/text.h"
 
 static bool source_contains_json_operator(sequel_source_view_t source) {
   for (size_t i = 0; i + 1 < source.length; ++i) {
