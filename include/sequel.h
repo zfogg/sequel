@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file sequel.h
- * @brief SQL formatting, sanitization, inspection, diagnostics and highlighting.
+ * @brief SQL parsing, metadata, formatting, sanitization, diagnostics and highlighting.
  *
  * All input is UTF-8. No SQL is executed. Buffers and options are caller-owned;
  * formatting and highlighting preserve potentially sensitive SQL contents.
@@ -86,7 +86,7 @@ typedef struct {
 /** Bounded, sanitized query text and structural metadata from sequel_metadata.
  * Text is allocated to fit the actual result, not the maximum limits.
  * Do not copy this owning struct or modify its pointers. Release it with
- * sequel_metadata_free before reuse, including after a failed inspection. */
+ * sequel_metadata_free before reuse, including after a failed metadata extraction. */
 typedef struct {
   const char *text;
   const char *summary;
@@ -97,11 +97,11 @@ typedef struct {
   void *_storage;
 } sequel_metadata_t;
 
-/** Release inspection storage and reset metadata. NULL is allowed. Only call
+/** Release metadata storage and reset metadata. NULL is allowed. Only call
  * on a zero-initialized struct or one initialized by sequel_metadata. Safe to repeat. */
 void sequel_metadata_free(sequel_metadata_t *metadata);
 
-/** Dialect-independent inspection, usable without SQLite. Never reads bind
+/** Dialect-independent metadata extraction, usable without SQLite. Never reads bind
  * values. Malformed quoting fails closed: text is empty and summary is SQL.
  * Input is limited to SEQUEL_INPUT_MAX and nesting to 64 levels. Output is UTF-8
  * bounded. out need not be initialized, but any previous result must be freed. */
