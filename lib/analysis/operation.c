@@ -16,7 +16,8 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     out->operation[0] = 0;
     return;
   }
-  if (statement[0].operation == SEQUEL_OPERATION_INSERT && strstr(source.data, " SELECT ") &&
+  if (sequel_query_statement_count(query) > 1 && statement[0].operation == SEQUEL_OPERATION_INSERT &&
+      strstr(source.data, " SELECT ") &&
       (strstr(source.data, "--") || strstr(source.data, "/*"))) {
     out->operation[0] = 0;
     return;
