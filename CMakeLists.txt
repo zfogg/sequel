@@ -69,7 +69,7 @@ target_sources(sequel PRIVATE lib/summary/cte.c)
 target_sources(sequel PRIVATE lib/analysis/maps.c lib/summary/repair.c)
 target_sources(sequel PRIVATE lib/analysis/statements.c)
 add_library(sequel::sequel ALIAS sequel)
-target_sources(sequel PRIVATE lib/access.c)
+target_sources(sequel PRIVATE lib/access.c lib/query_visit.c)
 target_compile_features(sequel PUBLIC c_std_23)
 target_include_directories(sequel PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
