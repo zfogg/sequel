@@ -33,6 +33,16 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
       const char *where = sequel_summary_find_text(table_end, " WHERE ");
       const char *order = sequel_summary_find_text(table_end, " ORDER BY ");
       const char *limit = sequel_summary_find_text(table_end, " LIMIT ");
+      const char *inner_alias = sequel_summary_find_text(table_end, " AS ");
+      if (inner_alias && inner_alias < close && (!where || inner_alias < where) && (!order || inner_alias < order)) {
+        const char *alias = inner_alias + strlen(" AS ");
+        const char *alias_end = alias;
+        while (alias_end < close && !isspace((unsigned char)*alias_end) && *alias_end != ')')
+          ++alias_end;
+        if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
+          return 0;
+      }
       if (where && where < close && (!sequel_summary_append_text(text, length, capacity, " WHERE …")))
         return 0;
       if (order && order < close && (!sequel_summary_append_text(text, length, capacity, " ORDER BY …")))
