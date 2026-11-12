@@ -144,6 +144,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   if (dialect == SEQUEL_CLICKHOUSE && has_clickhouse_payload(source, tokens, token_count)) {
+    sequel_syntax_document_free(syntax);
     sequel_lexed_document_free(lexed);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
