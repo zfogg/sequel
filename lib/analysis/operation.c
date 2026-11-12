@@ -1,4 +1,5 @@
 #include "internal.h"
+#include "../model.h"
 
 static bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word) {
   size_t word_length = strlen(word);
