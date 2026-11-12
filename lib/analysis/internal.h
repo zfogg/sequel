@@ -60,6 +60,9 @@ analysis_binding *sequel_analysis_numeric_identity(analysis_bindings *bindings, 
 void sequel_analysis_dictionary_clear(analysis_bindings *bindings);
 void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot, size_t statement,
                                             size_t start, size_t end, sequel_bind_style_t style);
+analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings, analysis_bindings *canonical_bindings,
+                                                    const char *key, size_t key_length, size_t number,
+                                                    size_t *fingerprint_number);
 
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 

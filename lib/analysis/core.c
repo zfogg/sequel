@@ -47,17 +47,8 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         key = numeric;
         key_length = strlen(numeric);
       }
-      analysis_binding *identity = sequel_analysis_binding_slot(&dictionary, key, key_length, number);
-      if (number && identity->key == numeric) {
-        char *owned = malloc(key_length);
-        memcpy(owned, numeric, key_length);
-        identity->key = owned;
-        identity->owned = true;
-      }
-      size_t old_count = slot_dictionary.count;
-      analysis_binding *canonical = sequel_analysis_numeric_identity(&slot_dictionary, identity->slot);
-      if (slot_dictionary.count != old_count)
-        canonical->identity = ++fingerprint_next;
+      analysis_binding *canonical = sequel_analysis_canonical_binding(
+          &dictionary, &slot_dictionary, key, key_length, number, &fingerprint_next);
       unsigned char kind = 'B';
       sha_update(hash, &kind, 1);
       sha_u64(hash, canonical->identity);
@@ -66,7 +57,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       } else
         sha_frame(hash, 'Y', "", 0, false);
       if (!a->options.omit_bind_descriptors) {
-        sequel_analysis_append_bind_descriptor(out, &bind_count, identity->slot, statement, start, end, style);
+        sequel_analysis_append_bind_descriptor(out, &bind_count, canonical->slot, statement, start, end, style);
       }
     } else if (literal) {
       sequel_fingerprint_hash_literal(hash, &fingerprint_next);

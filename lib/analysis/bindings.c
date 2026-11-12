@@ -89,3 +89,22 @@ void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t 
   analysis->binds = binds;
   analysis->bind_count++;
 }
+
+analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings, analysis_bindings *canonical_bindings,
+                                                    const char *key, size_t key_length, size_t number,
+                                                    size_t *fingerprint_number) {
+  analysis_binding *identity = sequel_analysis_binding_slot(bindings, key, key_length, number);
+  if (number && identity->key == key) {
+    char *owned = malloc(key_length);
+    if (!owned)
+      sequel_abort(SEQUEL_ERR_NOMEM);
+    memcpy(owned, key, key_length);
+    identity->key = owned;
+    identity->owned = true;
+  }
+  size_t old_count = canonical_bindings->count;
+  analysis_binding *canonical = sequel_analysis_numeric_identity(canonical_bindings, identity->slot);
+  if (canonical_bindings->count != old_count)
+    canonical->identity = ++*fingerprint_number;
+  return canonical;
+}
