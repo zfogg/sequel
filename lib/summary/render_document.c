@@ -854,7 +854,7 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
         bool parenthesized_relation = source.data[relations[i].name_range.start] == '(';
         const char *first_lateral_join = sequel_summary_find_text(source.data, "JOIN LATERAL");
         bool multiple_lateral_joins =
-            first_lateral_join && sequel_summary_find_text(first_lateral_join + 11, "JOIN LATERAL");
+            first_lateral_join && sequel_summary_find_text(first_lateral_join + strlen("JOIN LATERAL"), "JOIN LATERAL");
         if (join_index != SIZE_MAX && lateral_relation && multiple_lateral_joins &&
             relations[i].range.end <= source.length) {
           const char *open = strchr(source.data + relations[i].name_range.end, '(');
