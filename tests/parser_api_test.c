@@ -49,6 +49,13 @@ static bool count_clauses(const sequel_query_document_t *document, size_t index,
   return true;
 }
 
+static bool stop_query_visit(const sequel_query_document_t *document, size_t index, void *userdata) {
+  (void)document;
+  (void)index;
+  (void)userdata;
+  return false;
+}
+
 static bool count_ctes(const sequel_query_document_t *document, size_t index, void *userdata) {
   (void)document;
   (void)index;
@@ -457,6 +464,9 @@ int main(void) {
   if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK &&
                  visited_clauses == sequel_query_clause_count(query),
              "clause visitor"))
+    return 1;
+  query_visitor = (sequel_query_visitor_t){.statement = stop_query_visit};
+  if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_ERR_CANCELLED, "query visitor cancellation"))
     return 1;
   if (!check(sequel_query_relation_count(query) == 1, "relation count"))
     return 1;
