@@ -2,43 +2,6 @@
  * classes and produces numeric provenance while values are replaced. */
 #include "internal.h"
 
-static const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length) {
-  for (size_t offset = 0; offset < length; ++offset) {
-    if (sql[offset] != '$')
-      continue;
-    size_t delimiter_end = offset + 1;
-    while (delimiter_end < length && (isalnum((unsigned char)sql[delimiter_end]) || sql[delimiter_end] == '_'))
-      ++delimiter_end;
-    if (delimiter_end >= length || sql[delimiter_end] != '$')
-      continue;
-    size_t body = delimiter_end + 1;
-    size_t delimiter_length = delimiter_end - offset + 1;
-    while (body + delimiter_length <= length) {
-      if (sql[body] == '$' && !memcmp(sql + body, sql + offset, delimiter_length))
-        return sql + offset;
-      ++body;
-    }
-  }
-  return NULL;
-}
-
-static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length) {
-  const char *cursor = sql;
-  while ((cursor = sequel_text_find(cursor, (size_t)(sql + length - cursor), "\\'")) != NULL) {
-    const char *quote = cursor;
-    while (quote > sql) {
-      --quote;
-      if (*quote == '\'' && (quote == sql || quote[-1] != '\\'))
-        break;
-    }
-    bool extended = quote > sql && (quote[-1] == 'E' || quote[-1] == 'e');
-    if (!extended)
-      return cursor;
-    cursor += 2;
-  }
-  return NULL;
-}
-
 typedef struct {
   const char *key;
   size_t length, slot, identity;

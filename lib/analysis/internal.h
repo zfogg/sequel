@@ -45,6 +45,8 @@ typedef struct {
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
 bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
+const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length);
+const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
                                 size_t *number, sequel_bind_style_t *style);
 void sequel_analysis_compact_list_text(analysis_text *text);
