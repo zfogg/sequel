@@ -71,6 +71,7 @@ sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t
     (*out)[(*count)++] = (analysis_token_t){.t = {.p = source.data + token->range.start,
                                                   .n = token->range.end - token->range.start,
                                                   .word = kind == 1,
+                                                  .keyword = token->kind == SEQUEL_TOKEN_KEYWORD,
                                                   .space = gap,
                                                   .clickhouse = sequel_lexed_dialect(lexed) == SEQUEL_CLICKHOUSE},
                                             .gap = gap,

@@ -9,6 +9,7 @@ typedef struct {
   const char *p;
   size_t n;
   bool word;
+  bool keyword;
   bool space;
   bool clickhouse;
 } token;

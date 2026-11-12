@@ -18,8 +18,8 @@ bool sequel_analysis_bind_token(analysis_token_t t, sequel_dialect_t d, const ch
     return true;
   }
   if (n >= 4 && p[0] == '%' && p[1] == '(' && p[n - 2] == ')' && p[n - 1] == 's') {
-    *key = p + 2;
-    *length = n - 4;
+    *key = "";
+    *length = 0;
     *style = SEQUEL_BIND_NAMED;
     return true;
   }

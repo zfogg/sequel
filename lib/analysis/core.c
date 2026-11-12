@@ -394,8 +394,9 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
                 : t.kind == 2 ? 'Q'
                               : 'T',
                 t.t.p, t.t.n,
-                t.kind == 1 && ((a->options.dialect != SEQUEL_MYSQL && a->options.dialect != SEQUEL_CLICKHOUSE) ||
-                                isupper((unsigned char)t.t.p[0])));
+                t.kind == 1 &&
+                    (t.t.keyword || (a->options.dialect != SEQUEL_MYSQL && a->options.dialect != SEQUEL_CLICKHOUSE) ||
+                     isupper((unsigned char)t.t.p[0])));
     if (t.kind == 0 && sequel_runtime_symbol(t.t, ';')) {
       fingerprint_next = 0;
       sequel_analysis_dictionary_clear(&dictionary);
