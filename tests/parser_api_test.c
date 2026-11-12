@@ -725,6 +725,32 @@ int main(void) {
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
+  {
+    const char cte_serialization_sql[] =
+        "WITH recent AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM recent";
+    sequel_source_view_t cte_source = {cte_serialization_sql, strlen(cte_serialization_sql)};
+    sequel_syntax_document_t *cte_syntax = NULL;
+    sequel_query_document_t *cte_query = NULL;
+    sequel_buffer_t cte_serialized = {0};
+    sequel_document_bundle_t *cte_bundle = NULL;
+    if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK &&
+                   sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
+                   sequel_query_cte_count(cte_query) == 1 &&
+                   (sequel_query_ctes(cte_query)[0].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 &&
+                   sequel_document_serialize(cte_syntax, cte_query, NULL, &cte_serialized) == SEQUEL_OK &&
+                   sequel_document_deserialize(&cte_source,
+                                               &(sequel_buffer_view_t){cte_serialized.data, cte_serialized.length},
+                                               NULL, &cte_bundle) == SEQUEL_OK &&
+                   sequel_query_cte_count(sequel_document_bundle_query(cte_bundle)) == 1 &&
+                   (sequel_query_ctes(sequel_document_bundle_query(cte_bundle))[0].flags &
+                    SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0,
+               "CTE metadata serialization"))
+      return 1;
+    sequel_document_bundle_free(cte_bundle);
+    sequel_buffer_free(&cte_serialized);
+    sequel_query_document_free(cte_query);
+    sequel_syntax_document_free(cte_syntax);
+  }
   sequel_serialization_options_t older_schema;
   sequel_serialization_options_init(&older_schema);
   older_schema.schema.minor = 0;
