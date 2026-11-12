@@ -725,6 +725,15 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
             join_index = j;
             break;
           }
+        if (join_index == SIZE_MAX && relations[i].name_range.end - relations[i].name_range.start == 7 &&
+            !memcmp(source.data + relations[i].name_range.start, "LATERAL", 7)) {
+          for (size_t j = 0; j < sequel_query_join_count(query); ++j) {
+            if (sequel_source_range_contains(joins[j].range, relations[i].range)) {
+              join_index = j;
+              break;
+            }
+          }
+        }
         if (!sequel_summary_find_text(source.data, "JOIN"))
           join_index = SIZE_MAX;
         if (relation_passes == 2 && (relation_pass == 0) == (join_index != SIZE_MAX))
