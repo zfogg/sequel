@@ -135,7 +135,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       ++limit_count;
       if (!source_limit)
         source_limit = cursor;
-    } else if (cursor[6] == '?' || cursor[6] == '$' || strncmp(cursor + 6, "sqlc.arg(", 9) == 0)
+    } else if (cursor[6] == '?' || cursor[6] == '$' || cursor[6] == '(' || strncmp(cursor + 6, "sqlc.arg(", 9) == 0)
       ++limit_count;
   }
   const char *first_name = strstr(source.data, "-- name:");
