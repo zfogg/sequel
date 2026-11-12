@@ -40,11 +40,6 @@ static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size
 }
 
 typedef struct {
-  sequel_map_segment_t *p;
-  size_t n, capacity;
-} analysis_map;
-
-typedef struct {
   const char *key;
   size_t length, slot, identity;
   uint64_t hash;
@@ -104,83 +99,6 @@ static void sequel_analysis_append(analysis_text *b, const char *p, size_t n) {
   memcpy(b->p + b->n, p, n);
   b->n += n;
   b->p[b->n] = 0;
-}
-
-static void sequel_analysis_segment(analysis_map *b, size_t fs, size_t fe, size_t ts, size_t te,
-                                    sequel_map_kind_t kind) {
-  if (fs == fe && ts == te)
-    return;
-  if (b->n) {
-    sequel_map_segment_t *last = &b->p[b->n - 1];
-    if (last->kind == kind && last->from_end == fs && last->to_end == ts && kind != SEQUEL_MAP_REPLACE) {
-      last->from_end = fe;
-      last->to_end = te;
-      return;
-    }
-  }
-  if (b->n == b->capacity) {
-    size_t next = b->capacity ? b->capacity * 2 : 16;
-    if (next < b->capacity || next > SIZE_MAX / sizeof(*b->p))
-      sequel_abort(SEQUEL_ERR_LIMIT);
-    b->p = realloc(b->p, next * sizeof(*b->p));
-    b->capacity = next;
-  }
-  sequel_output_tick(sizeof(*b->p));
-  b->p[b->n++] = (sequel_map_segment_t){fs, fe, ts, te, kind};
-}
-
-static void sequel_analysis_build_format_map(analysis_map *map, const char *source, size_t source_length,
-                                             const char *formatted, size_t formatted_length) {
-  size_t source_cursor = 0, formatted_cursor = 0;
-  while (source_cursor < source_length && formatted_cursor < formatted_length) {
-    if (source[source_cursor] != formatted[formatted_cursor]) {
-      if (isspace((unsigned char)source[source_cursor]) && isspace((unsigned char)formatted[formatted_cursor])) {
-        size_t source_start = source_cursor;
-        size_t formatted_start = formatted_cursor;
-        while (source_cursor < source_length && isspace((unsigned char)source[source_cursor]))
-          ++source_cursor;
-        while (formatted_cursor < formatted_length && isspace((unsigned char)formatted[formatted_cursor]))
-          ++formatted_cursor;
-        sequel_analysis_segment(map, source_start, source_cursor, formatted_start, formatted_cursor,
-                                SEQUEL_MAP_REPLACE);
-        continue;
-      }
-      const char *source_match =
-          memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
-      const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor],
-                                           formatted_length - formatted_cursor);
-      if (source_match && (!formatted_match || source_match - source < formatted_match - formatted)) {
-        sequel_analysis_segment(map, source_cursor, (size_t)(source_match - source), formatted_cursor, formatted_cursor,
-                                SEQUEL_MAP_DELETE);
-        source_cursor = (size_t)(source_match - source);
-        continue;
-      }
-      if (formatted_match) {
-        sequel_analysis_segment(map, source_cursor, source_cursor, formatted_cursor,
-                                (size_t)(formatted_match - formatted), SEQUEL_MAP_INSERT);
-        formatted_cursor = (size_t)(formatted_match - formatted);
-        continue;
-      }
-      sequel_analysis_segment(map, source_cursor, source_cursor + 1, formatted_cursor, formatted_cursor + 1,
-                              SEQUEL_MAP_REPLACE);
-      ++source_cursor;
-      ++formatted_cursor;
-      continue;
-    }
-    size_t run_start = source_cursor;
-    while (source_cursor < source_length && formatted_cursor < formatted_length &&
-           source[source_cursor] == formatted[formatted_cursor]) {
-      ++source_cursor;
-      ++formatted_cursor;
-    }
-    if (source_cursor > run_start)
-      sequel_analysis_segment(map, run_start, source_cursor, formatted_cursor - (source_cursor - run_start),
-                              formatted_cursor, SEQUEL_MAP_COPY);
-  }
-  sequel_analysis_segment(map, source_cursor, source_length, formatted_cursor, formatted_length,
-                          source_cursor == source_length         ? SEQUEL_MAP_INSERT
-                          : formatted_cursor == formatted_length ? SEQUEL_MAP_DELETE
-                                                                 : SEQUEL_MAP_REPLACE);
 }
 
 /* Return identity key and explicit numbered arity. Marker prefixes distinguish

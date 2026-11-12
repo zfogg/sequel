@@ -28,6 +28,11 @@
 #include "../tokens.h"
 
 typedef struct {
+  sequel_map_segment_t *p;
+  size_t n, capacity;
+} analysis_map;
+
+typedef struct {
   char *p;
   size_t n, capacity;
 } analysis_text;
@@ -39,6 +44,10 @@ bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect
                                 size_t *number, sequel_bind_style_t *style);
 void sequel_analysis_compact_list_text(analysis_text *text);
 void sequel_analysis_utf8_cut(char *text, size_t limit);
+void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_end, size_t to_start, size_t to_end,
+                             sequel_map_kind_t kind);
+void sequel_analysis_build_format_map(analysis_map *map, const char *source, size_t source_length,
+                                      const char *formatted, size_t formatted_length);
 void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t length, analysis_token_t *tokens, size_t count,
                                              sequel_dialect_t dialect, sequel_analysis_t *out);
 void sequel_analysis_positions(const char *sql, sequel_analysis_t *out);
