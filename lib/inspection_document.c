@@ -105,6 +105,11 @@ static void sequel_inspection_document_restore_array_indexes(sequel_text_result_
 
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
+  size_t first_nonspace = 0;
+  while (first_nonspace < length && isspace((unsigned char)sql[first_nonspace]))
+    ++first_nonspace;
+  if (first_nonspace == length)
+    return SEQUEL_OK;
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = options ? options->dialect : SEQUEL_GENERIC;
