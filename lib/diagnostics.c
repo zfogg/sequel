@@ -692,6 +692,11 @@ sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t
       break;
     case SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN:
       code = SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
+      {
+        sequel_source_view_t source = sequel_lexed_source(sequel_syntax_lexed(syntax));
+        if (issues[i].range.start < source.length && source.data[issues[i].range.start] == '{')
+          code = SEQUEL_DIAG_INVALID_PARAMETER;
+      }
       break;
     }
     sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_SYNTAX,
