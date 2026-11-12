@@ -3,6 +3,19 @@
 
 #include "internal.h"
 
+static const char *sequel_summary_next_join_marker(const char *source, const char *end) {
+  static const char *markers[] = {" JOIN ",       " LEFT JOIN ",  " RIGHT JOIN ",      " FULL JOIN ",
+                                  " CROSS JOIN ", " INNER JOIN ", " NATURAL JOIN ",    " SEMI JOIN ",
+                                  " ANTI JOIN ",  " ASOF JOIN ",  " POSITIONAL JOIN ", NULL};
+  const char *best = NULL;
+  for (size_t i = 0; markers[i]; ++i) {
+    const char *candidate = sequel_summary_find_text(source, markers[i]);
+    if (candidate && candidate < end && (!best || candidate < best))
+      best = candidate;
+  }
+  return best;
+}
+
 bool sequel_summary_has_outer_from(const sequel_query_document_t *query) {
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
   size_t count = 0;
@@ -63,9 +76,22 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
             !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
           return 0;
       }
-      const char *join = sequel_summary_find_text(table_end, " JOIN ");
+      const char *join = sequel_summary_next_join_marker(table_end, close);
       while (join && join < close && (!where || join < where) && (!order || join < order) && (!limit || join < limit)) {
-        const char *join_table = join + strlen(" JOIN ");
+        const char *join_keyword = join;
+        while (join_keyword < close && isspace((unsigned char)*join_keyword))
+          ++join_keyword;
+        const char *join_table = join_keyword;
+        while (join_table < close && !isspace((unsigned char)*join_table))
+          ++join_table;
+        while (join_table < close && isspace((unsigned char)*join_table))
+          ++join_table;
+        if (join_keyword != join && join_keyword < join_table) {
+          const char *join_word = sequel_summary_find_text(join_keyword, " JOIN ");
+          if (!join_word || join_word >= close)
+            break;
+          join_table = join_word + strlen(" JOIN ");
+        }
         while (join_table < close && isspace((unsigned char)*join_table))
           ++join_table;
         const char *join_end = join_table;
@@ -74,11 +100,11 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
         const char *on = sequel_summary_find_text(join_end, " ON ");
         if (!on || on >= close || (where && on >= where))
           break;
-        if (!sequel_summary_append_text(text, length, capacity, " JOIN ") ||
+        if (!sequel_summary_append_bytes(text, length, capacity, join, (size_t)(join_table - join)) ||
             !sequel_summary_append_bytes(text, length, capacity, join_table, (size_t)(join_end - join_table)) ||
             !sequel_summary_append_text(text, length, capacity, " ON …"))
           return 0;
-        join = sequel_summary_find_text(on + strlen(" ON "), " JOIN ");
+        join = sequel_summary_next_join_marker(on + strlen(" ON "), close);
       }
       if (where && where < close && (!sequel_summary_append_text(text, length, capacity, " WHERE …")))
         return 0;
