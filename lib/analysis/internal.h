@@ -87,6 +87,7 @@ void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_co
 bool sequel_analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start,
                                     size_t end);
 void sequel_analysis_sort_diagnostics(sequel_analysis_t *out);
+int sequel_analysis_append_diagnostics(sequel_diagnostic_list_t *destination, const sequel_diagnostic_list_t *source);
 void sequel_analysis_add_statement(sequel_analysis_t *out, size_t start, size_t end);
 void sequel_analysis_recovered_statement_ranges(const sequel_lexed_document_t *lexed, sequel_analysis_t *out);
 sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,

@@ -25,25 +25,6 @@ static int sequel_analysis_cancelled(const sequel_cancellation_t *cancellation) 
   return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata);
 }
 
-static int sequel_analysis_append_diagnostics(sequel_diagnostic_list_t *destination,
-                                              const sequel_diagnostic_list_t *source) {
-  if (!source->count)
-    return 1;
-  if (source->count > SIZE_MAX - destination->count)
-    return 0;
-  size_t count = destination->count + source->count;
-  if (count > SIZE_MAX / sizeof(*destination->records))
-    return 0;
-  sequel_diagnostic_record_t *records = realloc(destination->records, count * sizeof(*records));
-  if (!records)
-    return 0;
-  memcpy(records + destination->count, source->records, source->count * sizeof(*records));
-  destination->records = records;
-  destination->count = count;
-  destination->capacity = count;
-  return 1;
-}
-
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options) {
   if (!options)
     return;
