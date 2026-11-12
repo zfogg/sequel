@@ -46,7 +46,8 @@ func TestParseExposesCTERanges(t *testing.T) {
 	}
 	defer document.Close()
 	ctes := document.Query().CTEs
-	if len(ctes) != 1 || ctes[0].NameEnd-ctes[0].NameStart != len("recent") || ctes[0].BodyEnd <= ctes[0].BodyStart {
+	if len(ctes) != 1 || ctes[0].NameEnd-ctes[0].NameStart != len("recent") || ctes[0].BodyEnd <= ctes[0].BodyStart ||
+		ctes[0].Flags != CTEFlagNotMaterialized {
 		t.Fatalf("unexpected CTE metadata: %#v", ctes)
 	}
 }

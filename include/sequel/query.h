@@ -74,6 +74,12 @@ typedef struct {
   uint32_t flags;
 } sequel_cte_info_t;
 
+enum {
+  SEQUEL_CTE_FLAG_NONE = 0,
+  SEQUEL_CTE_FLAG_MATERIALIZED = 1u << 0,
+  SEQUEL_CTE_FLAG_NOT_MATERIALIZED = 1u << 1
+};
+
 enum { SEQUEL_RELATION_FLAG_NESTED_SCOPE = 1u << 0, SEQUEL_RELATION_FLAG_PROJECTION_SCOPE = 1u << 1 };
 
 typedef struct {

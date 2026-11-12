@@ -22,6 +22,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
       if (cursor >= token_count || !sequel_token_is_identifier(&tokens[cursor]))
         break;
       size_t name = cursor++;
+      uint32_t cte_flags = SEQUEL_CTE_FLAG_NONE;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
       if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
@@ -51,6 +52,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
         if ((modifier == 12 &&
              sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED")) ||
             (modifier == 3 && sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 3, "NOT"))) {
+          cte_flags = modifier == 3 ? SEQUEL_CTE_FLAG_NOT_MATERIALIZED : SEQUEL_CTE_FLAG_MATERIALIZED;
           ++cursor;
           while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
             ++cursor;
@@ -81,7 +83,8 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
                                .name_range = tokens[name].range,
                                .body_range = {tokens[body_open].range.end, tokens[body_close].range.start},
                                .statement_index = sequel_query_statement_for_range(document, tokens[name].range),
-                               .syntax_node = SIZE_MAX};
+                               .syntax_node = SIZE_MAX,
+                               .flags = cte_flags};
       if (!sequel_query_array_append((void **)&document->ctes, &document->cte_count, sizeof(cte), &cte))
         return SEQUEL_ERR_NOMEM;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))

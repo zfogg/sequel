@@ -84,7 +84,13 @@ type CTEInfo struct {
 	Start, End         int
 	NameStart, NameEnd int
 	BodyStart, BodyEnd int
+	Flags              uint32
 }
+
+const (
+	CTEFlagMaterialized    uint32 = 1 << 0
+	CTEFlagNotMaterialized uint32 = 1 << 1
+)
 
 type StatementInfo struct {
 	Start, End int
@@ -252,7 +258,7 @@ func (d *Document) Query() QueryDocument {
 	out.CTEs = make([]CTEInfo, int(cteCount))
 	for i := range unsafe.Slice(ctePtr, int(cteCount)) {
 		item := &unsafe.Slice(ctePtr, int(cteCount))[i]
-		out.CTEs[i] = CTEInfo{Start: int(C.sequel_go_cte_start(item)), End: int(C.sequel_go_cte_end(item)), NameStart: int(C.sequel_go_cte_name_start(item)), NameEnd: int(C.sequel_go_cte_name_end(item)), BodyStart: int(C.sequel_go_cte_body_start(item)), BodyEnd: int(C.sequel_go_cte_body_end(item))}
+		out.CTEs[i] = CTEInfo{Start: int(C.sequel_go_cte_start(item)), End: int(C.sequel_go_cte_end(item)), NameStart: int(C.sequel_go_cte_name_start(item)), NameEnd: int(C.sequel_go_cte_name_end(item)), BodyStart: int(C.sequel_go_cte_body_start(item)), BodyEnd: int(C.sequel_go_cte_body_end(item)), Flags: uint32(item.flags)}
 	}
 	return out
 }
