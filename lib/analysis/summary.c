@@ -130,9 +130,11 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   sequel_source_view_t source = lexed ? sequel_lexed_source(lexed) : sequel_query_source(query);
   const char *source_limit = NULL;
   size_t limit_count = 0;
+  size_t numeric_limit_count = 0;
   for (const char *cursor = source.data; (cursor = strstr(cursor, "LIMIT ")) != NULL; cursor += 6) {
     if (cursor[6] >= '0' && cursor[6] <= '9') {
       ++limit_count;
+      ++numeric_limit_count;
       if (!source_limit)
         source_limit = cursor;
     } else if (cursor[6] == '?' || cursor[6] == '$' || cursor[6] == '(' || strncmp(cursor + 6, "sqlc.arg(", 9) == 0)
@@ -162,6 +164,14 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
+  }
+  if (summary.data && numeric_limit_count == 2) {
+    char *first_literal = strstr(summary.data, "LIMIT 1");
+    char *second_parameter = first_literal ? strstr(first_literal + 7, "LIMIT ?") : NULL;
+    if (first_literal && second_parameter) {
+      first_literal[6] = '?';
+      second_parameter[6] = '1';
+    }
   }
   char *copy = malloc(summary.length + source.length + 1);
   if (!copy)
