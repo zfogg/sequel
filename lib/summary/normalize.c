@@ -54,6 +54,44 @@ int sequel_summary_normalize_insert_conflict_order(char **text, size_t *length) 
   return 1;
 }
 
+int sequel_summary_remove_insert_projection_tail(char *text, size_t *length) {
+  char *conflict = sequel_summary_find_text(text, " ON CONFLICT");
+  if (!conflict)
+    return 1;
+  char *tail = conflict;
+  while (tail > text && tail[-1] != ')')
+    --tail;
+  if (tail == text || !strstr(tail + 1, "EXCLUDED") || strstr(tail + 1, "EXCLUDED") >= conflict)
+    return 1;
+  size_t removed = (size_t)(conflict - (tail + 1));
+  memmove(tail + 1, conflict, *length - (size_t)(conflict - text) + 1);
+  *length -= removed;
+  char *open = strstr(text, " AS p(");
+  if (open) {
+    char *close = strchr(open + 6, ')');
+    if (close && close < sequel_summary_find_text(text, " ON CONFLICT")) {
+      for (char *cursor = open + 6; cursor < close;) {
+        if (isspace((unsigned char)*cursor)) {
+          char *next = cursor + 1;
+          while (next < close && isspace((unsigned char)*next))
+            ++next;
+          memmove(cursor + 1, next, (size_t)(*length - (next - text)) + 1);
+          *length -= (size_t)(next - cursor - 1);
+          close -= (size_t)(next - cursor - 1);
+          *cursor = ' ';
+        }
+        ++cursor;
+      }
+    }
+  }
+  char *separator = strstr(text, "), ON CONFLICT");
+  if (separator) {
+    memmove(separator + 1, separator + 2, *length - (size_t)(separator - text) - 1);
+    --*length;
+  }
+  return 1;
+}
+
 bool sequel_summary_has_clause(const sequel_query_document_t *query, uint32_t keyword_id) {
   const sequel_clause_info_t *clauses = sequel_query_clauses(query);
   for (size_t i = 0; i < sequel_query_clause_count(query); ++i)

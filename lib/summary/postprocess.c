@@ -46,7 +46,8 @@ int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capa
     return 0;
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
       (!sequel_summary_normalize_insert_clause_order(text, length, capacity) ||
-       !sequel_summary_normalize_insert_conflict_order(text, length)))
+       !sequel_summary_normalize_insert_conflict_order(text, length) ||
+       !sequel_summary_remove_insert_projection_tail(*text, length)))
     return 0;
   return 1;
 }
@@ -54,6 +55,16 @@ int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capa
 int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out) {
   if (!text || !*text || !length || !capacity || !out)
     return 0;
+  if (!sequel_summary_remove_insert_projection_tail(*text, length))
+    return 0;
+  size_t compacted = 0;
+  for (size_t read = 0; read < *length; ++read) {
+    if (isspace((unsigned char)(*text)[read]) &&
+        ((compacted && (*text)[compacted - 1] == '(') || (read + 1 < *length && (*text)[read + 1] == ')')))
+      continue;
+    (*text)[compacted++] = (*text)[read];
+  }
+  *length = compacted;
   while (*length && isspace((unsigned char)(*text)[*length - 1]))
     --*length;
   if (*length == SIZE_MAX)

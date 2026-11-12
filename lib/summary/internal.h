@@ -38,6 +38,7 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
 
 int sequel_summary_normalize_insert_clause_order(char **text, size_t *length, size_t *capacity);
 int sequel_summary_normalize_insert_conflict_order(char **text, size_t *length);
+int sequel_summary_remove_insert_projection_tail(char *text, size_t *length);
 bool sequel_summary_has_clause(const sequel_query_document_t *query, uint32_t keyword_id);
 bool sequel_summary_has_token(const sequel_query_document_t *query, uint32_t keyword_id);
 bool sequel_summary_starts_function_projection(const sequel_query_document_t *query);
