@@ -43,6 +43,23 @@ int main(void) {
   sequel_diagnostic_list_free(&syntax_diagnostics);
   sequel_query_document_t *query = NULL;
   CHECK(sequel_build_query_document(syntax, &parse_options, &query) == SEQUEL_OK && query);
+  sequel_source_view_t query_source = {"SELECT * FROM users", strlen("SELECT * FROM users")};
+  sequel_syntax_document_t *query_syntax = NULL;
+  sequel_query_document_t *query_model = NULL;
+  CHECK(sequel_parse_sql(&query_source, &parse_options, NULL, &query_syntax) == SEQUEL_OK && query_syntax);
+  CHECK(sequel_build_query_document(query_syntax, &parse_options, &query_model) == SEQUEL_OK && query_model);
+  sequel_diagnostic_list_t query_diagnostics = {0};
+  CHECK(sequel_collect_query_diagnostics(query_model, &query_diagnostics) == SEQUEL_OK);
+  CHECK(query_diagnostics.count >= 1);
+  int saw_semantic = 0, saw_policy = 0;
+  for (size_t i = 0; i < query_diagnostics.count; ++i) {
+    saw_semantic |= query_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_SEMANTIC;
+    saw_policy |= query_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_POLICY;
+  }
+  CHECK(saw_semantic || saw_policy);
+  sequel_diagnostic_list_free(&query_diagnostics);
+  sequel_query_document_free(query_model);
+  sequel_syntax_document_free(query_syntax);
   sequel_diagnostic_list_t all_diagnostics = {0};
   CHECK(sequel_collect_document_diagnostics(sequel_syntax_lexed(syntax), syntax, query, &all_diagnostics) == SEQUEL_OK);
   CHECK(all_diagnostics.count >= 1);
