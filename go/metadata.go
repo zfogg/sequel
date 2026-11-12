@@ -10,6 +10,6 @@ func Inspect(query string, options SanitizeOptions) (summary, operation string, 
 }
 
 // Operation returns the shared SQL operation, or an empty string on failure.
-// It uses the same inspection path as Summary, including CTE handling, without
+// It uses the same metadata path as Summary, including CTE handling, without
 // collecting query text or executing SQL.
 func Operation(dialect Dialect, query string) string { return statementOperation(dialect, query) }

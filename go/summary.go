@@ -118,7 +118,7 @@ func sanitizeNative(query string, policy SanitizeOptions) (SanitizedQuery, bool)
 }
 
 // Summary returns a bounded SQL skeleton from the sequel parser.
-// It returns "SQL" when inspection fails or no summary is available. The result
+// It returns "SQL" when metadata extraction fails or no summary is available. The result
 // is limited to DefaultMaxSummaryBytes; no query is executed or bind value read.
 func Summary(dialect Dialect, query string) string {
 	summary, _, ok := inspectNative(dialect, query)

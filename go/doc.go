@@ -1,5 +1,5 @@
 // Package sequel formats, sanitizes, inspects and highlights SQL through a shared
-// C engine. No query is executed and bind values are never read by inspection.
+// C engine. No query is executed and bind values are never read by metadata extraction.
 //
 // FormatSQL and HighlightSQL preserve SQL contents, including potentially
 // sensitive literals and comments. Use SanitizeWithOptions or SanitizeSelective
