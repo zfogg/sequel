@@ -24,6 +24,26 @@ static void sequel_summary_collapse_set_statements(char *text) {
   }
 }
 
+static void sequel_summary_redact_clickhouse_where(char *text) {
+  char *cursor = text;
+  while ((cursor = strstr(cursor, "WHERE ")) != NULL) {
+    char *end = strchr(cursor + 6, ';');
+    if (!end)
+      end = cursor + strlen(cursor);
+    char *equals = NULL;
+    for (char *candidate = cursor + 6; candidate < end; ++candidate)
+      if (*candidate == '=')
+        equals = candidate;
+    if (equals && equals + 1 < end) {
+      memmove(equals + 4, end, strlen(end) + 1);
+      memcpy(equals + 1, "…", 3);
+      cursor = equals + 4;
+    } else {
+      cursor = end;
+    }
+  }
+}
+
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
                                         size_t sanitized_length, sequel_analysis_t *out) {
   if (query && sequel_query_statement_count(query) > 1 && sanitized) {
@@ -58,6 +78,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
            (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
       --sanitized_length;
     sequel_summary_collapse_set_statements(copy);
+    if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
+      sequel_summary_redact_clickhouse_where(copy);
     sanitized_length = strlen(copy);
     const char *limit = strstr(original.data, "LIMIT ");
     if (limit && isdigit((unsigned char)limit[6]) && !isdigit((unsigned char)limit[7])) {
