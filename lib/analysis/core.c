@@ -107,6 +107,17 @@ static void sequel_analysis_build_format_map(analysis_map *map, const char *sour
   size_t source_cursor = 0, formatted_cursor = 0;
   while (source_cursor < source_length && formatted_cursor < formatted_length) {
     if (source[source_cursor] != formatted[formatted_cursor]) {
+      if (isspace((unsigned char)source[source_cursor]) && isspace((unsigned char)formatted[formatted_cursor])) {
+        size_t source_start = source_cursor;
+        size_t formatted_start = formatted_cursor;
+        while (source_cursor < source_length && isspace((unsigned char)source[source_cursor]))
+          ++source_cursor;
+        while (formatted_cursor < formatted_length && isspace((unsigned char)formatted[formatted_cursor]))
+          ++formatted_cursor;
+        sequel_analysis_segment(map, source_start, source_cursor, formatted_start, formatted_cursor,
+                                SEQUEL_MAP_REPLACE);
+        continue;
+      }
       const char *source_match =
           memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
       const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor],
@@ -633,7 +644,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       sha_frame(&hash, 'D', sequel_dialect_name(o.dialect), strlen(sequel_dialect_name(o.dialect)), false);
       bool maps = !o.omit_source_maps && !o.omit_query_text;
       sequel_analysis_sanitize(sql, n, tokens, count, &a, &safe, maps ? &map : NULL, &hash);
-      if (o.keep_in_lists)
+      /* List compaction changes byte offsets.  Preserve the lossless
+       * sanitizer output whenever callers request source maps; compacting
+       * after map construction would make the map's target length stale. */
+      if (o.keep_in_lists && !maps)
         sequel_analysis_compact_list_text(&safe);
       if (out->statement_count) {
         char digest[65];
