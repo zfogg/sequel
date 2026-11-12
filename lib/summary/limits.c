@@ -144,6 +144,48 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   return 1;
 }
 
+int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, size_t *capacity,
+                                                sequel_source_view_t source) {
+  if (!text || !*text || !length || !capacity || !source.data)
+    return 1;
+  const char *source_offset = sequel_summary_find_text(source.data, "OFFSET ");
+  if (!source_offset)
+    return 1;
+  const char *source_value = source_offset + strlen("OFFSET ");
+  const char *source_end = source_value;
+  while (isdigit((unsigned char)*source_end))
+    ++source_end;
+  if (source_end == source_value)
+    return 1;
+  char *rendered_offset = sequel_summary_find_text(*text, "OFFSET ?");
+  if (!rendered_offset)
+    return 1;
+  size_t source_digits = (size_t)(source_end - source_value);
+  size_t rendered_digits = 1;
+  size_t rendered_value_offset = (size_t)(rendered_offset - *text) + strlen("OFFSET ");
+  if (source_digits > rendered_digits) {
+    size_t extra = source_digits - rendered_digits;
+    if (*capacity < *length + extra + 1) {
+      char *grown = realloc(*text, *length + extra + 1);
+      if (!grown)
+        return 0;
+      *text = grown;
+      *capacity = *length + extra + 1;
+      rendered_offset = sequel_summary_find_text(*text, "OFFSET ?");
+      rendered_value_offset = (size_t)(rendered_offset - *text) + strlen("OFFSET ");
+    }
+    memmove(*text + rendered_value_offset + source_digits, *text + rendered_value_offset + 1,
+            *length - rendered_value_offset);
+    *length += extra;
+  } else if (source_digits < rendered_digits) {
+    memmove(*text + rendered_value_offset + source_digits, *text + rendered_value_offset + 1,
+            *length - rendered_value_offset);
+    *length -= rendered_digits - source_digits;
+  }
+  memcpy(*text + rendered_value_offset, source_value, source_digits);
+  return 1;
+}
+
 int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_t *capacity,
                                               sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
