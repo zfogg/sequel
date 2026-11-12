@@ -21,7 +21,9 @@ def inspect(cases):
         f"{c['dialect']} {c.get('limit', 0)} {int(c.get('omit', False))} {int(c.get('keep', False))} {(c['raw'] if 'raw' in c else c['query'].encode()).hex()}\n"
         for c in cases
     )
-    result = subprocess.run([sys.argv[1]], input=data, text=True, capture_output=True, check=True, timeout=60)
+    result = subprocess.run([sys.argv[1]], input=data, text=True, capture_output=True, check=False, timeout=60)
+    if result.returncode:
+        raise AssertionError(f"sequel-probe exited {result.returncode}: {result.stderr}")
     lines = result.stdout.splitlines()
     assert len(lines) == len(cases), (len(lines), len(cases), result.stderr)
     out = []

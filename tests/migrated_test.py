@@ -11,7 +11,9 @@ root = Path(__file__).parent
 
 def inspect(queries, dialect=2):
     data = "".join(f"{dialect} 0 0 0 {q.encode().hex()}\n" for q in queries)
-    process = subprocess.run([sys.argv[1]], input=data, text=True, capture_output=True, check=True)
+    process = subprocess.run([sys.argv[1]], input=data, text=True, capture_output=True, check=False)
+    if process.returncode:
+        raise AssertionError(f"sequel-probe exited {process.returncode}: {process.stderr}")
     rows = []
     for line in process.stdout.splitlines():
         status, truncated, count, operation, text, summary = line.split(" ")
