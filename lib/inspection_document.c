@@ -27,6 +27,25 @@ static void sequel_inspection_document_normalize_parameters(sequel_text_result_t
   }
 }
 
+static void sequel_inspection_document_restore_outer_limit(sequel_text_result_t *summary,
+                                                           const sequel_query_document_t *query,
+                                                           sequel_source_view_t source) {
+  if (!summary || !summary->data || !query)
+    return;
+  sequel_source_range_t value = sequel_query_outer_limit_value_range(query);
+  if (value.end <= value.start || value.end > source.length || value.end - value.start > 20)
+    return;
+  for (size_t i = value.start; i < value.end; ++i)
+    if (!isdigit((unsigned char)source.data[i]))
+      return;
+  char *limit = NULL;
+  for (char *cursor = summary->data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; ++cursor)
+    limit = cursor;
+  if (!limit || value.end - value.start != sizeof("1") - 1)
+    return;
+  memcpy(limit + strlen("LIMIT "), source.data + value.start, sizeof("1") - 1);
+}
+
 static void sequel_inspection_document_remove_clickhouse_comments(sequel_text_result_t *summary) {
   if (!summary || !summary->data)
     return;
@@ -270,6 +289,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     goto done;
   if (parse_options.dialect == SEQUEL_CLICKHOUSE)
     sequel_inspection_document_remove_clickhouse_comments(&summary);
+  sequel_inspection_document_restore_outer_limit(&summary, query, source);
   size_t first_sql = 0;
   while (first_sql < source.length && isspace((unsigned char)source.data[first_sql]))
     ++first_sql;
