@@ -59,8 +59,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       if (!rendered_index)
         break;
       size_t digits = (size_t)(source_end - source_index - 1);
-      size_t suffix = strlen(rendered_index + 3);
-      memmove(rendered_index + digits + 2, rendered_index + 3, suffix + 1);
+      size_t suffix = strlen(rendered_index + 2);
+      memmove(rendered_index + digits + 1, rendered_index + 2, suffix + 1);
       memcpy(rendered_index + 1, source_index + 1, digits);
       rendered_index += digits + 2;
       source_index = source_end + 1;
@@ -132,7 +132,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (!rendered_index)
       break;
     size_t digits = (size_t)(source_end - source_index - 1);
-    memmove(rendered_index + digits + 2, rendered_index + 3, strlen(rendered_index + 3) + 1);
+    memmove(rendered_index + digits + 1, rendered_index + 2, strlen(rendered_index + 2) + 1);
     memcpy(rendered_index + 1, source_index + 1, digits);
     rendered_index += digits + 2;
     source_index = source_end + 1;
