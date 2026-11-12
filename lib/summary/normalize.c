@@ -61,11 +61,11 @@ int sequel_summary_remove_insert_projection_tail(char *text, size_t *length) {
   char *tail = conflict;
   while (tail > text && tail[-1] != ')')
     --tail;
-  if (tail == text || !strstr(tail + 1, "EXCLUDED") || strstr(tail + 1, "EXCLUDED") >= conflict)
-    return 1;
-  size_t removed = (size_t)(conflict - (tail + 1));
-  memmove(tail + 1, conflict, *length - (size_t)(conflict - text) + 1);
-  *length -= removed;
+  if (tail != text && strstr(tail + 1, "EXCLUDED") && strstr(tail + 1, "EXCLUDED") < conflict) {
+    size_t removed = (size_t)(conflict - (tail + 1));
+    memmove(tail + 1, conflict, *length - (size_t)(conflict - text) + 1);
+    *length -= removed;
+  }
   char *open = strstr(text, " AS p(");
   if (open) {
     char *close = strchr(open + 6, ')');
