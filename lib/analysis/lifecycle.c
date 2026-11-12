@@ -30,7 +30,7 @@ sequel_status_t sequel_analysis_fail(sequel_analysis_t *out, size_t n, sequel_di
                          : !strcmp(out->status, "limit")     ? "analysis_limit"
                          : !strcmp(out->status, "malformed") ? "malformed"
                                                              : "analysis_error";
-  diagnostic_report(NULL, 0, &out->_failure_diagnostic, code, 0, 0);
+  sequel_diagnostics_report(NULL, 0, &out->_failure_diagnostic, code, 0, 0);
   out->diagnostics = &out->_failure_diagnostic;
   out->diagnostic_count = 1;
   return status;

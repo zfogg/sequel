@@ -10,7 +10,7 @@ sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t 
   memset(out, 0, sizeof(*out));
   if (index >= sequel_diagnostic_catalog_count())
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  diagnostic_report(NULL, 0, out, (sequel_diagnostic_code_t)index, 0, 0);
+  sequel_diagnostics_report(NULL, 0, out, (sequel_diagnostic_code_t)index, 0, 0);
   return SEQUEL_OK;
 }
 

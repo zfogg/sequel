@@ -7,8 +7,7 @@ static const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t
     if (sql[offset] != '$')
       continue;
     size_t delimiter_end = offset + 1;
-    while (delimiter_end < length &&
-           (isalnum((unsigned char)sql[delimiter_end]) || sql[delimiter_end] == '_'))
+    while (delimiter_end < length && (isalnum((unsigned char)sql[delimiter_end]) || sql[delimiter_end] == '_'))
       ++delimiter_end;
     if (delimiter_end >= length || sql[delimiter_end] != '$')
       continue;
@@ -280,7 +279,7 @@ void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_co
   size_t count = out->diagnostic_count;
   sequel_output_tick(sizeof(sequel_diagnostic_t));
   sequel_diagnostic_t *ds = sequel_analysis_array((void *)out->diagnostics, count + 1, sizeof(*ds));
-  diagnostic_report(NULL, 0, &ds[count], code, 0, 0);
+  sequel_diagnostics_report(NULL, 0, &ds[count], code, 0, 0);
   ds[count].offset = start;
   ds[count].end_offset = end;
   out->diagnostics = ds;
@@ -607,7 +606,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         sequel_abort(SEQUEL_ERR_CANCELLED);
   analysis_state a = {out, o};
   sequel_diagnostic_t first;
-  sequel_status_t valid = diagnostic_input(sql, n, o.dialect, &first);
+  sequel_status_t valid = sequel_diagnostics_validate_input(sql, n, o.dialect, &first);
   if (valid != SEQUEL_OK) {
     sequel_analysis_add_diagnostic(out, first.code, first.offset, first.end_offset);
     sequel_analysis_positions(sql, out);
@@ -659,8 +658,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     }
     if (o.dialect == SEQUEL_POSTGRESQL && count != SIZE_MAX)
       for (size_t i = 0; i < count; ++i) {
-        bool contiguous_question_number = tokens[i].t.n > 1 && tokens[i].t.p[0] == '?' &&
-                                          isdigit((unsigned char)tokens[i].t.p[1]);
+        bool contiguous_question_number =
+            tokens[i].t.n > 1 && tokens[i].t.p[0] == '?' && isdigit((unsigned char)tokens[i].t.p[1]);
         if (!contiguous_question_number && i + 1 < count)
           contiguous_question_number = sequel_runtime_symbol(tokens[i].t, '?') &&
                                        tokens[i + 1].source_offset == tokens[i].source_offset + 1 &&
@@ -674,8 +673,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         }
       }
     if (call->ambiguous_literal) {
-      diagnostic_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
-                        call->ambiguous_offset + 2);
+      sequel_diagnostics_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
+                                call->ambiguous_offset + 2);
       count = SIZE_MAX;
     }
     if (syntax)

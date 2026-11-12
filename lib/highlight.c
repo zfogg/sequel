@@ -324,13 +324,13 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_diagnostic_t local;
   if (!diagnostic)
     diagnostic = &local;
-  diagnostic_report(NULL, 0, diagnostic, SEQUEL_DIAG_NONE, 0, 0);
+  sequel_diagnostics_report(NULL, 0, diagnostic, SEQUEL_DIAG_NONE, 0, 0);
   if (out && capacity)
     *out = 0;
   if (length)
     *length = 0;
   if (!sql || !length) {
-    diagnostic_report(NULL, 0, diagnostic, !sql ? SEQUEL_DIAG_NULL_INPUT : SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
+    sequel_diagnostics_report(NULL, 0, diagnostic, !sql ? SEQUEL_DIAG_NULL_INPUT : SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_NULL;
   }
   sequel_highlight_options_t defaults;
@@ -340,18 +340,18 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   }
   if (options->dialect < SEQUEL_GENERIC || options->dialect > SEQUEL_CLICKHOUSE ||
       (options->mode != SEQUEL_HTML && options->mode != SEQUEL_ANSI) || (!out && capacity) || (out && !capacity)) {
-    diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
+    sequel_diagnostics_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (size_t i = 0; i < SEQUEL_COLOR_COUNT; ++i)
     if (options->colors[i] > 0xffffff) {
-      diagnostic_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
+      sequel_diagnostics_report(sql, 0, diagnostic, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
   size_t n = 0;
   while (n <= SEQUEL_INPUT_MAX && sql[n])
     ++n;
-  sequel_status_t status = diagnostic_input(sql, n, options->dialect, diagnostic);
+  sequel_status_t status = sequel_diagnostics_validate_input(sql, n, options->dialect, diagnostic);
   if (status != SEQUEL_OK)
     return status;
   sequel_parse_options_t parse_options;
@@ -383,17 +383,18 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   for (size_t i = 0; i < token_count; ++i) {
     if (!options->tolerant && (tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED)) {
       sequel_syntax_document_free(document);
-      diagnostic_report(sql, n, diagnostic,
-                        tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT       ? SEQUEL_DIAG_UNTERMINATED_COMMENT
-                        : tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
-                        : tokens[i].kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
-                                                                           : SEQUEL_DIAG_UNTERMINATED_STRING,
-                        tokens[i].range.start, tokens[i].range.end);
+      sequel_diagnostics_report(sql, n, diagnostic,
+                                tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT       ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                                : tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                                : tokens[i].kind == SEQUEL_TOKEN_PARAMETER         ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
+                                                                                   : SEQUEL_DIAG_UNTERMINATED_STRING,
+                                tokens[i].range.start, tokens[i].range.end);
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
     if (tokens[i].kind == SEQUEL_TOKEN_BLOCK_COMMENT && (tokens[i].flags & SEQUEL_TOKEN_FLAG_RECOVERED)) {
       sequel_syntax_document_free(document);
-      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start, tokens[i].range.end);
+      sequel_diagnostics_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, tokens[i].range.start,
+                                tokens[i].range.end);
       return SEQUEL_ERR_OVERFLOW;
     }
   }
@@ -441,7 +442,7 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   if (out) {
     if (capacity <= b.n) {
       *out = 0;
-      diagnostic_report(sql, n, diagnostic, SEQUEL_DIAG_OUTPUT_LIMIT, 0, 0);
+      sequel_diagnostics_report(sql, n, diagnostic, SEQUEL_DIAG_OUTPUT_LIMIT, 0, 0);
       return SEQUEL_ERR_OVERFLOW;
     }
     out[b.n] = 0;

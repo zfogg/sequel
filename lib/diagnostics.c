@@ -481,8 +481,8 @@ static void sequel_diagnostics_position(const char *sql, size_t n, size_t offset
   }
 }
 
-void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code, size_t start,
-                       size_t end) {
+void sequel_diagnostics_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code,
+                               size_t start, size_t end) {
   if (!out)
     return;
   memset(out, 0, sizeof(*out));
@@ -504,18 +504,19 @@ void diagnostic_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequ
   }
 }
 
-sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
-  diagnostic_report(sql, 0, out, SEQUEL_DIAG_NONE, 0, 0);
+sequel_status_t sequel_diagnostics_validate_input(const char *sql, size_t n, sequel_dialect_t dialect,
+                                                  sequel_diagnostic_t *out) {
+  sequel_diagnostics_report(sql, 0, out, SEQUEL_DIAG_NONE, 0, 0);
   if (!sql) {
-    diagnostic_report(NULL, 0, out, SEQUEL_DIAG_NULL_INPUT, 0, 0);
+    sequel_diagnostics_report(NULL, 0, out, SEQUEL_DIAG_NULL_INPUT, 0, 0);
     return SEQUEL_ERR_NULL;
   }
   if (dialect < SEQUEL_GENERIC || dialect > SEQUEL_CLICKHOUSE) {
-    diagnostic_report(sql, n, out, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
+    sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_INVALID_ARGUMENT, 0, 0);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   if (n > SEQUEL_INPUT_MAX) {
-    diagnostic_report(sql, SEQUEL_INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, SEQUEL_INPUT_MAX, SEQUEL_INPUT_MAX);
+    sequel_diagnostics_report(sql, SEQUEL_INPUT_MAX, out, SEQUEL_DIAG_INPUT_LIMIT, SEQUEL_INPUT_MAX, SEQUEL_INPUT_MAX);
     return SEQUEL_ERR_OVERFLOW;
   }
   for (size_t i = 0; i < n;) {
@@ -526,12 +527,12 @@ sequel_status_t diagnostic_input(const char *sql, size_t n, sequel_dialect_t dia
                    : c >= 0xf0 && c <= 0xf4 ? 4
                                             : 0;
     if (!width || width > n - i || !sequel_utf8_valid(sql + i, width)) {
-      diagnostic_report(sql, n, out, SEQUEL_DIAG_INVALID_UTF8, i, i + 1);
+      sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_INVALID_UTF8, i, i + 1);
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
     if ((c < 32 && c != '\t' && c != '\r' && c != '\n') || c == 127 ||
         (width == 2 && c == 0xc2 && (unsigned char)sql[i + 1] <= 0x9f)) {
-      diagnostic_report(sql, n, out, SEQUEL_DIAG_CONTROL_CHARACTER, i, i + width);
+      sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_CONTROL_CHARACTER, i, i + width);
       return SEQUEL_ERR_INVALID_ARGUMENT;
     }
     i += width;
@@ -544,7 +545,7 @@ size_t sequel_diagnostic_catalog_count(void) { return sizeof(diagnostic_messages
 sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t dialect, sequel_diagnostic_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
-  sequel_status_t status = diagnostic_input(sql, n, dialect, out);
+  sequel_status_t status = sequel_diagnostics_validate_input(sql, n, dialect, out);
   if (status != SEQUEL_OK)
     return status;
   bool only_trivia = true;
@@ -558,7 +559,8 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
     return SEQUEL_OK;
   if (dialect == SEQUEL_CLICKHOUSE && sequel_text_find(sql, n, "INSERT") && sequel_text_find(sql, n, " FORMAT ")) {
     const char *format = sequel_text_find(sql, n, " FORMAT ") + 1;
-    diagnostic_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql), (size_t)(format - sql) + 6);
+    sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql),
+                              (size_t)(format - sql) + 6);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   sequel_parse_options_t options;
@@ -582,12 +584,12 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   for (size_t i = 0; i < lexical_diagnostics.count; ++i) {
     const sequel_diagnostic_record_t *record = &lexical_diagnostics.records[i];
     if (record->code == SEQUEL_DIAG_NESTING_LIMIT) {
-      diagnostic_report(sql, n, out, record->code, record->range.start, record->range.end);
+      sequel_diagnostics_report(sql, n, out, record->code, record->range.start, record->range.end);
       sequel_diagnostic_list_free(&lexical_diagnostics);
       sequel_syntax_document_free(document);
       return SEQUEL_ERR_OVERFLOW;
     }
-    diagnostic_report(sql, n, out, record->code, record->range.start, record->range.end);
+    sequel_diagnostics_report(sql, n, out, record->code, record->range.start, record->range.end);
     sequel_diagnostic_list_free(&lexical_diagnostics);
     sequel_syntax_document_free(document);
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -595,7 +597,7 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   sequel_diagnostic_list_free(&lexical_diagnostics);
   if (issue_count) {
     if (issues[0].recovery == SEQUEL_RECOVERY_OPAQUE_REGION) {
-      diagnostic_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, issues[0].range.start, issues[0].range.end);
+      sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, issues[0].range.start, issues[0].range.end);
       sequel_syntax_document_free(document);
       return SEQUEL_ERR_OVERFLOW;
     }
@@ -644,7 +646,7 @@ sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char
                                     : !length || (!out && capacity) || (out && !capacity)
                                         ? SEQUEL_DIAG_INVALID_ARGUMENT
                                         : SEQUEL_DIAG_UNSUPPORTED_LAYOUT;
-    diagnostic_report(sql, strlen(sql), diagnostic, code, 0, 0);
+    sequel_diagnostics_report(sql, strlen(sql), diagnostic, code, 0, 0);
   }
   return status;
 }
