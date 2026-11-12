@@ -133,6 +133,10 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     status = SEQUEL_ERR_INVALID_ARGUMENT;
     goto done;
   }
+  if (issue_count) {
+    status = SEQUEL_OK;
+    goto done;
+  }
   status = sequel_build_query_document(syntax, &parse_options, &query);
   if (status != SEQUEL_OK)
     goto done;
