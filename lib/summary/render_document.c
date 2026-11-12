@@ -2459,9 +2459,15 @@ summary_postprocess:
         !sequel_summary_append_text(&text, &length, &capacity, " FOR UPDATE SKIP LOCKED"))
       goto no_memory;
   }
+  const sequel_source_range_t outer_range = sequel_query_outer_range(query);
   const char *source_last_limit = NULL;
-  for (const char *cursor = source.data; (cursor = sequel_summary_find_text(cursor, "LIMIT ")) != NULL; ++cursor)
-    source_last_limit = cursor;
+  for (size_t cursor = outer_start; cursor < outer_range.end && cursor < source.length;) {
+    const char *limit = sequel_summary_find_word(source.data, outer_range.end, cursor, "LIMIT");
+    if (!limit)
+      break;
+    source_last_limit = limit;
+    cursor = (size_t)(limit - source.data) + strlen("LIMIT");
+  }
   if (source_last_limit && isdigit((unsigned char)source_last_limit[6])) {
     const char *expression = source_last_limit + 6;
     while (isdigit((unsigned char)*expression))
@@ -2496,7 +2502,8 @@ summary_postprocess:
       goto no_memory;
   }
   const char *not_exists = sequel_summary_find_word(source.data, source.length, 0, "NOT");
-  if (text && not_exists && !sequel_summary_find_word(text, length, 0, "NOT")) {
+  if (text && not_exists && !sequel_summary_find_word(text, length, 0, "NOT") &&
+      !sequel_summary_find_text(text, "EXISTS (")) {
     const char *exists =
         sequel_summary_find_word(not_exists, source.length - (size_t)(not_exists - source.data), 4, "EXISTS");
     const char *from =
