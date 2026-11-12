@@ -166,13 +166,12 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       only_limit[6] = '1';
   }
   if (summary.data && numeric_limit_count == 2) {
-    char *first_literal = strstr(summary.data, "LIMIT 1");
-    char *second_parameter = first_literal ? strstr(first_literal + 7, "LIMIT ?") : NULL;
-    if (first_literal && second_parameter) {
-      first_literal[6] = '?';
-      second_parameter[6] = '1';
-    } else if (first_literal && strstr(first_literal + 7, "LIMIT 1")) {
-      first_literal[6] = '?';
+    char *first_limit = strstr(summary.data, "LIMIT ");
+    char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
+    if (first_limit && second_limit) {
+      bool lateral = strstr(source.data, "LATERAL") != NULL;
+      first_limit[6] = lateral ? '?' : '1';
+      second_limit[6] = lateral ? '1' : '?';
     }
   }
   char *copy = malloc(summary.length + source.length + 1);
