@@ -514,6 +514,9 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     } else if (sequel_lexer_is_operator_char((unsigned char)source->data[i])) {
       ++i;
       while (i < source->length && sequel_lexer_is_operator_char((unsigned char)source->data[i])) {
+        if (source->data[i] == '/' && i + 1 < source->length && source->data[i + 1] == '/' &&
+            settings->dialect == SEQUEL_CLICKHOUSE)
+          break;
         if (source->data[i] == '%' && i + 1 < source->length &&
             (source->data[i + 1] == 's' || source->data[i + 1] == '('))
           break;

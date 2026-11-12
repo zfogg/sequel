@@ -27,6 +27,25 @@ static void sequel_inspection_document_normalize_parameters(sequel_text_result_t
   }
 }
 
+static void sequel_inspection_document_remove_clickhouse_comments(sequel_text_result_t *summary) {
+  if (!summary || !summary->data)
+    return;
+  size_t write = 0;
+  for (size_t read = 0; read < summary->length;) {
+    if (read + 1 < summary->length && summary->data[read] == '/' && summary->data[read + 1] == '/') {
+      read += 2;
+      while (read < summary->length && summary->data[read] != '\n' && summary->data[read] != '\r')
+        ++read;
+      if (write && summary->data[write - 1] != ' ' && summary->data[write - 1] != '\n')
+        summary->data[write++] = ' ';
+      continue;
+    }
+    summary->data[write++] = summary->data[read++];
+  }
+  summary->data[write] = 0;
+  summary->length = write;
+}
+
 static void sequel_inspection_document_restore_array_literals(sequel_text_result_t *summary,
                                                               const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
@@ -249,6 +268,8 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
   status = sequel_summarize_query(query, &summary_options, &summary);
   if (status != SEQUEL_OK)
     goto done;
+  if (parse_options.dialect == SEQUEL_CLICKHOUSE)
+    sequel_inspection_document_remove_clickhouse_comments(&summary);
   size_t first_sql = 0;
   while (first_sql < source.length && isspace((unsigned char)source.data[first_sql]))
     ++first_sql;

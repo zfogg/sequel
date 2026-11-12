@@ -11,6 +11,38 @@
 #include "util/text.h"
 #include "util/utf8.h"
 
+static bool sequel_api_word(const char *text, size_t length, const char *word) {
+  size_t word_length = strlen(word);
+  if (length != word_length)
+    return false;
+  for (size_t i = 0; i < length; ++i)
+    if (toupper((unsigned char)text[i]) != toupper((unsigned char)word[i]))
+      return false;
+  return true;
+}
+
+static bool sequel_api_clickhouse_payload(const sequel_source_view_t *source, const sequel_token_t *tokens,
+                                          size_t count) {
+  bool insert = false;
+  for (size_t i = 0; i < count; ++i) {
+    if (tokens[i].kind == SEQUEL_TOKEN_EOF)
+      break;
+    if (tokens[i].kind == SEQUEL_TOKEN_WHITESPACE || sequel_token_is_comment(&tokens[i]))
+      continue;
+    const char *text = source->data + tokens[i].range.start;
+    size_t length = tokens[i].range.end - tokens[i].range.start;
+    if (sequel_api_word(text, length, "INSERT")) {
+      insert = true;
+      continue;
+    }
+    if (insert && sequel_api_word(text, length, "FORMAT"))
+      return true;
+    if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && *text == ';')
+      insert = false;
+  }
+  return false;
+}
+
 sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
                                            bool collapse_in_lists, size_t limit, char *out, size_t capacity,
                                            bool *truncated) {
@@ -42,6 +74,14 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   sequel_status_t status = sequel_lex(&source, &options, NULL, &lexed);
   if (status != SEQUEL_OK)
     return status;
+  if (dialect == SEQUEL_CLICKHOUSE) {
+    size_t token_count = 0;
+    const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+    if (sequel_api_clickhouse_payload(&source, tokens, token_count)) {
+      sequel_lexed_document_free(lexed);
+      return SEQUEL_ERR_INVALID_ARGUMENT;
+    }
+  }
   sequel_text_result_t result = {0};
   status = sequel_sanitize_tokens(lexed, flags, &result);
   sequel_lexed_document_free(lexed);
