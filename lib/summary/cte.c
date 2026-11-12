@@ -77,19 +77,14 @@ int sequel_summary_append_cte_definitions(char **text, size_t *length, size_t *c
   for (size_t i = 0; i < cte_count; ++i) {
     if (i && !sequel_summary_append_text(text, length, capacity, ", "))
       return 0;
+    const char *modifier = (ctes[i].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 ? " AS NOT MATERIALIZED ("
+                           : (ctes[i].flags & SEQUEL_CTE_FLAG_MATERIALIZED) != 0   ? " AS MATERIALIZED ("
+                                                                                   : " AS (";
     if (!sequel_summary_append_bytes(text, length, capacity, source.data + ctes[i].name_range.start,
                                      ctes[i].name_range.end - ctes[i].name_range.start) ||
-        !sequel_summary_append_text(text, length, capacity,
-                                    sequel_summary_find_text(source.data + ctes[i].name_range.end, "MATERIALIZED")
-                                        ? " AS MATERIALIZED ("
-                                        : " AS ("))
+        !sequel_summary_append_text(text, length, capacity, modifier))
       return 0;
-    bool preserve_limit = false;
-    for (size_t cursor = ctes[i].name_range.end; cursor < ctes[i].body_range.start; ++cursor)
-      if (cursor + 12 <= source.length && !memcmp(source.data + cursor, "MATERIALIZED", 12)) {
-        preserve_limit = true;
-        break;
-      }
+    bool preserve_limit = (ctes[i].flags & (SEQUEL_CTE_FLAG_MATERIALIZED | SEQUEL_CTE_FLAG_NOT_MATERIALIZED)) != 0;
     if (!sequel_summary_append_body_summary(text, length, capacity, source.data, ctes[i].body_range, preserve_limit) ||
         !sequel_summary_append_text(text, length, capacity, ")"))
       return 0;
