@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "internal.h"
+#include "../model.h"
 
 bool sequel_analysis_word(analysis_token_t token, const char *word) {
   size_t length = strlen(word);
@@ -57,6 +58,17 @@ size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t di
     if (token.t.p[offset] == ':' && token.t.p[offset + 1] == ':')
       return offset;
   return SIZE_MAX;
+}
+
+bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word) {
+  size_t word_length = strlen(word);
+  for (size_t offset = 0; offset + word_length <= source.length; ++offset) {
+    bool starts_word = offset == 0 || !isalnum((unsigned char)source.data[offset - 1]);
+    bool ends_word = offset + word_length == source.length || !isalnum((unsigned char)source.data[offset + word_length]);
+    if (starts_word && ends_word && sequel_query_word_equals_ci(source.data + offset, word_length, word))
+      return true;
+  }
+  return false;
 }
 
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {

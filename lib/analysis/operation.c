@@ -1,17 +1,6 @@
 #include "internal.h"
 #include "../model.h"
 
-static bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word) {
-  size_t word_length = strlen(word);
-  for (size_t i = 0; i + word_length <= source.length; ++i) {
-    if ((i == 0 || !isalnum((unsigned char)source.data[i - 1])) &&
-        (i + word_length == source.length || !isalnum((unsigned char)source.data[i + word_length])) &&
-        sequel_query_word_equals_ci(source.data + i, word_length, word))
-      return true;
-  }
-  return false;
-}
-
 void sequel_analysis_operation_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
   if (!query || !out || !sequel_query_statement_count(query))
     return;
