@@ -459,6 +459,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
     bool function_relation = false;
+    bool parenthesized_join_relation = false;
     bool lateral_subquery = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
                                                         tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (lateral_subquery) {
@@ -508,7 +509,14 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
             break;
         }
         if (close < token_count) {
-          function_relation = true;
+          size_t body = opening + 1;
+          while (body < close && sequel_token_is_trivia(&tokens[body]))
+            ++body;
+          if (body < close && tokens[body].kind == SEQUEL_TOKEN_KEYWORD &&
+              (tokens[body].keyword_id == SEQUEL_KEYWORD_SELECT || tokens[body].keyword_id == SEQUEL_KEYWORD_WITH))
+            parenthesized_join_relation = true;
+          else
+            function_relation = true;
           end = tokens[close].range.end;
           cursor = close + 1;
         }
@@ -620,6 +628,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     }
     if (function_relation)
       relation.kind = SEQUEL_RELATION_FUNCTION;
+    if (parenthesized_join_relation) {
+      relation.kind = SEQUEL_RELATION_SUBQUERY;
+      relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
+    }
     if (function_relation)
       relation.name_range.end = tokens[name].range.end;
     if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
