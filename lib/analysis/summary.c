@@ -4,7 +4,21 @@
 
 #include "internal.h"
 
-void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out) {
+void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
+                                        size_t sanitized_length, sequel_analysis_t *out) {
+  if (query && sequel_query_statement_count(query) > 1 && sanitized) {
+    while (sanitized_length && isspace((unsigned char)sanitized[sanitized_length - 1]))
+      --sanitized_length;
+    if (sanitized_length && sanitized[sanitized_length - 1] == ';')
+      --sanitized_length;
+    char *copy = malloc(sanitized_length + 1);
+    if (!copy)
+      sequel_abort(SEQUEL_ERR_NOMEM);
+    memcpy(copy, sanitized, sanitized_length);
+    copy[sanitized_length] = 0;
+    out->summary = copy;
+    return;
+  }
   sequel_summary_options_t options;
   sequel_summary_options_init(&options);
   options.include_bind_count = false;

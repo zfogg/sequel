@@ -32,8 +32,8 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         key = numeric;
         key_length = strlen(numeric);
       }
-      analysis_binding *canonical = sequel_analysis_canonical_binding(
-          &dictionary, &slot_dictionary, key, key_length, number, &fingerprint_next);
+      analysis_binding *canonical =
+          sequel_analysis_canonical_binding(&dictionary, &slot_dictionary, key, key_length, number, &fingerprint_next);
       unsigned char kind = 'B';
       sha_update(hash, &kind, 1);
       sha_u64(hash, canonical->identity);
@@ -257,7 +257,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (query)
         sequel_analysis_operation_from_query(query, out);
       if (query && sequel_query_statement_count(query))
-        sequel_analysis_summary_from_query(query, out);
+        sequel_analysis_summary_from_query(query, safe.p, safe.n, out);
       else
         sequel_analysis_summary_default(out);
       sequel_analysis_charge(&a, strlen(out->operation) + 1);

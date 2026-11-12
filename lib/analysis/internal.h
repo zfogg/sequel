@@ -58,8 +58,8 @@ analysis_binding *sequel_analysis_binding_slot(analysis_bindings *bindings, cons
                                                size_t number);
 analysis_binding *sequel_analysis_numeric_identity(analysis_bindings *bindings, size_t slot);
 void sequel_analysis_dictionary_clear(analysis_bindings *bindings);
-void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot, size_t statement,
-                                            size_t start, size_t end, sequel_bind_style_t style);
+void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot,
+                                            size_t statement, size_t start, size_t end, sequel_bind_style_t style);
 analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings, analysis_bindings *canonical_bindings,
                                                     const char *key, size_t key_length, size_t number,
                                                     size_t *fingerprint_number);
@@ -73,8 +73,8 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
 size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind);
 bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word);
 bool sequel_analysis_source_contains(sequel_source_view_t source, const char *needle);
-void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
-                                analysis_text *safe, analysis_map *map, bool literal, bool bind);
+void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching,
+                                analysis_state *state, analysis_text *safe, analysis_map *map, bool literal, bool bind);
 void sequel_analysis_emit_gap(analysis_text *safe, analysis_map *map, size_t source_offset);
 bool sequel_analysis_consume_trivia(analysis_token_t token, bool suppressed, size_t *consumed, analysis_text *safe,
                                     analysis_map *map, bool *gap);
@@ -117,7 +117,8 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
                                                     const sequel_text_result_t *formatted,
                                                     sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments);
-void sequel_analysis_summary_from_query(const sequel_query_document_t *query, sequel_analysis_t *out);
+void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
+                                        size_t sanitized_length, sequel_analysis_t *out);
 void sequel_analysis_summary_default(sequel_analysis_t *out);
 sequel_status_t sequel_analysis_format_sanitized(const char *data, size_t length, sequel_dialect_t dialect,
                                                  sequel_text_result_t *out);
