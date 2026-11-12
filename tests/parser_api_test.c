@@ -1288,5 +1288,22 @@ int main(void) {
     sequel_query_document_free(heredoc_query);
     sequel_syntax_document_free(heredoc_syntax);
   }
+  {
+    const char comma_limit_sql[] = "SELECT * FROM items LIMIT 5, ?";
+    sequel_source_view_t comma_limit_source = {comma_limit_sql, strlen(comma_limit_sql)};
+    sequel_syntax_document_t *comma_limit_syntax = NULL;
+    sequel_query_document_t *comma_limit_query = NULL;
+    if (!check(sequel_parse_sql(&comma_limit_source, &options, NULL, &comma_limit_syntax) == SEQUEL_OK &&
+                   sequel_build_query_document(comma_limit_syntax, &options, &comma_limit_query) == SEQUEL_OK,
+               "comma limit query model"))
+      return 1;
+    sequel_source_range_t comma_limit_range = sequel_query_outer_limit_clause_range(comma_limit_query);
+    if (!check(comma_limit_range.end > comma_limit_range.start && comma_limit_range.end <= comma_limit_source.length &&
+                   !strncmp(comma_limit_sql + comma_limit_range.start, "LIMIT 5, ?", 9),
+               "complete comma limit range"))
+      return 1;
+    sequel_query_document_free(comma_limit_query);
+    sequel_syntax_document_free(comma_limit_syntax);
+  }
   return 0;
 }
