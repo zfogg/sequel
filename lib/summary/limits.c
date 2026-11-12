@@ -119,6 +119,24 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   if (rendered_digits == 0)
     rendered_digits = 1;
   size_t suffix_length = comma_limit ? strlen(", ?") : 0;
+  if (offset_limit && !comma_limit && rendered_digits == 1) {
+    size_t prefix_length = (size_t)(rendered_value - *text);
+    size_t suffix_offset = prefix_length + rendered_digits;
+    size_t suffix = *length - suffix_offset;
+    size_t replacement_length = prefix_length + source_digits + suffix;
+    char *replacement = malloc(replacement_length + 1);
+    if (!replacement)
+      return 0;
+    memcpy(replacement, *text, prefix_length);
+    memcpy(replacement + prefix_length, source_value, source_digits);
+    memcpy(replacement + prefix_length + source_digits, *text + suffix_offset, suffix);
+    replacement[replacement_length] = '\0';
+    free(*text);
+    *text = replacement;
+    *length = replacement_length;
+    *capacity = replacement_length + 1;
+    return 1;
+  }
   size_t replacement_length = source_digits + suffix_length;
   size_t old_length = rendered_digits;
   if (comma_limit && sequel_summary_find_text(rendered_value, ","))
@@ -148,6 +166,7 @@ int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, siz
                                                 sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 1;
+  *length = strlen(*text);
   const char *source_offset = sequel_summary_find_text(source.data, "OFFSET ");
   if (!source_offset)
     return 1;
@@ -161,28 +180,21 @@ int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, siz
   if (!rendered_offset)
     return 1;
   size_t source_digits = (size_t)(source_end - source_value);
-  size_t rendered_digits = 1;
-  size_t rendered_value_offset = (size_t)(rendered_offset - *text) + strlen("OFFSET ");
-  if (source_digits > rendered_digits) {
-    size_t extra = source_digits - rendered_digits;
-    if (*capacity < *length + extra + 1) {
-      char *grown = realloc(*text, *length + extra + 1);
-      if (!grown)
-        return 0;
-      *text = grown;
-      *capacity = *length + extra + 1;
-      rendered_offset = sequel_summary_find_text(*text, "OFFSET ?");
-      rendered_value_offset = (size_t)(rendered_offset - *text) + strlen("OFFSET ");
-    }
-    memmove(*text + rendered_value_offset + source_digits, *text + rendered_value_offset + 1,
-            *length - rendered_value_offset);
-    *length += extra;
-  } else if (source_digits < rendered_digits) {
-    memmove(*text + rendered_value_offset + source_digits, *text + rendered_value_offset + 1,
-            *length - rendered_value_offset);
-    *length -= rendered_digits - source_digits;
-  }
-  memcpy(*text + rendered_value_offset, source_value, source_digits);
+  size_t prefix_length = (size_t)(rendered_offset - *text) + strlen("OFFSET ");
+  size_t suffix_offset = prefix_length + 1;
+  size_t suffix_length = *length - suffix_offset;
+  size_t replacement_length = prefix_length + source_digits + suffix_length;
+  char *replacement = malloc(replacement_length + 1);
+  if (!replacement)
+    return 0;
+  memcpy(replacement, *text, prefix_length);
+  memcpy(replacement + prefix_length, source_value, source_digits);
+  memcpy(replacement + prefix_length + source_digits, *text + suffix_offset, suffix_length);
+  replacement[replacement_length] = '\0';
+  free(*text);
+  *text = replacement;
+  *length = replacement_length;
+  *capacity = replacement_length + 1;
   return 1;
 }
 
