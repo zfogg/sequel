@@ -206,9 +206,7 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
         for (size_t t = 0; t < token_count; ++t)
           if (tokens[t].range.start == issues[i].range.start && (tokens[t].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED))
             unterminated_token = true;
-      if (unterminated_token ||
-          (issues[i].code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE &&
-           (issues[i].range.start >= source.length || source.data[issues[i].range.start] != ']'))) {
+      if (unterminated_token) {
         status = SEQUEL_ERR_INVALID_ARGUMENT;
         goto done;
       }
