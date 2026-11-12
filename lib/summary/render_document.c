@@ -71,22 +71,6 @@ static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, siz
   return result;
 }
 
-static void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, sequel_source_view_t source) {
-  if (!text || !source.data)
-    return;
-  const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
-  const char *source_by = source_limit ? sequel_summary_find_text(source_limit, " BY ") : NULL;
-  char *rendered_limit = sequel_summary_find_text(text, "LIMIT ?");
-  if (!source_limit || !source_by || !rendered_limit || source_by != source_limit + 7 ||
-      source_limit[6] < '0' || source_limit[6] > '9')
-    return;
-  if ((size_t)(rendered_limit - text) + 7 <= length)
-    rendered_limit[6] = source_limit[6];
-  rendered_limit = sequel_summary_find_text(rendered_limit + 7, "LIMIT ?");
-  if (rendered_limit && (size_t)(rendered_limit - text) + 7 <= length)
-    rendered_limit[6] = source_limit[6];
-}
-
 sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
                                                     const sequel_summary_options_t *options,
                                                     sequel_text_result_t *out) {
@@ -130,15 +114,12 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
               !sequel_summary_append_text(&text, &length, &capacity, "?") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, first_close + 1,
                                            (size_t)(second_quote - first_close - 1)) ||
-              !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis,
-                                           sizeof(summary_ellipsis) - 1) ||
+              !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
               !sequel_summary_append_bytes(&text, &length, &capacity, second_close + 1,
                                            source.length - (size_t)(second_close + 1 - source.data)))
             goto no_memory;
-          *out = (sequel_text_result_t){.data = text,
-                                        .length = length,
-                                        .capacity = capacity,
-                                        .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+          *out = (sequel_text_result_t){
+              .data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
           return SEQUEL_OK;
         }
       }
@@ -441,9 +422,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
           size_t on = end;
           while (on < source.length && isspace((unsigned char)source.data[on]))
             ++on;
-            if (sequel_summary_word(source.data, source.length, on, "ON") && settings->redact_relations &&
-                !sequel_summary_append_text(&text, &length, &capacity, " ON ..."))
-              goto no_memory;
+          if (sequel_summary_word(source.data, source.length, on, "ON") && settings->redact_relations &&
+              !sequel_summary_append_text(&text, &length, &capacity, " ON ..."))
+            goto no_memory;
         }
       }
     }
@@ -841,9 +822,9 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
                 goto no_memory;
               break;
             }
-              if (!sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
-                goto no_memory;
-              break;
+            if (!sequel_summary_append_relation_name(&text, &length, &capacity, source, &relations[i]))
+              goto no_memory;
+            break;
           }
         }
         bool nested = false;
@@ -1667,9 +1648,8 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
               break;
             }
           bool has_offset = sequel_summary_find_text(source.data + start, " OFFSET ") != NULL;
-          bool preserve_limit = !limit_has_parameter &&
-                                (memchr(source.data + start, ',', end - start) != NULL ||
-                                 (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
+          bool preserve_limit = !limit_has_parameter && (memchr(source.data + start, ',', end - start) != NULL ||
+                                                         (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
           if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") ||
               (preserve_limit &&
                !sequel_summary_append_bytes(&text, &length, &capacity, source.data + start, end - start)) ||
