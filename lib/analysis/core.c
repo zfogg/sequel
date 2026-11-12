@@ -546,7 +546,9 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
   } else {
     const char *ambiguous = NULL;
     if ((o.dialect == SEQUEL_MYSQL && (ambiguous = sequel_text_find(sql, n, "$$"))) ||
-        (o.dialect == SEQUEL_POSTGRESQL && (ambiguous = sequel_text_find(sql, n, "\\'")))) {
+        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_GENERIC) &&
+         (ambiguous = sequel_text_find(sql, n, "\\'"))) ||
+        (o.dialect == SEQUEL_SQLITE && (ambiguous = sequel_text_find(sql, n, "$")) && strchr(ambiguous + 1, '$'))) {
       call->ambiguous_literal = true;
       call->ambiguous_offset = (size_t)(ambiguous - sql);
     }
