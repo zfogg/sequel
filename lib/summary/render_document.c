@@ -989,6 +989,14 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
             ++rendered_relations;
             continue;
           }
+          if (close) {
+            if (where && where >= close)
+              where = NULL;
+            if (order && order >= close)
+              order = NULL;
+            if (limit && limit >= close)
+              limit = NULL;
+          }
           if (subquery && from && where && limit && close) {
             const char *table = from + 6;
             while (*table && isspace((unsigned char)*table))
