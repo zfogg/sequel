@@ -4,18 +4,7 @@
 
 #include <sequel/parser.h>
 
-struct sequel_syntax_document {
-  const sequel_lexed_document_t *lexed;
-  bool owns_lexed;
-  sequel_syntax_node_t *nodes;
-  size_t node_count;
-  size_t *children;
-  size_t child_count;
-  sequel_parse_issue_t *issues;
-  size_t issue_count;
-  size_t max_diagnostics;
-  size_t max_nodes;
-};
+#include "model.h"
 
 static sequel_syntax_kind_t sequel_parser_statement_kind(const sequel_lexed_document_t *lexed, size_t token_index) {
   size_t count = 0;
@@ -722,28 +711,6 @@ const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *docum
   if (count)
     *count = node->token_count;
   return tokens + node->first_token;
-}
-
-static int sequel_parser_visit_node(const sequel_syntax_document_t *document, size_t node_index,
-                                    const sequel_syntax_visitor_t *visitor) {
-  if (node_index >= document->node_count)
-    return 0;
-  if (visitor->enter_node && !visitor->enter_node(document, node_index, visitor->userdata))
-    return 0;
-  const sequel_syntax_node_t *node = &document->nodes[node_index];
-  for (size_t i = 0; i < node->child_count; ++i)
-    if (!sequel_parser_visit_node(document, document->children[node->first_child + i], visitor))
-      return 0;
-  return !visitor->leave_node || visitor->leave_node(document, node_index, visitor->userdata);
-}
-
-sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
-                                    const sequel_syntax_visitor_t *visitor) {
-  if (!document || !visitor)
-    return SEQUEL_ERR_NULL;
-  if (root_node >= document->node_count)
-    return SEQUEL_ERR_INVALID_ARGUMENT;
-  return sequel_parser_visit_node(document, root_node, visitor) ? SEQUEL_OK : SEQUEL_ERR_CANCELLED;
 }
 
 sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,

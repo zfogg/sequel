@@ -4,6 +4,19 @@
 
 #include <sequel/query.h>
 
+struct sequel_syntax_document {
+  const sequel_lexed_document_t *lexed;
+  bool owns_lexed;
+  sequel_syntax_node_t *nodes;
+  size_t node_count;
+  size_t *children;
+  size_t child_count;
+  sequel_parse_issue_t *issues;
+  size_t issue_count;
+  size_t max_diagnostics;
+  size_t max_nodes;
+};
+
 sequel_bind_style_t sequel_query_bind_style(const char *text, size_t length, size_t *number);
 sequel_operation_t sequel_query_operation_from_syntax(sequel_syntax_kind_t kind);
 bool sequel_query_word_equals_ci(const char *word, size_t length, const char *expected);
