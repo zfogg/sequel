@@ -37,7 +37,7 @@ static void hash_bytes(uint64_t *hash, const void *data, size_t length) {
   }
 }
 
-static void hash_u64(uint64_t *hash, uint64_t value) { hash_bytes(hash, &value, sizeof(value)); }
+static void sequel_fingerprint_hash_u64(uint64_t *hash, uint64_t value) { hash_bytes(hash, &value, sizeof(value)); }
 
 sequel_status_t sequel_fingerprint_document(const sequel_syntax_document_t *syntax,
                                             const sequel_query_document_t *query, sequel_fingerprint_mode_t mode,
@@ -52,53 +52,53 @@ sequel_status_t sequel_fingerprint_document(const sequel_syntax_document_t *synt
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   if (mode == SEQUEL_FINGERPRINT_TOKENS) {
     for (size_t i = 0; i < token_count; ++i) {
-      hash_u64(&hash, tokens[i].kind);
-      hash_u64(&hash, tokens[i].flags);
-      hash_u64(&hash, tokens[i].range.start);
-      hash_u64(&hash, tokens[i].range.end);
-      hash_u64(&hash, tokens[i].keyword_id);
-      hash_u64(&hash, tokens[i].dialect_id);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].kind);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].flags);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].range.start);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].range.end);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].keyword_id);
+      sequel_fingerprint_hash_u64(&hash, tokens[i].dialect_id);
     }
   } else if (mode == SEQUEL_FINGERPRINT_SYNTAX) {
     size_t node_count = 0;
     const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
     for (size_t i = 0; i < node_count; ++i) {
-      hash_u64(&hash, nodes[i].kind);
-      hash_u64(&hash, nodes[i].flags);
-      hash_u64(&hash, nodes[i].range.start);
-      hash_u64(&hash, nodes[i].range.end);
-      hash_u64(&hash, nodes[i].first_child);
-      hash_u64(&hash, nodes[i].child_count);
-      hash_u64(&hash, nodes[i].first_token);
-      hash_u64(&hash, nodes[i].token_count);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].kind);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].flags);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].range.start);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].range.end);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].first_child);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].child_count);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].first_token);
+      sequel_fingerprint_hash_u64(&hash, nodes[i].token_count);
     }
   } else {
     size_t statement_count = sequel_query_statement_count(query);
     const sequel_statement_info_t *statements = sequel_query_statements(query);
     for (size_t i = 0; i < statement_count; ++i) {
-      hash_u64(&hash, statements[i].operation);
-      hash_u64(&hash, statements[i].flags);
+      sequel_fingerprint_hash_u64(&hash, statements[i].operation);
+      sequel_fingerprint_hash_u64(&hash, statements[i].flags);
     }
     size_t relation_count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     for (size_t i = 0; i < relation_count; ++i) {
-      hash_u64(&hash, relations[i].kind);
-      hash_u64(&hash, relations[i].statement_index);
-      hash_u64(&hash, relations[i].parent_relation);
+      sequel_fingerprint_hash_u64(&hash, relations[i].kind);
+      sequel_fingerprint_hash_u64(&hash, relations[i].statement_index);
+      sequel_fingerprint_hash_u64(&hash, relations[i].parent_relation);
     }
     size_t predicate_count = sequel_query_predicate_count(query);
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     for (size_t i = 0; i < predicate_count; ++i) {
-      hash_u64(&hash, predicates[i].statement_index);
-      hash_u64(&hash, predicates[i].normalized_hash);
-      hash_u64(&hash, predicates[i].depth);
+      sequel_fingerprint_hash_u64(&hash, predicates[i].statement_index);
+      sequel_fingerprint_hash_u64(&hash, predicates[i].normalized_hash);
+      sequel_fingerprint_hash_u64(&hash, predicates[i].depth);
     }
     size_t parameter_count = sequel_query_parameter_count(query);
     const sequel_parameter_info_t *parameters = sequel_query_parameters(query);
     for (size_t i = 0; i < parameter_count; ++i) {
-      hash_u64(&hash, parameters[i].style);
-      hash_u64(&hash, parameters[i].statement_index);
-      hash_u64(&hash, parameters[i].identity);
+      sequel_fingerprint_hash_u64(&hash, parameters[i].style);
+      sequel_fingerprint_hash_u64(&hash, parameters[i].statement_index);
+      sequel_fingerprint_hash_u64(&hash, parameters[i].identity);
     }
   }
   snprintf(out, SEQUEL_FINGERPRINT_LENGTH, "%016llx", (unsigned long long)hash);
