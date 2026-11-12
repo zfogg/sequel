@@ -4,6 +4,26 @@
 
 #include "internal.h"
 
+static void sequel_summary_collapse_set_statements(char *text) {
+  char *cursor = text;
+  while (cursor && *cursor) {
+    while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n' || *cursor == '\r' || *cursor == ';')
+      ++cursor;
+    if (!*cursor)
+      break;
+    if (sequel_text_equal_ci(cursor, 3, "SET") && cursor[3] == ' ') {
+      char *end = strchr(cursor + 3, ';');
+      if (end) {
+        memmove(cursor + 3, end, strlen(end) + 1);
+        cursor += 4;
+        continue;
+      }
+    }
+    char *separator = strchr(cursor, ';');
+    cursor = separator ? separator + 1 : NULL;
+  }
+}
+
 void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
                                         size_t sanitized_length, sequel_analysis_t *out) {
   if (query && sequel_query_statement_count(query) > 1 && sanitized) {
@@ -37,6 +57,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     while (sanitized_length &&
            (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
       --sanitized_length;
+    sequel_summary_collapse_set_statements(copy);
+    sanitized_length = strlen(copy);
     const char *limit = strstr(original.data, "LIMIT ");
     if (limit && isdigit((unsigned char)limit[6]) && !isdigit((unsigned char)limit[7])) {
       char *rendered_limit = NULL;
