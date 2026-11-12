@@ -71,6 +71,16 @@ bool sequel_analysis_source_contains_word(sequel_source_view_t source, const cha
   return false;
 }
 
+bool sequel_analysis_source_contains(sequel_source_view_t source, const char *needle) {
+  size_t length = strlen(needle);
+  if (!length)
+    return true;
+  for (size_t offset = 0; offset + length <= source.length; ++offset)
+    if (memcmp(source.data + offset, needle, length) == 0)
+      return true;
+  return false;
+}
+
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:

@@ -69,6 +69,7 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
                                   sequel_dialect_t dialect, bool keep_in_lists);
 size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind);
 bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word);
+bool sequel_analysis_source_contains(sequel_source_view_t source, const char *needle);
 void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
                                 analysis_text *safe, analysis_map *map, bool literal, bool bind);
 void sequel_analysis_hash_literal(sequel_sha256 *hash, size_t *fingerprint_number);

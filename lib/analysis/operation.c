@@ -19,7 +19,8 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
   }
   if (sequel_query_statement_count(query) > 1 && statement[0].operation == SEQUEL_OPERATION_INSERT &&
       sequel_analysis_source_contains_word(source, "SELECT") &&
-      (strstr(source.data, "\n-- name:") || strstr(source.data, "\r\n-- name:") ||
+      (sequel_analysis_source_contains(source, "\n-- name:") ||
+       sequel_analysis_source_contains(source, "\r\n-- name:") ||
        (strchr(source.data, ';') && strchr(strchr(source.data, ';') + 1, ';')))) {
     out->operation[0] = 0;
     return;
