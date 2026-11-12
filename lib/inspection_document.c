@@ -130,6 +130,28 @@ static bool sequel_inspection_document_has_query_body(const sequel_syntax_docume
   return significant > 1;
 }
 
+static bool sequel_inspection_document_has_recoverable_join_shape(const sequel_syntax_document_t *syntax) {
+  size_t count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(sequel_syntax_lexed(syntax), &count);
+  for (size_t i = 0; i < count; ++i) {
+    if (tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN)
+      continue;
+    size_t next = i + 1;
+    while (next < count && sequel_token_is_trivia(&tokens[next]))
+      ++next;
+    if (next >= count || tokens[next].kind != SEQUEL_TOKEN_PUNCTUATION)
+      continue;
+    size_t body = next + 1;
+    while (body < count && sequel_token_is_trivia(&tokens[body]))
+      ++body;
+    if (body >= count ||
+        (tokens[body].keyword_id != SEQUEL_KEYWORD_SELECT && tokens[body].keyword_id != SEQUEL_KEYWORD_VALUES &&
+         tokens[body].keyword_id != SEQUEL_KEYWORD_WITH))
+      return false;
+  }
+  return true;
+}
+
 sequel_status_t sequel_inspection_document(const char *sql, size_t length, const sequel_options_t *options,
                                            sequel_metadata_t *out) {
   size_t first_nonspace = 0;
@@ -161,6 +183,10 @@ sequel_status_t sequel_inspection_document(const char *sql, size_t length, const
     goto done;
   }
   if (!sequel_inspection_document_has_query_body(syntax)) {
+    status = SEQUEL_OK;
+    goto done;
+  }
+  if (!sequel_inspection_document_has_recoverable_join_shape(syntax)) {
     status = SEQUEL_OK;
     goto done;
   }
