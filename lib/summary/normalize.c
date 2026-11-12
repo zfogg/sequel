@@ -237,6 +237,7 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
   size_t cursor = start;
+  size_t bracket_depth = 0;
   for (size_t i = 0; i < token_count; ++i) {
     const sequel_token_t *token = &tokens[i];
     if (token->kind == SEQUEL_TOKEN_EOF || token->range.end <= start)
@@ -245,10 +246,13 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
       break;
     size_t token_start = token->range.start < start ? start : token->range.start;
     size_t token_end = token->range.end > end ? end : token->range.end;
+    if (token_start < token_end && source.data[token_start] == ']' && bracket_depth)
+      --bracket_depth;
     if (token_start > cursor &&
         !sequel_summary_append_bytes(text, length, capacity, source.data + cursor, token_start - cursor))
       return 0;
-    bool redact = (token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER;
+    bool redact = !bracket_depth &&
+                  ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER);
     if (redact) {
       if (!sequel_summary_append_text(text, length, capacity, "?"))
         return 0;
@@ -258,6 +262,8 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
       return 0;
     }
     cursor = token_end;
+    if (token_start < token_end && source.data[token_start] == '[')
+      ++bracket_depth;
   }
   return cursor < end ? sequel_summary_append_bytes(text, length, capacity, source.data + cursor, end - cursor) : 1;
 }

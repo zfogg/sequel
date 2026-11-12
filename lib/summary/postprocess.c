@@ -152,7 +152,19 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
     return;
   if (sequel_summary_find_text(text, " OVER (…) FILTER (…) FROM "))
     return;
+  size_t bracket_depth = 0;
   for (size_t i = 0; i + 1 < *length; ++i) {
+    if (text[i] == '[') {
+      ++bracket_depth;
+      continue;
+    }
+    if (text[i] == ']') {
+      if (bracket_depth)
+        --bracket_depth;
+      continue;
+    }
+    if (bracket_depth)
+      continue;
     if (text[i] != '$')
       continue;
     size_t delimiter_end = i + 1;
@@ -171,7 +183,19 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
     *length -= end + delimiter_length - i - 1;
     --i;
   }
+  bracket_depth = 0;
   for (size_t i = 0; i < *length; ++i) {
+    if (text[i] == '[') {
+      ++bracket_depth;
+      continue;
+    }
+    if (text[i] == ']') {
+      if (bracket_depth)
+        --bracket_depth;
+      continue;
+    }
+    if (bracket_depth)
+      continue;
     if (text[i] != '\'')
       continue;
     size_t end = i + 1;
@@ -201,7 +225,23 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length) {
     *length -= end - start;
     i = start;
   }
+  bracket_depth = 0;
   for (size_t i = 0; i + 1 < *length;) {
+    if (text[i] == '[') {
+      ++bracket_depth;
+      ++i;
+      continue;
+    }
+    if (text[i] == ']') {
+      if (bracket_depth)
+        --bracket_depth;
+      ++i;
+      continue;
+    }
+    if (bracket_depth) {
+      ++i;
+      continue;
+    }
     if (text[i] == '/' && text[i + 1] == '*') {
       size_t end = i + 2;
       while (end + 1 < *length && !(text[end] == '*' && text[end + 1] == '/'))
