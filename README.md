@@ -82,9 +82,9 @@ Include `<sequel.h>` and link `sequel::sequel`. All public types and functions
 use the `sequel_` prefix and constants use `SEQUEL_`.
 
 ```c
-sequel_options_t options = {.dialect = SEQUEL_POSTGRESQL};
+sequel_metadata_options_t options = {.dialect = SEQUEL_POSTGRESQL};
 sequel_metadata_t query;
-if (sequel_inspect("SELECT * FROM users WHERE id=$1", &options, &query) == SEQUEL_OK) {
+if (sequel_metadata("SELECT * FROM users WHERE id=$1", &options, &query) == SEQUEL_OK) {
   puts(query.text);     /* SELECT * FROM users WHERE id=? */
   puts(query.summary);  /* SELECT … FROM users WHERE … */
 }
@@ -96,7 +96,7 @@ the actual results. Call `sequel_metadata_free` before reusing or discarding a
 result, including on failure. This replaces the previous inline-buffer C metadata
 layout; C consumers must rebuild and add the cleanup call.
 
-`sequel_inspect` returns bounded UTF-8 text, summary, operation, statement count
+`sequel_metadata` returns bounded UTF-8 text, summary, operation, statement count
 and truncation status. `sequel_sanitize` accepts a caller-sized buffer and limit.
 `sequel_format` supports a measure pass with `out=NULL, capacity=0` before allocating.
 `sequel_compact` preserves newlines while collapsing horizontal token gaps.
@@ -272,7 +272,7 @@ html = highlight_sql(
 Go's `HighlightOptions.Mode` and Python's `mode` select `html` or `ansi`;
 `SchemeYAML`/`scheme_yaml` load a custom palette string. Both expose the complete
 palette registry through `Colorschemes()`/`colorschemes()`. Python implementations
-live in `highlighting.py`, `formatting.py`, `sanitization.py`, `inspection.py` and
+live in `highlighting.py`, `formatting.py`, `sanitization.py`, `metadata.py` and
 `dialect.py`; `__init__.py` only re-exports the public API.
 
 The checked-in [HTML and ANSI examples](examples/highlight/README.md) are tested

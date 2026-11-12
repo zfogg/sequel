@@ -40,7 +40,7 @@ a small query does not reserve the configured maximum. A zero text limit selects
 
 `sequel_metadata_t` now holds owned string pointers instead of inline arrays.
 C consumers must rebuild and call `sequel_metadata_free(&metadata)` after each
-`sequel_inspect` call, including failures, and before reusing the result struct.
+`sequel_metadata` call, including failures, and before reusing the result struct.
 Do not copy the struct or free its strings individually. Go and Python bindings
 manage this ownership automatically.
 

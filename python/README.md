@@ -4,7 +4,7 @@
 [Python API](https://zfogg.github.io/sequel/python/) ·
 [Source on GitHub](https://github.com/zfogg/sequel)
 
-The `sequel` Python package provides SQL formatting, sanitization, inspection,
+The `sequel` Python package provides SQL formatting, sanitization, metadata,
 structural analysis, diagnostics, and syntax highlighting backed by the shared
 Sequel C engine. It supports generic SQL, PostgreSQL, SQLite, MySQL, DuckDB, and
 ClickHouse. The package requires Python 3.11 or newer.
