@@ -28,8 +28,8 @@ static void sequel_metadata_document_normalize_parameters(sequel_text_result_t *
 }
 
 static void sequel_metadata_document_restore_outer_limit(sequel_text_result_t *summary,
-                                                           const sequel_query_document_t *query,
-                                                           sequel_source_view_t source) {
+                                                         const sequel_query_document_t *query,
+                                                         sequel_source_view_t source) {
   if (!summary || !summary->data || !query)
     return;
   sequel_source_range_t value = sequel_query_outer_limit_value_range(query);
@@ -66,7 +66,7 @@ static void sequel_metadata_document_remove_clickhouse_comments(sequel_text_resu
 }
 
 static void sequel_metadata_document_restore_array_literals(sequel_text_result_t *summary,
-                                                              const sequel_text_result_t *sanitized) {
+                                                            const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
     return;
   const char *source = strstr(sanitized->data, "ARRAY[");
@@ -100,7 +100,7 @@ static void sequel_metadata_document_restore_array_literals(sequel_text_result_t
 }
 
 static void sequel_metadata_document_restore_array_indexes(sequel_text_result_t *summary,
-                                                             const sequel_text_result_t *sanitized) {
+                                                           const sequel_text_result_t *sanitized) {
   if (!summary || !summary->data || !sanitized || !sanitized->data)
     return;
   const char *source = sanitized->data;
@@ -202,8 +202,8 @@ static bool sequel_metadata_document_has_recoverable_join_shape(const sequel_syn
   return true;
 }
 
-sequel_status_t sequel_metadata_document(const char *sql, size_t length, const sequel_options_t *options,
-                                           sequel_metadata_t *out) {
+sequel_status_t sequel_metadata_document(const char *sql, size_t length, const sequel_metadata_options_t *options,
+                                         sequel_metadata_t *out) {
   size_t first_nonspace = 0;
   while (first_nonspace < length && isspace((unsigned char)sql[first_nonspace]))
     ++first_nonspace;

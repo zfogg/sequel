@@ -122,13 +122,13 @@ void sequel_metadata_free(sequel_metadata_t *metadata) {
   }
 }
 
-sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out) {
+sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   *out = (sequel_metadata_t){.text = "", .summary = "SQL"};
   if (!sql)
     return SEQUEL_ERR_NULL;
-  sequel_options_t o = options ? *options : (sequel_options_t){0};
+  sequel_metadata_options_t o = options ? *options : (sequel_metadata_options_t){0};
   if (o.dialect > SEQUEL_CLICKHOUSE || o.dialect < SEQUEL_GENERIC || o.max_query_text_bytes > SEQUEL_TEXT_MAX)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   size_t n = 0;

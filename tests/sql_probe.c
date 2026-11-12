@@ -73,11 +73,11 @@ int main(int argc, char **argv) {
       continue;
     }
     sequel_metadata_t metadata = {0};
-    sequel_options_t options = {.dialect = (sequel_dialect_t)dialect,
-                                .max_query_text_bytes = limit,
-                                .omit_query_text = omit != 0,
-                                .keep_in_lists = keep != 0};
-    sequel_status_t status = sequel_inspect(query, &options, &metadata);
+    sequel_metadata_options_t options = {.dialect = (sequel_dialect_t)dialect,
+                                         .max_query_text_bytes = limit,
+                                         .omit_query_text = omit != 0,
+                                         .keep_in_lists = keep != 0};
+    sequel_status_t status = sequel_metadata(query, &options, &metadata);
     printf("%d %d %zu ", (int)status, (int)metadata.truncated, metadata.statement_count);
     hex_n(metadata.operation, sizeof(metadata.operation));
     putchar(' ');

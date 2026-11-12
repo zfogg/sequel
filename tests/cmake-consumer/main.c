@@ -3,8 +3,8 @@
 
 int main(void) {
   sequel_metadata_t metadata;
-  sequel_options_t options = {.dialect = SEQUEL_POSTGRESQL};
-  if (sequel_inspect("SELECT 'secret'", &options, &metadata) != SEQUEL_OK)
+  sequel_metadata_options_t options = {.dialect = SEQUEL_POSTGRESQL};
+  if (sequel_metadata("SELECT 'secret'", &options, &metadata) != SEQUEL_OK)
     return 1;
   if (strcmp(metadata.text, "SELECT ?"))
     return 1;

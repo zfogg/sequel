@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   CHECK(sequel_highlight_ex(sql, NULL, NULL, 0, &length, &diagnostic) == SEQUEL_ERR_OVERFLOW);
   CHECK(diagnostic.code == SEQUEL_DIAG_INPUT_LIMIT);
   sequel_metadata_t result;
-  CHECK(sequel_inspect(sql, NULL, &result) == SEQUEL_ERR_OVERFLOW);
+  CHECK(sequel_metadata(sql, NULL, &result) == SEQUEL_ERR_OVERFLOW);
   sequel_metadata_free(&result);
   char out[256];
   bool truncated;
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
   memcpy(sql, "SELECT * FROM ", 14);
   memset(sql + 14, 'x', 80);
   sql[94] = 0;
-  CHECK(sequel_inspect(sql, NULL, &result) == SEQUEL_OK);
+  CHECK(sequel_metadata(sql, NULL, &result) == SEQUEL_OK);
   CHECK(result.truncated && strlen(result.text) <= SEQUEL_TEXT_MAX);
   CHECK(strlen(result.summary) <= SEQUEL_SUMMARY_MAX);
   CHECK(!strcmp(result.summary + strlen(result.summary) - 3, "…"));

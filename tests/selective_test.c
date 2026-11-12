@@ -39,12 +39,12 @@ int main(void) {
   CHECK(!strcmp(out, "SELECT \"IN (?, ?)\" FROM t"));
   sequel_metadata_t metadata;
   for (int d = SEQUEL_GENERIC; d <= SEQUEL_CLICKHOUSE; ++d) {
-    sequel_options_t options = {.dialect = (sequel_dialect_t)d};
-    CHECK(sequel_inspect(
+    sequel_metadata_options_t options = {.dialect = (sequel_dialect_t)d};
+    CHECK(sequel_metadata(
               "SELECT * FROM a JOIN b ON CASE WHEN NG(ia.id>1 THEN b.id ELSE a.id END=a.id LEFT JOIN c USING(id)",
               &options, &metadata) == SEQUEL_OK);
     sequel_metadata_free(&metadata);
-    CHECK(sequel_inspect("SELECT (foo FROM t", &options, &metadata) == SEQUEL_OK);
+    CHECK(sequel_metadata("SELECT (foo FROM t", &options, &metadata) == SEQUEL_OK);
     sequel_metadata_free(&metadata);
   }
   return 0;

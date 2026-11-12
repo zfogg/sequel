@@ -81,9 +81,9 @@ typedef struct {
   size_t max_query_text_bytes;
   bool omit_query_text;
   bool keep_in_lists;
-} sequel_options_t;
+} sequel_metadata_options_t;
 
-/** Bounded, sanitized query text and structural metadata from sequel_inspect.
+/** Bounded, sanitized query text and structural metadata from sequel_metadata.
  * Text is allocated to fit the actual result, not the maximum limits.
  * Do not copy this owning struct or modify its pointers. Release it with
  * sequel_metadata_free before reuse, including after a failed inspection. */
@@ -98,14 +98,14 @@ typedef struct {
 } sequel_metadata_t;
 
 /** Release inspection storage and reset metadata. NULL is allowed. Only call
- * on a zero-initialized struct or one initialized by sequel_inspect. Safe to repeat. */
+ * on a zero-initialized struct or one initialized by sequel_metadata. Safe to repeat. */
 void sequel_metadata_free(sequel_metadata_t *metadata);
 
 /** Dialect-independent inspection, usable without SQLite. Never reads bind
  * values. Malformed quoting fails closed: text is empty and summary is SQL.
  * Input is limited to SEQUEL_INPUT_MAX and nesting to 64 levels. Output is UTF-8
  * bounded. out need not be initialized, but any previous result must be freed. */
-sequel_status_t sequel_inspect(const char *sql, const sequel_options_t *options, sequel_metadata_t *out);
+sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out);
 
 /** Sanitizes into a caller-owned buffer. capacity includes the NUL
  * terminator; limit is the maximum emitted bytes (zero uses SEQUEL_TEXT_MAX).

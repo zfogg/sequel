@@ -13,9 +13,9 @@ int main(void) {
   };
 
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-    sequel_options_t options = {.dialect = cases[i].dialect};
+    sequel_metadata_options_t options = {.dialect = cases[i].dialect};
     sequel_metadata_t metadata = {0};
-    (void)sequel_inspect(cases[i].sql, &options, &metadata);
+    (void)sequel_metadata(cases[i].sql, &options, &metadata);
     sequel_metadata_free(&metadata);
   }
   return 0;

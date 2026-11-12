@@ -77,13 +77,13 @@ func inspectNativeWithOptions(query string, policy SanitizeOptions) (string, str
 	if limit <= 0 || limit > DefaultMaxQueryTextBytes {
 		limit = DefaultMaxQueryTextBytes
 	}
-	options := C.sequel_options_t{dialect: nativeDialect(policy.Dialect),
+	options := C.sequel_metadata_options_t{dialect: nativeDialect(policy.Dialect),
 		omit_query_text:      C.bool(policy.OmitQueryText),
 		keep_in_lists:        C.bool(!policy.CollapseInLists),
 		max_query_text_bytes: C.size_t(limit)}
 	var metadata C.sequel_metadata_t
 	defer C.sequel_metadata_free(&metadata)
-	if C.sequel_inspect(sql, &options, &metadata) != C.SEQUEL_OK {
+	if C.sequel_metadata(sql, &options, &metadata) != C.SEQUEL_OK {
 		return "", "", SanitizedQuery{}, 0, false
 	}
 	safe := SanitizedQuery{Text: C.GoString(metadata.text), Truncated: bool(metadata.truncated)}
