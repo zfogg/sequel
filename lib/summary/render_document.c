@@ -2670,14 +2670,8 @@ summary_postprocess:
       ++rendered_limits;
     }
   }
-  if (!sequel_summary_repair_tail(&text, &length, &capacity, query, source))
-    goto no_memory;
-  if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
-    goto no_memory;
-  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
-      !sequel_summary_repair_mysql_update_aliases(&text, &length, &capacity, query, source, outer_start))
-    goto no_memory;
-  if (!sequel_summary_finalize_output(&text, &length, &capacity, out))
+  if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements,
+                                    statement_count))
     goto no_memory;
   return SEQUEL_OK;
 invalid:

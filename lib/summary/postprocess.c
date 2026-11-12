@@ -5,6 +5,20 @@
 
 #include "internal.h"
 
+int sequel_summary_finish_render(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out,
+                                 const sequel_query_document_t *query, sequel_source_view_t source, size_t outer_start,
+                                 const sequel_statement_info_t *statements, size_t statement_count) {
+  if (!text || !length || !capacity || !out || !query || !statements)
+    return 0;
+  if (!sequel_summary_repair_tail(text, length, capacity, query, source) ||
+      !sequel_summary_repair_write_order(text, length, capacity, source))
+    return 0;
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
+      !sequel_summary_repair_mysql_update_aliases(text, length, capacity, query, source, outer_start))
+    return 0;
+  return sequel_summary_finalize_output(text, length, capacity, out);
+}
+
 int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source,
                                     size_t source_length, const char *keyword, const char *replacement) {
   if (!text || !*text || !length || !capacity || !source || !keyword || !replacement)

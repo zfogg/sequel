@@ -73,6 +73,9 @@ int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capa
                                        const sequel_query_document_t *query, sequel_source_view_t source,
                                        size_t statement_count, const sequel_statement_info_t *statements);
 int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out);
+int sequel_summary_finish_render(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out,
+                                 const sequel_query_document_t *query, sequel_source_view_t source, size_t outer_start,
+                                 const sequel_statement_info_t *statements, size_t statement_count);
 int sequel_summary_normalize_order_limit(char **text, size_t *length, size_t *capacity);
 
 int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
