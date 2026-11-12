@@ -1,6 +1,16 @@
 /* Normalize list punctuation after the shared sanitizer has emitted text. */
 #include "internal.h"
 
+void sequel_analysis_utf8_cut(char *text, size_t limit) {
+  size_t length = strlen(text);
+  if (length <= limit)
+    return;
+  limit = sequel_utf8_prefix(text, length, limit);
+  text[limit] = 0;
+  while (limit && isspace((unsigned char)text[limit - 1]))
+    text[--limit] = 0;
+}
+
 void sequel_analysis_compact_list_text(analysis_text *text) {
   size_t read = 0, write = 0;
   while (read < text->n) {

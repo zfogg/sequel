@@ -38,6 +38,7 @@ bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
                                 size_t *number, sequel_bind_style_t *style);
 void sequel_analysis_compact_list_text(analysis_text *text);
+void sequel_analysis_utf8_cut(char *text, size_t limit);
 void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t length, analysis_token_t *tokens, size_t count,
                                              sequel_dialect_t dialect, sequel_analysis_t *out);
 void sequel_analysis_positions(const char *sql, sequel_analysis_t *out);

@@ -39,16 +39,6 @@ static const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size
   return NULL;
 }
 
-static void utf8_cut(char *text, size_t limit) {
-  size_t length = strlen(text);
-  if (length <= limit)
-    return;
-  limit = sequel_utf8_prefix(text, length, limit);
-  text[limit] = 0;
-  while (limit && isspace((unsigned char)text[limit - 1]))
-    text[--limit] = 0;
-}
-
 typedef struct {
   sequel_map_segment_t *p;
   size_t n, capacity;
@@ -734,7 +724,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
       if (!o.omit_query_text && safe.n > limit) {
         out->truncated = true;
-        utf8_cut(safe.p, limit);
+        sequel_analysis_utf8_cut(safe.p, limit);
         safe.n = strlen(safe.p);
         if (maps)
           sequel_analysis_clip_map(&map, safe.n);
