@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 #include <sequel.h>
+#include <sequel/analysis.h>
 #include <sequel/query.h>
 #ifdef __cplusplus
 }
@@ -138,6 +139,30 @@ private:
   std::string_view status_, omission_reason_, text_, summary_, formatted_, operation_, fingerprint_;
 };
 
+class query_analysis {
+public:
+  query_analysis() = default;
+  ~query_analysis();
+  query_analysis(const query_analysis &) = delete;
+  query_analysis &operator=(const query_analysis &) = delete;
+  query_analysis(query_analysis &&other) noexcept;
+  query_analysis &operator=(query_analysis &&other) noexcept;
+
+  [[nodiscard]] const sequel_diagnostic_list_t *diagnostics() const noexcept;
+  [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+  [[nodiscard]] std::string_view sanitized() const noexcept { return sanitized_; }
+  [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
+  [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+  [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+
+private:
+  friend std::expected<query_analysis, error> analyze_query(std::string_view, analysis_options);
+  sequel_syntax_document_t *syntax_ = nullptr;
+  sequel_query_document_t *query_ = nullptr;
+  sequel_query_analysis_t *analysis_ = nullptr;
+  std::string summary_, sanitized_, formatted_, fingerprint_;
+};
+
 [[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql,
                                                            sequel_metadata_options_t options = {});
 
@@ -145,6 +170,9 @@ private:
                                                    dialect dialect_value = dialect::generic);
 
 [[nodiscard]] std::expected<analysis, error> analyze(std::string_view sql, analysis_options options = {});
+
+[[nodiscard]] std::expected<query_analysis, error> analyze_query(std::string_view sql,
+                                                                 analysis_options options = {});
 
 [[nodiscard]] std::expected<std::string, error> sanitize(std::string_view sql, dialect dialect_value = dialect::generic,
                                                          bool collapse_in_lists = false, std::size_t limit = 0);

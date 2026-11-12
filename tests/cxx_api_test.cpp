@@ -29,6 +29,12 @@ int main() {
   assert(!analyzed->operation().empty());
   assert(!analyzed->fingerprint().empty());
 
+  auto structured = sequel::analyze_query("UPDATE users SET name = 'x';", sequel::analysis_options{
+                                                                                 .dialect_value = sequel::dialect::sqlite,
+                                                                                 .include_lints = true});
+  assert(structured);
+  assert(structured->diagnostics() && structured->diagnostics()->count > 0);
+
   auto lints = sequel::analyze("UPDATE users SET name = 'x';", {.dialect_value = sequel::dialect::sqlite,
                                                                   .include_lints = true});
   assert(lints);
