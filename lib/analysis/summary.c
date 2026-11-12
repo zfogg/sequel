@@ -171,6 +171,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (first_literal && second_parameter) {
       first_literal[6] = '?';
       second_parameter[6] = '1';
+    } else if (first_literal && strstr(first_literal + 7, "LIMIT 1")) {
+      first_literal[6] = '?';
     }
   }
   char *copy = malloc(summary.length + source.length + 1);
