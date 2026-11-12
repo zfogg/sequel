@@ -139,27 +139,9 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         sequel_analysis_segment(map, start, start, at, safe->n, SEQUEL_MAP_INSERT);
     }
     gap = false;
-    size_t before = safe->n;
-    if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i) {
-      sequel_analysis_append_text(safe, "(?", 2);
-      if (map) {
-        sequel_analysis_segment(map, start, end, before, before + 1, SEQUEL_MAP_COPY);
-        size_t close = ts[t.matching].source_offset;
-        sequel_analysis_segment(map, end, close, before + 1, before + 2, SEQUEL_MAP_REPLACE);
-      }
+    sequel_analysis_emit_token(t, ts, t.matching > i ? t.matching : 0, a, safe, map, literal, bind);
+    if (t.kind == 0 && sequel_runtime_symbol(t.t, '(') && t.matching > i)
       collapse_end = t.matching;
-    } else {
-      size_t sqlite_suffix = sequel_analysis_sqlite_suffix(t, a->options.dialect, bind);
-      if (sqlite_suffix != SIZE_MAX) {
-        sequel_analysis_append_text(safe, "?", 1);
-        sequel_analysis_append_text(safe, t.t.p + sqlite_suffix, t.t.n - sqlite_suffix);
-      } else {
-        sequel_analysis_append_text(safe, literal || bind ? "?" : t.t.p, literal || bind ? 1 : t.t.n);
-      }
-      if (map)
-        sequel_analysis_segment(map, start, end, before, safe->n,
-                                literal || bind ? SEQUEL_MAP_REPLACE : SEQUEL_MAP_COPY);
-    }
     if (!a->options.omit_query_text) {
       size_t cap = a->options.max_query_text_bytes ? a->options.max_query_text_bytes : SEQUEL_TEXT_MAX;
       size_t lo = emitted_before < cap ? emitted_before : cap, hi = safe->n < cap ? safe->n : cap;

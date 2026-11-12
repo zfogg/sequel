@@ -65,6 +65,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/analysis/core.c
   ../lib/analysis/bindings.c
   ../lib/analysis/diagnostics.c
+  ../lib/analysis/sanitize.c
   ../lib/analysis/maps.c
   ../lib/analysis/statements.c
   ../lib/analysis/format.c

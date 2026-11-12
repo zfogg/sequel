@@ -67,6 +67,8 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
                                   sequel_dialect_t dialect, bool keep_in_lists);
 size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind);
 bool sequel_analysis_source_contains_word(sequel_source_view_t source, const char *word);
+void sequel_analysis_emit_token(analysis_token_t token, analysis_token_t *tokens, size_t matching, analysis_state *state,
+                                analysis_text *safe, analysis_map *map, bool literal, bool bind);
 const char *sequel_analysis_dollar_quoted_literal(const char *sql, size_t length);
 const char *sequel_analysis_ambiguous_escaped_quote(const char *sql, size_t length);
 bool sequel_analysis_bind_token(analysis_token_t token, sequel_dialect_t dialect, const char **key, size_t *length,
