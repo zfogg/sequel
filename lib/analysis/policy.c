@@ -33,26 +33,26 @@ void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis
     if (t.kind == 1) {
       if (!operation) {
         operation = true;
-        if (sequel_analysis_word(t, "UPDATE") || sequel_analysis_word(t, "DELETE"))
+        if (sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "DELETE"))
           write = true;
-        if (!(sequel_analysis_word(t, "SELECT") || sequel_analysis_word(t, "INSERT") ||
-              sequel_analysis_word(t, "UPDATE") || sequel_analysis_word(t, "DELETE") ||
-              sequel_analysis_word(t, "MERGE") || sequel_analysis_word(t, "WITH")))
+        if (!(sequel_analysis_token_is_word(t, "SELECT") || sequel_analysis_token_is_word(t, "INSERT") ||
+              sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "DELETE") ||
+              sequel_analysis_token_is_word(t, "MERGE") || sequel_analysis_token_is_word(t, "WITH")))
           sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_UNKNOWN_OPERATION, t.source_offset, t.source_offset + t.t.n);
       }
-      if (sequel_analysis_word(t, "FROM") || sequel_analysis_word(t, "INTO") || sequel_analysis_word(t, "UPDATE") ||
-          sequel_analysis_word(t, "USING"))
+      if (sequel_analysis_token_is_word(t, "FROM") || sequel_analysis_token_is_word(t, "INTO") ||
+          sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "USING"))
         table = true;
-      if (sequel_analysis_word(t, "WHERE"))
+      if (sequel_analysis_token_is_word(t, "WHERE"))
         where = true;
-      if (sequel_analysis_word(t, "JOIN"))
+      if (sequel_analysis_token_is_word(t, "JOIN"))
         ++joins;
-      if (sequel_analysis_word(t, "IN"))
+      if (sequel_analysis_token_is_word(t, "IN"))
         in_start = depth;
-      if (sequel_analysis_word(t, "ILIKE") && dialect != SEQUEL_POSTGRESQL && dialect != SEQUEL_DUCKDB)
+      if (sequel_analysis_token_is_word(t, "ILIKE") && dialect != SEQUEL_POSTGRESQL && dialect != SEQUEL_DUCKDB)
         sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_DIALECT_PORTABILITY, t.source_offset, t.source_offset + t.t.n);
     }
-    if (sequel_runtime_symbol(t.t, '*') && i > 0 && sequel_analysis_word(ts[i - 1], "SELECT"))
+    if (sequel_runtime_symbol(t.t, '*') && i > 0 && sequel_analysis_token_is_word(ts[i - 1], "SELECT"))
       star = true;
   }
   if (!table)

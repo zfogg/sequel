@@ -4,7 +4,7 @@
 #include "internal.h"
 #include "../model.h"
 
-bool sequel_analysis_word(analysis_token_t token, const char *word) {
+bool sequel_analysis_token_is_word(analysis_token_t token, const char *word) {
   size_t length = strlen(word);
   if (token.kind != 1 || token.t.n != length)
     return false;
@@ -16,7 +16,7 @@ bool sequel_analysis_word(analysis_token_t token, const char *word) {
 
 void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index,
                                   sequel_dialect_t dialect, bool keep_in_lists) {
-  if (keep_in_lists || !sequel_analysis_word(tokens[keyword_index], "IN"))
+  if (keep_in_lists || !sequel_analysis_token_is_word(tokens[keyword_index], "IN"))
     return;
   size_t open = keyword_index + 1;
   while (open < count && tokens[open].kind >= 3)

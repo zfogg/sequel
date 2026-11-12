@@ -67,7 +67,7 @@ analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings,
 void *sequel_analysis_array(void *pointer, size_t count, size_t element);
 
 bool sequel_analysis_literal(analysis_token_t token, sequel_dialect_t dialect);
-bool sequel_analysis_word(analysis_token_t token, const char *word);
+bool sequel_analysis_token_is_word(analysis_token_t token, const char *word);
 void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index,
                                   sequel_dialect_t dialect, bool keep_in_lists);
 size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind);
