@@ -154,6 +154,8 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
                                         const sequel_cancellation_t *cancellation, sequel_query_analysis_t **out) {
   if (!syntax || !query || !out)
     return SEQUEL_ERR_NULL;
+  if (sequel_query_syntax(query) != syntax)
+    return SEQUEL_ERR_INVALID_ARGUMENT;
   *out = NULL;
   sequel_query_analysis_t *analysis = calloc(1, sizeof(*analysis));
   if (!analysis)
