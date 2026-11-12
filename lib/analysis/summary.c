@@ -34,10 +34,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
     else if (*cursor == ')' && source_limit_depth)
       --source_limit_depth;
   }
-  if (source_limit &&
-      (!multiple_named_queries ||
-       (!source_limit_depth && !first_statement_has_locking_limit && !parameter_limit_before_numeric &&
-        source_limit[6] <= '2' && !isdigit((unsigned char)source_limit[7]))) &&
+  if (source_limit && !multiple_named_queries && !source_limit_depth && !first_statement_has_locking_limit &&
+      !parameter_limit_before_numeric && source_limit[6] <= '2' && !isdigit((unsigned char)source_limit[7]) &&
       summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
