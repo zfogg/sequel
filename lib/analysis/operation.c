@@ -34,7 +34,14 @@ void sequel_analysis_operation_from_query(const sequel_query_document_t *query, 
     out->operation[0] = 0;
     return;
   }
-  if (sequel_query_statement_count(query) > 1 && strncmp(source.data, "-- name:", strlen("-- name:")) == 0) {
+  bool mixed_operations = false;
+  for (size_t index = 1; index < sequel_query_statement_count(query); ++index)
+    if (statement[index].operation != statement[0].operation) {
+      mixed_operations = true;
+      break;
+    }
+  if (sequel_query_statement_count(query) > 1 &&
+      (strncmp(source.data, "-- name:", strlen("-- name:")) == 0 || mixed_operations)) {
     out->operation[0] = 0;
     return;
   }
