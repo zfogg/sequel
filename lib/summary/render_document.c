@@ -1802,6 +1802,29 @@ sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_
     goto no_memory;
   if (!sequel_summary_repair_write_order(&text, &length, &capacity, source))
     goto no_memory;
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE && text &&
+      sequel_summary_find_text(text, "UPDATE WHERE")) {
+    const char *update = sequel_summary_find_word(source.data, source.length, outer_start, "UPDATE");
+    const char *set =
+        update ? sequel_summary_find_word(source.data, source.length, (size_t)(update - source.data), "SET") : NULL;
+    const char *where =
+        set ? sequel_summary_find_word(source.data, source.length, (size_t)(set - source.data), "WHERE") : NULL;
+    if (update && set) {
+      const char *table = update + strlen("UPDATE");
+      while (table < source.data + source.length && isspace((unsigned char)*table))
+        ++table;
+      const char *table_end = table;
+      while (table_end < set && !isspace((unsigned char)*table_end))
+        ++table_end;
+      length = 0;
+      text[0] = 0;
+      if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE ") ||
+          !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+          !sequel_summary_append_text(&text, &length, &capacity, " SET …") ||
+          (where && !sequel_summary_append_text(&text, &length, &capacity, " WHERE …")))
+        goto no_memory;
+    }
+  }
   if (!sequel_summary_remove_insert_projection_tail(text, &length))
     goto no_memory;
 summary_postprocess:
