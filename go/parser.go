@@ -2,6 +2,7 @@ package sequel
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../include -I${SRCDIR}/../third_party
+#include <stdlib.h>
 #include <sequel.h>
 static size_t sequel_go_range_start(sequel_source_range_t range) { return range.start; }
 static size_t sequel_go_range_end(sequel_source_range_t range) { return range.end; }
@@ -28,7 +29,6 @@ import "C"
 
 import (
 	"fmt"
-	"runtime"
 	"unsafe"
 )
 
@@ -119,7 +119,11 @@ func Parse(source string, dialect Dialect) (*Document, error) {
 	options := C.sequel_parse_options_t{}
 	C.sequel_parse_options_init(&options)
 	options.dialect = nativeDialect(dialect)
-	view := C.sequel_source_view_t{data: (*C.char)(unsafe.Pointer(unsafe.StringData(source))), length: C.size_t(len(source))}
+	// C retains the source through the syntax document, so the bytes must be
+	// allocated in C memory rather than pointing at Go-managed storage.
+	sourceBytes := C.CBytes([]byte(source))
+	defer C.free(sourceBytes)
+	view := C.sequel_source_view_t{data: (*C.char)(sourceBytes), length: C.size_t(len(source))}
 	var syntax *C.sequel_syntax_document_t
 	if status := C.sequel_parse_sql(&view, &options, nil, &syntax); status != C.SEQUEL_OK {
 		return nil, fmt.Errorf("sequel parse failed with status %d", int(status))
@@ -130,7 +134,6 @@ func Parse(source string, dialect Dialect) (*Document, error) {
 		return nil, fmt.Errorf("sequel query indexing failed with status %d", int(status))
 	}
 	document := &Document{source: source, syntax: syntax, query: query}
-	runtime.KeepAlive(source)
 	return document, nil
 }
 
@@ -250,8 +253,11 @@ func (d *Document) Summary() (string, error) {
 	if d == nil || d.query == nil {
 		return "", fmt.Errorf("nil parser document")
 	}
+	var options C.sequel_summary_options_t
+	C.sequel_summary_options_init(&options)
+	options.include_bind_count = C.bool(false)
 	var result C.sequel_text_result_t
-	status := C.sequel_summarize_query(d.query, nil, &result)
+	status := C.sequel_summarize_query(d.query, &options, &result)
 	if status != C.SEQUEL_OK {
 		return "", fmt.Errorf("sequel summary failed with status %d", int(status))
 	}
