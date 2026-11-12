@@ -28,7 +28,13 @@ fn main() {
         }
         return;
     }
-    for directory in ["lib", "lib/util/utf8.c", "lib/util/utf8.h", "include", "third_party"] {
+    for directory in [
+        "lib",
+        "lib/util/utf8.c",
+        "lib/util/utf8.h",
+        "include",
+        "third_party",
+    ] {
         println!("cargo:rerun-if-changed={directory}");
     }
     let mut build = cc::Build::new();
@@ -42,6 +48,10 @@ fn main() {
             "lib/compact.c",
             "lib/api.c",
             "lib/access.c",
+            "lib/query_visit.c",
+            "lib/syntax_visit.c",
+            "lib/parse_entry.c",
+            "lib/reparse.c",
             "lib/analysis/core.c",
             "lib/analysis/document.c",
             "lib/analysis/format.c",
@@ -74,14 +84,16 @@ fn main() {
             "lib/format_buffer.c",
             "lib/format_rules.c",
             "lib/fingerprint.c",
-            "lib/inspection.c",
-            "lib/inspection_document.c",
-            "lib/inspection_text.c",
+            "lib/metadata.c",
+            "lib/metadata_document.c",
+            "lib/metadata_text.c",
             "lib/sanitizer.c",
             "lib/summary/entry.c",
             "lib/summary/document.c",
             "lib/summary/render.c",
             "lib/summary/render_document.c",
+            "lib/summary/prepare.c",
+            "lib/summary/cte.c",
             "lib/summary/routes.c",
             "lib/summary/special.c",
             "lib/summary/repair.c",

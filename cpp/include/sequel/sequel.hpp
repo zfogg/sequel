@@ -89,7 +89,7 @@ public:
   [[nodiscard]] std::size_t statement_count() const noexcept { return statement_count_; }
 
 private:
-  friend std::expected<metadata, error> inspect(std::string_view, sequel_options_t);
+  friend std::expected<metadata, error> metadata_for(std::string_view, sequel_metadata_options_t);
   sequel_metadata_t native_{};
   std::string_view text_;
   std::string_view summary_;
@@ -138,7 +138,8 @@ private:
   std::string_view status_, omission_reason_, text_, summary_, formatted_, operation_, fingerprint_;
 };
 
-[[nodiscard]] std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t options = {});
+[[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql,
+                                                           sequel_metadata_options_t options = {});
 
 [[nodiscard]] std::expected<document, error> parse(std::string_view sql,
                                                    dialect dialect_value = dialect::generic);

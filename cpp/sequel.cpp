@@ -107,9 +107,9 @@ analysis &analysis::operator=(analysis &&other) noexcept {
   return *this;
 }
 
-std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t options) {
+std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options) {
   metadata result;
-  auto code = sequel_inspect(sql.data(), &options, &result.native_);
+  auto code = sequel_metadata_n(sql.data(), sql.size(), &options, &result.native_);
   if (code != SEQUEL_OK)
     return std::unexpected(make_error(code));
   result.text_ = result.native_.text ? result.native_.text : "";
