@@ -407,6 +407,8 @@ static sequel_status_t format_lexed(const sequel_lexed_document_t *lexed, const 
       text_length = 1;
     }
     bool no_space_before = sequel_formatter_no_space_before_punctuation(text, text_length, punctuation);
+    if (text_length == 1 && text[0] == ':')
+      no_space_before = true;
     if (text_length && (text[0] == '>' || text[0] == '<' || text[0] == '=' || text[0] == '+' || text[0] == '-') &&
         length && data[length - 1] != ' ' && data[length - 1] != '\n' &&
         !sequel_format_append_space(&data, &length, &capacity))
