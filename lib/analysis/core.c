@@ -130,43 +130,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
       continue;
     }
 
-    if (!a->options.keep_in_lists && t.kind == 1 && sequel_runtime_keyword(t.t, "IN")) {
-      size_t open = i + 1;
-      while (open < count && ts[open].kind >= 3)
-        open++;
-      if (open < count && sequel_runtime_symbol(ts[open].t, '(')) {
-        size_t k = open + 1, items = 0;
-        bool expecting = true, valid = true;
-        for (; k < count; k++) {
-          sequel_work_tick(1);
-          if (ts[k].kind >= 3)
-            continue;
-          if (sequel_runtime_symbol(ts[k].t, ')'))
-            break;
-          if (expecting) {
-            const char *bk;
-            size_t bl, bn;
-            sequel_bind_style_t st;
-            bool value = sequel_analysis_literal(ts[k], a->options.dialect) ||
-                         sequel_analysis_bind_token(ts[k], a->options.dialect, &bk, &bl, &bn, &st);
-            if (!value) {
-              valid = false;
-              break;
-            }
-            items++;
-            expecting = false;
-          } else if (sequel_runtime_symbol(ts[k].t, ','))
-            expecting = true;
-          else {
-            valid = false;
-            break;
-          }
-        }
-        /* Mark collapse when the opening token is visited. */
-        if (valid && !expecting && items > 1 && k < count)
-          ts[open].matching = k;
-      }
-    }
+    sequel_analysis_mark_in_list(ts, count, i, a->options.dialect, a->options.keep_in_lists);
     size_t emitted_before = safe->n;
     if (gap && safe->n) {
       size_t at = safe->n;

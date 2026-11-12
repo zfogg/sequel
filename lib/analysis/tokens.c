@@ -13,6 +13,42 @@ bool sequel_analysis_word(analysis_token_t token, const char *word) {
   return true;
 }
 
+void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index,
+                                  sequel_dialect_t dialect, bool keep_in_lists) {
+  if (keep_in_lists || !sequel_analysis_word(tokens[keyword_index], "IN"))
+    return;
+  size_t open = keyword_index + 1;
+  while (open < count && tokens[open].kind >= 3)
+    open++;
+  if (open >= count || !sequel_runtime_symbol(tokens[open].t, '('))
+    return;
+  size_t item = open + 1, items = 0;
+  bool expecting = true;
+  for (; item < count; item++) {
+    sequel_work_tick(1);
+    if (tokens[item].kind >= 3)
+      continue;
+    if (sequel_runtime_symbol(tokens[item].t, ')'))
+      break;
+    if (expecting) {
+      const char *key;
+      size_t length, number;
+      sequel_bind_style_t style;
+      if (!sequel_analysis_literal(tokens[item], dialect) &&
+          !sequel_analysis_bind_token(tokens[item], dialect, &key, &length, &number, &style))
+        return;
+      items++;
+      expecting = false;
+    } else if (sequel_runtime_symbol(tokens[item].t, ',')) {
+      expecting = true;
+    } else {
+      return;
+    }
+  }
+  if (!expecting && items > 1 && item < count)
+    tokens[open].matching = item;
+}
+
 static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   switch (kind) {
   case SEQUEL_TOKEN_LINE_COMMENT:
