@@ -26,6 +26,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   if (!locking_clause)
     locking_clause = strstr(source.data, "FOR SHARE");
   bool first_statement_has_locking_limit = locking_clause != NULL;
+  bool has_distinct_on = strstr(source.data, "DISTINCT ON") != NULL;
   size_t source_limit_depth = 0;
   for (const char *cursor = source.data; source_limit && cursor < source_limit; ++cursor) {
     if (*cursor == '(')
@@ -35,7 +36,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, se
   }
   if (source_limit &&
       (!multiple_named_queries ||
-       (!source_limit_depth && !first_statement_has_locking_limit &&
+       (!source_limit_depth && !first_statement_has_locking_limit && !has_distinct_on &&
         !parameter_limit_before_numeric && source_limit[6] <= '2')) &&
       summary.data) {
     char *rendered_limit = NULL;
