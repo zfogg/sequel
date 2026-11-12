@@ -646,9 +646,12 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t left = SIZE_MAX;
     size_t right = SIZE_MAX;
     for (size_t r = 0; r < document->relation_count; ++r) {
-      if (document->relations[r].range.start < tokens[i].range.start)
+      const sequel_source_range_t relation_range = document->relations[r].range;
+      if (relation_range.end <= tokens[i].range.start &&
+          (left == SIZE_MAX || relation_range.end > document->relations[left].range.end))
         left = r;
-      else if (right == SIZE_MAX)
+      if (relation_range.start >= tokens[i].range.end &&
+          (right == SIZE_MAX || relation_range.start < document->relations[right].range.start))
         right = r;
     }
     if (left == SIZE_MAX || right == SIZE_MAX)
