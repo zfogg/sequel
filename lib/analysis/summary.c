@@ -91,8 +91,6 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       sanitized_length += digits - 1;
     }
     copy[sanitized_length] = 0;
-    if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
-      copy[0] = 0;
     out->summary = copy;
     return;
   }
