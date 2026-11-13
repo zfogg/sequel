@@ -4,7 +4,9 @@ from pathlib import Path
 
 from setuptools import Extension, setup
 
-library_sources = sorted(str(path) for path in Path("lib").rglob("*.c") if path.as_posix() != "lib/analysis/token_rules.c")
+library_sources = sorted(
+    str(path) for path in Path("lib").rglob("*.c") if path.as_posix() != "lib/analysis/token_rules.c"
+)
 
 setup(
     ext_modules=[
