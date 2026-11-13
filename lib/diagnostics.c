@@ -59,7 +59,7 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
                                  issue->recovery == SEQUEL_RECOVERY_NONE
                              ? SEQUEL_ERROR
                              : SEQUEL_WARNING;
-  if (issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN)
+  if (code >= SEQUEL_DIAG_UNTERMINATED_STRING && code <= SEQUEL_DIAG_UNTERMINATED_PARAMETER)
     diagnostic->end_offset = source.length;
   diagnostic->incomplete =
       issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP || issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN;
@@ -594,6 +594,12 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
   for (size_t i = 0; i + 1 < n; ++i)
     if (sql[i] == '/' && sql[i + 1] == '*')
       ++block_comment_openings;
+  if (block_comment_openings > 64) {
+    sequel_diagnostics_report(sql, n, out, SEQUEL_DIAG_NESTING_LIMIT, 0, n);
+    sequel_diagnostic_list_free(&lexical_diagnostics);
+    sequel_syntax_document_free(document);
+    return SEQUEL_ERR_OVERFLOW;
+  }
   has_opaque_recovery = has_opaque_recovery && block_comment_openings > 64;
   for (size_t i = 0; i < lexical_diagnostics.count; ++i) {
     const sequel_diagnostic_record_t *record = &lexical_diagnostics.records[i];
