@@ -104,37 +104,16 @@ static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t le
   sequel_metadata_free(&metadata);
 }
 
-static void sequel_analysis_restore_aggregate_operation(const sequel_query_document_t *query, sequel_dialect_t dialect,
+static void sequel_analysis_restore_aggregate_operation(const char *sql, size_t length, sequel_dialect_t dialect,
                                                         sequel_analysis_t *out) {
-  if (!query || !out || out->operation[0] || sequel_query_statement_count(query) <= 1 || dialect == SEQUEL_CLICKHOUSE)
+  if (!sql || !out || out->operation[0])
     return;
-  sequel_source_view_t source = sequel_query_source(query);
-  size_t first = 0;
-  while (first < source.length && isspace((unsigned char)source.data[first]))
-    ++first;
-  if (first + 4 <= source.length && sequel_text_equal_ci(source.data + first, 3, "SET") &&
-      isspace((unsigned char)source.data[first + 3]))
-    return;
-  const sequel_statement_info_t *statement = sequel_query_statements(query);
-  const char *name = NULL;
-  switch (statement[0].operation) {
-  case SEQUEL_OPERATION_SELECT:
-    name = "SELECT";
-    break;
-  case SEQUEL_OPERATION_INSERT:
-    name = "INSERT";
-    break;
-  case SEQUEL_OPERATION_UPDATE:
-    name = "UPDATE";
-    break;
-  case SEQUEL_OPERATION_DELETE:
-    name = "DELETE";
-    break;
-  default:
-    break;
-  }
-  if (name)
-    snprintf(out->operation, sizeof(out->operation), "%s", name);
+  sequel_metadata_options_t options = {
+      .dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
+  sequel_metadata_t metadata = {0};
+  if (sequel_metadata_n(sql, length, &options, &metadata) == SEQUEL_OK && metadata.operation[0])
+    snprintf(out->operation, sizeof(out->operation), "%s", metadata.operation);
+  sequel_metadata_free(&metadata);
 }
 
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
@@ -313,7 +292,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (query)
         sequel_analysis_operation_from_query(query, out);
       if (query)
-        sequel_analysis_restore_aggregate_operation(query, o.dialect, out);
+        sequel_analysis_restore_aggregate_operation(sql, n, o.dialect, out);
       if (query && sequel_query_statement_count(query))
         sequel_analysis_summary_from_query(query, safe.p, safe.n, out);
       else
