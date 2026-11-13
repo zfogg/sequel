@@ -175,7 +175,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     char *first_limit = strstr(summary.data, "LIMIT ");
     char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
     if (first_limit && second_limit) {
-      bool lateral = strstr(source.data, "LATERAL") != NULL;
+      bool lateral = strstr(source.data, "CROSS JOIN LATERAL") != NULL;
       first_limit[6] = lateral ? '?' : '1';
       second_limit[6] = lateral ? '1' : '?';
     }
