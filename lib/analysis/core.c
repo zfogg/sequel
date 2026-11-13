@@ -105,7 +105,7 @@ static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t le
 }
 
 static void sequel_analysis_restore_aggregate_operation(const sequel_query_document_t *query, sequel_analysis_t *out) {
-  if (!query || !out || out->operation[0] || !sequel_query_statement_count(query))
+  if (!query || !out || out->operation[0] || sequel_query_statement_count(query) <= 1)
     return;
   const sequel_statement_info_t *statement = sequel_query_statements(query);
   const char *name = NULL;
