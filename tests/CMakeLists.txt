@@ -9,7 +9,7 @@ add_executable(sequel-api-test sql_format_api_test.c)
 target_link_libraries(sequel-api-test PRIVATE sequel::sequel)
 add_test(NAME sequel-api COMMAND sequel-api-test)
 
-add_executable(sequel-parser-api-test parser_api_test.c)
+add_executable(sequel-parser-api-test parse_api_test.c)
 target_link_libraries(sequel-parser-api-test PRIVATE sequel::sequel)
 add_test(NAME sequel-parser-api COMMAND sequel-parser-api-test)
 
