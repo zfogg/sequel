@@ -2,5 +2,5 @@
 
 sequel_status_t sequel_summary_render_document(const sequel_query_document_t *query,
                                                const sequel_summary_options_t *options, sequel_text_result_t *out) {
-  return sequel_summary_render_document_impl(query, options, out);
+  return sequel_summary_render_query(query, options, out);
 }

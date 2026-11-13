@@ -71,9 +71,9 @@ static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, siz
   return result;
 }
 
-sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
-                                                    const sequel_summary_options_t *options,
-                                                    sequel_text_result_t *out) {
+sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query,
+                                            const sequel_summary_options_t *options,
+                                            sequel_text_result_t *out) {
   if (!query || !out)
     return SEQUEL_ERR_NULL;
   sequel_summary_options_t defaults;

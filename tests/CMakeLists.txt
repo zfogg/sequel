@@ -106,7 +106,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/fingerprint.c
   ../lib/summary/render.c
   ../lib/summary/document.c
-  ../lib/summary/render_document.c
+  ../lib/summary/render_query.c
   ../lib/summary/limits.c
   ../lib/summary/prepare.c
   ../lib/summary/routes.c

@@ -137,8 +137,8 @@ int sequel_summary_prepare_document(char **text, size_t *length, size_t *capacit
 sequel_status_t sequel_summary_render_document(const sequel_query_document_t *query,
                                                const sequel_summary_options_t *options, sequel_text_result_t *out);
 
-sequel_status_t sequel_summary_render_document_impl(const sequel_query_document_t *query,
-                                                    const sequel_summary_options_t *options, sequel_text_result_t *out);
+sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query,
+                                            const sequel_summary_options_t *options, sequel_text_result_t *out);
 
 int sequel_summary_begin_render(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query,
                                 const sequel_summary_options_t *settings, sequel_source_view_t source,
