@@ -95,7 +95,7 @@ fn main() {
             "lib/summary/entry.c",
             "lib/summary/document.c",
             "lib/summary/render.c",
-            "lib/summary/render_document.c",
+            "lib/summary/render_query.c",
             "lib/summary/prepare.c",
             "lib/summary/cte.c",
             "lib/summary/routes.c",
