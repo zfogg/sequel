@@ -51,8 +51,7 @@ static void diagnostic_json(FILE *stream, const sequel_diagnostic_t *d) {
 }
 
 static bool diagnostic_is_input_failure(sequel_diagnostic_code_t code) {
-  return code == SEQUEL_DIAG_CONTROL_CHARACTER || code == SEQUEL_DIAG_INVALID_UTF8 ||
-         code == SEQUEL_DIAG_NESTING_LIMIT;
+  return code == SEQUEL_DIAG_CONTROL_CHARACTER || code == SEQUEL_DIAG_INVALID_UTF8 || code == SEQUEL_DIAG_NESTING_LIMIT;
 }
 
 static bool diagnostic_is_duplicate(const sequel_diagnostic_list_t *diagnostics,
@@ -135,8 +134,7 @@ sequel_status_t diagnose_all(FILE *stream, const char *sql, size_t length, seque
     status = SEQUEL_ERR_INVALID_ARGUMENT;
   const sequel_diagnostic_list_t *diagnostic_view = &diagnostics;
   if (json) {
-    fprintf(stream, "{\"schema_version\":%u,\"original_length\":%zu,\"status\":",
-            SEQUEL_DIAGNOSTIC_VERSION, length);
+    fprintf(stream, "{\"schema_version\":%u,\"original_length\":%zu,\"status\":", SEQUEL_DIAGNOSTIC_VERSION, length);
     diagnostic_json_text(stream, status == SEQUEL_OK ? "ok" : "malformed");
     fputs(",\"diagnostics\":[", stream);
     for (size_t i = 0; i < diagnostic_view->count; ++i) {

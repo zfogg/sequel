@@ -50,7 +50,6 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect
 sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
                                          sequel_diagnostic_t *diagnostic);
 
-
 /** Analyze explicit UTF-8 bytes; embedded NUL is diagnosed. Safe statement-boundary
  * recovery collects multiple issues. Any malformed statement fails closed for the
  * entire document. Cancellation and budgets clear partial exported data.

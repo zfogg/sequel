@@ -72,8 +72,7 @@ static PyObject *metadata_sql(PyObject *self, PyObject *args) {
   PyObject *count = PyLong_FromSize_t(metadata->statement_count);
   PyObject *result = NULL;
   if (text && summary && operation_object && count)
-    result = PyTuple_Pack(5, text, summary, operation_object,
-                          metadata->truncated ? Py_True : Py_False, count);
+    result = PyTuple_Pack(5, text, summary, operation_object, metadata->truncated ? Py_True : Py_False, count);
   Py_XDECREF(text);
   Py_XDECREF(summary);
   Py_XDECREF(operation_object);

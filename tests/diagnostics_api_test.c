@@ -31,8 +31,7 @@ int main(void) {
   CHECK(sequel_lex(&lexical_source, &parse_options, NULL, &lexed) == SEQUEL_OK && lexed);
   sequel_diagnostic_list_t lexical_diagnostics = {0};
   CHECK(sequel_collect_lexical_diagnostics(lexed, &lexical_diagnostics) == SEQUEL_OK);
-  CHECK(lexical_diagnostics.count >= 1 &&
-        lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL);
+  CHECK(lexical_diagnostics.count >= 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL);
   sequel_diagnostic_t projected = {0};
   CHECK(sequel_diagnostic_project(lexical_source.data, lexical_source.length, &lexical_diagnostics.records[0],
                                   &projected) == SEQUEL_OK &&
