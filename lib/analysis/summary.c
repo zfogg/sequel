@@ -152,9 +152,11 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   bool first_statement_has_locking_limit = locking_clause != NULL;
   bool has_distinct_on = strstr(source.data, "DISTINCT ON") != NULL;
   bool starts_with_cte = strstr(source.data, "WITH ") != NULL;
+  bool summary_has_cte = summary.data && strncmp(summary.data, "WITH ", 5) == 0;
   if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries &&
-      !starts_with_cte && !first_statement_has_locking_limit && !has_distinct_on && !parameter_limit_before_numeric &&
-      !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' && summary.data) {
+      !starts_with_cte && !summary_has_cte && !first_statement_has_locking_limit && !has_distinct_on &&
+      !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' &&
+      summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
@@ -162,13 +164,13 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       rendered_limit[6] = source_limit[6];
   }
   if (summary.data && source_limit && source_limit[7] != ':' && !strstr(source.data, "UPDATE ") && !starts_with_cte &&
-      !has_distinct_on && strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") &&
+      !summary_has_cte && !has_distinct_on && strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") &&
       !strstr(source.data, "LIMIT $")) {
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
   }
-  if (summary.data && !starts_with_cte && numeric_limit_count == 2) {
+  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2) {
     char *first_limit = strstr(summary.data, "LIMIT ");
     char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
     if (first_limit && second_limit) {
@@ -177,7 +179,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       second_limit[6] = lateral ? '1' : '?';
     }
   }
-  if (summary.data && !starts_with_cte && numeric_limit_count == 2 && strstr(source.data, "COALESCE")) {
+  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 &&
+      strstr(source.data, "COALESCE")) {
     char *first_limit = strstr(summary.data, "LIMIT ?");
     if (first_limit)
       first_limit[6] = '1';
