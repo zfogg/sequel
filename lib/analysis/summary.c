@@ -186,7 +186,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       first_limit[6] = '1';
   }
   const char *lateral = strstr(source.data, "CROSS JOIN LATERAL");
-  if (summary.data && lateral && source_limit && source_limit[7] != ':' &&
+  if (summary.data && !summary_has_cte && lateral && source_limit && source_limit[7] != ':' &&
       !strstr(lateral + 18, "CROSS JOIN LATERAL")) {
     char *first_limit = strstr(summary.data, "LIMIT ?");
     if (first_limit)
