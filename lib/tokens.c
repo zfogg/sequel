@@ -160,4 +160,4 @@ int sequel_keyword_ends_case_branch(uint32_t keyword) {
   return keyword == SEQUEL_KEYWORD_WHEN || keyword == SEQUEL_KEYWORD_ELSE || keyword == SEQUEL_KEYWORD_END;
 }
 
-#include "analysis/tokens.c"
+#include "analysis/token_rules.c"

@@ -23,7 +23,7 @@ if not args.check:
 library_sources = [
     path
     for path in sorted(root.glob("lib/**/*.c"))
-    if path.relative_to(root).as_posix() not in {"lib/engine.c", "lib/util/utf8.c", "lib/analysis/tokens.c"}
+    if path.relative_to(root).as_posix() not in {"lib/engine.c", "lib/util/utf8.c", "lib/analysis/token_rules.c"}
 ]
 if not args.check:
     for path in library_sources:

@@ -64,7 +64,8 @@ bool sequel_analysis_source_contains_word(sequel_source_view_t source, const cha
   size_t word_length = strlen(word);
   for (size_t offset = 0; offset + word_length <= source.length; ++offset) {
     bool starts_word = offset == 0 || !isalnum((unsigned char)source.data[offset - 1]);
-    bool ends_word = offset + word_length == source.length || !isalnum((unsigned char)source.data[offset + word_length]);
+    bool ends_word =
+        offset + word_length == source.length || !isalnum((unsigned char)source.data[offset + word_length]);
     if (starts_word && ends_word && sequel_query_word_equals_ci(source.data + offset, word_length, word))
       return true;
   }
