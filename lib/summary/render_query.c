@@ -2702,6 +2702,14 @@ summary_postprocess:
     if (last_limit)
       last_limit[6] = source_last_limit[6];
   }
+  const char *parameter_limit = sequel_summary_find_text(source.data, "LIMIT $");
+  if (parameter_limit) {
+    char *last_numeric_limit = NULL;
+    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT 1")) != NULL; ++cursor)
+      last_numeric_limit = cursor;
+    if (last_numeric_limit)
+      memcpy(last_numeric_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
+  }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
       sequel_summary_find_text(source.data, "JOIN") && !sequel_summary_find_text(text, "JOIN")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN"))
