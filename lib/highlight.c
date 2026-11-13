@@ -8,6 +8,7 @@
 #include <sequel.h>
 #include "diagnostics.h"
 #include "base16.h"
+#include "util/text.h"
 #include "util/utf8.h"
 
 static const char *const highlight_color_names[] = {"foreground", "background", "keyword",     "type",      "function",
@@ -354,6 +355,13 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   sequel_status_t status = sequel_diagnostics_validate_input(sql, n, options->dialect, diagnostic);
   if (status != SEQUEL_OK)
     return status;
+  if (options->dialect == SEQUEL_CLICKHOUSE && sequel_text_find(sql, n, "INSERT") &&
+      sequel_text_find(sql, n, " FORMAT ")) {
+    const char *format = sequel_text_find(sql, n, " FORMAT ") + 1;
+    sequel_diagnostics_report(sql, n, diagnostic, SEQUEL_DIAG_UNSUPPORTED_PAYLOAD, (size_t)(format - sql),
+                              (size_t)(format - sql) + 6);
+    return SEQUEL_ERR_INVALID_ARGUMENT;
+  }
   sequel_parse_options_t parse_options;
   sequel_parse_options_init(&parse_options);
   parse_options.dialect = options->dialect;
