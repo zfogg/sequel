@@ -170,7 +170,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
   }
-  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2) {
+  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 &&
+      !strstr(source.data, "CASE")) {
     char *first_limit = strstr(summary.data, "LIMIT ");
     char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
     if (first_limit && second_limit) {
