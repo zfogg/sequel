@@ -200,7 +200,8 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && strstr(source.data, "ticker_backtest_results")) {
+  if (summary.data && strstr(source.data, "ticker_backtest_results") &&
+      !strstr(source.data, "WITH selected_generation")) {
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT 1")) != NULL; cursor += 7)
       cursor[6] = '?';
   }
