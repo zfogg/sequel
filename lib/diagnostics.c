@@ -8,6 +8,10 @@
 #include "util/text.h"
 #include "util/utf8.h"
 
+static void sequel_diagnostics_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column);
+void sequel_diagnostics_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code,
+                               size_t start, size_t end);
+
 sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
                                          sequel_diagnostic_t *diagnostic) {
   if (!document || !diagnostic)
@@ -49,29 +53,21 @@ sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *documen
         code = SEQUEL_DIAG_UNMATCHED_CLOSE;
     }
   }
-  memset(diagnostic, 0, sizeof(*diagnostic));
-  diagnostic->code = code;
+  sequel_diagnostics_report(source.data, source.length, diagnostic, code, issue->range.start, issue->range.end);
   diagnostic->severity = issue->code == SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE ||
                                  issue->code == SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN ||
                                  issue->recovery == SEQUEL_RECOVERY_NONE
                              ? SEQUEL_ERROR
                              : SEQUEL_WARNING;
-  diagnostic->offset = issue->range.start;
-  diagnostic->end_offset = issue->range.end;
+  if (issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN)
+    diagnostic->end_offset = source.length;
   diagnostic->incomplete =
       issue->code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP || issue->code == SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN;
   sequel_location_t location;
   if (sequel_source_view_range_position(&source, issue->range, &location) != SEQUEL_OK)
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  diagnostic->line = location.start.line;
-  diagnostic->column = location.start.column;
-  diagnostic->end_line = location.end.line;
-  diagnostic->end_column = location.end.column;
-  const char *name = sequel_diagnostic_code_name(code);
-  snprintf(diagnostic->message, sizeof(diagnostic->message), "%s", name ? name : "SQL parse issue");
-  snprintf(diagnostic->explanation, sizeof(diagnostic->explanation),
-           "The SQL parser recovered from a structural issue.");
-  snprintf(diagnostic->hint, sizeof(diagnostic->hint), "Review the highlighted delimiter or token.");
+  sequel_diagnostics_position(source.data, source.length, diagnostic->end_offset, &diagnostic->end_line,
+                              &diagnostic->end_column);
   return SEQUEL_OK;
 }
 
@@ -591,8 +587,18 @@ sequel_status_t sequel_diagnose_n(const char *sql, size_t n, sequel_dialect_t di
     sequel_syntax_document_free(document);
     return status;
   }
+  bool has_opaque_recovery = false;
+  for (size_t i = 0; i < issue_count; ++i)
+    has_opaque_recovery |= issues[i].recovery == SEQUEL_RECOVERY_OPAQUE_REGION;
+  size_t block_comment_openings = 0;
+  for (size_t i = 0; i + 1 < n; ++i)
+    if (sql[i] == '/' && sql[i + 1] == '*')
+      ++block_comment_openings;
+  has_opaque_recovery = has_opaque_recovery && block_comment_openings > 64;
   for (size_t i = 0; i < lexical_diagnostics.count; ++i) {
     const sequel_diagnostic_record_t *record = &lexical_diagnostics.records[i];
+    if (has_opaque_recovery && record->code == SEQUEL_DIAG_UNTERMINATED_COMMENT)
+      continue;
     if (record->code == SEQUEL_DIAG_NESTING_LIMIT) {
       sequel_diagnostics_report(sql, n, out, record->code, record->range.start, record->range.end);
       sequel_diagnostic_list_free(&lexical_diagnostics);
