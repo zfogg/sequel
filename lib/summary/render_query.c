@@ -1647,14 +1647,6 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
               limit_has_parameter = true;
               break;
             }
-          if (!limit_has_parameter) {
-            for (size_t cursor = start; cursor < end; ++cursor) {
-              if (source.data[cursor] == '$' || source.data[cursor] == '?' || source.data[cursor] == ':') {
-                limit_has_parameter = true;
-                break;
-              }
-            }
-          }
           bool has_offset = sequel_summary_find_text(source.data + start, " OFFSET ") != NULL;
           bool preserve_limit = !limit_has_parameter && (memchr(source.data + start, ',', end - start) != NULL ||
                                                          (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
@@ -2658,7 +2650,7 @@ summary_postprocess:
       goto no_memory;
   }
   const char *source_last_limit = NULL;
-  size_t outer_search_end = outer_range.end < source.length ? outer_range.end : source.length;
+  size_t outer_search_end = source.length;
   for (size_t cursor = outer_start; cursor < outer_search_end && cursor < source.length;) {
     const char *limit = sequel_summary_find_word(source.data, outer_search_end, cursor, "LIMIT");
     if (!limit)
@@ -2701,14 +2693,6 @@ summary_postprocess:
       last_limit = cursor;
     if (last_limit)
       last_limit[6] = source_last_limit[6];
-  }
-  const char *parameter_limit = sequel_summary_find_text(source.data, "LIMIT $");
-  if (parameter_limit) {
-    char *last_numeric_limit = NULL;
-    for (char *cursor = text; (cursor = sequel_summary_find_text(cursor, "LIMIT 1")) != NULL; ++cursor)
-      last_numeric_limit = cursor;
-    if (last_numeric_limit)
-      memcpy(last_numeric_limit, "LIMIT ?", sizeof("LIMIT ?") - 1);
   }
   if (text && sequel_query_cte_count(query) > 1 && sequel_query_join_count(query) &&
       sequel_summary_find_text(source.data, "JOIN") && !sequel_summary_find_text(text, "JOIN")) {
