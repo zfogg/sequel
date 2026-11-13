@@ -1628,8 +1628,12 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   if (settings->include_tables && statement_count && sequel_query_outer_limit(query) &&
       !sequel_summary_find_text(text ? text : "", "LATERAL (") && !sequel_summary_find_text(source.data, " JOIN (") &&
       !sequel_summary_find_text(source.data, " LIMIT (SELECT ")) {
+    const char *limit_marker = NULL;
     for (size_t i = outer_start; i < source.length; ++i)
-      if (sequel_summary_word(source.data, source.length, i, "LIMIT")) {
+      if (sequel_summary_word(source.data, source.length, i, "LIMIT"))
+        limit_marker = source.data + i;
+    if (limit_marker) {
+        size_t i = (size_t)(limit_marker - source.data);
         size_t start = i + 5;
         while (start < source.length && isspace((unsigned char)source.data[start]))
           ++start;
@@ -1656,8 +1660,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
               (!preserve_limit && !sequel_summary_append_text(&text, &length, &capacity, "?")))
             goto no_memory;
         }
-        break;
-      }
+    }
   }
   if (settings->include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT) {
     for (size_t i = outer_start; i < source.length; ++i) {
