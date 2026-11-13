@@ -31,7 +31,12 @@ if not args.check:
         (generated / name).write_text(
             f'#include "../{path.relative_to(root).as_posix()}"\n', encoding="utf-8", newline="\n"
         )
-data = f'/* C engine SHA256: {digest.hexdigest()} */\n#include "../lib/engine.c"\n#include "../lib/util/utf8.c"\n#include "../third_party/utf8proc/utf8proc.c"\n'
+data = (
+    f"/* C engine SHA256: {digest.hexdigest()} */\n"
+    '#include "../lib/engine.c"\n'
+    '#include "../lib/util/utf8.c"\n'
+    '#include "../third_party/utf8proc/utf8proc.c"\n'
+)
 if target.read_text(encoding="utf-8") != data:
     if args.check:
         raise SystemExit("Run uv run python scripts/sync_native.py after editing the C engine")

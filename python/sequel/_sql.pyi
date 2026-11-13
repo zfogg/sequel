@@ -12,6 +12,7 @@ def metadata(
     omit_query_text: bool,
     keep_in_lists: bool,
 ) -> tuple[str, str, str, bool, int]: ...
+def parse_document(sql: str, dialect: int) -> dict: ...
 
 class DiagnosticDict(TypedDict):
     code: str
