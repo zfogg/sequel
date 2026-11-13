@@ -210,7 +210,7 @@ typedef struct {
 
 /* Interpolation is opaque, but its nested strings/comments/braces must be
  * scanned so a nested template cannot masquerade as a separate SQL string. */
-static size_t template_end(const char *s, size_t n, size_t start, unsigned depth, int *dynamic) {
+static size_t embedded_template_end(const char *s, size_t n, size_t start, unsigned depth, int *dynamic) {
   if (depth >= 64)
     return SIZE_MAX;
   for (size_t i = start + 1; i < n; ++i) {
@@ -231,7 +231,7 @@ static size_t template_end(const char *s, size_t n, size_t start, unsigned depth
       char c = s[i];
       if (c == '`') {
         int nested = 0;
-        size_t end = template_end(s, n, i, depth + 1, &nested);
+        size_t end = embedded_template_end(s, n, i, depth + 1, &nested);
         if (end == SIZE_MAX)
           return SIZE_MAX;
         i = end - 1;
@@ -312,7 +312,7 @@ static size_t template_end(const char *s, size_t n, size_t start, unsigned depth
   return SIZE_MAX;
 }
 
-static int scan_literal(const char *s, size_t n, size_t start, int lang, literal *l) {
+static int embedded_scan_literal(const char *s, size_t n, size_t start, int lang, literal *l) {
   memset(l, 0, sizeof(*l));
   l->start = start;
   l->quote = s[start];
@@ -321,7 +321,7 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang, literal
   l->body = start + (l->triple ? 3 : 1);
   if ((lang == JS || lang == TS) && s[start] == '`') {
     int dynamic = 0;
-    size_t end = template_end(s, n, start, 0, &dynamic);
+    size_t end = embedded_template_end(s, n, start, 0, &dynamic);
     if (end == SIZE_MAX)
       return 0;
     l->end = end - 1;
@@ -423,7 +423,7 @@ static int scan_literal(const char *s, size_t n, size_t start, int lang, literal
   return 0;
 }
 
-static int decode(const char *s, literal l, buffer *b) {
+static int embedded_decode_literal(const char *s, literal l, buffer *b) {
   for (size_t i = l.body; i < l.end; ++i) {
     char c = s[i];
     if (!l.raw && c == '\\') {
@@ -479,13 +479,13 @@ static void encode(buffer *out, const char *sql, literal l, int lang) {
   }
 }
 
-static int quoted_character(const char *s, size_t n, size_t i) {
+static int embedded_is_quoted_character(const char *s, size_t n, size_t i) {
   unsigned char c = (unsigned char)s[i + 1];
   size_t width = c < 128 ? 1 : c < 224 ? 2 : c < 240 ? 3 : 4;
   return i + 1 + width < n && s[i + 1 + width] == '\'';
 }
 
-static int continuation(const char *s) {
+static int embedded_has_continuation(const char *s) {
   if (*s == ' ' || *s == '\t' || *s == ')' || *s == ',')
     return 1;
   const char *words[] = {"FROM",  "WHERE",  "AND",    "OR",    "JOIN",   "LEFT", "RIGHT", "INNER",     "GROUP", "ORDER",
@@ -564,7 +564,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
             ++p;
         if (p < n && s[p] == ' ')
           ++p;
-        if (p >= n || !continuation(s + p))
+        if (p >= n || !embedded_has_continuation(s + p))
           break;
         size_t q = p;
         while (q < n && s[q] != '\n' && s[q] != '\r')
@@ -725,7 +725,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
         ((lang == HS && i && (isalnum((unsigned char)s[i - 1]) || (unsigned char)s[i - 1] >= 128 || s[i - 1] == '_')) ||
          ((lang == RUST || lang == HS) && i + 1 < n &&
           (isalpha((unsigned char)s[i + 1]) || (unsigned char)s[i + 1] >= 128 || s[i + 1] == '_') &&
-          !quoted_character(s, n, i)))) {
+          !embedded_is_quoted_character(s, n, i)))) {
       append(&out, s + i, 1);
       ++i;
       continue;
@@ -742,11 +742,11 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
     }
     if (s[i] == '"' || (s[i] == '\'' && lang != CLOJURE) || (s[i] == '`' && (lang == GO || lang == JS || lang == TS))) {
       literal first, last;
-      if (!scan_literal(s, n, i, lang, &first))
+      if (!embedded_scan_literal(s, n, i, lang, &first))
         goto fail;
       last = first;
       buffer query = {0};
-      int safe = !first.skip && decode(s, first, &query);
+      int safe = !first.skip && embedded_decode_literal(s, first, &query);
       // Only C adjacent strings and Go's literal + literal concatenation are
       // joined.
       for (;;) {
@@ -772,12 +772,12 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
         if (p >= n || (s[p] != '"' && !(lang == GO && s[p] == '`')))
           break;
         literal next;
-        if (!scan_literal(s, n, p, lang, &next))
+        if (!embedded_scan_literal(s, n, p, lang, &next))
           goto literal_fail;
         if (first.raw != next.raw || first.quote != next.quote) {
           safe = 0;
         }
-        if (!decode(s, next, &query))
+        if (!embedded_decode_literal(s, next, &query))
           safe = 0;
         last = next;
       }
