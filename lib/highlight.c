@@ -373,6 +373,15 @@ sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_opti
   status = sequel_parse_sql(&source, &parse_options, NULL, &document);
   if (status != SEQUEL_OK)
     return status;
+  size_t block_comment_openings = 0;
+  for (size_t i = 0; i + 1 < n; ++i)
+    if (sql[i] == '/' && sql[i + 1] == '*')
+      ++block_comment_openings;
+  if (block_comment_openings > 64) {
+    sequel_syntax_document_free(document);
+    sequel_diagnostics_report(sql, n, diagnostic, SEQUEL_DIAG_NESTING_LIMIT, 0, n);
+    return SEQUEL_ERR_OVERFLOW;
+  }
   size_t issue_count = 0;
   sequel_syntax_issues(document, &issue_count);
   if (issue_count)
