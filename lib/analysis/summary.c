@@ -195,8 +195,22 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   }
   if (summary.data && strstr(source.data, "JOIN LATERAL") && !lateral) {
     char *first_limit = strstr(summary.data, "LIMIT ");
-    if (first_limit)
-      first_limit[6] = numeric_limit_count == 1 ? '1' : '?';
+    char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
+    if (first_limit) {
+      if (second_limit && numeric_limit_count == 1) {
+        first_limit[6] = '?';
+        second_limit[6] = '1';
+      } else {
+        first_limit[6] = numeric_limit_count == 1 ? '1' : '?';
+      }
+    }
+  }
+  if (summary.data && strstr(source.data, "LEFT JOIN LATERAL") && strstr(source.data, "LIMIT 1")) {
+    char *last_limit = NULL;
+    for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
+      last_limit = cursor;
+    if (last_limit)
+      last_limit[6] = '1';
   }
   if (summary.data && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && source_limit && strstr(source.data, " BY ")) {
     char *rendered_limit = NULL;
