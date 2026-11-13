@@ -14,6 +14,7 @@ def test_non_query_metadata_has_empty_operation():
     result = inspect("-- comment only")
     assert result.operation == ""
 
+
 CLICKHOUSE_CASES = json.loads(
     (Path(__file__).resolve().parents[2] / "tests/sql_clickhouse.json").read_text(encoding="utf-8")
 )
@@ -78,9 +79,7 @@ def test_clickhouse(sql):
 
 
 def test_clickhouse_final_is_not_alias():
-    query = inspect(
-        "SELECT * FROM builds FINAL PREWHERE id=42 SETTINGS max_threads=8", dialect=Dialect.CLICKHOUSE
-    )
+    query = inspect("SELECT * FROM builds FINAL PREWHERE id=42 SETTINGS max_threads=8", dialect=Dialect.CLICKHOUSE)
     assert "FROM builds FINAL PREWHERE" in query.summary
     assert "AS FINAL" not in query.summary
 

@@ -28,7 +28,9 @@ library_sources = [
 if not args.check:
     for path in library_sources:
         name = "native_lib_" + "_".join(path.relative_to(root).with_suffix("").parts) + ".c"
-        (generated / name).write_text(f'#include "../{path.relative_to(root).as_posix()}"\n', encoding="utf-8", newline="\n")
+        (generated / name).write_text(
+            f'#include "../{path.relative_to(root).as_posix()}"\n', encoding="utf-8", newline="\n"
+        )
 data = f'/* C engine SHA256: {digest.hexdigest()} */\n#include "../lib/engine.c"\n#include "../lib/util/utf8.c"\n#include "../third_party/utf8proc/utf8proc.c"\n'
 if target.read_text(encoding="utf-8") != data:
     if args.check:

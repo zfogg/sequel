@@ -37,5 +37,3 @@ def metadata(
         return Query(*_sql.metadata(sql, int(Dialect(dialect)), max_query_text_bytes, omit_query_text, keep_in_lists))
     except ValueError as exc:
         raise SQLMetadataError("SQL metadata extraction rejected input") from exc
-
-
