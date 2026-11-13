@@ -205,7 +205,12 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       }
     }
   }
-  if (summary.data && strstr(source.data, "LEFT JOIN LATERAL") && strstr(source.data, "LIMIT 1")) {
+  size_t statement_terminators = 0;
+  for (size_t i = 0; i < source.length; ++i)
+    if (source.data[i] == ';')
+      ++statement_terminators;
+  if (summary.data && statement_terminators <= 1 && strstr(source.data, "LEFT JOIN LATERAL") &&
+      strstr(source.data, "LIMIT 1")) {
     char *last_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       last_limit = cursor;
