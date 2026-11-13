@@ -81,6 +81,29 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
     sequel_analysis_append_text(safe, "", 0);
 }
 
+/* Keep the aggregate ABI's historical summary normalization while the document
+ * API exposes the structured renderer directly.  This is a projection boundary,
+ * not a second parser: metadata() consumes the same parsed model and only
+ * applies the established text-normalization contract. */
+static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t length, sequel_dialect_t dialect,
+                                                      sequel_analysis_t *out) {
+  sequel_metadata_options_t options = {
+      .dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
+  sequel_metadata_t metadata = {0};
+  if (sequel_metadata_n(sql, length, &options, &metadata) != SEQUEL_OK || !metadata.summary) {
+    sequel_metadata_free(&metadata);
+    return;
+  }
+  size_t summary_length = strlen(metadata.summary);
+  char *summary = malloc(summary_length + 1);
+  if (summary) {
+    memcpy(summary, metadata.summary, summary_length + 1);
+    free((char *)out->summary);
+    out->summary = summary;
+  }
+  sequel_metadata_free(&metadata);
+}
+
 sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
                                  sequel_analysis_t *out) {
   if (!out)
@@ -260,6 +283,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         sequel_analysis_summary_from_query(query, safe.p, safe.n, out);
       else
         sequel_analysis_summary_default(out);
+      if (query && sequel_query_statement_count(query))
+        sequel_analysis_restore_aggregate_summary(sql, n, o.dialect, out);
       sequel_analysis_charge(&a, strlen(out->operation) + 1);
       size_t limit = o.max_query_text_bytes ? o.max_query_text_bytes : SEQUEL_TEXT_MAX;
       if (!o.omit_query_text && safe.n > limit) {
