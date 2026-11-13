@@ -44,7 +44,7 @@ static const char *text_find(const char *source, const char *needle) {
   return source ? sequel_text_find(source, strlen(source), needle) : NULL;
 }
 
-static int word(const char *s, const char *w) {
+static int embedded_word_equals(const char *s, const char *w) {
   while (*w) {
     if (toupper((unsigned char)*s++) != *w++)
       return 0;
@@ -52,14 +52,14 @@ static int word(const char *s, const char *w) {
   return !isalnum((unsigned char)*s) && *s != '_';
 }
 
-static int hasword(const char *s, const char *w) {
+static int embedded_contains_word(const char *s, const char *w) {
   for (size_t i = 0; s[i]; ++i)
-    if ((!i || !isalnum((unsigned char)s[i - 1])) && word(s + i, w))
+    if ((!i || !isalnum((unsigned char)s[i - 1])) && embedded_word_equals(s + i, w))
       return 1;
   return 0;
 }
 
-static int sql_candidate(const char *s) {
+static int embedded_sql_candidate(const char *s) {
   for (;;) {
     while (isspace((unsigned char)*s))
       ++s;
@@ -76,20 +76,27 @@ static int sql_candidate(const char *s) {
     } else
       break;
   }
-  if (word(s, "SELECT")) {
+  if (embedded_word_equals(s, "SELECT")) {
     s += 6;
     while (isspace((unsigned char)*s))
       ++s;
-    return hasword(s, "FROM") || hasword(s, "AS") || isdigit((unsigned char)*s) || *s == '\'' || *s == '"' ||
-           *s == '*' || strchr(s, '(') != NULL;
+    return embedded_contains_word(s, "FROM") || embedded_contains_word(s, "AS") || isdigit((unsigned char)*s) ||
+           *s == '\'' || *s == '"' || *s == '*' || strchr(s, '(') != NULL;
   }
-  return (word(s, "WITH") && hasword(s, "SELECT")) || (word(s, "INSERT") && hasword(s, "INTO")) ||
-         (word(s, "UPDATE") && hasword(s, "SET")) || (word(s, "DELETE") && hasword(s, "FROM")) ||
-         (word(s, "CREATE") && (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
-         (word(s, "ALTER") && hasword(s, "TABLE")) ||
-         (word(s, "DROP") && (hasword(s, "TABLE") || hasword(s, "INDEX") || hasword(s, "VIEW"))) ||
-         (word(s, "EXPLAIN") && hasword(s, "SELECT")) || (word(s, "TRUNCATE") && hasword(s, "TABLE")) ||
-         word(s, "PRAGMA") || (word(s, "REPLACE") && hasword(s, "INTO"));
+  return (embedded_word_equals(s, "WITH") && embedded_contains_word(s, "SELECT")) ||
+         (embedded_word_equals(s, "INSERT") && embedded_contains_word(s, "INTO")) ||
+         (embedded_word_equals(s, "UPDATE") && embedded_contains_word(s, "SET")) ||
+         (embedded_word_equals(s, "DELETE") && embedded_contains_word(s, "FROM")) ||
+         (embedded_word_equals(s, "CREATE") &&
+          (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") ||
+           embedded_contains_word(s, "VIEW"))) ||
+         (embedded_word_equals(s, "ALTER") && embedded_contains_word(s, "TABLE")) ||
+         (embedded_word_equals(s, "DROP") &&
+          (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") ||
+           embedded_contains_word(s, "VIEW"))) ||
+         (embedded_word_equals(s, "EXPLAIN") && embedded_contains_word(s, "SELECT")) ||
+         (embedded_word_equals(s, "TRUNCATE") && embedded_contains_word(s, "TABLE")) ||
+         embedded_word_equals(s, "PRAGMA") || (embedded_word_equals(s, "REPLACE") && embedded_contains_word(s, "INTO"));
 }
 
 typedef struct {
@@ -99,7 +106,7 @@ typedef struct {
 
 static char *format_sql(const char *s, sql_transform *policy) {
   int dialect = policy->dialect;
-  if (!sql_candidate(s) || text_find(s, "{{") || text_find(s, "{}") || text_find(s, "{:"))
+  if (!embedded_sql_candidate(s) || text_find(s, "{{") || text_find(s, "{}") || text_find(s, "{:"))
     return NULL;
   for (size_t i = 0; s[i] && s[i + 1]; ++i) {
     if (s[i] == '\'' || s[i] == '"' || s[i] == '`') {
@@ -484,7 +491,7 @@ static int continuation(const char *s) {
   const char *words[] = {"FROM",  "WHERE",  "AND",    "OR",    "JOIN",   "LEFT", "RIGHT", "INNER",     "GROUP", "ORDER",
                          "LIMIT", "OFFSET", "HAVING", "UNION", "VALUES", "SET",  "ON",    "RETURNING", NULL};
   for (size_t i = 0; words[i]; ++i)
-    if (word(s, words[i]))
+    if (embedded_word_equals(s, words[i]))
       return 1;
   return 0;
 }
