@@ -104,8 +104,9 @@ static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t le
   sequel_metadata_free(&metadata);
 }
 
-static void sequel_analysis_restore_aggregate_operation(const sequel_query_document_t *query, sequel_analysis_t *out) {
-  if (!query || !out || out->operation[0] || sequel_query_statement_count(query) <= 1)
+static void sequel_analysis_restore_aggregate_operation(const sequel_query_document_t *query, sequel_dialect_t dialect,
+                                                        sequel_analysis_t *out) {
+  if (!query || !out || out->operation[0] || sequel_query_statement_count(query) <= 1 || dialect == SEQUEL_CLICKHOUSE)
     return;
   sequel_source_view_t source = sequel_query_source(query);
   size_t first = 0;
@@ -312,7 +313,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       if (query)
         sequel_analysis_operation_from_query(query, out);
       if (query)
-        sequel_analysis_restore_aggregate_operation(query, out);
+        sequel_analysis_restore_aggregate_operation(query, o.dialect, out);
       if (query && sequel_query_statement_count(query))
         sequel_analysis_summary_from_query(query, safe.p, safe.n, out);
       else
