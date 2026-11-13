@@ -15,7 +15,7 @@ setup(
                 *library_sources,
                 "third_party/utf8proc/utf8proc.c",
             ],
-            include_dirs=["include", "third_party/utf8proc"],
+            include_dirs=["include", "lib", "third_party/utf8proc"],
             define_macros=[("UTF8PROC_STATIC", "1")],
         )
     ]
