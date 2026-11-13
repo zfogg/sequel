@@ -1647,6 +1647,14 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
               limit_has_parameter = true;
               break;
             }
+          if (!limit_has_parameter) {
+            for (size_t cursor = start; cursor < end; ++cursor) {
+              if (source.data[cursor] == '$' || source.data[cursor] == '?' || source.data[cursor] == ':') {
+                limit_has_parameter = true;
+                break;
+              }
+            }
+          }
           bool has_offset = sequel_summary_find_text(source.data + start, " OFFSET ") != NULL;
           bool preserve_limit = !limit_has_parameter && (memchr(source.data + start, ',', end - start) != NULL ||
                                                          (has_offset && sequel_query_dialect(query) != SEQUEL_MYSQL));
