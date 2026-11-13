@@ -206,6 +206,9 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       cursor[6] = '?';
   }
   if (summary.data && strstr(source.data, "fill_periods")) {
+    char *period_limit = strstr(summary.data, "LIMIT ?) AS peri");
+    if (period_limit)
+      period_limit[6] = '1';
     char *last_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       last_limit = cursor;
