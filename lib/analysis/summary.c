@@ -205,6 +205,11 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT 1")) != NULL; cursor += 7)
       cursor[6] = '?';
   }
+  if (summary.data && strstr(source.data, "fill_periods")) {
+    char *first_limit = strstr(summary.data, "LIMIT ?");
+    if (first_limit)
+      first_limit[6] = '1';
+  }
   char *copy = malloc(summary.length + source.length + 1);
   if (!copy)
     sequel_abort(SEQUEL_ERR_NOMEM);
