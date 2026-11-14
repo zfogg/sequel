@@ -76,175 +76,8 @@ static size_t sequel_query_scope_for_range(const sequel_query_document_t *docume
   return match;
 }
 
-sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax, const sequel_parse_options_t *options, sequel_query_document_t **out) {
-  if (!syntax || !out)
-    return SEQUEL_ERR_NULL;
-  *out = NULL;
-  sequel_query_document_t *document = calloc(1, sizeof(*document));
-  if (!document)
-    return SEQUEL_ERR_NOMEM;
-  document->syntax = syntax;
-  size_t max_nodes = options && options->max_nodes ? options->max_nodes : (size_t)-1;
-  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
-  size_t node_count = 0;
-  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
-  size_t token_count = 0;
-  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
-  sequel_source_view_t source = sequel_lexed_source(lexed);
-  sequel_status_t statement_status = sequel_query_build_statements(document, syntax, tokens, token_count, &source, max_nodes);
-  if (statement_status != SEQUEL_OK) {
-    sequel_query_document_free(document);
-    return statement_status;
-  }
-  sequel_status_t cte_status = sequel_query_build_ctes(document, tokens, token_count, &source);
-  if (cte_status != SEQUEL_OK) {
-    sequel_query_document_free(document);
-    return cte_status;
-  }
-  if (document->cte_count && document->statement_count) {
-    size_t kept = 0;
-    for (size_t i = 0; i < document->statement_count; ++i) {
-      bool nested = false;
-      for (size_t cte = 0; cte < document->cte_count; ++cte) {
-        if (document->statements[i].range.start >= document->ctes[cte].body_range.start && document->statements[i].range.end <= document->ctes[cte].body_range.end) {
-          nested = true;
-          break;
-        }
-      }
-      if (!nested)
-        document->statements[kept++] = document->statements[i];
-    }
-    document->statement_count = kept;
-    size_t outer = document->ctes[document->cte_count - 1].range.end;
-    if (document->statement_count && document->statements[0].range.start >= outer)
-      outer = document->statements[0].range.start;
-    document->outer_range = (sequel_source_range_t){outer, source.length};
-    unsigned outer_depth = 0;
-    for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
-        continue;
-      char punctuation = source.data[tokens[token].range.start];
-      if (punctuation == '(' || punctuation == ')') {
-        if (punctuation == '(')
-          ++outer_depth;
-        else if (outer_depth)
-          --outer_depth;
-        continue;
-      }
-      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
-        document->outer_limit = true;
-        document->outer_limit_range = tokens[token].range;
-        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
-        size_t value = token + 1;
-        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
-          ++value;
-        if (value < token_count)
-          document->outer_limit_value_range = tokens[value].range;
-        break;
-      }
-    }
-    document->outer_distinct_on = false;
-    size_t cursor = outer;
-    while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
-      ++cursor;
-    if (cursor + 6 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 6, "SELECT")) {
-      cursor += 6;
-      while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
-        ++cursor;
-      if (cursor + 8 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 8, "DISTINCT")) {
-        cursor += 8;
-        while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
-          ++cursor;
-        document->outer_distinct_on = cursor + 2 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 2, "ON");
-      }
-    }
-    for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.start < outer || sequel_token_is_trivia(&tokens[token]))
-        continue;
-      sequel_operation_t outer_operation = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
-      if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
-        document->statements[0].operation = outer_operation;
-        break;
-      }
-    }
-  }
-  if (!document->cte_count && document->statement_count) {
-    size_t outer = document->statements[0].range.start;
-    document->outer_range = (sequel_source_range_t){outer, source.length};
-    unsigned outer_depth = 0;
-    for (size_t token = 0; token < token_count; ++token) {
-      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
-        continue;
-      char punctuation = source.data[tokens[token].range.start];
-      if (punctuation == '(' || punctuation == ')') {
-        if (punctuation == '(')
-          ++outer_depth;
-        else if (outer_depth)
-          --outer_depth;
-        continue;
-      }
-      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
-        document->outer_limit = true;
-        document->outer_limit_range = tokens[token].range;
-        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
-        size_t value = token + 1;
-        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
-          ++value;
-        if (value < token_count)
-          document->outer_limit_value_range = tokens[value].range;
-        break;
-      }
-    }
-  }
-  /* ClickHouse also permits scalar WITH bindings without a parenthesized CTE:
-   * WITH expr AS name SELECT ... . The syntax node is intentionally retained
-   * as WITH, but the normalized statement operation is the executable body. */
-  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
-    size_t depth = 0;
-    bool after_with = false;
-    for (size_t token = 0; token < token_count; ++token) {
-      const sequel_token_t *current = &tokens[token];
-      if (sequel_token_is_trivia(current))
-        continue;
-      if (!after_with) {
-        if (current->kind == SEQUEL_TOKEN_KEYWORD && current->keyword_id == SEQUEL_KEYWORD_WITH)
-          after_with = true;
-        continue;
-      }
-      if (current->kind == SEQUEL_TOKEN_PUNCTUATION) {
-        char punctuation = source.data[current->range.start];
-        if (punctuation == '(')
-          ++depth;
-        else if (punctuation == ')' && depth)
-          --depth;
-        continue;
-      }
-      if (depth || current->kind != SEQUEL_TOKEN_KEYWORD)
-        continue;
-      sequel_operation_t body_operation = sequel_query_operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
-      if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
-        document->statements[0].operation = body_operation;
-        break;
-      }
-    }
-  }
-  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
-    for (size_t token = 0; token < token_count; ++token) {
-      if (sequel_token_is_trivia(&tokens[token]))
-        continue;
-      sequel_operation_t recovered = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
-      if (recovered != SEQUEL_OPERATION_UNKNOWN) {
-        document->statements[0].operation = recovered;
-        break;
-      }
-    }
-  }
-  /* Parameter identity and type ranges are normalized by the binding layer. */
-  sequel_status_t parameter_status = sequel_query_build_parameters(document, tokens, token_count, &source);
-  if (parameter_status != SEQUEL_OK) {
-    sequel_query_document_free(document);
-    return parameter_status;
-  }
+static sequel_status_t sequel_query_collect_projection_details(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, const sequel_syntax_node_t *nodes, size_t node_count,
+                                                               sequel_source_view_t source) {
   for (size_t s = 0; s < document->statement_count; ++s) {
     const sequel_statement_info_t *statement = &document->statements[s];
     size_t first = statement->syntax_node < node_count ? nodes[statement->syntax_node].first_token : 0;
@@ -294,7 +127,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                                .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
         projection.expression_node = sequel_query_expression_node_for_range(document->syntax, projection.range);
         if (!sequel_query_array_append((void **)&document->projections, &document->projection_count, sizeof(projection), &projection)) {
-          sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
       }
@@ -324,13 +156,16 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                              .depth = 0};
         predicate.expression_node = sequel_query_expression_node_for_range(document->syntax, predicate.range);
         if (!sequel_query_array_append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
-          sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
       }
       break;
     }
   }
+  return SEQUEL_OK;
+}
+
+static sequel_status_t sequel_query_collect_relations(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, sequel_source_view_t source) {
   for (size_t i = 0; i < token_count; ++i) {
     bool comma_relation = false;
     if (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[i].range.start] == ',') {
@@ -425,7 +260,6 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .flags = SEQUEL_RELATION_FLAG_NESTED_SCOPE};
       relation.subquery_statement = sequel_query_scope_for_range(document, relation.name_range);
       if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
-        sequel_query_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
       continue;
@@ -598,6 +432,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       return SEQUEL_ERR_NOMEM;
     }
   }
+  return SEQUEL_OK;
+}
+
+static sequel_status_t sequel_query_collect_joins(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, sequel_source_view_t source) {
   for (size_t child = 0; child < document->relation_count; ++child) {
     size_t best = SIZE_MAX;
     for (size_t parent = 0; parent < document->relation_count; ++parent) {
@@ -722,6 +560,193 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
+  }
+  return SEQUEL_OK;
+}
+
+sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax, const sequel_parse_options_t *options, sequel_query_document_t **out) {
+  if (!syntax || !out)
+    return SEQUEL_ERR_NULL;
+  *out = NULL;
+  sequel_query_document_t *document = calloc(1, sizeof(*document));
+  if (!document)
+    return SEQUEL_ERR_NOMEM;
+  document->syntax = syntax;
+  size_t max_nodes = options && options->max_nodes ? options->max_nodes : (size_t)-1;
+  const sequel_lexed_document_t *lexed = sequel_syntax_lexed(syntax);
+  size_t node_count = 0;
+  const sequel_syntax_node_t *nodes = sequel_syntax_nodes(syntax, &node_count);
+  size_t token_count = 0;
+  const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
+  sequel_source_view_t source = sequel_lexed_source(lexed);
+  sequel_status_t statement_status = sequel_query_build_statements(document, syntax, tokens, token_count, &source, max_nodes);
+  if (statement_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return statement_status;
+  }
+  sequel_status_t cte_status = sequel_query_build_ctes(document, tokens, token_count, &source);
+  if (cte_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return cte_status;
+  }
+  if (document->cte_count && document->statement_count) {
+    size_t kept = 0;
+    for (size_t i = 0; i < document->statement_count; ++i) {
+      bool nested = false;
+      for (size_t cte = 0; cte < document->cte_count; ++cte) {
+        if (document->statements[i].range.start >= document->ctes[cte].body_range.start && document->statements[i].range.end <= document->ctes[cte].body_range.end) {
+          nested = true;
+          break;
+        }
+      }
+      if (!nested)
+        document->statements[kept++] = document->statements[i];
+    }
+    document->statement_count = kept;
+    size_t outer = document->ctes[document->cte_count - 1].range.end;
+    if (document->statement_count && document->statements[0].range.start >= outer)
+      outer = document->statements[0].range.start;
+    document->outer_range = (sequel_source_range_t){outer, source.length};
+    unsigned outer_depth = 0;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
+        continue;
+      char punctuation = source.data[tokens[token].range.start];
+      if (punctuation == '(' || punctuation == ')') {
+        if (punctuation == '(')
+          ++outer_depth;
+        else if (outer_depth)
+          --outer_depth;
+        continue;
+      }
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+        document->outer_limit = true;
+        document->outer_limit_range = tokens[token].range;
+        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
+        size_t value = token + 1;
+        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
+          ++value;
+        if (value < token_count)
+          document->outer_limit_value_range = tokens[value].range;
+        break;
+      }
+    }
+    document->outer_distinct_on = false;
+    size_t cursor = outer;
+    while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+      ++cursor;
+    if (cursor + 6 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 6, "SELECT")) {
+      cursor += 6;
+      while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+        ++cursor;
+      if (cursor + 8 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 8, "DISTINCT")) {
+        cursor += 8;
+        while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
+          ++cursor;
+        document->outer_distinct_on = cursor + 2 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 2, "ON");
+      }
+    }
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.start < outer || sequel_token_is_trivia(&tokens[token]))
+        continue;
+      sequel_operation_t outer_operation = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
+      if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = outer_operation;
+        break;
+      }
+    }
+  }
+  if (!document->cte_count && document->statement_count) {
+    size_t outer = document->statements[0].range.start;
+    document->outer_range = (sequel_source_range_t){outer, source.length};
+    unsigned outer_depth = 0;
+    for (size_t token = 0; token < token_count; ++token) {
+      if (tokens[token].range.end <= outer || sequel_token_is_trivia(&tokens[token]))
+        continue;
+      char punctuation = source.data[tokens[token].range.start];
+      if (punctuation == '(' || punctuation == ')') {
+        if (punctuation == '(')
+          ++outer_depth;
+        else if (outer_depth)
+          --outer_depth;
+        continue;
+      }
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+        document->outer_limit = true;
+        document->outer_limit_range = tokens[token].range;
+        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
+        size_t value = token + 1;
+        while (value < token_count && sequel_token_is_trivia(&tokens[value]))
+          ++value;
+        if (value < token_count)
+          document->outer_limit_value_range = tokens[value].range;
+        break;
+      }
+    }
+  }
+  /* ClickHouse also permits scalar WITH bindings without a parenthesized CTE:
+   * WITH expr AS name SELECT ... . The syntax node is intentionally retained
+   * as WITH, but the normalized statement operation is the executable body. */
+  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
+    size_t depth = 0;
+    bool after_with = false;
+    for (size_t token = 0; token < token_count; ++token) {
+      const sequel_token_t *current = &tokens[token];
+      if (sequel_token_is_trivia(current))
+        continue;
+      if (!after_with) {
+        if (current->kind == SEQUEL_TOKEN_KEYWORD && current->keyword_id == SEQUEL_KEYWORD_WITH)
+          after_with = true;
+        continue;
+      }
+      if (current->kind == SEQUEL_TOKEN_PUNCTUATION) {
+        char punctuation = source.data[current->range.start];
+        if (punctuation == '(')
+          ++depth;
+        else if (punctuation == ')' && depth)
+          --depth;
+        continue;
+      }
+      if (depth || current->kind != SEQUEL_TOKEN_KEYWORD)
+        continue;
+      sequel_operation_t body_operation = sequel_query_operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
+      if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = body_operation;
+        break;
+      }
+    }
+  }
+  if (document->statement_count && document->statements[0].operation == SEQUEL_OPERATION_UNKNOWN) {
+    for (size_t token = 0; token < token_count; ++token) {
+      if (sequel_token_is_trivia(&tokens[token]))
+        continue;
+      sequel_operation_t recovered = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
+      if (recovered != SEQUEL_OPERATION_UNKNOWN) {
+        document->statements[0].operation = recovered;
+        break;
+      }
+    }
+  }
+  /* Parameter identity and type ranges are normalized by the binding layer. */
+  sequel_status_t parameter_status = sequel_query_build_parameters(document, tokens, token_count, &source);
+  if (parameter_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return parameter_status;
+  }
+  sequel_status_t detail_status = sequel_query_collect_projection_details(document, tokens, token_count, nodes, node_count, source);
+  if (detail_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return detail_status;
+  }
+  detail_status = sequel_query_collect_relations(document, tokens, token_count, source);
+  if (detail_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return detail_status;
+  }
+  detail_status = sequel_query_collect_joins(document, tokens, token_count, source);
+  if (detail_status != SEQUEL_OK) {
+    sequel_query_document_free(document);
+    return detail_status;
   }
   /* Relations discovered inside scalar SELECT-list expressions belong to
    * the expression scope, not the statement's FROM clause. Record that
