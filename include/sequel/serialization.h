@@ -28,9 +28,8 @@ typedef struct {
   sequel_schema_version_t schema;
 } sequel_serialization_options_t;
 
+/** @brief Opaque owned bundle returned by deserialization. */
 typedef struct sequel_document_bundle sequel_document_bundle_t;
-
-/** @brief A deserialized bundle owns its source, syntax, query, and diagnostics. */
 
 /** @brief Initializes serialization options with the current schema version. */
 void sequel_serialization_options_init(sequel_serialization_options_t *options);

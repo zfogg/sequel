@@ -10,18 +10,23 @@
 #include <sequel/fingerprint.h>
 #include <sequel/formatter.h>
 
+/** @brief Opaque owned semantic analysis result. */
 typedef struct sequel_query_analysis sequel_query_analysis_t;
 
 /* Stable aggregate analysis ABI. Rich query analysis is exposed below. */
 #ifndef SEQUEL_ANALYSIS_TYPES_DEFINED
+/** @brief Guards the stable aggregate analysis type definitions. */
 #define SEQUEL_ANALYSIS_TYPES_DEFINED
+/** @brief Version of the aggregate analysis ABI. */
 #define SEQUEL_ANALYSIS_VERSION 1u
+/** @brief Version of the canonical diagnostic ABI embedded in analysis results. */
 #define SEQUEL_DIAGNOSTIC_VERSION 1u
 
 typedef struct {
   size_t offset, end_offset;
 } sequel_range_t;
 
+/** @brief Transformation represented by a source-map segment. */
 typedef enum { SEQUEL_MAP_COPY, SEQUEL_MAP_REPLACE, SEQUEL_MAP_DELETE, SEQUEL_MAP_INSERT } sequel_map_kind_t;
 
 typedef struct {
@@ -70,12 +75,56 @@ typedef struct {
 } sequel_analysis_t;
 #endif
 
+/**
+ * @brief Analyze explicit-length SQL input.
+ * @param sql UTF-8 SQL bytes.
+ * @param length Number of bytes in @p sql.
+ * @param options Optional analysis limits and feature selection.
+ * @param[out] out Caller-owned result structure.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_analyze_n(const char *sql, size_t length, const sequel_analysis_options_t *options, sequel_analysis_t *out);
+/**
+ * @brief Analyze.
+ * @param sql Argument supplied by the caller.
+ * @param options Argument supplied by the caller.
+ * @param out Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t *options, sequel_analysis_t *out);
+/**
+ * @brief Analysis free.
+ * @param out Argument supplied by the caller.
+ */
 void sequel_analysis_free(sequel_analysis_t *out);
 
+/**
+ * @brief Source map range.
+ * @param map Argument supplied by the caller.
+ * @param start Argument supplied by the caller.
+ * @param end Argument supplied by the caller.
+ * @param reverse Argument supplied by the caller.
+ * @param out Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t start, size_t end, bool reverse, sequel_mapped_range_t *out);
+/**
+ * @brief Utf8 to utf16.
+ * @param text Argument supplied by the caller.
+ * @param length Argument supplied by the caller.
+ * @param offset Argument supplied by the caller.
+ * @param units Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_utf8_to_utf16(const char *text, size_t length, size_t offset, size_t *units);
+/**
+ * @brief Utf16 to utf8.
+ * @param text Argument supplied by the caller.
+ * @param length Argument supplied by the caller.
+ * @param units Argument supplied by the caller.
+ * @param offset Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_utf16_to_utf8(const char *text, size_t length, size_t units, size_t *offset);
 
 typedef struct {
@@ -95,6 +144,7 @@ typedef struct {
   size_t portability_target_count;
 } sequel_query_analysis_options_t;
 
+/** @brief Transformation represented by an analysis source-map segment. */
 typedef enum { SEQUEL_ANALYSIS_MAP_COPY, SEQUEL_ANALYSIS_MAP_REPLACE, SEQUEL_ANALYSIS_MAP_DELETE, SEQUEL_ANALYSIS_MAP_INSERT } sequel_analysis_map_kind_t;
 
 typedef struct {

@@ -51,7 +51,9 @@ typedef struct {
   uint32_t dialect_id;
 } sequel_token_t;
 
+/** @brief Opaque owned lossless lexical document. */
 typedef struct sequel_lexed_document sequel_lexed_document_t;
+/** @brief Structured diagnostic retained by a lexical document. */
 typedef struct sequel_diagnostic_record sequel_diagnostic_record_t;
 
 /** Release a lexical document. NULL is permitted. */
@@ -74,6 +76,10 @@ sequel_dialect_t sequel_lexed_dialect(const sequel_lexed_document_t *document);
 
 /** Return lexical diagnostics retained by the document. The array is borrowed. */
 size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document);
+/**
+ * @brief Lexed diagnostics.
+ * @param document Argument supplied by the caller.
+ */
 const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document);
 
 /** Return the exact source bytes covered by a token. */

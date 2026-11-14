@@ -99,8 +99,33 @@ typedef struct {
   size_t clause_count;
 } sequel_dialect_definition_t;
 
+/**
+ * @brief Dialect definition.
+ * @param dialect Argument supplied by the caller.
+ */
 const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t dialect);
+/**
+ * @brief Dialect name.
+ * @param dialect Argument supplied by the caller.
+ */
 const char *sequel_dialect_name(sequel_dialect_t dialect);
+/**
+ * @brief Dialect keyword id.
+ * @param dialect Argument supplied by the caller.
+ * @param text Argument supplied by the caller.
+ * @param length Argument supplied by the caller.
+ */
 unsigned sequel_dialect_keyword_id(sequel_dialect_t dialect, const char *text, size_t length);
+/**
+ * @brief Dialect operator.
+ * @param dialect Argument supplied by the caller.
+ * @param text Argument supplied by the caller.
+ * @param length Argument supplied by the caller.
+ */
 const sequel_operator_definition_t *sequel_dialect_operator(sequel_dialect_t dialect, const char *text, size_t length);
+/**
+ * @brief Dialect clause.
+ * @param dialect Argument supplied by the caller.
+ * @param keyword_id Argument supplied by the caller.
+ */
 const sequel_clause_definition_t *sequel_dialect_clause(sequel_dialect_t dialect, unsigned keyword_id);

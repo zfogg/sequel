@@ -7,6 +7,7 @@
 
 #include <sequel/formatter.h>
 
+/** @brief Flags controlling comment removal and literal replacement. */
 enum { SEQUEL_SANITIZE_REMOVE_COMMENTS = 1u << 0, SEQUEL_SANITIZE_REPLACE_LITERALS = 1u << 1 };
 
 /**

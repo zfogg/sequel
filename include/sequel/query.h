@@ -14,6 +14,7 @@
 
 SEQUEL_EXTERN_C_BEGIN
 
+/** @brief Opaque owned normalized query document. */
 typedef struct sequel_query_document sequel_query_document_t;
 
 /** Identifies the top-level operation represented by a statement. */
@@ -49,6 +50,7 @@ typedef struct {
   uint32_t keyword_id;
 } sequel_clause_info_t;
 
+/** @brief Kind of relation reference discovered in a query scope. */
 typedef enum { SEQUEL_RELATION_TABLE = 0, SEQUEL_RELATION_SUBQUERY, SEQUEL_RELATION_CTE, SEQUEL_RELATION_FUNCTION, SEQUEL_RELATION_VALUES, SEQUEL_RELATION_UNKNOWN } sequel_relation_kind_t;
 
 typedef struct {
@@ -72,8 +74,10 @@ typedef struct {
   uint32_t flags;
 } sequel_cte_info_t;
 
+/** @brief Flags describing common-table-expression materialization. */
 enum { SEQUEL_CTE_FLAG_NONE = 0, SEQUEL_CTE_FLAG_MATERIALIZED = 1u << 0, SEQUEL_CTE_FLAG_NOT_MATERIALIZED = 1u << 1 };
 
+/** @brief Flags describing relation scope membership. */
 enum { SEQUEL_RELATION_FLAG_NESTED_SCOPE = 1u << 0, SEQUEL_RELATION_FLAG_PROJECTION_SCOPE = 1u << 1 };
 
 typedef struct {
@@ -87,6 +91,7 @@ typedef struct {
   uint64_t identity;
 } sequel_parameter_info_t;
 
+/** @brief Join operator represented in the normalized query model. */
 typedef enum { SEQUEL_JOIN_INNER = 0, SEQUEL_JOIN_LEFT, SEQUEL_JOIN_RIGHT, SEQUEL_JOIN_FULL, SEQUEL_JOIN_CROSS, SEQUEL_JOIN_NATURAL, SEQUEL_JOIN_LATERAL, SEQUEL_JOIN_UNKNOWN } sequel_join_kind_t;
 
 enum {
@@ -241,6 +246,10 @@ sequel_source_view_t sequel_query_source(const sequel_query_document_t *document
 
 /** Return the dialect retained by the query document. */
 sequel_dialect_t sequel_query_dialect(const sequel_query_document_t *document);
+/**
+ * @brief Query syntax.
+ * @param document Argument supplied by the caller.
+ */
 const sequel_syntax_document_t *sequel_query_syntax(const sequel_query_document_t *document);
 
 /** Visit normalized query entities in document order. */

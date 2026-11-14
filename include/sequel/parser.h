@@ -17,7 +17,9 @@
 
 SEQUEL_EXTERN_C_BEGIN
 
+/** @brief Opaque owned recovered syntax document. */
 typedef struct sequel_syntax_document sequel_syntax_document_t;
+/** @brief Structured diagnostic record shared by parser layers. */
 typedef struct sequel_diagnostic_record sequel_diagnostic_record_t;
 
 typedef struct {
@@ -80,6 +82,13 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
  */
 sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
 
+/**
+ * @brief Syntax visit.
+ * @param document Argument supplied by the caller.
+ * @param root_node Argument supplied by the caller.
+ * @param visitor Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node, const sequel_syntax_visitor_t *visitor);
 
 /** Parse and lex explicit UTF-8 source bytes in one operation. */

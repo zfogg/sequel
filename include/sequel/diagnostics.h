@@ -48,6 +48,7 @@ typedef enum {
   SEQUEL_DIAG_SQLC_ANNOTATION
 } sequel_diagnostic_code_t;
 
+/** @brief Severity assigned to a diagnostic. */
 typedef enum { SEQUEL_NOTE, SEQUEL_WARNING, SEQUEL_ERROR } sequel_severity_t;
 
 enum {
@@ -73,12 +74,48 @@ typedef struct sequel_diagnostic {
   char hint[SEQUEL_DIAGNOSTIC_HINT_MAX];
 } sequel_diagnostic_t;
 
+/**
+ * @brief Diagnostic code name.
+ * @param code Argument supplied by the caller.
+ */
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
+/**
+ * @brief Diagnose.
+ * @param sql Argument supplied by the caller.
+ * @param dialect Argument supplied by the caller.
+ * @param diagnostic Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
+/**
+ * @brief Diagnose n.
+ * @param sql Argument supplied by the caller.
+ * @param length Argument supplied by the caller.
+ * @param dialect Argument supplied by the caller.
+ * @param diagnostic Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
 
+/**
+ * @brief Diagnostic catalog count.
+ */
 size_t sequel_diagnostic_catalog_count(void);
+/**
+ * @brief Diagnostic catalog get.
+ * @param index Argument supplied by the caller.
+ * @param out Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out);
+/**
+ * @brief Diagnostic canonicalize.
+ * @param version Argument supplied by the caller.
+ * @param source_length Argument supplied by the caller.
+ * @param input Argument supplied by the caller.
+ * @param out Argument supplied by the caller.
+ * @return Status describing success or failure.
+ */
 sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input, sequel_diagnostic_t *out);
 
 /** Layer that produced a structured diagnostic. */
@@ -119,6 +156,10 @@ typedef struct {
 /** Project one structured record into the fixed diagnostic representation. */
 sequel_status_t sequel_diagnostic_project(const char *source, size_t source_length, const sequel_diagnostic_record_t *record, sequel_diagnostic_t *out);
 
+/**
+ * @brief Diagnostic list free.
+ * @param diagnostics Argument supplied by the caller.
+ */
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 
 /** Append one record, growing the owned list; returns false on overflow or allocation failure. */

@@ -7,6 +7,7 @@
 #include <sequel/query.h>
 #include <sequel/status.h>
 
+/** @brief Required hexadecimal fingerprint buffer length, including the terminator. */
 enum { SEQUEL_FINGERPRINT_LENGTH = 65 };
 
 /** @brief Selects the structural layer included in a fingerprint. */
