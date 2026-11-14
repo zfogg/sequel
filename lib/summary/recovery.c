@@ -3,8 +3,6 @@
 
 #include "internal.h"
 
-static const char summary_ellipsis[] = "\342\200\246";
-
 int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
                                            size_t statement_count, const sequel_statement_info_t *statements) {
   if (sequel_lexed_dialect(sequel_syntax_lexed(sequel_query_syntax(query))) != SEQUEL_CLICKHOUSE || !sequel_summary_find_text(source.data, "$"))
@@ -27,7 +25,7 @@ int sequel_summary_append_dialect_recovery(char **text, size_t *length, size_t *
 
   bool distinct_outer = sequel_query_outer_distinct_on(query);
   if (!sequel_summary_append_text(text, length, capacity, distinct_outer ? "SELECT DISTINCT ON (…) " : "SELECT ") ||
-      !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(text, length, capacity, " FROM ") ||
+      !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(text, length, capacity, " FROM ") ||
       !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)))
     return -1;
   return 2;

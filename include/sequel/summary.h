@@ -17,6 +17,7 @@ typedef struct {
   bool include_bind_count;
   bool redact_literals;
   bool redact_relations;
+  bool utf8_output;
   size_t max_length;
 } sequel_summary_options_t;
 

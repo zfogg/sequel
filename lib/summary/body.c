@@ -3,8 +3,6 @@
 
 #include "internal.h"
 
-static const char summary_ellipsis[] = "\342\200\246";
-
 static size_t sequel_summary_matching_parenthesis(const char *source, size_t end, size_t open) {
   size_t depth = 0;
   for (size_t cursor = open; cursor < end; ++cursor) {
@@ -42,7 +40,7 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
                         sequel_summary_word(source, close, alias, "ORDER") || sequel_summary_word(source, close, alias, "OFFSET")))
     alias_end = alias;
   if (!sequel_summary_append_text(text, length, capacity, " ") || !sequel_summary_append_text(text, length, capacity, not_exists) || !sequel_summary_append_text(text, length, capacity, "SELECT ") ||
-      !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(text, length, capacity, " FROM ") ||
+      !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(text, length, capacity, " FROM ") ||
       !sequel_summary_append_bytes(text, length, capacity, source + table, table_end - table) ||
       (alias < alias_end && (!sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, source + alias, alias_end - alias))))
     return 0;
@@ -75,7 +73,8 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
   }
   const char *where_match = sequel_summary_find_word(source, close, cursor, "WHERE");
   size_t where = where_match ? (size_t)(where_match - source) : close;
-  if (where < close && (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+  if (where < close &&
+      (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
     return 0;
   const char *offset_match = sequel_summary_find_word(source, close, cursor, "OFFSET");
   if (offset_match) {
@@ -107,6 +106,14 @@ static size_t sequel_summary_body_start(const char *source, sequel_source_range_
   return start;
 }
 
+static int sequel_summary_append_body_summary_fallback(char **text, size_t *length, size_t *capacity) {
+  return sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length());
+}
+
+static int sequel_summary_append_body_summary_values(char **text, size_t *length, size_t *capacity) {
+  return sequel_summary_append_text(text, length, capacity, "VALUES ") && sequel_summary_append_body_summary_fallback(text, length, capacity);
+}
+
 static int sequel_summary_append_body_summary_impl(char **text, size_t *length, size_t *capacity, const char *source, sequel_source_range_t range, bool preserve_limit) {
   size_t start = sequel_summary_body_start(source, range);
   if (sequel_summary_word(source, range.end, start, "SELECT")) {
@@ -123,7 +130,7 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
       size_t cursor = start;
       while (cursor < range.end) {
         if (source[cursor] == '*' && (cursor == 0 || !isalnum((unsigned char)source[cursor - 1])) && (cursor + 1 == range.end || !isalnum((unsigned char)source[cursor + 1]))) {
-          if (!sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+          if (!sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
             return 0;
           ++cursor;
         } else if (sequel_summary_word(source, range.end, cursor, "true")) {
@@ -149,17 +156,17 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
       const char *open = strchr(source + expression, '(');
       const char *close = open ? strchr(open, ')') : NULL;
       if (!open || !close || close >= source + range.end) {
-        if (!sequel_summary_append_text(text, length, capacity, select_prefix) || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        if (!sequel_summary_append_text(text, length, capacity, select_prefix) || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
           return 0;
         return 1;
       }
       if (!sequel_summary_append_text(text, length, capacity, select_prefix) || !sequel_summary_append_bytes(text, length, capacity, source + expression, (size_t)(open - (source + expression))) ||
-          !sequel_summary_append_text(text, length, capacity, "(") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !sequel_summary_append_text(text, length, capacity, "(") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
           !sequel_summary_append_text(text, length, capacity, ")"))
         return 0;
       return 1;
     }
-    if (!sequel_summary_append_text(text, length, capacity, select_prefix) || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+    if (!sequel_summary_append_text(text, length, capacity, select_prefix) || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
         !sequel_summary_append_text(text, length, capacity, " FROM "))
       return 0;
     size_t table = sequel_summary_skip_space(source, range.end, from + 4);
@@ -205,7 +212,7 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
     if (first_join && (!where || first_join < source + where) && !sequel_summary_append_bytes(text, length, capacity, source + table_end, (size_t)(where - table_end)))
       return 0;
     if (!union_all && where < range.end) {
-      if (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      if (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
         return 0;
       size_t cursor = where;
       while (cursor < range.end) {
@@ -251,12 +258,13 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
         const char *join_alias_end = join_alias;
         while (join_alias_end < source + range.end && !isspace((unsigned char)*join_alias_end))
           ++join_alias_end;
-        if (!sequel_summary_append_text(text, length, capacity, " UNION ALL SELECT ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(text, length, capacity, " FROM ") || !sequel_summary_append_bytes(text, length, capacity, second_table, second_table_end - second_table) ||
-            !sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, second_alias, second_alias_end - second_alias) ||
-            !sequel_summary_append_text(text, length, capacity, " JOIN ") || !sequel_summary_append_bytes(text, length, capacity, join_table, join_table_end - join_table) ||
-            !sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, join_alias, join_alias_end - join_alias) ||
-            !sequel_summary_append_text(text, length, capacity, " ON ") || !sequel_summary_append_bytes(text, length, capacity, on + 4, (source + range.end) - (on + 4)))
+        if (!sequel_summary_append_text(text, length, capacity, " UNION ALL SELECT ") ||
+            !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(text, length, capacity, " FROM ") ||
+            !sequel_summary_append_bytes(text, length, capacity, second_table, second_table_end - second_table) || !sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, second_alias, second_alias_end - second_alias) || !sequel_summary_append_text(text, length, capacity, " JOIN ") ||
+            !sequel_summary_append_bytes(text, length, capacity, join_table, join_table_end - join_table) || !sequel_summary_append_text(text, length, capacity, " AS ") ||
+            !sequel_summary_append_bytes(text, length, capacity, join_alias, join_alias_end - join_alias) || !sequel_summary_append_text(text, length, capacity, " ON ") ||
+            !sequel_summary_append_bytes(text, length, capacity, on + 4, (source + range.end) - (on + 4)))
           return 0;
       }
     }
@@ -264,7 +272,7 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
     while (order < range.end && !sequel_summary_word(source, range.end, order, "ORDER BY") && !sequel_summary_word(source, range.end, order, "LIMIT"))
       ++order;
     if (order < range.end && sequel_summary_word(source, range.end, order, "ORDER BY") &&
-        (!sequel_summary_append_text(text, length, capacity, " ORDER BY ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+        (!sequel_summary_append_text(text, length, capacity, " ORDER BY ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
       return 0;
     size_t limit = order;
     while (limit < range.end && !sequel_summary_word(source, range.end, limit, "LIMIT"))
@@ -327,7 +335,7 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
       while (where < range.end && !sequel_summary_word(source, range.end, where, "WHERE"))
         ++where;
       return where >= range.end ||
-             (sequel_summary_append_text(text, length, capacity, " WHERE ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+             (sequel_summary_append_text(text, length, capacity, " WHERE ") && sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()));
     }
     size_t from = start;
     while (from < range.end && !sequel_summary_word(source, range.end, from, "FROM"))
@@ -357,25 +365,25 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
     while (where < range.end && !sequel_summary_word(source, range.end, where, "WHERE") && !sequel_summary_word(source, range.end, where, "RETURNING"))
       ++where;
     if (where < range.end && sequel_summary_word(source, range.end, where, "WHERE") &&
-        (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+        (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
       return 0;
     while (where < range.end && !sequel_summary_word(source, range.end, where, "RETURNING"))
       ++where;
     return where >= range.end ||
-           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()));
   }
   if (sequel_summary_word(source, range.end, start, "UPDATE")) {
     size_t table = sequel_summary_skip_space(source, range.end, start + 6), end = table;
     while (end < range.end && !isspace((unsigned char)source[end]))
       ++end;
     if (!sequel_summary_append_text(text, length, capacity, "UPDATE ") || !sequel_summary_append_bytes(text, length, capacity, source + table, end - table) ||
-        !sequel_summary_append_text(text, length, capacity, " SET ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        !sequel_summary_append_text(text, length, capacity, " SET ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       return 0;
     size_t returning = end;
     while (returning < range.end && !sequel_summary_word(source, range.end, returning, "RETURNING"))
       ++returning;
     return returning >= range.end ||
-           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()));
   }
   if (sequel_summary_word(source, range.end, start, "INSERT")) {
     size_t into = start;
@@ -395,20 +403,20 @@ static int sequel_summary_append_body_summary_impl(char **text, size_t *length, 
       while (relation_end < range.end && !isspace((unsigned char)source[relation_end]) && source[relation_end] != ')')
         ++relation_end;
       if (!sequel_summary_append_text(text, length, capacity, "INSERT INTO ") || !sequel_summary_append_bytes(text, length, capacity, source + table, table_end - table) ||
-          !sequel_summary_append_text(text, length, capacity, " SELECT ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !sequel_summary_append_text(text, length, capacity, " SELECT ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
           !sequel_summary_append_text(text, length, capacity, " FROM ") || !sequel_summary_append_bytes(text, length, capacity, source + relation, relation_end - relation))
         return 0;
-    } else if (!sequel_summary_append_text(text, length, capacity, "INSERT ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    } else if (!sequel_summary_append_text(text, length, capacity, "INSERT ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       return 0;
     size_t returning = start;
     while (returning < range.end && !sequel_summary_word(source, range.end, returning, "RETURNING"))
       ++returning;
     return returning >= range.end ||
-           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1));
+           (sequel_summary_append_text(text, length, capacity, " RETURNING ") && sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()));
   }
   if (sequel_summary_word(source, range.end, start, "VALUES"))
-    return sequel_summary_append_text(text, length, capacity, "VALUES ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
-  return sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+    return sequel_summary_append_body_summary_values(text, length, capacity);
+  return sequel_summary_append_body_summary_fallback(text, length, capacity);
 }
 
 int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source, sequel_source_range_t range, bool preserve_limit) {

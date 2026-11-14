@@ -6,6 +6,9 @@
 
 int sequel_summary_append_text(char **text, size_t *length, size_t *capacity, const char *value);
 int sequel_summary_append_bytes(char **text, size_t *length, size_t *capacity, const char *value, size_t amount);
+void sequel_summary_set_utf8_output(bool enabled);
+const char *sequel_summary_ellipsis(void);
+size_t sequel_summary_ellipsis_length(void);
 
 char *sequel_summary_find_text(const char *source, const char *needle);
 

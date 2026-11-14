@@ -3,21 +3,19 @@
 
 #include "internal.h"
 
-static const char summary_ellipsis[] = "\342\200\246";
-
 int sequel_summary_append_nested_cte_projection(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, bool *nested_cte_scope) {
   if (!text || !length || !capacity || !nested_cte_scope)
     return 0;
   const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
   if (!nested)
     return 1;
-  if (!sequel_summary_append_text(text, length, capacity, "SELECT ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+  if (!sequel_summary_append_text(text, length, capacity, "SELECT ") || !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
       !sequel_summary_append_text(text, length, capacity, " FROM "))
     return 0;
   const char *cursor = nested + 6;
   while (*cursor) {
     if (*cursor == '*') {
-      if (!sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      if (!sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
         return 0;
       ++cursor;
     } else if (!strncmp(cursor, "true", 4)) {
@@ -57,7 +55,7 @@ int sequel_summary_append_cte_insert_shape(char **text, size_t *length, size_t *
   while (*relation_end && !isspace((unsigned char)*relation_end) && *relation_end != ';')
     ++relation_end;
   return sequel_summary_append_text(text, length, capacity, "INSERT INTO ") && sequel_summary_append_bytes(text, length, capacity, target, (size_t)(target_end - target)) &&
-         sequel_summary_append_text(text, length, capacity, " SELECT ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) &&
+         sequel_summary_append_text(text, length, capacity, " SELECT ") && sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) &&
          sequel_summary_append_text(text, length, capacity, " FROM ") && sequel_summary_append_bytes(text, length, capacity, relation, (size_t)(relation_end - relation));
 }
 

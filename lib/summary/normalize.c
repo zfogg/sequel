@@ -7,8 +7,6 @@
 
 #include "internal.h"
 
-static const char summary_ellipsis[] = "\342\200\246";
-
 static bool sequel_summary_range_is_bracketed(sequel_source_view_t source, size_t end) {
   size_t depth = 0;
   for (size_t i = 0; i < end && i < source.length; ++i) {
@@ -143,7 +141,7 @@ int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_
   if (sequel_query_projection_count(query) <= 1 || !*text || !sequel_summary_find_text(*text, "SELECT ? FROM "))
     return 1;
   char *mark = sequel_summary_find_text(*text, "SELECT ? FROM ") + strlen("SELECT ");
-  size_t extra = sizeof(summary_ellipsis) - 1 - 1;
+  size_t extra = sequel_summary_ellipsis_length() - 1;
   if (*length > SIZE_MAX - extra)
     return 0;
   if (*length + extra + 1 > *capacity) {
@@ -154,8 +152,8 @@ int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_
     *capacity = *length + extra + 1;
     mark = *text + strlen("SELECT ");
   }
-  memmove(mark + sizeof(summary_ellipsis) - 1, mark + 1, *length - (size_t)(mark - *text) + 1);
-  memcpy(mark, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+  memmove(mark + sequel_summary_ellipsis_length(), mark + 1, *length - (size_t)(mark - *text) + 1);
+  memcpy(mark, sequel_summary_ellipsis(), sequel_summary_ellipsis_length());
   *length += extra;
   return 1;
 }

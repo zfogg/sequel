@@ -9,8 +9,6 @@
 #include "internal.h"
 #include "../tokens.h"
 
-static const char summary_ellipsis[] = "\342\200\246";
-
 static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, size_t *length) {
   char *result = malloc(source.length + 1);
   if (!result)
@@ -76,6 +74,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   sequel_summary_options_t defaults;
   sequel_summary_options_init(&defaults);
   const sequel_summary_options_t *settings = options ? options : &defaults;
+  sequel_summary_set_utf8_output(settings->utf8_output);
   char *text = NULL;
   size_t length = 0, capacity = 0;
   size_t statement_count = sequel_query_statement_count(query);
@@ -107,7 +106,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
           length = capacity = 0;
           if (!sequel_summary_append_bytes(&text, &length, &capacity, source.data, (size_t)(first_quote - source.data)) || !sequel_summary_append_text(&text, &length, &capacity, "?") ||
               !sequel_summary_append_bytes(&text, &length, &capacity, first_close + 1, (size_t)(second_quote - first_close - 1)) ||
-              !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+              !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
               !sequel_summary_append_bytes(&text, &length, &capacity, second_close + 1, source.length - (size_t)(second_close + 1 - source.data)))
             goto no_memory;
           *out = (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
@@ -187,7 +186,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
       if (compact_literals && !compact_tail && (sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") || sequel_summary_word(sanitized.data, sanitized.length, i, "SET"))) {
         const char *keyword = sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") ? " WHERE " : " SET ";
         if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, keyword) ||
-            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)) {
+            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
           free(multi);
           sequel_text_result_free(&sanitized);
           goto no_memory;
@@ -205,7 +204,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         tail_prefix = 7;
       if (tail_prefix) {
         if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sanitized.data + i, tail_prefix) ||
-            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)) {
+            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
           free(multi);
           sequel_text_result_free(&sanitized);
           goto no_memory;
@@ -216,7 +215,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         --i;
         compact_tail = true;
       } else if (compact_literals && sanitized.data[i] == '?') {
-        if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)) {
+        if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
           free(multi);
           sequel_text_result_free(&sanitized);
           goto no_memory;
@@ -283,7 +282,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_query_relation_count(query) == 0 &&
       (sequel_summary_has_clause(query, SEQUEL_KEYWORD_FROM) || sequel_summary_has_token(query, SEQUEL_KEYWORD_FROM))) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    if (!sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       goto no_memory;
   }
   if (settings->include_tables && statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT) {
@@ -306,13 +305,13 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
     for (size_t i = 0; i < source.length; ++i)
       if (sequel_summary_word(source.data, source.length, i, "VALUES")) {
         insert_values_scope = true;
-        if (!sequel_summary_append_text(&text, &length, &capacity, " VALUES ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " VALUES ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
           goto no_memory;
         break;
       }
     for (size_t i = 0; i < source.length; ++i)
       if (sequel_summary_word(source.data, source.length, i, "SELECT")) {
-        if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
           goto no_memory;
         break;
       }
@@ -400,7 +399,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
     length = 0;
     if (text)
       text[0] = '\0';
-    if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+    if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
         !sequel_summary_append_text(&text, &length, &capacity, " OVER (…)") || !sequel_summary_append_text(&text, &length, &capacity, " FILTER (…)") ||
         !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, from, (size_t)(end - from)))
       goto no_memory;
@@ -438,8 +437,9 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
           if (!sequel_summary_append_bytes(&text, &length, &capacity, operator_start, (size_t)(select - operator_start)))
             goto no_memory;
         }
-        if (!sequel_summary_append_text(&text, &length, &capacity, "(SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)))
+        if (!sequel_summary_append_text(&text, &length, &capacity, "(SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)))
           goto no_memory;
         if (limit) {
           const char *value = limit + 7;
@@ -464,8 +464,8 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
             while (inner_table_end < close && !isspace((unsigned char)*inner_table_end) && *inner_table_end != ')')
               ++inner_table_end;
             if (!sequel_summary_append_bytes(&text, &length, &capacity, inner_set, (size_t)(inner_select - inner_set)) || !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, inner_table, (size_t)(inner_table_end - inner_table)))
+                !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+                !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, inner_table, (size_t)(inner_table_end - inner_table)))
               goto no_memory;
           }
         }
@@ -505,19 +505,20 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         const char *alias_end = alias_name;
         while (alias_end && alias_end < source.data + source.length && (isalnum((unsigned char)*alias_end) || *alias_end == '_'))
           ++alias_end;
-        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
             !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[0]) ||
             !sequel_summary_append_text(&text, &length, &capacity, " JOIN ") || !sequel_summary_append_text(&text, &length, &capacity, "LATERAL (SELECT ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
             !inner_from || !close || !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[2]) ||
             !sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?)") || !alias_name || !alias_end || !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
             !sequel_summary_append_bytes(&text, &length, &capacity, alias_name, (size_t)(alias_end - alias_name)) || !sequel_summary_append_text(&text, &length, &capacity, " ON ") ||
             !sequel_summary_append_redacted_range(&text, &length, &capacity, query, model_joins[0].condition_range.start, model_joins[0].condition_range.end) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " UNION ALL SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[3]) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " JOIN ") || !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[4]) || !using_open ||
-            !using_close || !sequel_summary_append_text(&text, &length, &capacity, " USING (") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, using_open + 1, (size_t)(using_close - using_open - 1)) || !sequel_summary_append_text(&text, &length, &capacity, ")"))
+            !sequel_summary_append_text(&text, &length, &capacity, " UNION ALL SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[3]) || !sequel_summary_append_text(&text, &length, &capacity, " JOIN ") ||
+            !sequel_summary_append_relation_name(&text, &length, &capacity, source, &model_relations[4]) || !using_open || !using_close ||
+            !sequel_summary_append_text(&text, &length, &capacity, " USING (") || !sequel_summary_append_bytes(&text, &length, &capacity, using_open + 1, (size_t)(using_close - using_open - 1)) ||
+            !sequel_summary_append_text(&text, &length, &capacity, ")"))
           goto no_memory;
         goto summary_postprocess;
       }
@@ -537,7 +538,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         if (!first_set && !sequel_summary_append_text(&text, &length, &capacity, " "))
           goto no_memory;
         if (!sequel_summary_append_text(&text, &length, &capacity, first_set ? "SELECT " : "SELECT ") ||
-            !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
             !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)))
           goto no_memory;
         const char *op = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "UNION");
@@ -550,7 +551,8 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
           next = intersect;
         if (!next) {
           const char *where = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "WHERE");
-          if (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+          if (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+                        !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
             goto no_memory;
           const char *limit = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "LIMIT");
           if (limit) {
@@ -564,7 +566,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         }
         const char *where = sequel_summary_find_word(source.data, source.length, (size_t)(end - source.data), "WHERE");
         if (where && where < next &&
-            (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+            (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
           goto no_memory;
         const char *following_select = sequel_summary_find_word(source.data, source.length, (size_t)(next - source.data + 1), "SELECT");
         if (!following_select)
@@ -608,13 +610,15 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
       if (text)
         text[0] = '\0';
       if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-          !sequel_summary_append_text(&text, &length, &capacity, " SET ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+          !sequel_summary_append_text(&text, &length, &capacity, " SET ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
           (subquery && subquery_from && subquery_end
-               ? (!sequel_summary_append_text(&text, &length, &capacity, " (SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+               ? (!sequel_summary_append_text(&text, &length, &capacity, " (SELECT ") ||
+                  !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
                   !sequel_summary_append_bytes(&text, &length, &capacity, subquery_from, (size_t)(subquery_end - subquery_from)) || !sequel_summary_append_text(&text, &length, &capacity, ")"))
                : !sequel_summary_append_bytes(&text, &length, &capacity, set + 5, (size_t)(from - (set + 5)))) ||
           !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, from_table, (size_t)(from_end - from_table)) ||
-          (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
+          (where &&
+           (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))))
         goto no_memory;
     }
   }
@@ -939,8 +943,8 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
               --outer_on_end;
             bool outer_on_true = outer_on && sequel_summary_word(outer_on + 4, (size_t)(outer_on_end - (outer_on + 4)), 0, "true");
             if (!sequel_summary_append_text(&text, &length, &capacity, lateral_relation && !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT " : "(SELECT ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+                !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+                !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
                 (inner_alias_end > inner_alias &&
                  (!sequel_summary_append_text(&text, &length, &capacity, " AS ") || !sequel_summary_append_bytes(&text, &length, &capacity, inner_alias, (size_t)(inner_alias_end - inner_alias)))) ||
                 !sequel_summary_append_redacted_range(&text, &length, &capacity, query, (size_t)(limit - source.data), (size_t)(close + 1 - source.data)) ||
@@ -1005,13 +1009,15 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
             while (*alias_end && !isspace((unsigned char)*alias_end))
               ++alias_end;
             if (!sequel_summary_append_text(&text, &length, &capacity, lateral_relation && !sequel_summary_find_text(source.data, "CROSS JOIN LATERAL") ? "LATERAL (SELECT " : "(SELECT ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+                !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+                !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
                 (inner_alias_end > inner_alias &&
                  (!sequel_summary_append_text(&text, &length, &capacity, " AS ") || !sequel_summary_append_bytes(&text, &length, &capacity, inner_alias, (size_t)(inner_alias_end - inner_alias)))) ||
-                !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+                !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+                !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
                 (cross_lateral && order && order < close &&
-                 (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+                 (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
+                  !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
                 (limit && limit < close && !sequel_summary_append_bytes(&text, &length, &capacity, limit, (size_t)(close + 1 - limit))) ||
                 !sequel_summary_append_text(&text, &length, &capacity, (limit && limit < close) ? " AS " : ") AS ") ||
                 !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
@@ -1089,11 +1095,11 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         (!sequel_summary_find_text(source.data, "DO NOTHING") || sequel_summary_find_text(source.data, " RETURNING "))) {
       const char *conflict = sequel_summary_find_text(source.data, "DO NOTHING") ? " ON CONFLICT DO NOTHING" : " ON CONFLICT DO UPDATE SET ";
       if (!sequel_summary_append_text(&text, &length, &capacity, conflict) ||
-          (!sequel_summary_find_text(source.data, "DO NOTHING") && !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+          (!sequel_summary_find_text(source.data, "DO NOTHING") && !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
         goto no_memory;
     }
     if (operation == SEQUEL_OPERATION_INSERT && !cte_insert_scope && !sequel_summary_find_text(source.data, "DELETE FROM") && sequel_summary_find_text(source.data, " RETURNING ") &&
-        (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+        (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
       goto no_memory;
     if (sequel_query_cte_count(query) && statement_count && (statements[0].operation == SEQUEL_OPERATION_SELECT || statements[0].operation == SEQUEL_OPERATION_UNKNOWN)) {
       size_t outer = sequel_query_outer_range(query).start;
@@ -1135,8 +1141,8 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "UNION") || sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "INTERSECT") ||
           sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "EXCEPT"))
         alias = alias_end = end;
-      if ((!sequel_query_outer_distinct_on(query) &&
-           (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+      if ((!sequel_query_outer_distinct_on(query) && (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+                                                      !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
           !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
           (alias < alias_end && !sequel_summary_append_text(&text, &length, &capacity, " AS ")) ||
           (alias < alias_end && !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))))
@@ -1171,12 +1177,12 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
             while (table_end && !isspace((unsigned char)*table_end) && *table_end != ')')
               ++table_end;
             if (!from || !table || !sequel_summary_append_text(&text, &length, &capacity, " LEFT JOIN LATERAL (SELECT ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
-                !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-                (where &&
-                 (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
-                (order &&
-                 (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+                !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+                !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
+                (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+                           !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
+                (order && (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
+                           !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
                 !sequel_summary_append_text(&text, &length, &capacity, sequel_summary_find_text(from, " LIMIT ") ? " LIMIT ?) AS " : ") AS ") ||
                 (alias && !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias))) || !sequel_summary_append_text(&text, &length, &capacity, " ON ?"))
               goto no_memory;
@@ -1223,12 +1229,12 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   if (insert_values_scope && sequel_summary_find_text(source.data, " ON CONFLICT") && !sequel_summary_find_text(source.data, "DO NOTHING") &&
       !sequel_summary_find_text(text ? text : "", " ON CONFLICT")) {
     if (!sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
-        !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       goto no_memory;
   }
   if (insert_values_scope && !cte_insert_scope && !sequel_summary_find_text(source.data, "DELETE FROM") && sequel_summary_find_text(source.data, " RETURNING ") &&
       !sequel_summary_find_text(text ? text : "", " RETURNING ") &&
-      (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1)))
+      (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
     goto no_memory;
   if (statement_count && (sequel_summary_find_text(source.data, " DELETE FROM") || sequel_summary_find_text(source.data, "UPDATE ")) && sequel_summary_find_text(source.data, " USING ") &&
       !sequel_summary_find_text(text ? text : "", " USING ")) {
@@ -1294,7 +1300,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
       label = has_prewhere ? " FINAL PREWHERE " : " FINAL WHERE ";
     else if (has_prewhere)
       label = " PREWHERE ";
-    if (!sequel_summary_append_text(&text, &length, &capacity, label) || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    if (!sequel_summary_append_text(&text, &length, &capacity, label) || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       goto no_memory;
     const char *exists = sequel_summary_find_text(source.data, "EXISTS (");
     if (exists) {
@@ -1317,11 +1323,11 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         if (alias < source.data + source.length &&
             (sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "LIMIT") || sequel_summary_word(alias, source.length - (size_t)(alias - source.data), 0, "WHERE")))
           alias_end = alias;
-        if (!sequel_summary_append_text(&text, &length, &capacity, " EXISTS (SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " AS ") || !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, ")"))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " EXISTS (SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) || !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) || !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, ")"))
           goto no_memory;
       }
     }
@@ -1342,11 +1348,11 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
         const char *alias_end = alias;
         while (*alias_end && !isspace((unsigned char)*alias_end) && *alias_end != ')')
           ++alias_end;
-        if (!sequel_summary_append_text(&text, &length, &capacity, " NOT EXISTS (SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " AS ") || !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, ")"))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " NOT EXISTS (SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) || !sequel_summary_append_text(&text, &length, &capacity, " AS ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, alias, (size_t)(alias_end - alias)) || !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, ")"))
           goto no_memory;
       }
     }
@@ -1356,7 +1362,7 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   skip_outer_predicates:
     for (size_t i = outer_start; i < source.length; ++i)
       if (sequel_summary_word(source.data, source.length, i, "WHERE")) {
-        if (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+        if (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
           goto no_memory;
         break;
       }
@@ -1603,8 +1609,8 @@ sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query
   }
   if (sequel_summary_find_text(source.data, "GROUPING SETS") && sequel_summary_find_text(source.data, "HAVING") && sequel_summary_find_text(text, " GROUP BY") &&
       !sequel_summary_find_text(text, " HAVING")) {
-    if (!sequel_summary_append_text(&text, &length, &capacity, " ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-        !sequel_summary_append_text(&text, &length, &capacity, " HAVING ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+    if (!sequel_summary_append_text(&text, &length, &capacity, " ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+        !sequel_summary_append_text(&text, &length, &capacity, " HAVING ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
       goto no_memory;
   }
   if (sequel_summary_find_text(source.data, "QUALIFY") && !sequel_summary_find_text(text, " QUALIFY")) {
@@ -1758,7 +1764,7 @@ summary_postprocess:
     }
     if (text && sequel_summary_find_text(source.data, "ON CONFLICT") && sequel_summary_find_text(source.data, "DO UPDATE") && !sequel_summary_find_text(text, "ON CONFLICT")) {
       if (!sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO UPDATE SET ") ||
-          !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+          !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
         goto no_memory;
     }
     if (settings->include_tables && !sequel_query_cte_count(query) && statement_count && statements[0].operation == SEQUEL_OPERATION_SELECT && sequel_summary_find_text(source.data, " OVER (") &&
@@ -1772,7 +1778,8 @@ summary_postprocess:
       length = 0;
       if (!text)
         text = calloc(1, 1), capacity = text ? 1 : 0;
-      if (!text || !sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+      if (!text || !sequel_summary_append_text(&text, &length, &capacity, "SELECT ") ||
+          !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
           !sequel_summary_append_text(&text, &length, &capacity, " OVER (…) FILTER (…) FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, from, (size_t)(end - from)))
         goto no_memory;
     }
@@ -1780,7 +1787,7 @@ summary_postprocess:
         (strchr(source.data, '$') || strchr(source.data, ':') || strchr(source.data, '%') || strchr(source.data, '?'))) {
       length = 0;
       text[0] = '\0';
-      if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+      if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
         goto no_memory;
     }
     if ((!sequel_summary_find_text(text, " OVER ") || !sequel_summary_find_text(text, " FILTER ")) &&
@@ -1881,7 +1888,7 @@ summary_postprocess:
                                                  !sequel_summary_append_bytes(&text, &length, &capacity, source_alias_start, (size_t)(source_end - source_alias_start)))) ||
             !sequel_summary_append_text(&text, &length, &capacity, " ON ") || !sequel_summary_append_bytes(&text, &length, &capacity, match, (size_t)(match_end - match)) ||
             (set ? (!sequel_summary_append_bytes(&text, &length, &capacity, when, (size_t)(set - when)) || !sequel_summary_append_text(&text, &length, &capacity, " UPDATE SET ") ||
-                    !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+                    !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
                  : !sequel_summary_append_bytes(&text, &length, &capacity, when, source.data + source.length - when)))
           goto no_memory;
       }
@@ -1894,9 +1901,9 @@ summary_postprocess:
       if (where && memchr(from, ',', (size_t)(where - from))) {
         length = 0;
         text[0] = '\0';
-        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
             !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, from, (size_t)(where - from)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))
+            !sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))
           goto no_memory;
       }
     }
@@ -1955,12 +1962,14 @@ summary_postprocess:
         length = 0;
         text[0] = '\0';
         if (!sequel_summary_append_text(&text, &length, &capacity, "INSERT INTO ") || !sequel_summary_append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)) ||
-            (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, relation, (size_t)(relation_end - relation)) ||
+            (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+                       !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
             !sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING") ||
-            (returning &&
-             (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
+            (returning && (!sequel_summary_append_text(&text, &length, &capacity, " RETURNING ") ||
+                           !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))))
           goto no_memory;
       }
       if (text && !sequel_summary_find_text(text, "ON CONFLICT") && (!sequel_summary_append_text(&text, &length, &capacity, " ON CONFLICT DO NOTHING")))
@@ -2013,10 +2022,10 @@ summary_postprocess:
         if (from) {
           char *projection = open + strlen("(SELECT ");
           size_t projection_length = (size_t)(from - projection);
-          memcpy(projection, summary_ellipsis, sizeof(summary_ellipsis) - 1);
-          if (projection_length > sizeof(summary_ellipsis) - 1) {
-            memmove(projection + sizeof(summary_ellipsis) - 1, from, length - (size_t)(from - text) + 1);
-            length -= projection_length - (sizeof(summary_ellipsis) - 1);
+          memcpy(projection, sequel_summary_ellipsis(), sequel_summary_ellipsis_length());
+          if (projection_length > sequel_summary_ellipsis_length()) {
+            memmove(projection + sequel_summary_ellipsis_length(), from, length - (size_t)(from - text) + 1);
+            length -= projection_length - (sequel_summary_ellipsis_length());
           }
         }
       }
@@ -2064,7 +2073,7 @@ summary_postprocess:
           ++table_end;
         length = 0;
         text[0] = '\0';
-        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+        if (!sequel_summary_append_text(&text, &length, &capacity, "SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
             !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(table_end - table)) ||
             (sequel_summary_find_text(fetch, " FETCH FIRST ROW ONLY") ? !sequel_summary_append_text(&text, &length, &capacity, " FETCH FIRST 1 ROWS ONLY")
                                                                       : !sequel_summary_append_bytes(&text, &length, &capacity, fetch, source.data + source.length - fetch)))
@@ -2084,10 +2093,11 @@ summary_postprocess:
         length = 0;
         text[0] = '\0';
         if (!sequel_summary_append_text(&text, &length, &capacity, "UPDATE ") || !sequel_summary_append_bytes(&text, &length, &capacity, target, (size_t)(target_end - target)) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " SET ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
-            (order &&
-             (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " SET ") || !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+            (where && (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+                       !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
+            (order && (!sequel_summary_append_text(&text, &length, &capacity, " ORDER BY ") ||
+                       !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))) ||
             (limit &&
              (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ") || !sequel_summary_append_bytes(&text, &length, &capacity, limit + 7, (source.data + source.length) - (limit + 7)))))
           goto no_memory;
@@ -2107,10 +2117,12 @@ summary_postprocess:
         text[0] = '\0';
         if (!sequel_summary_append_text(&text, &length, &capacity, "EXPLAIN") ||
             (sequel_summary_find_text(source.data, "ANALYZE") && !sequel_summary_append_text(&text, &length, &capacity, " ANALYZE")) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
-            !sequel_summary_append_text(&text, &length, &capacity, " FROM ") || !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
+            !sequel_summary_append_text(&text, &length, &capacity, " SELECT ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) || !sequel_summary_append_text(&text, &length, &capacity, " FROM ") ||
+            !sequel_summary_append_bytes(&text, &length, &capacity, table, (size_t)(end - table)) ||
             (sequel_summary_find_word(source.data, source.length, 0, "WHERE") &&
-             (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") || !sequel_summary_append_bytes(&text, &length, &capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1))))
+             (!sequel_summary_append_text(&text, &length, &capacity, " WHERE ") ||
+              !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()))))
           goto no_memory;
       }
     }
