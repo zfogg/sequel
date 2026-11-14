@@ -179,7 +179,7 @@ static int sequel_summary_append_limit_completions(char **text, size_t *length, 
   return 1;
 }
 
-sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
+static sequel_status_t sequel_summary_render_query_core(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
   if (!query || !out)
     return SEQUEL_ERR_NULL;
   sequel_summary_options_t defaults;
@@ -2462,4 +2462,8 @@ invalid:
 no_memory:
   free(text);
   return SEQUEL_ERR_NOMEM;
+}
+
+sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
+  return sequel_summary_render_query_core(query, options, out);
 }
