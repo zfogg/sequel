@@ -31,7 +31,7 @@ local_symbol_aliases = {
         "ellipsis": "summary_normalize_ellipsis",
     },
     "lib/summary/recovery.c": {"summary_ellipsis": "summary_recovery_ellipsis"},
-    "lib/summary/render_query.c": {"summary_ellipsis": "summary_render_ellipsis"},
+    "lib/summary/render/query.c": {"summary_ellipsis": "summary_render_ellipsis"},
     "lib/summary/special.c": {"summary_ellipsis": "summary_special_ellipsis"},
     "lib/summary/statement.c": {"ellipsis": "summary_statement_ellipsis"},
     "lib/summary/subquery.c": {"ellipsis": "summary_subquery_ellipsis"},

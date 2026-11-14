@@ -119,12 +119,12 @@ add_library(sequel
   lib/summary/entry.c
   lib/summary/render/render.c
   lib/summary/document.c
-  lib/summary/render/render_query.c
-  lib/summary/render/render_shape.c
-  lib/summary/render/render_repairs.c
-  lib/summary/render/render_cte.c
-  lib/summary/render/render_clauses.c
-  lib/summary/render/render_postprocess.c
+  lib/summary/render/query.c
+  lib/summary/render/shape.c
+  lib/summary/render/repairs.c
+  lib/summary/render/cte.c
+  lib/summary/render/clauses.c
+  lib/summary/render/postprocess.c
   lib/summary/limits.c
   lib/summary/prepare.c
   lib/summary/routes.c
