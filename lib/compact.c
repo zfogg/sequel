@@ -21,9 +21,7 @@ static void compact_append(compact_output *output, const char *data, size_t leng
   output->data[output->length] = 0;
 }
 
-static void compact_append_text(compact_output *output, const char *text) {
-  compact_append(output, text, strlen(text));
-}
+static void compact_append_text(compact_output *output, const char *text) { compact_append(output, text, strlen(text)); }
 
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity) {
   if (!sql || !out)
@@ -58,8 +56,7 @@ sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *
       break;
     size_t gap = current->range.start - previous;
     if (current->kind == SEQUEL_TOKEN_WHITESPACE) {
-      if (memchr(sql + current->range.start, '\n', current->range.end - current->range.start) ||
-          memchr(sql + current->range.start, '\r', current->range.end - current->range.start))
+      if (memchr(sql + current->range.start, '\n', current->range.end - current->range.start) || memchr(sql + current->range.start, '\r', current->range.end - current->range.start))
         compact_append(&b, sql + current->range.start, current->range.end - current->range.start);
       else if (b.length && b.data[b.length - 1] != ' ')
         compact_append_text(&b, " ");

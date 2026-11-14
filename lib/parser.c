@@ -10,8 +10,7 @@ static sequel_syntax_kind_t sequel_parser_statement_kind(const sequel_lexed_docu
   size_t count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
-  while (token_index < count && tokens[token_index].kind == SEQUEL_TOKEN_PUNCTUATION &&
-         tokens[token_index].range.end == tokens[token_index].range.start + 1 &&
+  while (token_index < count && tokens[token_index].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[token_index].range.end == tokens[token_index].range.start + 1 &&
          source.data[tokens[token_index].range.start] == '(')
     ++token_index;
   if (token_index >= count)
@@ -167,33 +166,23 @@ static int sequel_parser_expression_keyword_precedence(const sequel_token_t *tok
 static sequel_syntax_kind_t sequel_parser_expression_atom_kind(const sequel_token_t *token) {
   if (token->kind == SEQUEL_TOKEN_PARAMETER)
     return SEQUEL_SYNTAX_PARAMETER;
-  if (token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ||
-      token->kind == SEQUEL_TOKEN_KEYWORD)
+  if (token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER || token->kind == SEQUEL_TOKEN_KEYWORD)
     return SEQUEL_SYNTAX_IDENTIFIER;
-  if (token->kind == SEQUEL_TOKEN_STRING || token->kind == SEQUEL_TOKEN_NUMBER || token->kind == SEQUEL_TOKEN_BOOLEAN ||
-      token->kind == SEQUEL_TOKEN_NULL)
+  if (token->kind == SEQUEL_TOKEN_STRING || token->kind == SEQUEL_TOKEN_NUMBER || token->kind == SEQUEL_TOKEN_BOOLEAN || token->kind == SEQUEL_TOKEN_NULL)
     return SEQUEL_SYNTAX_LITERAL;
   return SEQUEL_SYNTAX_ERROR;
 }
 
 static size_t sequel_parser_next_expression_token(const sequel_token_t *tokens, size_t index, size_t end) {
-  while (index < end &&
-         (tokens[index].kind == SEQUEL_TOKEN_WHITESPACE || tokens[index].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-          tokens[index].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+  while (index < end && (tokens[index].kind == SEQUEL_TOKEN_WHITESPACE || tokens[index].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[index].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
     ++index;
   return index;
 }
 
-static int sequel_parser_append_expression(sequel_syntax_document_t *document, const sequel_token_t *tokens,
-                                           const sequel_source_view_t *source, size_t start, size_t end,
-                                           size_t *out_index) {
-  while (start < end &&
-         (tokens[start].kind == SEQUEL_TOKEN_WHITESPACE || tokens[start].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-          tokens[start].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+static int sequel_parser_append_expression(sequel_syntax_document_t *document, const sequel_token_t *tokens, const sequel_source_view_t *source, size_t start, size_t end, size_t *out_index) {
+  while (start < end && (tokens[start].kind == SEQUEL_TOKEN_WHITESPACE || tokens[start].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[start].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
     ++start;
-  while (end > start &&
-         (tokens[end - 1].kind == SEQUEL_TOKEN_WHITESPACE || tokens[end - 1].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-          tokens[end - 1].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+  while (end > start && (tokens[end - 1].kind == SEQUEL_TOKEN_WHITESPACE || tokens[end - 1].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[end - 1].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
     --end;
   if (start >= end)
     return 0;
@@ -208,13 +197,10 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
       return -1;
     size_t index = document->node_count - 1;
     for (size_t i = start + 1; i < end; ++i) {
-      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
-          (tokens[i].keyword_id != SEQUEL_KEYWORD_CAST && tokens[i].keyword_id != SEQUEL_KEYWORD_EXISTS &&
-           tokens[i].keyword_id != SEQUEL_KEYWORD_IN))
+      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != SEQUEL_KEYWORD_CAST && tokens[i].keyword_id != SEQUEL_KEYWORD_EXISTS && tokens[i].keyword_id != SEQUEL_KEYWORD_IN))
         continue;
       size_t opening = sequel_parser_next_expression_token(tokens, i + 1, end);
-      if (opening >= end || tokens[opening].kind != SEQUEL_TOKEN_PUNCTUATION ||
-          source->data[tokens[opening].range.start] != '(')
+      if (opening >= end || tokens[opening].kind != SEQUEL_TOKEN_PUNCTUATION || source->data[tokens[opening].range.start] != '(')
         continue;
       size_t depth = 0, closing = end;
       for (size_t j = opening; j < end; ++j) {
@@ -249,10 +235,8 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
     *out_index = index;
     return 1;
   }
-  if (tokens[start].kind == SEQUEL_TOKEN_KEYWORD &&
-      (tokens[start].keyword_id == SEQUEL_KEYWORD_EXISTS || tokens[start].keyword_id == SEQUEL_KEYWORD_CAST)) {
-    sequel_syntax_kind_t kind =
-        tokens[start].keyword_id == SEQUEL_KEYWORD_EXISTS ? SEQUEL_SYNTAX_EXISTS : SEQUEL_SYNTAX_CAST;
+  if (tokens[start].kind == SEQUEL_TOKEN_KEYWORD && (tokens[start].keyword_id == SEQUEL_KEYWORD_EXISTS || tokens[start].keyword_id == SEQUEL_KEYWORD_CAST)) {
+    sequel_syntax_kind_t kind = tokens[start].keyword_id == SEQUEL_KEYWORD_EXISTS ? SEQUEL_SYNTAX_EXISTS : SEQUEL_SYNTAX_CAST;
     sequel_syntax_node_t node = {.kind = kind,
                                  .range = {tokens[start].range.start, tokens[end - 1].range.end},
                                  .header_range = tokens[start].range,
@@ -265,17 +249,15 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
     size_t inner = sequel_parser_next_expression_token(tokens, start + 1, end);
     if (inner < end) {
       size_t child = 0;
-      if (sequel_parser_append_expression(document, tokens, source, inner, end, &child) < 0 ||
-          !sequel_parser_append_child(document, index, child))
+      if (sequel_parser_append_expression(document, tokens, source, inner, end, &child) < 0 || !sequel_parser_append_child(document, index, child))
         return -1;
     }
     *out_index = index;
     return 1;
   }
   size_t opening = sequel_parser_next_expression_token(tokens, start + 1, end);
-  if (opening < end &&
-      (tokens[start].kind == SEQUEL_TOKEN_IDENTIFIER || tokens[start].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER) &&
-      tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION && source->data[tokens[opening].range.start] == '(') {
+  if (opening < end && (tokens[start].kind == SEQUEL_TOKEN_IDENTIFIER || tokens[start].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER) && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
+      source->data[tokens[opening].range.start] == '(') {
     size_t closing = end;
     size_t group_depth = 0;
     for (size_t i = opening; i < end; ++i) {
@@ -302,14 +284,12 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
           return -1;
         size_t index = document->node_count - 1;
         size_t function_node = 0;
-        if (sequel_parser_append_expression(document, tokens, source, start, closing + 1, &function_node) < 0 ||
-            !sequel_parser_append_child(document, index, function_node))
+        if (sequel_parser_append_expression(document, tokens, source, start, closing + 1, &function_node) < 0 || !sequel_parser_append_child(document, index, function_node))
           return -1;
         size_t frame = sequel_parser_next_expression_token(tokens, over + 1, end);
         if (frame < end) {
           size_t frame_node = 0;
-          if (sequel_parser_append_expression(document, tokens, source, frame, end, &frame_node) < 0 ||
-              !sequel_parser_append_child(document, index, frame_node))
+          if (sequel_parser_append_expression(document, tokens, source, frame, end, &frame_node) < 0 || !sequel_parser_append_child(document, index, frame_node))
             return -1;
         }
         *out_index = index;
@@ -330,8 +310,7 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
       size_t argument = sequel_parser_next_expression_token(tokens, opening + 1, closing);
       if (argument < closing) {
         size_t argument_node = 0;
-        if (sequel_parser_append_expression(document, tokens, source, argument, closing, &argument_node) < 0 ||
-            !sequel_parser_append_child(document, index, argument_node))
+        if (sequel_parser_append_expression(document, tokens, source, argument, closing, &argument_node) < 0 || !sequel_parser_append_child(document, index, argument_node))
           return -1;
       }
       *out_index = index;
@@ -365,8 +344,7 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
       size_t inner = sequel_parser_next_expression_token(tokens, start + 1, closing);
       if (inner < closing) {
         size_t inner_node = 0;
-        if (sequel_parser_append_expression(document, tokens, source, inner, closing, &inner_node) < 0 ||
-            !sequel_parser_append_child(document, index, inner_node))
+        if (sequel_parser_append_expression(document, tokens, source, inner, closing, &inner_node) < 0 || !sequel_parser_append_child(document, index, inner_node))
           return -1;
       }
       *out_index = index;
@@ -376,8 +354,7 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
   size_t depth = 0, split = SIZE_MAX;
   int precedence = INT_MAX;
   for (size_t i = start; i < end; ++i) {
-    if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION && tokens[i].kind != SEQUEL_TOKEN_OPERATOR &&
-        tokens[i].kind != SEQUEL_TOKEN_KEYWORD)
+    if (tokens[i].kind != SEQUEL_TOKEN_PUNCTUATION && tokens[i].kind != SEQUEL_TOKEN_OPERATOR && tokens[i].kind != SEQUEL_TOKEN_KEYWORD)
       continue;
     char c = source->data[tokens[i].range.start];
     if (c == '(') {
@@ -389,16 +366,14 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
       continue;
     }
     if (!depth && i != start && (tokens[i].kind == SEQUEL_TOKEN_OPERATOR || tokens[i].kind == SEQUEL_TOKEN_KEYWORD)) {
-      int candidate = tokens[i].kind == SEQUEL_TOKEN_KEYWORD ? sequel_parser_expression_keyword_precedence(&tokens[i])
-                                                             : sequel_parser_expression_precedence(c);
+      int candidate = tokens[i].kind == SEQUEL_TOKEN_KEYWORD ? sequel_parser_expression_keyword_precedence(&tokens[i]) : sequel_parser_expression_precedence(c);
       if (candidate && candidate <= precedence) {
         precedence = candidate;
         split = i;
       }
     }
   }
-  sequel_syntax_kind_t kind =
-      split != SIZE_MAX ? SEQUEL_SYNTAX_BINARY_EXPRESSION : sequel_parser_expression_atom_kind(&tokens[start]);
+  sequel_syntax_kind_t kind = split != SIZE_MAX ? SEQUEL_SYNTAX_BINARY_EXPRESSION : sequel_parser_expression_atom_kind(&tokens[start]);
   if (split != SIZE_MAX && tokens[split].kind == SEQUEL_TOKEN_KEYWORD) {
     switch (tokens[split].keyword_id) {
     case SEQUEL_KEYWORD_IN:
@@ -414,9 +389,7 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
       break;
     }
   }
-  bool unary = split == SIZE_MAX &&
-               (tokens[start].kind == SEQUEL_TOKEN_OPERATOR ||
-                (tokens[start].kind == SEQUEL_TOKEN_KEYWORD && tokens[start].keyword_id == SEQUEL_KEYWORD_NOT));
+  bool unary = split == SIZE_MAX && (tokens[start].kind == SEQUEL_TOKEN_OPERATOR || (tokens[start].kind == SEQUEL_TOKEN_KEYWORD && tokens[start].keyword_id == SEQUEL_KEYWORD_NOT));
   if (unary)
     kind = SEQUEL_SYNTAX_UNARY_EXPRESSION;
   sequel_syntax_node_t node = {.kind = kind,
@@ -430,23 +403,20 @@ static int sequel_parser_append_expression(sequel_syntax_document_t *document, c
   size_t index = document->node_count - 1;
   if (split != SIZE_MAX) {
     size_t left = 0, right = 0;
-    if (sequel_parser_append_expression(document, tokens, source, start, split, &left) < 0 ||
-        sequel_parser_append_expression(document, tokens, source, split + 1, end, &right) < 0 ||
+    if (sequel_parser_append_expression(document, tokens, source, start, split, &left) < 0 || sequel_parser_append_expression(document, tokens, source, split + 1, end, &right) < 0 ||
         !sequel_parser_append_child(document, index, left) || !sequel_parser_append_child(document, index, right))
       return -1;
   } else if (unary) {
     size_t operand = sequel_parser_next_expression_token(tokens, start + 1, end);
     size_t child = 0;
-    if (operand < end && (sequel_parser_append_expression(document, tokens, source, operand, end, &child) < 0 ||
-                          !sequel_parser_append_child(document, index, child)))
+    if (operand < end && (sequel_parser_append_expression(document, tokens, source, operand, end, &child) < 0 || !sequel_parser_append_child(document, index, child)))
       return -1;
   }
   *out_index = index;
   return 1;
 }
 
-sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
-                             const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out) {
+sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out) {
   if (!lexed || !out)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -470,16 +440,13 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
       return SEQUEL_ERR_CANCELLED;
     }
     bool boundary = i == token_count || tokens[i].kind == SEQUEL_TOKEN_EOF ||
-                    (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1 &&
-                     sequel_lexed_source(lexed).data[tokens[i].range.start] == ';');
+                    (tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[i].range.end == tokens[i].range.start + 1 && sequel_lexed_source(lexed).data[tokens[i].range.start] == ';');
     if (i < token_count && tokens[i].kind == SEQUEL_TOKEN_PUNCTUATION) {
       sequel_source_view_t source = sequel_lexed_source(lexed);
       char punctuation = source.data[tokens[i].range.start];
       if (punctuation == '(' || punctuation == '[') {
         if (delimiter_depth >= nesting_limit) {
-          if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN,
-                                                                           SEQUEL_RECOVERY_OPAQUE_REGION,
-                                                                           tokens[i].range, SIZE_MAX})) {
+          if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN, SEQUEL_RECOVERY_OPAQUE_REGION, tokens[i].range, SIZE_MAX})) {
             sequel_syntax_document_free(document);
             return SEQUEL_ERR_NOMEM;
           }
@@ -488,9 +455,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
         }
       } else if (punctuation == ')' || punctuation == ']') {
         if (!delimiter_depth) {
-          if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE,
-                                                                           SEQUEL_RECOVERY_SKIPPED_TOKEN,
-                                                                           tokens[i].range, SIZE_MAX})) {
+          if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE, SEQUEL_RECOVERY_SKIPPED_TOKEN, tokens[i].range, SIZE_MAX})) {
             sequel_syntax_document_free(document);
             return SEQUEL_ERR_NOMEM;
           }
@@ -498,9 +463,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
           size_t opening = delimiter_stack[delimiter_depth - 1];
           char expected = punctuation == ')' ? '(' : '[';
           if (source.data[tokens[opening].range.start] != expected) {
-            if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN,
-                                                                             SEQUEL_RECOVERY_SKIPPED_TOKEN,
-                                                                             tokens[i].range, SIZE_MAX})) {
+            if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN, SEQUEL_RECOVERY_SKIPPED_TOKEN, tokens[i].range, SIZE_MAX})) {
               sequel_syntax_document_free(document);
               return SEQUEL_ERR_NOMEM;
             }
@@ -511,17 +474,13 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
       }
     }
     if (i < token_count && (tokens[i].flags & SEQUEL_TOKEN_FLAG_UNTERMINATED)) {
-      if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN,
-                                                                       SEQUEL_RECOVERY_OPAQUE_REGION, tokens[i].range,
-                                                                       SIZE_MAX})) {
+      if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN, SEQUEL_RECOVERY_OPAQUE_REGION, tokens[i].range, SIZE_MAX})) {
         sequel_syntax_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
     }
     if (i < token_count && (tokens[i].flags & SEQUEL_TOKEN_FLAG_RECOVERED)) {
-      if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN,
-                                                                       SEQUEL_RECOVERY_SKIPPED_TOKEN, tokens[i].range,
-                                                                       SIZE_MAX})) {
+      if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN, SEQUEL_RECOVERY_SKIPPED_TOKEN, tokens[i].range, SIZE_MAX})) {
         sequel_syntax_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
@@ -529,14 +488,10 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
     if (!boundary)
       continue;
     size_t first = start_token;
-    while (first < i &&
-           (tokens[first].kind == SEQUEL_TOKEN_WHITESPACE || tokens[first].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-            tokens[first].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    while (first < i && (tokens[first].kind == SEQUEL_TOKEN_WHITESPACE || tokens[first].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[first].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++first;
     size_t last = i;
-    while (last > first &&
-           (tokens[last - 1].kind == SEQUEL_TOKEN_WHITESPACE || tokens[last - 1].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-            tokens[last - 1].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    while (last > first && (tokens[last - 1].kind == SEQUEL_TOKEN_WHITESPACE || tokens[last - 1].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[last - 1].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       --last;
     if (first < last) {
       sequel_source_view_t source = sequel_lexed_source(lexed);
@@ -580,8 +535,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
           return SEQUEL_ERR_NOMEM;
         }
         size_t expression = 0;
-        if (sequel_parser_append_expression(document, tokens, &source, token_index + 1, child_end, &expression) < 0 ||
-            (expression && !sequel_parser_append_child(document, child_index, expression))) {
+        if (sequel_parser_append_expression(document, tokens, &source, token_index + 1, child_end, &expression) < 0 || (expression && !sequel_parser_append_child(document, child_index, expression))) {
           sequel_syntax_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -590,12 +544,9 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
         if (tokens[candidate].kind != SEQUEL_TOKEN_PUNCTUATION || source.data[tokens[candidate].range.start] != '(')
           continue;
         size_t inner = candidate + 1;
-        while (inner < last &&
-               (tokens[inner].kind == SEQUEL_TOKEN_WHITESPACE || tokens[inner].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-                tokens[inner].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+        while (inner < last && (tokens[inner].kind == SEQUEL_TOKEN_WHITESPACE || tokens[inner].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[inner].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
           ++inner;
-        if (inner >= last || tokens[inner].kind != SEQUEL_TOKEN_KEYWORD ||
-            (tokens[inner].keyword_id != SEQUEL_KEYWORD_SELECT && tokens[inner].keyword_id != SEQUEL_KEYWORD_WITH))
+        if (inner >= last || tokens[inner].kind != SEQUEL_TOKEN_KEYWORD || (tokens[inner].keyword_id != SEQUEL_KEYWORD_SELECT && tokens[inner].keyword_id != SEQUEL_KEYWORD_WITH))
           continue;
         size_t depth = 0, closing = last;
         for (size_t scan = candidate; scan < last; ++scan) {
@@ -617,8 +568,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
                                          .first_token = candidate,
                                          .token_count = closing + 1 - candidate,
                                          .production_id = SEQUEL_SYNTAX_SUBQUERY};
-        if (!sequel_parser_append_node(document, subquery) ||
-            !sequel_parser_append_child(document, parent, document->node_count - 1)) {
+        if (!sequel_parser_append_node(document, subquery) || !sequel_parser_append_child(document, parent, document->node_count - 1)) {
           sequel_syntax_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -631,10 +581,7 @@ sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_
   if (delimiter_depth) {
     sequel_source_view_t source = sequel_lexed_source(lexed);
     size_t opening = delimiter_stack[delimiter_depth - 1];
-    if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP,
-                                                                     SEQUEL_RECOVERY_INSERTED_TOKEN,
-                                                                     {tokens[opening].range.start, source.length},
-                                                                     SIZE_MAX})) {
+    if (!sequel_parser_append_issue(document, (sequel_parse_issue_t){SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP, SEQUEL_RECOVERY_INSERTED_TOKEN, {tokens[opening].range.start, source.length}, SIZE_MAX})) {
       sequel_syntax_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -664,13 +611,9 @@ const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t 
   return document ? document->issues : NULL;
 }
 
-size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document) {
-  return document ? document->issue_count : 0;
-}
+size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document) { return document ? document->issue_count : 0; }
 
-const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document) {
-  return document ? document->lexed : NULL;
-}
+const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document) { return document ? document->lexed : NULL; }
 
 const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *document, size_t *count) {
   if (count)
@@ -682,9 +625,7 @@ const sequel_syntax_node_t *sequel_syntax_node(const sequel_syntax_document_t *d
   return document && node_index < document->node_count ? &document->nodes[node_index] : NULL;
 }
 
-size_t sequel_syntax_node_count(const sequel_syntax_document_t *document) {
-  return document ? document->node_count : 0;
-}
+size_t sequel_syntax_node_count(const sequel_syntax_document_t *document) { return document ? document->node_count : 0; }
 
 const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count) {
   if (!document || node_index >= document->node_count) {

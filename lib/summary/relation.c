@@ -4,9 +4,8 @@
 #include "internal.h"
 
 static const char *sequel_summary_next_join_marker(const char *source, const char *end) {
-  static const char *markers[] = {" JOIN ",       " LEFT JOIN ",  " RIGHT JOIN ",      " FULL JOIN ",
-                                  " CROSS JOIN ", " INNER JOIN ", " NATURAL JOIN ",    " SEMI JOIN ",
-                                  " ANTI JOIN ",  " ASOF JOIN ",  " POSITIONAL JOIN ", NULL};
+  static const char *markers[] = {" JOIN ",         " LEFT JOIN ", " RIGHT JOIN ", " FULL JOIN ", " CROSS JOIN ",      " INNER JOIN ",
+                                  " NATURAL JOIN ", " SEMI JOIN ", " ANTI JOIN ",  " ASOF JOIN ", " POSITIONAL JOIN ", NULL};
   const char *best = NULL;
   for (size_t i = 0; markers[i]; ++i) {
     const char *candidate = sequel_summary_find_text(source, markers[i]);
@@ -36,21 +35,16 @@ bool sequel_summary_has_outer_from(const sequel_query_document_t *query) {
   return false;
 }
 
-int sequel_summary_append_join_condition(char **text, size_t *length, size_t *capacity,
-                                         const sequel_query_document_t *query, const sequel_join_info_t *join) {
+int sequel_summary_append_join_condition(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, const sequel_join_info_t *join) {
   if (!join || !join->has_condition || join->condition_range.end <= join->condition_range.start)
     return 1;
-  return sequel_summary_append_text(text, length, capacity, " ON ") &&
-         sequel_summary_append_redacted_range(text, length, capacity, query, join->condition_range.start,
-                                              join->condition_range.end);
+  return sequel_summary_append_text(text, length, capacity, " ON ") && sequel_summary_append_redacted_range(text, length, capacity, query, join->condition_range.start, join->condition_range.end);
 }
 
-int sequel_summary_append_relation_name(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                        const sequel_relation_info_t *relation) {
+int sequel_summary_append_relation_name(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_relation_info_t *relation) {
   size_t start = relation->name_range.start;
   size_t end = relation->name_range.end;
-  if (start > end || end > source.length ||
-      !sequel_summary_append_bytes(text, length, capacity, source.data + start, end - start))
+  if (start > end || end > source.length || !sequel_summary_append_bytes(text, length, capacity, source.data + start, end - start))
     return 0;
   if (relation->kind == SEQUEL_RELATION_SUBQUERY && start < end && source.data[start] == '(') {
     char *rendered = *text;
@@ -82,23 +76,18 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
       const char *bare_alias_end = bare_alias;
       while (bare_alias_end < close && !isspace((unsigned char)*bare_alias_end) && *bare_alias_end != ')')
         ++bare_alias_end;
-      bool has_bare_alias = bare_alias < bare_alias_end && (!where || bare_alias < where) &&
-                            (!order || bare_alias < order) && (!limit || bare_alias < limit) &&
-                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "WHERE") &&
-                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "ORDER") &&
-                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "LIMIT") &&
-                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "JOIN");
+      bool has_bare_alias = bare_alias < bare_alias_end && (!where || bare_alias < where) && (!order || bare_alias < order) && (!limit || bare_alias < limit) &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "WHERE") && !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "ORDER") &&
+                            !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "LIMIT") && !sequel_summary_word(bare_alias, (size_t)(close - bare_alias), 0, "JOIN");
       if (inner_alias && inner_alias < close && (!where || inner_alias < where) && (!order || inner_alias < order)) {
         const char *alias = inner_alias + strlen(" AS ");
         const char *alias_end = alias;
         while (alias_end < close && !isspace((unsigned char)*alias_end) && *alias_end != ')')
           ++alias_end;
-        if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
-            !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
+        if (!sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, alias, (size_t)(alias_end - alias)))
           return 0;
       } else if (has_bare_alias) {
-        if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
-            !sequel_summary_append_bytes(text, length, capacity, bare_alias, (size_t)(bare_alias_end - bare_alias)))
+        if (!sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, bare_alias, (size_t)(bare_alias_end - bare_alias)))
           return 0;
       }
       const char *join = sequel_summary_next_join_marker(table_end, close);
@@ -126,8 +115,7 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
         if (!on || on >= close || (where && on >= where))
           break;
         if (!sequel_summary_append_bytes(text, length, capacity, join, (size_t)(join_table - join)) ||
-            !sequel_summary_append_bytes(text, length, capacity, join_table, (size_t)(join_end - join_table)) ||
-            !sequel_summary_append_text(text, length, capacity, " ON …"))
+            !sequel_summary_append_bytes(text, length, capacity, join_table, (size_t)(join_end - join_table)) || !sequel_summary_append_text(text, length, capacity, " ON …"))
           return 0;
         join = sequel_summary_next_join_marker(on + strlen(" ON "), close);
       }
@@ -149,8 +137,7 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
   if (relation->kind == SEQUEL_RELATION_FUNCTION && relation->alias_range.start > end) {
     const char *suffix = source.data + end;
     size_t suffix_length = relation->alias_range.start - end;
-    if (sequel_summary_find_word(suffix, suffix_length, 0, "WITH") &&
-        sequel_summary_find_word(suffix, suffix_length, 0, "ORDINALITY") &&
+    if (sequel_summary_find_word(suffix, suffix_length, 0, "WITH") && sequel_summary_find_word(suffix, suffix_length, 0, "ORDINALITY") &&
         !sequel_summary_append_text(text, length, capacity, " WITH ORDINALITY"))
       return 0;
   }
@@ -161,14 +148,11 @@ int sequel_summary_append_relation_name(char **text, size_t *length, size_t *cap
       return 0;
     if (sequel_summary_word(source.data, source.length, alias_start, "SAMPLE"))
       return sequel_summary_append_text(text, length, capacity, " SAMPLE");
-    if (!sequel_summary_append_text(text, length, capacity, " AS ") ||
-        !sequel_summary_append_bytes(text, length, capacity, source.data + alias_start, alias_end - alias_start))
+    if (!sequel_summary_append_text(text, length, capacity, " AS ") || !sequel_summary_append_bytes(text, length, capacity, source.data + alias_start, alias_end - alias_start))
       return 0;
-    if (relation->kind == SEQUEL_RELATION_FUNCTION && relation->range.end > alias_end &&
-        source.data[alias_end] == '(') {
+    if (relation->kind == SEQUEL_RELATION_FUNCTION && relation->range.end > alias_end && source.data[alias_end] == '(') {
       const char *column_end = sequel_summary_matching_close(source.data + alias_end, source.data + source.length);
-      if (!column_end || !sequel_summary_append_bytes(text, length, capacity, source.data + alias_end,
-                                                      (size_t)(column_end - (source.data + alias_end)) + 1))
+      if (!column_end || !sequel_summary_append_bytes(text, length, capacity, source.data + alias_end, (size_t)(column_end - (source.data + alias_end)) + 1))
         return 0;
     }
   }

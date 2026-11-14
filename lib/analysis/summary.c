@@ -47,8 +47,7 @@ static void sequel_summary_redact_clickhouse_where(char *text) {
   }
 }
 
-void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized,
-                                        size_t sanitized_length, sequel_analysis_t *out) {
+void sequel_analysis_summary_from_query(const sequel_query_document_t *query, const char *sanitized, size_t sanitized_length, sequel_analysis_t *out) {
   if (query && sequel_query_statement_count(query) > 1 && sanitized) {
     sequel_source_view_t original = sequel_query_source(query);
     while (sanitized_length && isspace((unsigned char)sanitized[sanitized_length - 1]))
@@ -77,8 +76,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
         copy[write++] = ' ';
     }
     sanitized_length = write;
-    while (sanitized_length &&
-           (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
+    while (sanitized_length && (copy[sanitized_length - 1] == ';' || isspace((unsigned char)copy[sanitized_length - 1])))
       --sanitized_length;
     sequel_summary_collapse_set_statements(copy);
     if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
@@ -92,8 +90,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       if (rendered_limit)
         rendered_limit[6] = limit[6];
     }
-    const bool preserve_array_indexes =
-        sequel_query_dialect(query) == SEQUEL_GENERIC || sequel_query_dialect(query) == SEQUEL_SQLITE;
+    const bool preserve_array_indexes = sequel_query_dialect(query) == SEQUEL_GENERIC || sequel_query_dialect(query) == SEQUEL_SQLITE;
     const char *source_index = original.data;
     char *rendered_index = copy;
     while (preserve_array_indexes && (source_index = strchr(source_index, '[')) != NULL) {
@@ -153,25 +150,21 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   bool has_distinct_on = strstr(source.data, "DISTINCT ON") != NULL;
   bool starts_with_cte = strstr(source.data, "WITH ") != NULL;
   bool summary_has_cte = summary.data && strncmp(summary.data, "WITH ", 5) == 0;
-  if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries &&
-      !starts_with_cte && !summary_has_cte && !first_statement_has_locking_limit && !has_distinct_on &&
-      !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' &&
-      summary.data) {
+  if (source_limit && limit_count == 1 && !strstr(source.data, "UPDATE ") && !multiple_named_queries && !starts_with_cte && !summary_has_cte && !first_statement_has_locking_limit &&
+      !has_distinct_on && !parameter_limit_before_numeric && !isdigit((unsigned char)source_limit[7]) && source_limit[7] != ':' && summary.data) {
     char *rendered_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       rendered_limit = cursor;
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && source_limit && source_limit[7] != ':' && !strstr(source.data, "UPDATE ") && !starts_with_cte &&
-      !summary_has_cte && !has_distinct_on && strstr(source.data, "ORDER BY") && strstr(source.data, "LIMIT 1") &&
-      !strstr(source.data, "LIMIT $")) {
+  if (summary.data && source_limit && source_limit[7] != ':' && !strstr(source.data, "UPDATE ") && !starts_with_cte && !summary_has_cte && !has_distinct_on && strstr(source.data, "ORDER BY") &&
+      strstr(source.data, "LIMIT 1") && !strstr(source.data, "LIMIT $")) {
     char *only_limit = strstr(summary.data, "LIMIT ?");
     if (only_limit && !strstr(only_limit + 7, "LIMIT ?"))
       only_limit[6] = '1';
   }
-  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 &&
-      !strstr(source.data, "CASE")) {
+  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 && !strstr(source.data, "CASE")) {
     char *first_limit = strstr(summary.data, "LIMIT ");
     char *second_limit = first_limit ? strstr(first_limit + 7, "LIMIT ") : NULL;
     if (first_limit && second_limit) {
@@ -180,15 +173,13 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
       second_limit[6] = lateral ? '1' : '?';
     }
   }
-  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 &&
-      strstr(source.data, "COALESCE")) {
+  if (summary.data && !starts_with_cte && !summary_has_cte && numeric_limit_count == 2 && strstr(source.data, "COALESCE")) {
     char *first_limit = strstr(summary.data, "LIMIT ?");
     if (first_limit)
       first_limit[6] = '1';
   }
   const char *lateral = strstr(source.data, "CROSS JOIN LATERAL");
-  if (summary.data && !summary_has_cte && lateral && source_limit && source_limit[7] != ':' &&
-      !strstr(lateral + 18, "CROSS JOIN LATERAL")) {
+  if (summary.data && !summary_has_cte && lateral && source_limit && source_limit[7] != ':' && !strstr(lateral + 18, "CROSS JOIN LATERAL")) {
     char *first_limit = strstr(summary.data, "LIMIT ?");
     if (first_limit)
       first_limit[6] = '1';
@@ -209,8 +200,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   for (size_t i = 0; i < source.length; ++i)
     if (source.data[i] == ';')
       ++statement_terminators;
-  if (summary.data && statement_terminators <= 1 && strstr(source.data, "LEFT JOIN LATERAL") &&
-      strstr(source.data, "LIMIT 1")) {
+  if (summary.data && statement_terminators <= 1 && strstr(source.data, "LEFT JOIN LATERAL") && strstr(source.data, "LIMIT 1")) {
     char *last_limit = NULL;
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT ?")) != NULL; cursor += 7)
       last_limit = cursor;
@@ -224,8 +214,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
     if (rendered_limit)
       rendered_limit[6] = source_limit[6];
   }
-  if (summary.data && numeric_limit_count > 1 && strstr(summary.data, "ticker_backtest_results") &&
-      !strstr(summary.data, "WITH selected_generation")) {
+  if (summary.data && numeric_limit_count > 1 && strstr(summary.data, "ticker_backtest_results") && !strstr(summary.data, "WITH selected_generation")) {
     for (char *cursor = summary.data; (cursor = strstr(cursor, "LIMIT 1")) != NULL; cursor += 7)
       cursor[6] = '?';
   }
@@ -249,8 +238,7 @@ void sequel_analysis_summary_from_query(const sequel_query_document_t *query, co
   if (summary.length && summary.data)
     memcpy(copy, summary.data, summary.length);
   copy[summary.length] = 0;
-  const bool preserve_array_indexes =
-      sequel_query_dialect(query) == SEQUEL_GENERIC || sequel_query_dialect(query) == SEQUEL_SQLITE;
+  const bool preserve_array_indexes = sequel_query_dialect(query) == SEQUEL_GENERIC || sequel_query_dialect(query) == SEQUEL_SQLITE;
   const char *source_index = source.data;
   char *rendered_index = copy;
   size_t output_length = summary.length;

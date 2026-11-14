@@ -29,8 +29,7 @@ int sequel_format_append_text(char **data, size_t *length, size_t *capacity, con
 }
 
 int sequel_format_append_space(char **data, size_t *length, size_t *capacity) {
-  return !*length || (*data)[*length - 1] == ' ' || (*data)[*length - 1] == '\n' ||
-         sequel_format_append_text(data, length, capacity, " ", 1);
+  return !*length || (*data)[*length - 1] == ' ' || (*data)[*length - 1] == '\n' || sequel_format_append_text(data, length, capacity, " ", 1);
 }
 
 int sequel_format_append_line_start(char **data, size_t *length, size_t *capacity, size_t indent) {

@@ -4,9 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int sequel_summary_append_text(char **text, size_t *length, size_t *capacity, const char *value) {
-  return sequel_summary_append_bytes(text, length, capacity, value, strlen(value));
-}
+int sequel_summary_append_text(char **text, size_t *length, size_t *capacity, const char *value) { return sequel_summary_append_bytes(text, length, capacity, value, strlen(value)); }
 
 int sequel_summary_append_bytes(char **text, size_t *length, size_t *capacity, const char *value, size_t amount) {
   /* Keep one byte beyond the terminator as a sentinel for legacy text

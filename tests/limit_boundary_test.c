@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define CHECK(x)                                                                                                       \
-  do {                                                                                                                 \
-    if (!(x)) {                                                                                                        \
-      fprintf(stderr, "line %d: %s\n", __LINE__, #x);                                                                  \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(x)                                                                                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    if (!(x)) {                                                                                                                                                                                        \
+      fprintf(stderr, "line %d: %s\n", __LINE__, #x);                                                                                                                                                  \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
 
 int main(int argc, char **argv) {

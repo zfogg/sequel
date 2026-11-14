@@ -7,15 +7,12 @@
 #include "util/text.h"
 #include "model.h"
 
-static int sequel_query_token_is_reserved_relation_alias(const sequel_source_view_t *source,
-                                                         const sequel_token_t *token) {
+static int sequel_query_token_is_reserved_relation_alias(const sequel_source_view_t *source, const sequel_token_t *token) {
   size_t length = token->range.end - token->range.start;
   if (length != 5 || token->range.end > source->length)
     return 0;
-  return toupper((unsigned char)source->data[token->range.start]) == 'F' &&
-         toupper((unsigned char)source->data[token->range.start + 1]) == 'I' &&
-         toupper((unsigned char)source->data[token->range.start + 2]) == 'N' &&
-         toupper((unsigned char)source->data[token->range.start + 3]) == 'A' &&
+  return toupper((unsigned char)source->data[token->range.start]) == 'F' && toupper((unsigned char)source->data[token->range.start + 1]) == 'I' &&
+         toupper((unsigned char)source->data[token->range.start + 2]) == 'N' && toupper((unsigned char)source->data[token->range.start + 3]) == 'A' &&
          toupper((unsigned char)source->data[token->range.start + 4]) == 'L';
 }
 
@@ -23,16 +20,14 @@ static int sequel_query_token_is_join_modifier(const sequel_source_view_t *sourc
   if (!sequel_token_is_identifier(token) || token->range.end > source->length)
     return 0;
   size_t length = token->range.end - token->range.start;
-  const char *modifiers[] = {"NATURAL", "LEFT",  "RIGHT",   "FULL", "OUTER", "CROSS", "GLOBAL",
-                             "ANY",     "INNER", "LATERAL", "ASOF", "SEMI",  "ANTI",  "POSITIONAL"};
+  const char *modifiers[] = {"NATURAL", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "GLOBAL", "ANY", "INNER", "LATERAL", "ASOF", "SEMI", "ANTI", "POSITIONAL"};
   for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); ++i)
     if (sequel_text_equal_ci(source->data + token->range.start, length, modifiers[i]))
       return 1;
   return 0;
 }
 
-static int sequel_query_token_is_in_subquery(const sequel_token_t *tokens, size_t index,
-                                             const sequel_source_view_t *source) {
+static int sequel_query_token_is_in_subquery(const sequel_token_t *tokens, size_t index, const sequel_source_view_t *source) {
   size_t depth = 0;
   size_t subquery_depth = SIZE_MAX;
   for (size_t i = 0; i < index; ++i) {
@@ -44,14 +39,11 @@ static int sequel_query_token_is_in_subquery(const sequel_token_t *tokens, size_
     if (punctuation == '(') {
       ++depth;
       size_t next = i + 1;
-      while (next < index &&
-             (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-              tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+      while (next < index && (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
         ++next;
       if (next < index) {
         size_t length = tokens[next].range.end - tokens[next].range.start;
-        bool select_keyword =
-            tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT;
+        bool select_keyword = tokens[next].kind == SEQUEL_TOKEN_KEYWORD && tokens[next].keyword_id == SEQUEL_KEYWORD_SELECT;
         bool select_spelling = sequel_text_equal_ci(source->data + tokens[next].range.start, length, "SELECT");
         if (select_keyword || select_spelling)
           subquery_depth = depth;
@@ -78,15 +70,13 @@ static size_t sequel_query_scope_for_range(const sequel_query_document_t *docume
     if (!sequel_source_range_contains(document->scope_statements[i].range, range))
       continue;
     if (match == SIZE_MAX ||
-        document->scope_statements[i].range.end - document->scope_statements[i].range.start <
-            document->scope_statements[match].range.end - document->scope_statements[match].range.start)
+        document->scope_statements[i].range.end - document->scope_statements[i].range.start < document->scope_statements[match].range.end - document->scope_statements[match].range.start)
       match = i;
   }
   return match;
 }
 
-sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
-                                            const sequel_parse_options_t *options, sequel_query_document_t **out) {
+sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax, const sequel_parse_options_t *options, sequel_query_document_t **out) {
   if (!syntax || !out)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -101,8 +91,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
   sequel_source_view_t source = sequel_lexed_source(lexed);
-  sequel_status_t statement_status =
-      sequel_query_build_statements(document, syntax, tokens, token_count, &source, max_nodes);
+  sequel_status_t statement_status = sequel_query_build_statements(document, syntax, tokens, token_count, &source, max_nodes);
   if (statement_status != SEQUEL_OK) {
     sequel_query_document_free(document);
     return statement_status;
@@ -117,8 +106,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t i = 0; i < document->statement_count; ++i) {
       bool nested = false;
       for (size_t cte = 0; cte < document->cte_count; ++cte) {
-        if (document->statements[i].range.start >= document->ctes[cte].body_range.start &&
-            document->statements[i].range.end <= document->ctes[cte].body_range.end) {
+        if (document->statements[i].range.start >= document->ctes[cte].body_range.start && document->statements[i].range.end <= document->ctes[cte].body_range.end) {
           nested = true;
           break;
         }
@@ -143,12 +131,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           --outer_depth;
         continue;
       }
-      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
-          sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
         document->outer_limit_range = tokens[token].range;
-        document->outer_limit_clause_range =
-            (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
+        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
         size_t value = token + 1;
         while (value < token_count && sequel_token_is_trivia(&tokens[value]))
           ++value;
@@ -169,15 +155,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         cursor += 8;
         while (cursor < source.length && !isalpha((unsigned char)source.data[cursor]))
           ++cursor;
-        document->outer_distinct_on =
-            cursor + 2 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 2, "ON");
+        document->outer_distinct_on = cursor + 2 <= source.length && sequel_query_word_equals_ci(source.data + cursor, 2, "ON");
       }
     }
     for (size_t token = 0; token < token_count; ++token) {
       if (tokens[token].range.start < outer || sequel_token_is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t outer_operation = sequel_query_operation_from_word(
-          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t outer_operation = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
       if (outer_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = outer_operation;
         break;
@@ -199,12 +183,10 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           --outer_depth;
         continue;
       }
-      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 &&
-          sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
+      if (!outer_depth && tokens[token].range.end - tokens[token].range.start == 5 && sequel_query_word_equals_ci(source.data + tokens[token].range.start, 5, "LIMIT")) {
         document->outer_limit = true;
         document->outer_limit_range = tokens[token].range;
-        document->outer_limit_clause_range =
-            (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
+        document->outer_limit_clause_range = (sequel_source_range_t){tokens[token].range.start, document->statements[0].range.end};
         size_t value = token + 1;
         while (value < token_count && sequel_token_is_trivia(&tokens[value]))
           ++value;
@@ -239,8 +221,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       }
       if (depth || current->kind != SEQUEL_TOKEN_KEYWORD)
         continue;
-      sequel_operation_t body_operation = sequel_query_operation_from_word(source.data + current->range.start,
-                                                                           current->range.end - current->range.start);
+      sequel_operation_t body_operation = sequel_query_operation_from_word(source.data + current->range.start, current->range.end - current->range.start);
       if (body_operation != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = body_operation;
         break;
@@ -251,8 +232,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t token = 0; token < token_count; ++token) {
       if (sequel_token_is_trivia(&tokens[token]))
         continue;
-      sequel_operation_t recovered = sequel_query_operation_from_word(
-          source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
+      sequel_operation_t recovered = sequel_query_operation_from_word(source.data + tokens[token].range.start, tokens[token].range.end - tokens[token].range.start);
       if (recovered != SEQUEL_OPERATION_UNKNOWN) {
         document->statements[0].operation = recovered;
         break;
@@ -280,8 +260,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       end = range_end;
     }
     size_t select = first;
-    while (select < end &&
-           !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == SEQUEL_KEYWORD_SELECT))
+    while (select < end && !(tokens[select].kind == SEQUEL_TOKEN_KEYWORD && tokens[select].keyword_id == SEQUEL_KEYWORD_SELECT))
       ++select;
     if (select == end)
       continue;
@@ -297,8 +276,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           --depth;
         boundary = depth == 0 && c == ',';
       }
-      if (!boundary && i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD &&
-          tokens[i].keyword_id == SEQUEL_KEYWORD_FROM && depth == 0)
+      if (!boundary && i < end && tokens[i].kind == SEQUEL_TOKEN_KEYWORD && tokens[i].keyword_id == SEQUEL_KEYWORD_FROM && depth == 0)
         boundary = true;
       if (!boundary)
         continue;
@@ -309,16 +287,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       while (last_token > first_token && sequel_token_is_trivia(&tokens[last_token - 1]))
         --last_token;
       if (first_token < last_token) {
-        sequel_projection_info_t projection = {
-            .range = {tokens[first_token].range.start, tokens[last_token - 1].range.end},
-            .statement_index = s,
-            .expression_node = SIZE_MAX,
-            .wildcard = last_token == first_token + 1 && tokens[first_token].kind == SEQUEL_TOKEN_OPERATOR &&
-                        source.data[tokens[first_token].range.start] == '*',
-            .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
+        sequel_projection_info_t projection = {.range = {tokens[first_token].range.start, tokens[last_token - 1].range.end},
+                                               .statement_index = s,
+                                               .expression_node = SIZE_MAX,
+                                               .wildcard = last_token == first_token + 1 && tokens[first_token].kind == SEQUEL_TOKEN_OPERATOR && source.data[tokens[first_token].range.start] == '*',
+                                               .alias_range = {tokens[last_token - 1].range.end, tokens[last_token - 1].range.end}};
         projection.expression_node = sequel_query_expression_node_for_range(document->syntax, projection.range);
-        if (!sequel_query_array_append((void **)&document->projections, &document->projection_count, sizeof(projection),
-                                       &projection)) {
+        if (!sequel_query_array_append((void **)&document->projections, &document->projection_count, sizeof(projection), &projection)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -328,8 +303,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         break;
     }
     for (size_t i = first; i < end; ++i) {
-      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
-          (tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE && tokens[i].keyword_id != SEQUEL_KEYWORD_PREWHERE))
+      if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != SEQUEL_KEYWORD_WHERE && tokens[i].keyword_id != SEQUEL_KEYWORD_PREWHERE))
         continue;
       size_t predicate_start = i + 1;
       while (predicate_start < end && sequel_token_is_trivia(&tokens[predicate_start]))
@@ -343,16 +317,13 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       while (predicate_end > predicate_start && sequel_token_is_trivia(&tokens[predicate_end - 1]))
         --predicate_end;
       if (predicate_start < predicate_end) {
-        sequel_predicate_info_t predicate = {
-            .range = {tokens[predicate_start].range.start, tokens[predicate_end - 1].range.end},
-            .statement_index = s,
-            .expression_node = SIZE_MAX,
-            .normalized_hash = range_hash(&source, (sequel_source_range_t){tokens[predicate_start].range.start,
-                                                                           tokens[predicate_end - 1].range.end}),
-            .depth = 0};
+        sequel_predicate_info_t predicate = {.range = {tokens[predicate_start].range.start, tokens[predicate_end - 1].range.end},
+                                             .statement_index = s,
+                                             .expression_node = SIZE_MAX,
+                                             .normalized_hash = range_hash(&source, (sequel_source_range_t){tokens[predicate_start].range.start, tokens[predicate_end - 1].range.end}),
+                                             .depth = 0};
         predicate.expression_node = sequel_query_expression_node_for_range(document->syntax, predicate.range);
-        if (!sequel_query_array_append((void **)&document->predicates, &document->predicate_count, sizeof(predicate),
-                                       &predicate)) {
+        if (!sequel_query_array_append((void **)&document->predicates, &document->predicate_count, sizeof(predicate), &predicate)) {
           sequel_query_document_free(document);
           return SEQUEL_ERR_NOMEM;
         }
@@ -384,8 +355,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
         if (nested_depth)
           continue;
-        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && (tokens[previous].keyword_id == SEQUEL_KEYWORD_FROM ||
-                                                              tokens[previous].keyword_id == SEQUEL_KEYWORD_JOIN)) {
+        if (tokens[previous].kind == SEQUEL_TOKEN_KEYWORD && (tokens[previous].keyword_id == SEQUEL_KEYWORD_FROM || tokens[previous].keyword_id == SEQUEL_KEYWORD_JOIN)) {
           comma_relation = true;
           break;
         }
@@ -393,9 +363,8 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           break;
       }
     }
-    if (!comma_relation && (tokens[i].kind != SEQUEL_TOKEN_KEYWORD ||
-                            (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM &&
-                             tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN && tokens[i].keyword_id != SEQUEL_KEYWORD_ON)))
+    if (!comma_relation &&
+        (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || (tokens[i].keyword_id != SEQUEL_KEYWORD_FROM && tokens[i].keyword_id != SEQUEL_KEYWORD_JOIN && tokens[i].keyword_id != SEQUEL_KEYWORD_ON)))
       continue;
     bool expression_from = false;
     if (tokens[i].keyword_id == SEQUEL_KEYWORD_FROM) {
@@ -405,23 +374,18 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         if (!sequel_token_is_trivia(&tokens[cursor]))
           prior[found++] = cursor;
       }
-      if (found == 3 && tokens[prior[1]].kind == SEQUEL_TOKEN_KEYWORD &&
-          tokens[prior[1]].keyword_id == SEQUEL_KEYWORD_NOT && tokens[prior[2]].kind == SEQUEL_TOKEN_KEYWORD &&
+      if (found == 3 && tokens[prior[1]].kind == SEQUEL_TOKEN_KEYWORD && tokens[prior[1]].keyword_id == SEQUEL_KEYWORD_NOT && tokens[prior[2]].kind == SEQUEL_TOKEN_KEYWORD &&
           tokens[prior[2]].keyword_id == SEQUEL_KEYWORD_IS &&
-          sequel_query_word_equals_ci(source.data + tokens[prior[0]].range.start,
-                                      tokens[prior[0]].range.end - tokens[prior[0]].range.start, "DISTINCT"))
+          sequel_query_word_equals_ci(source.data + tokens[prior[0]].range.start, tokens[prior[0]].range.end - tokens[prior[0]].range.start, "DISTINCT"))
         expression_from = true;
     }
     if (expression_from)
       continue;
     size_t statement = sequel_query_statement_for_range(document, tokens[i].range);
-    if (tokens[i].keyword_id == SEQUEL_KEYWORD_ON &&
-        (statement == SIZE_MAX || document->statements[statement].operation != SEQUEL_OPERATION_CREATE))
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_ON && (statement == SIZE_MAX || document->statements[statement].operation != SEQUEL_OPERATION_CREATE))
       continue;
     size_t name = i + 1;
-    while (name < token_count &&
-           (tokens[name].kind == SEQUEL_TOKEN_WHITESPACE || tokens[name].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-            tokens[name].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    while (name < token_count && (tokens[name].kind == SEQUEL_TOKEN_WHITESPACE || tokens[name].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[name].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++name;
     if (name >= token_count)
       continue;
@@ -442,8 +406,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       size_t alias = close + 1;
       while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
-      if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
-          tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
+      if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD && tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
         ++alias;
         while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
           ++alias;
@@ -452,9 +415,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       if (alias < token_count && sequel_token_is_identifier(&tokens[alias]))
         alias_range = tokens[alias].range;
       sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_SUBQUERY,
-                                         .range = {tokens[name].range.start, alias_range.end > tokens[close].range.end
-                                                                                 ? alias_range.end
-                                                                                 : tokens[close].range.end},
+                                         .range = {tokens[name].range.start, alias_range.end > tokens[close].range.end ? alias_range.end : tokens[close].range.end},
                                          .name_range = {tokens[name].range.start, tokens[close].range.end},
                                          .alias_range = alias_range,
                                          .statement_index = statement,
@@ -463,28 +424,24 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                                          .subquery_statement = SIZE_MAX,
                                          .flags = SEQUEL_RELATION_FLAG_NESTED_SCOPE};
       relation.subquery_statement = sequel_query_scope_for_range(document, relation.name_range);
-      if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
-                                     &relation)) {
+      if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
         sequel_query_document_free(document);
         return SEQUEL_ERR_NOMEM;
       }
       continue;
     }
-    bool lateral_name = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
-                                                    tokens[name].range.end - tokens[name].range.start, "LATERAL");
+    bool lateral_name = sequel_query_word_equals_ci(source.data + tokens[name].range.start, tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (!sequel_token_is_identifier(&tokens[name]) && !lateral_name)
       continue;
     size_t end = tokens[name].range.end;
     size_t cursor = name + 1;
     bool function_relation = false;
     bool parenthesized_join_relation = false;
-    bool lateral_subquery = sequel_query_word_equals_ci(source.data + tokens[name].range.start,
-                                                        tokens[name].range.end - tokens[name].range.start, "LATERAL");
+    bool lateral_subquery = sequel_query_word_equals_ci(source.data + tokens[name].range.start, tokens[name].range.end - tokens[name].range.start, "LATERAL");
     if (lateral_subquery) {
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
-          source.data[tokens[cursor].range.start] == '(') {
+      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[cursor].range.start] == '(') {
         size_t close = cursor;
         unsigned depth = 0;
         for (; close < token_count; ++close) {
@@ -513,8 +470,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       size_t opening = cursor;
       while (opening < token_count && sequel_token_is_trivia(&tokens[opening]))
         ++opening;
-      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
-          source.data[tokens[opening].range.start] == '(') {
+      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[opening].range.start] == '(') {
         size_t close = opening;
         unsigned depth = 0;
         for (; close < token_count; ++close) {
@@ -530,8 +486,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           size_t body = opening + 1;
           while (body < close && sequel_token_is_trivia(&tokens[body]))
             ++body;
-          if (body < close && tokens[body].kind == SEQUEL_TOKEN_KEYWORD &&
-              (tokens[body].keyword_id == SEQUEL_KEYWORD_SELECT || tokens[body].keyword_id == SEQUEL_KEYWORD_WITH))
+          if (body < close && tokens[body].kind == SEQUEL_TOKEN_KEYWORD && (tokens[body].keyword_id == SEQUEL_KEYWORD_SELECT || tokens[body].keyword_id == SEQUEL_KEYWORD_WITH))
             parenthesized_join_relation = true;
           else
             function_relation = true;
@@ -540,14 +495,11 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
     }
-    if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN &&
-        !sequel_query_word_equals_ci(source.data + tokens[name].range.start,
-                                     tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
+    if (tokens[i].keyword_id == SEQUEL_KEYWORD_JOIN && !sequel_query_word_equals_ci(source.data + tokens[name].range.start, tokens[name].range.end - tokens[name].range.start, "LATERAL")) {
       size_t opening = cursor;
       while (opening < token_count && sequel_token_is_trivia(&tokens[opening]))
         ++opening;
-      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION &&
-          source.data[tokens[opening].range.start] == '(') {
+      if (opening < token_count && tokens[opening].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[opening].range.start] == '(') {
         size_t close = opening;
         unsigned depth = 0;
         for (; close < token_count; ++close) {
@@ -566,44 +518,32 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         }
       }
     }
-    while (cursor + 1 < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
-           source.data[tokens[cursor].range.start] == '.' && sequel_token_is_identifier(&tokens[cursor + 1])) {
+    while (cursor + 1 < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION && source.data[tokens[cursor].range.start] == '.' && sequel_token_is_identifier(&tokens[cursor + 1])) {
       end = tokens[cursor + 1].range.end;
       cursor += 2;
     }
     sequel_source_range_t range = {tokens[i].range.start, end};
     statement = sequel_query_statement_for_range(document, range);
     size_t alias = cursor;
-    while (alias < token_count &&
-           (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-            tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    while (alias < token_count && (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++alias;
-    if (alias < token_count &&
-        sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
-                                    tokens[alias].range.end - tokens[alias].range.start, "WITH")) {
+    if (alias < token_count && sequel_query_word_equals_ci(source.data + tokens[alias].range.start, tokens[alias].range.end - tokens[alias].range.start, "WITH")) {
       ++alias;
       while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
-      if (alias < token_count &&
-          sequel_query_word_equals_ci(source.data + tokens[alias].range.start,
-                                      tokens[alias].range.end - tokens[alias].range.start, "ORDINALITY"))
+      if (alias < token_count && sequel_query_word_equals_ci(source.data + tokens[alias].range.start, tokens[alias].range.end - tokens[alias].range.start, "ORDINALITY"))
         ++alias;
       while (alias < token_count && sequel_token_is_trivia(&tokens[alias]))
         ++alias;
     }
-    if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD &&
-        tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
+    if (alias < token_count && tokens[alias].kind == SEQUEL_TOKEN_KEYWORD && tokens[alias].keyword_id == SEQUEL_KEYWORD_AS) {
       ++alias;
-      while (alias < token_count &&
-             (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-              tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+      while (alias < token_count && (tokens[alias].kind == SEQUEL_TOKEN_WHITESPACE || tokens[alias].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[alias].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
         ++alias;
     }
     size_t name_end = end;
     sequel_source_range_t alias_range = {end, end};
-    if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) &&
-        !sequel_token_is_clause_keyword(&tokens[alias]) &&
-        !sequel_query_token_is_join_modifier(&source, &tokens[alias]) &&
+    if (alias < token_count && sequel_token_is_identifier(&tokens[alias]) && !sequel_token_is_clause_keyword(&tokens[alias]) && !sequel_query_token_is_join_modifier(&source, &tokens[alias]) &&
         !sequel_query_token_is_reserved_relation_alias(&source, &tokens[alias]))
       alias_range = tokens[alias].range;
     if (alias_range.end > alias_range.start) {
@@ -626,15 +566,14 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           end = tokens[close].range.end;
       }
     }
-    sequel_relation_info_t relation = {
-        .kind = SEQUEL_RELATION_TABLE,
-        .range = {tokens[name].range.start, alias_range.end > end ? alias_range.end : end},
-        .name_range = {tokens[name].range.start, name_end},
-        .alias_range = alias_range,
-        .statement_index = statement,
-        .syntax_node = SIZE_MAX,
-        .parent_relation = SIZE_MAX,
-        .subquery_statement = SIZE_MAX};
+    sequel_relation_info_t relation = {.kind = SEQUEL_RELATION_TABLE,
+                                       .range = {tokens[name].range.start, alias_range.end > end ? alias_range.end : end},
+                                       .name_range = {tokens[name].range.start, name_end},
+                                       .alias_range = alias_range,
+                                       .statement_index = statement,
+                                       .syntax_node = SIZE_MAX,
+                                       .parent_relation = SIZE_MAX,
+                                       .subquery_statement = SIZE_MAX};
     if (sequel_query_token_is_in_subquery(tokens, name, &source)) {
       relation.flags |= SEQUEL_RELATION_FLAG_NESTED_SCOPE;
       relation.kind = SEQUEL_RELATION_SUBQUERY;
@@ -654,8 +593,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       relation.name_range.end = tokens[name].range.end;
     if (relation.kind == SEQUEL_RELATION_SUBQUERY)
       relation.subquery_statement = sequel_query_scope_for_range(document, relation.range);
-    if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation),
-                                   &relation)) {
+    if (!sequel_query_array_append((void **)&document->relations, &document->relation_count, sizeof(relation), &relation)) {
       sequel_query_document_free(document);
       return SEQUEL_ERR_NOMEM;
     }
@@ -663,11 +601,9 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
   for (size_t child = 0; child < document->relation_count; ++child) {
     size_t best = SIZE_MAX;
     for (size_t parent = 0; parent < document->relation_count; ++parent) {
-      if (parent == child ||
-          !sequel_source_range_contains(document->relations[parent].range, document->relations[child].range))
+      if (parent == child || !sequel_source_range_contains(document->relations[parent].range, document->relations[child].range))
         continue;
-      if (best == SIZE_MAX || document->relations[parent].range.end - document->relations[parent].range.start <
-                                  document->relations[best].range.end - document->relations[best].range.start)
+      if (best == SIZE_MAX || document->relations[parent].range.end - document->relations[parent].range.start < document->relations[best].range.end - document->relations[best].range.start)
         best = parent;
     }
     document->relations[child].parent_relation = best;
@@ -679,8 +615,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     for (size_t r = 0; r < document->relation_count; ++r) {
       if (!sequel_source_range_contains(document->relations[r].range, tokens[i].range))
         continue;
-      if (scope == SIZE_MAX || document->relations[r].range.end - document->relations[r].range.start <
-                                   document->relations[scope].range.end - document->relations[scope].range.start)
+      if (scope == SIZE_MAX || document->relations[r].range.end - document->relations[r].range.start < document->relations[scope].range.end - document->relations[scope].range.start)
         scope = r;
     }
     size_t left = SIZE_MAX;
@@ -689,11 +624,9 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
       const sequel_source_range_t relation_range = document->relations[r].range;
       if (document->relations[r].parent_relation != scope)
         continue;
-      if (relation_range.end <= tokens[i].range.start &&
-          (left == SIZE_MAX || relation_range.end > document->relations[left].range.end))
+      if (relation_range.end <= tokens[i].range.start && (left == SIZE_MAX || relation_range.end > document->relations[left].range.end))
         left = r;
-      if (relation_range.start >= tokens[i].range.end &&
-          (right == SIZE_MAX || relation_range.start < document->relations[right].range.start))
+      if (relation_range.start >= tokens[i].range.end && (right == SIZE_MAX || relation_range.start < document->relations[right].range.start))
         right = r;
     }
     if (left == SIZE_MAX || right == SIZE_MAX)
@@ -740,8 +673,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
         size_t condition_end = condition_start;
         size_t nesting = 0;
         while (condition_end < token_count && tokens[condition_end].range.start < join_end) {
-          if (tokens[condition_end].kind == SEQUEL_TOKEN_PUNCTUATION &&
-              tokens[condition_end].range.end == tokens[condition_end].range.start + 1) {
+          if (tokens[condition_end].kind == SEQUEL_TOKEN_PUNCTUATION && tokens[condition_end].range.end == tokens[condition_end].range.start + 1) {
             char punctuation = source.data[tokens[condition_end].range.start];
             if (punctuation == '(')
               ++nesting;
@@ -752,8 +684,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
            * Do not let the preceding join inherit that condition.  Nested
            * subqueries are protected by the nesting counter above. */
           bool distinct_from_operator = false;
-          if (tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
-              tokens[condition_end].keyword_id == SEQUEL_KEYWORD_FROM) {
+          if (tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD && tokens[condition_end].keyword_id == SEQUEL_KEYWORD_FROM) {
             size_t previous = condition_end;
             const char *expected[] = {"DISTINCT", "NOT", "IS"};
             distinct_from_operator = true;
@@ -765,19 +696,14 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
                 }
                 --previous;
               } while (sequel_token_is_trivia(&tokens[previous]));
-              if (!distinct_from_operator ||
-                  !sequel_query_word_equals_ci(source.data + tokens[previous].range.start,
-                                               tokens[previous].range.end - tokens[previous].range.start,
-                                               expected[word])) {
+              if (!distinct_from_operator || !sequel_query_word_equals_ci(source.data + tokens[previous].range.start, tokens[previous].range.end - tokens[previous].range.start, expected[word])) {
                 distinct_from_operator = false;
                 break;
               }
             }
           }
-          if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD &&
-              !distinct_from_operator &&
-              (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN ||
-               sequel_token_is_clause_keyword(&tokens[condition_end])))
+          if (nesting == 0 && condition_end > condition_start && tokens[condition_end].kind == SEQUEL_TOKEN_KEYWORD && !distinct_from_operator &&
+              (tokens[condition_end].keyword_id == SEQUEL_KEYWORD_JOIN || sequel_token_is_clause_keyword(&tokens[condition_end])))
             break;
           ++condition_end;
         }
@@ -785,8 +711,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
           --condition_end;
         if (condition_start < condition_end) {
           join.has_condition = true;
-          join.condition_range =
-              (sequel_source_range_t){tokens[condition_start].range.start, tokens[condition_end - 1].range.end};
+          join.condition_range = (sequel_source_range_t){tokens[condition_start].range.start, tokens[condition_end - 1].range.end};
           join.range.end = join.condition_range.end;
           join.condition_node = sequel_query_expression_node_for_range(document->syntax, join.condition_range);
         }
@@ -823,8 +748,7 @@ sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *synt
     size_t depth = 0;
     size_t statement_start = document->statements[statement_index].range.start;
     for (size_t previous = 0; previous < i; ++previous) {
-      if (tokens[previous].range.start < statement_start || tokens[previous].range.start >= tokens[i].range.start ||
-          tokens[previous].range.end != tokens[previous].range.start + 1)
+      if (tokens[previous].range.start < statement_start || tokens[previous].range.start >= tokens[i].range.start || tokens[previous].range.end != tokens[previous].range.start + 1)
         continue;
       char punctuation = source.data[tokens[previous].range.start];
       if (punctuation == '(')

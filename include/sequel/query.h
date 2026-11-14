@@ -44,14 +44,7 @@ typedef struct {
   uint32_t keyword_id;
 } sequel_clause_info_t;
 
-typedef enum {
-  SEQUEL_RELATION_TABLE = 0,
-  SEQUEL_RELATION_SUBQUERY,
-  SEQUEL_RELATION_CTE,
-  SEQUEL_RELATION_FUNCTION,
-  SEQUEL_RELATION_VALUES,
-  SEQUEL_RELATION_UNKNOWN
-} sequel_relation_kind_t;
+typedef enum { SEQUEL_RELATION_TABLE = 0, SEQUEL_RELATION_SUBQUERY, SEQUEL_RELATION_CTE, SEQUEL_RELATION_FUNCTION, SEQUEL_RELATION_VALUES, SEQUEL_RELATION_UNKNOWN } sequel_relation_kind_t;
 
 typedef struct {
   sequel_relation_kind_t kind;
@@ -89,16 +82,7 @@ typedef struct {
   uint64_t identity;
 } sequel_parameter_info_t;
 
-typedef enum {
-  SEQUEL_JOIN_INNER = 0,
-  SEQUEL_JOIN_LEFT,
-  SEQUEL_JOIN_RIGHT,
-  SEQUEL_JOIN_FULL,
-  SEQUEL_JOIN_CROSS,
-  SEQUEL_JOIN_NATURAL,
-  SEQUEL_JOIN_LATERAL,
-  SEQUEL_JOIN_UNKNOWN
-} sequel_join_kind_t;
+typedef enum { SEQUEL_JOIN_INNER = 0, SEQUEL_JOIN_LEFT, SEQUEL_JOIN_RIGHT, SEQUEL_JOIN_FULL, SEQUEL_JOIN_CROSS, SEQUEL_JOIN_NATURAL, SEQUEL_JOIN_LATERAL, SEQUEL_JOIN_UNKNOWN } sequel_join_kind_t;
 
 enum {
   SEQUEL_JOIN_FLAG_OUTER = 1u << 0,
@@ -156,8 +140,7 @@ typedef struct {
  * Build a normalized query view that borrows the supplied syntax document.
  * The syntax document and its lexical source must outlive the query document.
  */
-sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax,
-                                            const sequel_parse_options_t *options, sequel_query_document_t **out);
+sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax, const sequel_parse_options_t *options, sequel_query_document_t **out);
 void sequel_query_document_free(sequel_query_document_t *document);
 size_t sequel_query_statement_count(const sequel_query_document_t *document);
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document);

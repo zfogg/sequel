@@ -43,20 +43,17 @@ const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
 
 /** Diagnose an explicit byte length, including embedded NULs. @see sequel_diagnose */
-sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect,
-                                  sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
 
 /** Convert one recovered syntax issue into the canonical diagnostic ABI. */
-sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index,
-                                         sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index, sequel_diagnostic_t *diagnostic);
 
 /** Analyze explicit UTF-8 bytes; embedded NUL is diagnosed. Safe statement-boundary
  * recovery collects multiple issues. Any malformed statement fails closed for the
  * entire document. Cancellation and budgets clear partial exported data.
  * Caller supplies out; free previous storage before reuse. On failure inspect
  * status/diagnostics; this API never throws or exports partial raw SQL. */
-sequel_status_t sequel_analyze_n(const char *sql, size_t length, const sequel_analysis_options_t *options,
-                                 sequel_analysis_t *out);
+sequel_status_t sequel_analyze_n(const char *sql, size_t length, const sequel_analysis_options_t *options, sequel_analysis_t *out);
 
 /** NUL-terminated counterpart of sequel_analyze_n. Length discovery also polls
  * cancellation and consumes work budget. A rejected/cancelled scan can report
@@ -107,15 +104,13 @@ void sequel_metadata_free(sequel_metadata_t *metadata);
 sequel_status_t sequel_metadata(const char *sql, const sequel_metadata_options_t *options, sequel_metadata_t *out);
 
 /** Length-aware metadata extraction for caller-owned UTF-8 bytes. Embedded NUL bytes are rejected. */
-sequel_status_t sequel_metadata_n(const char *sql, size_t length, const sequel_metadata_options_t *options,
-                                  sequel_metadata_t *out);
+sequel_status_t sequel_metadata_n(const char *sql, size_t length, const sequel_metadata_options_t *options, sequel_metadata_t *out);
 
 /** Sanitizes into a caller-owned buffer. capacity includes the NUL
  * terminator; limit is the maximum emitted bytes (zero uses SEQUEL_TEXT_MAX).
  * Capacity need only fit the actual output or its truncated prefix plus NUL;
  * insufficient capacity returns SEQUEL_ERR_OVERFLOW without partial output. */
-sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
-                                char *out, size_t capacity, bool *truncated);
+sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit, char *out, size_t capacity, bool *truncated);
 
 /** Independent transformations. Retained comments and literals may contain secrets.
  * Zero flags preserves lexical contents while normalizing outside whitespace.
@@ -125,9 +120,7 @@ sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool 
 #define SEQUEL_SANITIZE_ALL (SEQUEL_REMOVE_COMMENTS | SEQUEL_REPLACE_LITERALS)
 
 /** Sanitize with independently selected comment removal and literal replacement. */
-sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
-                                           bool collapse_in_lists, size_t limit, char *out, size_t capacity,
-                                           bool *truncated);
+sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags, bool collapse_in_lists, size_t limit, char *out, size_t capacity, bool *truncated);
 
 /** Layout-only SQL formatting. Comments, literals, identifiers and bind markers
  * are preserved verbatim. No SQL is executed or sanitized. Input is UTF-8,
@@ -137,8 +130,7 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
 sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length);
 
 /** Format with a structured diagnostic; NULL diagnostic is permitted. @see sequel_format */
-sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length,
-                                 sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_format_ex(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity, size_t *length, sequel_diagnostic_t *diagnostic);
 
 /** Collapse horizontal token gaps while preserving comments, literals and newlines. */
 sequel_status_t sequel_compact(const char *sql, sequel_dialect_t dialect, char *out, size_t capacity);
@@ -183,8 +175,7 @@ typedef enum { SEQUEL_APPEARANCE_AUTO, SEQUEL_APPEARANCE_DARK, SEQUEL_APPEARANCE
 const char *sequel_colorscheme_variant_name(const char *name, sequel_appearance_t appearance);
 
 /** Load the selected published variant. @see sequel_colorscheme_variant_name */
-sequel_status_t sequel_colorscheme_for_appearance(const char *name, sequel_appearance_t appearance,
-                                                  sequel_colorscheme_t *out);
+sequel_status_t sequel_colorscheme_for_appearance(const char *name, sequel_appearance_t appearance, sequel_colorscheme_t *out);
 
 /** Switch a recognized palette to its counterpart. @see sequel_colorscheme_variant_name */
 sequel_status_t sequel_colorscheme_set_appearance(sequel_colorscheme_t *scheme, sequel_appearance_t appearance);
@@ -215,8 +206,7 @@ sequel_status_t sequel_colorscheme_parse(const char *yaml, sequel_colorscheme_t 
 void sequel_highlight_options_init(sequel_highlight_options_t *options);
 
 /** Apply a palette, resetting token overrides; apply explicit colors afterward. */
-sequel_status_t sequel_highlight_set_colorscheme(sequel_highlight_options_t *options,
-                                                 const sequel_colorscheme_t *scheme);
+sequel_status_t sequel_highlight_set_colorscheme(sequel_highlight_options_t *options, const sequel_colorscheme_t *scheme);
 
 /** Named types match the enum suffixes in lowercase. Hex is `#RRGGBB` or `RRGGBB`. */
 const char *sequel_highlight_color_name(sequel_highlight_color_t type);
@@ -233,12 +223,10 @@ sequel_status_t sequel_highlight_set_color(sequel_highlight_options_t *options, 
  * NULL options uses defaults. out=NULL/capacity=0 measures; length excludes NUL.
  * Insufficient capacity reports required length and empties out. Other errors
  * also empty out. Input and output buffers must not overlap. */
-sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity,
-                                 size_t *length);
+sequel_status_t sequel_highlight(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity, size_t *length);
 
 /** Tolerant success may still return an incomplete warning in diagnostic. */
-sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_options_t *options, char *out,
-                                    size_t capacity, size_t *length, sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_highlight_ex(const char *sql, const sequel_highlight_options_t *options, char *out, size_t capacity, size_t *length, sequel_diagnostic_t *diagnostic);
 
 #ifdef __cplusplus
 }

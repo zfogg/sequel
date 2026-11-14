@@ -11,8 +11,7 @@ void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, seque
   const char *source_limit = sequel_summary_find_text(source.data, "LIMIT ");
   const char *source_by = source_limit ? sequel_summary_find_text(source_limit, " BY ") : NULL;
   char *rendered_limit = sequel_summary_find_text(text, "LIMIT ?");
-  if (!source_limit || !source_by || !rendered_limit || source_by != source_limit + 7 || source_limit[6] < '0' ||
-      source_limit[6] > '9')
+  if (!source_limit || !source_by || !rendered_limit || source_by != source_limit + 7 || source_limit[6] < '0' || source_limit[6] > '9')
     return;
 
   if ((size_t)(rendered_limit - text) + 7 <= length)
@@ -23,14 +22,11 @@ void sequel_summary_restore_clickhouse_limit_by(char *text, size_t length, seque
     rendered_limit[6] = source_limit[6];
 }
 
-int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size_t *capacity,
-                                               sequel_source_view_t source, sequel_source_range_t clause_range) {
+int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, sequel_source_range_t clause_range) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 1;
 
-  const char *source_limit = (clause_range.end > clause_range.start && clause_range.end <= source.length)
-                                 ? source.data + clause_range.start
-                                 : sequel_summary_find_text(source.data, "LIMIT ");
+  const char *source_limit = (clause_range.end > clause_range.start && clause_range.end <= source.length) ? source.data + clause_range.start : sequel_summary_find_text(source.data, "LIMIT ");
   if (!source_limit)
     return 1;
   const char *source_value = source_limit + strlen("LIMIT ");
@@ -50,11 +46,9 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
     ++delimiter;
   bool comma_limit = *delimiter == ',';
   bool offset_limit = sequel_summary_find_text(delimiter, "OFFSET ") != NULL;
-  bool simple_query =
-      !sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, " GROUP BY ") &&
-      !sequel_summary_find_text(source.data, " HAVING ") && !sequel_summary_find_text(source.data, " ORDER BY ") &&
-      !sequel_summary_find_text(source.data, " JOIN ") && !sequel_summary_find_text(source.data, " UNION ") &&
-      !sequel_summary_find_text(source.data, " INTERSECT ") && !sequel_summary_find_text(source.data, " EXCEPT ");
+  bool simple_query = !sequel_summary_find_text(source.data, " WHERE ") && !sequel_summary_find_text(source.data, " GROUP BY ") && !sequel_summary_find_text(source.data, " HAVING ") &&
+                      !sequel_summary_find_text(source.data, " ORDER BY ") && !sequel_summary_find_text(source.data, " JOIN ") && !sequel_summary_find_text(source.data, " UNION ") &&
+                      !sequel_summary_find_text(source.data, " INTERSECT ") && !sequel_summary_find_text(source.data, " EXCEPT ");
   if (simple_query && !comma_limit && !offset_limit && *delimiter == '\0') {
     char *rendered_limit = sequel_summary_find_text(*text, "LIMIT ");
     if (rendered_limit) {
@@ -170,8 +164,7 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   }
   size_t rendered_prefix = rendered_digits == 1 && *rendered_value == '?' ? 1 : 0;
   if (replacement_length != old_length)
-    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value + rendered_prefix,
-            *length - (size_t)(rendered_value - *text) - rendered_prefix + 1);
+    memmove(rendered_limit + strlen("LIMIT ") + replacement_length, rendered_value + rendered_prefix, *length - (size_t)(rendered_value - *text) - rendered_prefix + 1);
   memcpy(rendered_limit + strlen("LIMIT "), source_value, source_digits);
   if (comma_limit)
     memcpy(rendered_limit + strlen("LIMIT ") + source_digits, ", ?", suffix_length);
@@ -179,8 +172,7 @@ int sequel_summary_restore_numeric_limit_shape(char **text, size_t *length, size
   return 1;
 }
 
-int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, size_t *capacity,
-                                                sequel_source_view_t source) {
+int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 1;
   *length = strlen(*text);
@@ -247,8 +239,7 @@ int sequel_summary_restore_numeric_offset_shape(char **text, size_t *length, siz
   return 1;
 }
 
-int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_t *capacity,
-                                              sequel_source_view_t source) {
+int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 1;
   const char *source_limit = sequel_summary_find_text(source.data, "LIMIT (SELECT ");
@@ -290,8 +281,7 @@ int sequel_summary_restore_scalar_limit_shape(char **text, size_t *length, size_
   size_t tail_length = *length - (size_t)(tail - *text);
   const char prefix[] = " LIMIT ? (SELECT \342\200\246 FROM ";
   const char separator[] = " LIMIT ";
-  size_t replacement_length = sizeof(prefix) - 1 + (size_t)(table_end - table) + sizeof(separator) - 1 +
-                              (size_t)(inner_value_end - inner_value) + 1;
+  size_t replacement_length = sizeof(prefix) - 1 + (size_t)(table_end - table) + sizeof(separator) - 1 + (size_t)(inner_value_end - inner_value) + 1;
   size_t result_length = prefix_length + replacement_length + tail_length;
   char *result = malloc(result_length + 1);
   if (!result)

@@ -17,9 +17,7 @@ char *sequel_summary_find_text(const char *source, const char *needle) {
   return NULL;
 }
 
-static int sequel_summary_identifier_character(unsigned char character) {
-  return isalnum(character) || character == '_';
-}
+static int sequel_summary_identifier_character(unsigned char character) { return isalnum(character) || character == '_'; }
 
 int sequel_summary_word(const char *source, size_t length, size_t offset, const char *word) {
   size_t n = strlen(word);
@@ -28,8 +26,7 @@ int sequel_summary_word(const char *source, size_t length, size_t offset, const 
   for (size_t i = 0; i < n; ++i)
     if (toupper((unsigned char)source[offset + i]) != toupper((unsigned char)word[i]))
       return 0;
-  return (!offset || !sequel_summary_identifier_character((unsigned char)source[offset - 1])) &&
-         (offset + n == length || !sequel_summary_identifier_character((unsigned char)source[offset + n]));
+  return (!offset || !sequel_summary_identifier_character((unsigned char)source[offset - 1])) && (offset + n == length || !sequel_summary_identifier_character((unsigned char)source[offset + n]));
 }
 
 const char *sequel_summary_find_word(const char *source, size_t length, size_t offset, const char *word) {
@@ -71,9 +68,7 @@ bool sequel_summary_cursor_is_quoted_identifier(const sequel_query_document_t *q
   sequel_source_view_t source = sequel_query_source(query);
   for (size_t i = 0; i < token_count; ++i)
     if ((tokens[i].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER ||
-         (tokens[i].range.start < source.length &&
-          (source.data[tokens[i].range.start] == '"' || source.data[tokens[i].range.start] == '`' ||
-           source.data[tokens[i].range.start] == '['))) &&
+         (tokens[i].range.start < source.length && (source.data[tokens[i].range.start] == '"' || source.data[tokens[i].range.start] == '`' || source.data[tokens[i].range.start] == '['))) &&
         tokens[i].range.start <= cursor && cursor < tokens[i].range.end)
       return true;
   return false;

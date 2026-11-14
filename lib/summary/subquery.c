@@ -5,8 +5,7 @@
 
 static const char ellipsis[] = "\342\200\246";
 
-int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, size_t *capacity,
-                                                 sequel_source_view_t source) {
+int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
   size_t start = 0;
   while (start < source.length && isspace((unsigned char)source.data[start]))
     ++start;
@@ -31,19 +30,14 @@ int sequel_summary_append_parenthesized_subquery(char **text, size_t *length, si
     where = NULL;
   if (limit && limit > close)
     limit = NULL;
-  if (!sequel_summary_append_text(text, length, capacity, "(SELECT ") ||
-      !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
-      !sequel_summary_append_text(text, length, capacity, " FROM ") ||
-      !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
-      (where && (!sequel_summary_append_text(text, length, capacity, " WHERE ") ||
-                 !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))) ||
-      (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
-                 !sequel_summary_append_text(text, length, capacity, limit[7] == '$' ? "?" : "1"))) ||
+  if (!sequel_summary_append_text(text, length, capacity, "(SELECT ") || !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1) ||
+      !sequel_summary_append_text(text, length, capacity, " FROM ") || !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
+      (where && (!sequel_summary_append_text(text, length, capacity, " WHERE ") || !sequel_summary_append_bytes(text, length, capacity, ellipsis, sizeof(ellipsis) - 1))) ||
+      (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") || !sequel_summary_append_text(text, length, capacity, limit[7] == '$' ? "?" : "1"))) ||
       !sequel_summary_append_text(text, length, capacity, ")"))
     return 0;
   const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
-  if (outer_limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
-                      !sequel_summary_append_text(text, length, capacity, "?")))
+  if (outer_limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") || !sequel_summary_append_text(text, length, capacity, "?")))
     return 0;
   return 2;
 }

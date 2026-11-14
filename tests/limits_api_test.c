@@ -2,12 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define CHECK(x)                                                                                                       \
-  do {                                                                                                                 \
-    if (!(x)) {                                                                                                        \
-      fprintf(stderr, "line %d: %s\n", __LINE__, #x);                                                                  \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(x)                                                                                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    if (!(x)) {                                                                                                                                                                                        \
+      fprintf(stderr, "line %d: %s\n", __LINE__, #x);                                                                                                                                                  \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
 
 int main(void) {
@@ -55,8 +55,7 @@ int main(void) {
   bool truncated;
   CHECK(sequel_sanitize("SELECT 123", SEQUEL_GENERIC, true, 0, small, sizeof(small), &truncated) == SEQUEL_OK);
   CHECK(!strcmp(small, "SELECT ?") && !truncated);
-  CHECK(sequel_sanitize("SELECT 123", SEQUEL_GENERIC, true, SEQUEL_TEXT_MAX, small, 2, &truncated) ==
-        SEQUEL_ERR_OVERFLOW);
+  CHECK(sequel_sanitize("SELECT 123", SEQUEL_GENERIC, true, SEQUEL_TEXT_MAX, small, 2, &truncated) == SEQUEL_ERR_OVERFLOW);
   CHECK(!*small && !truncated);
   free(sql);
   /* More than 65536 tokens in a query larger than the former 1 MiB limit. */

@@ -74,7 +74,6 @@ size_t sequel_lexed_diagnostic_count(const sequel_lexed_document_t *document);
 const sequel_diagnostic_record_t *sequel_lexed_diagnostics(const sequel_lexed_document_t *document);
 
 /** Return the exact source bytes covered by a token. */
-sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data,
-                                  size_t *length);
+sequel_status_t sequel_token_text(const sequel_source_view_t *source, const sequel_token_t *token, const char **data, size_t *length);
 
 SEQUEL_EXTERN_C_END

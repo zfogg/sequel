@@ -14,8 +14,7 @@
 #include "input.h"
 
 /* Used only on fatal input errors. Retain a bounded prefix for source locations. */
-static void reject_input(char **buffer, size_t *capacity, size_t used, const char *line, size_t n,
-                         sequel_dialect_t dialect, int json) {
+static void reject_input(char **buffer, size_t *capacity, size_t used, const char *line, size_t n, sequel_dialect_t dialect, int json) {
   size_t needed = used + n + 2;
   if (needed > SEQUEL_INPUT_MAX + 2)
     needed = SEQUEL_INPUT_MAX + 2;
@@ -47,8 +46,7 @@ static int preview(const char *sql, const sequel_highlight_options_t *options, i
   if (!out)
     return 1;
   status = sequel_highlight_ex(sql, options, out, length + 1, &length, &diagnostic);
-  int failed =
-      status != SEQUEL_OK || fwrite(out, 1, length, stdout) != length || fputc('\n', stdout) == EOF || fflush(stdout);
+  int failed = status != SEQUEL_OK || fwrite(out, 1, length, stdout) != length || fputc('\n', stdout) == EOF || fflush(stdout);
   free(out);
   return failed;
 }

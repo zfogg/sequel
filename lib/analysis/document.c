@@ -21,9 +21,7 @@ struct sequel_query_analysis {
   sequel_analysis_map_segment_t *formatted_segments;
 };
 
-static int sequel_analysis_cancelled(const sequel_cancellation_t *cancellation) {
-  return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata);
-}
+static int sequel_analysis_cancelled(const sequel_cancellation_t *cancellation) { return cancellation && cancellation->is_cancelled && cancellation->is_cancelled(cancellation->userdata); }
 
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options) {
   if (!options)
@@ -42,8 +40,7 @@ void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options
                                                .target_dialect = SEQUEL_GENERIC};
 }
 
-sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
-                                        const sequel_query_analysis_options_t *options,
+sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query, const sequel_query_analysis_options_t *options,
                                         const sequel_cancellation_t *cancellation, sequel_query_analysis_t **out) {
   if (!out)
     return SEQUEL_ERR_NULL;
@@ -88,12 +85,10 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
           status = SEQUEL_ERR_CANCELLED;
           break;
         }
-        status = sequel_collect_portability_diagnostics(syntax, analysis->options.portability_targets[i],
-                                                        &portability_diagnostics);
+        status = sequel_collect_portability_diagnostics(syntax, analysis->options.portability_targets[i], &portability_diagnostics);
       }
     } else {
-      status =
-          sequel_collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
+      status = sequel_collect_portability_diagnostics(syntax, analysis->options.target_dialect, &portability_diagnostics);
     }
   }
   sequel_diagnostic_list_sort(&lexical_diagnostics);
@@ -108,24 +103,18 @@ sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, 
   if (status == SEQUEL_OK && analysis->options.include_fingerprint)
     status = sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, analysis->fingerprint);
   if (status == SEQUEL_OK && analysis->options.include_sanitized_sql)
-    status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax),
-                                    SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
-                                    &analysis->sanitized_sql);
+    status = sequel_sanitize_tokens(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &analysis->sanitized_sql);
   if (status == SEQUEL_OK && analysis->options.include_formatted_sql)
     status = sequel_format_syntax(syntax, NULL, &analysis->formatted_sql);
   if (status == SEQUEL_OK && analysis->options.include_source_maps) {
     if (analysis->sanitized_sql.data) {
-      status = sequel_analysis_build_sanitized_map(
-          sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS,
-          &analysis->sanitized_sql, &analysis->sanitized_map, &analysis->sanitized_segments);
+      status = sequel_analysis_build_sanitized_map(sequel_syntax_lexed(syntax), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &analysis->sanitized_sql, &analysis->sanitized_map,
+                                                   &analysis->sanitized_segments);
     }
     if (status == SEQUEL_OK && analysis->formatted_sql.data) {
       sequel_source_view_t formatted_source =
-          analysis->sanitized_sql.data
-              ? (sequel_source_view_t){analysis->sanitized_sql.data, analysis->sanitized_sql.length}
-              : sequel_lexed_source(sequel_syntax_lexed(syntax));
-      status = sequel_analysis_build_formatted_map(formatted_source, &analysis->formatted_sql, &analysis->formatted_map,
-                                                   &analysis->formatted_segments);
+          analysis->sanitized_sql.data ? (sequel_source_view_t){analysis->sanitized_sql.data, analysis->sanitized_sql.length} : sequel_lexed_source(sequel_syntax_lexed(syntax));
+      status = sequel_analysis_build_formatted_map(formatted_source, &analysis->formatted_sql, &analysis->formatted_map, &analysis->formatted_segments);
     }
   }
   if (status == SEQUEL_OK && !sequel_analysis_append_diagnostics(&analysis->diagnostics, &lexical_diagnostics))
@@ -160,20 +149,13 @@ void sequel_query_analysis_free(sequel_query_analysis_t *analysis) {
   free(analysis);
 }
 
-const sequel_text_result_t *sequel_query_analysis_summary(const sequel_query_analysis_t *analysis) {
-  return analysis && analysis->summary.data ? &analysis->summary : NULL;
-}
+const sequel_text_result_t *sequel_query_analysis_summary(const sequel_query_analysis_t *analysis) { return analysis && analysis->summary.data ? &analysis->summary : NULL; }
 
-const sequel_text_result_t *sequel_query_analysis_sanitized_sql(const sequel_query_analysis_t *analysis) {
-  return analysis && analysis->sanitized_sql.data ? &analysis->sanitized_sql : NULL;
-}
+const sequel_text_result_t *sequel_query_analysis_sanitized_sql(const sequel_query_analysis_t *analysis) { return analysis && analysis->sanitized_sql.data ? &analysis->sanitized_sql : NULL; }
 
-const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_query_analysis_t *analysis) {
-  return analysis && analysis->formatted_sql.data ? &analysis->formatted_sql : NULL;
-}
+const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_query_analysis_t *analysis) { return analysis && analysis->formatted_sql.data ? &analysis->formatted_sql : NULL; }
 
-sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis,
-                                                  char out[SEQUEL_FINGERPRINT_LENGTH]) {
+sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis, char out[SEQUEL_FINGERPRINT_LENGTH]) {
   if (!analysis || !out)
     return SEQUEL_ERR_NULL;
   if (!analysis->fingerprint[0]) {
@@ -192,23 +174,17 @@ const sequel_analysis_source_map_t *sequel_query_analysis_formatted_map(const se
   return analysis && analysis->formatted_map.segments ? &analysis->formatted_map : NULL;
 }
 
-const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis) {
-  return analysis ? analysis->query : NULL;
-}
+const sequel_query_document_t *sequel_query_analysis_query(const sequel_query_analysis_t *analysis) { return analysis ? analysis->query : NULL; }
 
-const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_query_analysis_t *analysis) {
-  return analysis ? &analysis->diagnostics : NULL;
-}
+const sequel_diagnostic_list_t *sequel_query_analysis_diagnostics(const sequel_query_analysis_t *analysis) { return analysis ? &analysis->diagnostics : NULL; }
 
-const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis,
-                                                                size_t *count) {
+const sequel_parameter_info_t *sequel_query_analysis_parameters(const sequel_query_analysis_t *analysis, size_t *count) {
   if (count)
     *count = analysis && analysis->options.include_bindings ? sequel_query_parameter_count(analysis->query) : 0;
   return analysis && analysis->options.include_bindings ? sequel_query_parameters(analysis->query) : NULL;
 }
 
-const sequel_statement_info_t *sequel_query_analysis_statements(const sequel_query_analysis_t *analysis,
-                                                                size_t *count) {
+const sequel_statement_info_t *sequel_query_analysis_statements(const sequel_query_analysis_t *analysis, size_t *count) {
   if (count)
     *count = analysis ? sequel_query_statement_count(analysis->query) : 0;
   return analysis ? sequel_query_statements(analysis->query) : NULL;
@@ -226,15 +202,13 @@ const sequel_join_info_t *sequel_query_analysis_joins(const sequel_query_analysi
   return analysis && analysis->options.include_relations ? sequel_query_joins(analysis->query) : NULL;
 }
 
-const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
-                                                                  size_t *count) {
+const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis, size_t *count) {
   if (count)
     *count = analysis && analysis->options.include_projections ? sequel_query_projection_count(analysis->query) : 0;
   return analysis && analysis->options.include_projections ? sequel_query_projections(analysis->query) : NULL;
 }
 
-const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis,
-                                                                size_t *count) {
+const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis, size_t *count) {
   if (count)
     *count = analysis && analysis->options.include_predicates ? sequel_query_predicate_count(analysis->query) : 0;
   return analysis && analysis->options.include_predicates ? sequel_query_predicates(analysis->query) : NULL;

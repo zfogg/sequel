@@ -3,17 +3,11 @@
 
 #include "analysis/internal.h"
 
-int sequel_token_is_comment(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
+int sequel_token_is_comment(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_LINE_COMMENT || token->kind == SEQUEL_TOKEN_BLOCK_COMMENT; }
 
-int sequel_token_is_trivia(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_WHITESPACE || sequel_token_is_comment(token);
-}
+int sequel_token_is_trivia(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_WHITESPACE || sequel_token_is_comment(token); }
 
-int sequel_token_is_identifier(const sequel_token_t *token) {
-  return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER;
-}
+int sequel_token_is_identifier(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_IDENTIFIER || token->kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER; }
 
 int sequel_token_is_punctuation(const sequel_token_t *token) { return token->kind == SEQUEL_TOKEN_PUNCTUATION; }
 
@@ -35,28 +29,20 @@ size_t sequel_token_count_keyword(const sequel_lexed_document_t *lexed, uint32_t
   return count;
 }
 
-int sequel_token_has_range(const sequel_token_t *token, size_t source_length) {
-  return token->range.start <= token->range.end && token->range.end <= source_length;
-}
+int sequel_token_has_range(const sequel_token_t *token, size_t source_length) { return token->range.start <= token->range.end && token->range.end <= source_length; }
 
 int sequel_token_is_symbol(sequel_source_view_t source, const sequel_token_t *token, char symbol) {
-  return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1 &&
-         source.data[token->range.start] == symbol;
+  return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1 && source.data[token->range.start] == symbol;
 }
 
-int sequel_token_is_single_punctuation(const sequel_token_t *token) {
-  return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1;
-}
+int sequel_token_is_single_punctuation(const sequel_token_t *token) { return sequel_token_is_punctuation(token) && token->range.end == token->range.start + 1; }
 
 int sequel_token_kind_is_word(sequel_token_kind_t kind) {
-  return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN ||
-         kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
+  return kind == SEQUEL_TOKEN_IDENTIFIER || kind == SEQUEL_TOKEN_KEYWORD || kind == SEQUEL_TOKEN_BOOLEAN || kind == SEQUEL_TOKEN_NULL || kind == SEQUEL_TOKEN_NUMBER || kind == SEQUEL_TOKEN_STRING ||
          kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER || kind == SEQUEL_TOKEN_PARAMETER;
 }
 
-int sequel_token_kind_is_comment(sequel_token_kind_t kind) {
-  return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT;
-}
+int sequel_token_kind_is_comment(sequel_token_kind_t kind) { return kind == SEQUEL_TOKEN_LINE_COMMENT || kind == SEQUEL_TOKEN_BLOCK_COMMENT; }
 
 size_t sequel_token_next_significant(const sequel_token_t *tokens, size_t count, size_t index) {
   while (index < count && sequel_token_is_trivia(&tokens[index]))
@@ -65,8 +51,7 @@ size_t sequel_token_next_significant(const sequel_token_t *tokens, size_t count,
 }
 
 int sequel_token_is_question(sequel_source_view_t source, const sequel_token_t *token) {
-  return (token->kind == SEQUEL_TOKEN_PARAMETER || token->kind == SEQUEL_TOKEN_OPERATOR) &&
-         token->range.end == token->range.start + 1 && source.data[token->range.start] == '?';
+  return (token->kind == SEQUEL_TOKEN_PARAMETER || token->kind == SEQUEL_TOKEN_OPERATOR) && token->range.end == token->range.start + 1 && source.data[token->range.start] == '?';
 }
 
 sequel_status_t sequel_tokens_collapse_in_lists(sequel_text_result_t *result, sequel_dialect_t dialect) {
@@ -140,24 +125,18 @@ sequel_status_t sequel_tokens_collapse_in_lists(sequel_text_result_t *result, se
 }
 
 int sequel_keyword_is_clause(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_FROM || keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_GROUP ||
-         keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_ORDER || keyword == SEQUEL_KEYWORD_LIMIT ||
-         keyword == SEQUEL_KEYWORD_OFFSET || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_VALUES ||
-         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_UNION || keyword == SEQUEL_KEYWORD_JOIN ||
-         keyword == SEQUEL_KEYWORD_ON || keyword == SEQUEL_KEYWORD_QUALIFY;
+  return keyword == SEQUEL_KEYWORD_FROM || keyword == SEQUEL_KEYWORD_WHERE || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_HAVING || keyword == SEQUEL_KEYWORD_ORDER ||
+         keyword == SEQUEL_KEYWORD_LIMIT || keyword == SEQUEL_KEYWORD_OFFSET || keyword == SEQUEL_KEYWORD_RETURNING || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_SET ||
+         keyword == SEQUEL_KEYWORD_UNION || keyword == SEQUEL_KEYWORD_JOIN || keyword == SEQUEL_KEYWORD_ON || keyword == SEQUEL_KEYWORD_QUALIFY;
 }
 
-int sequel_token_is_clause_keyword(const sequel_token_t *token) {
-  return token && token->kind == SEQUEL_TOKEN_KEYWORD && sequel_keyword_is_clause(token->keyword_id);
-}
+int sequel_token_is_clause_keyword(const sequel_token_t *token) { return token && token->kind == SEQUEL_TOKEN_KEYWORD && sequel_keyword_is_clause(token->keyword_id); }
 
 int sequel_keyword_uses_comma_separated_list(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_SELECT || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_ORDER ||
-         keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES || keyword == SEQUEL_KEYWORD_RETURNING;
+  return keyword == SEQUEL_KEYWORD_SELECT || keyword == SEQUEL_KEYWORD_GROUP || keyword == SEQUEL_KEYWORD_ORDER || keyword == SEQUEL_KEYWORD_SET || keyword == SEQUEL_KEYWORD_VALUES ||
+         keyword == SEQUEL_KEYWORD_RETURNING;
 }
 
-int sequel_keyword_ends_case_branch(uint32_t keyword) {
-  return keyword == SEQUEL_KEYWORD_WHEN || keyword == SEQUEL_KEYWORD_ELSE || keyword == SEQUEL_KEYWORD_END;
-}
+int sequel_keyword_ends_case_branch(uint32_t keyword) { return keyword == SEQUEL_KEYWORD_WHEN || keyword == SEQUEL_KEYWORD_ELSE || keyword == SEQUEL_KEYWORD_END; }
 
 #include "analysis/token_rules.c"

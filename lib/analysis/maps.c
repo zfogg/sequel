@@ -15,16 +15,14 @@ void sequel_analysis_clip_map(analysis_map *map, size_t limit) {
       sequel_analysis_segment(&clipped, segment.from_start, middle, to_start, to_end, SEQUEL_MAP_COPY);
       sequel_analysis_segment(&clipped, middle, segment.from_end, to_end, to_end, SEQUEL_MAP_DELETE);
     } else {
-      sequel_analysis_segment(&clipped, segment.from_start, segment.from_end, to_start, to_end,
-                              to_start == to_end ? SEQUEL_MAP_DELETE : segment.kind);
+      sequel_analysis_segment(&clipped, segment.from_start, segment.from_end, to_start, to_end, to_start == to_end ? SEQUEL_MAP_DELETE : segment.kind);
     }
   }
   free(map->p);
   *map = clipped;
 }
 
-void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_end, size_t to_start, size_t to_end,
-                             sequel_map_kind_t kind) {
+void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_end, size_t to_start, size_t to_end, sequel_map_kind_t kind) {
   if (from_start == from_end && to_start == to_end)
     return;
   if (map->n) {
@@ -46,8 +44,7 @@ void sequel_analysis_segment(analysis_map *map, size_t from_start, size_t from_e
   map->p[map->n++] = (sequel_map_segment_t){from_start, from_end, to_start, to_end, kind};
 }
 
-void sequel_analysis_build_format_map(analysis_map *map, const char *source, size_t source_length,
-                                      const char *formatted, size_t formatted_length) {
+void sequel_analysis_build_format_map(analysis_map *map, const char *source, size_t source_length, const char *formatted, size_t formatted_length) {
   size_t source_cursor = 0, formatted_cursor = 0;
   while (source_cursor < source_length && formatted_cursor < formatted_length) {
     if (source[source_cursor] != formatted[formatted_cursor]) {
@@ -58,41 +55,33 @@ void sequel_analysis_build_format_map(analysis_map *map, const char *source, siz
           ++source_cursor;
         while (formatted_cursor < formatted_length && isspace((unsigned char)formatted[formatted_cursor]))
           ++formatted_cursor;
-        sequel_analysis_segment(map, source_start, source_cursor, formatted_start, formatted_cursor,
-                                SEQUEL_MAP_REPLACE);
+        sequel_analysis_segment(map, source_start, source_cursor, formatted_start, formatted_cursor, SEQUEL_MAP_REPLACE);
         continue;
       }
-      const char *source_match =
-          memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
-      const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor],
-                                           formatted_length - formatted_cursor);
+      const char *source_match = memchr(source + source_cursor, (unsigned char)formatted[formatted_cursor], source_length - source_cursor);
+      const char *formatted_match = memchr(formatted + formatted_cursor, (unsigned char)source[source_cursor], formatted_length - formatted_cursor);
       if (source_match && (!formatted_match || source_match - source < formatted_match - formatted)) {
-        sequel_analysis_segment(map, source_cursor, (size_t)(source_match - source), formatted_cursor, formatted_cursor,
-                                SEQUEL_MAP_DELETE);
+        sequel_analysis_segment(map, source_cursor, (size_t)(source_match - source), formatted_cursor, formatted_cursor, SEQUEL_MAP_DELETE);
         source_cursor = (size_t)(source_match - source);
         continue;
       }
       if (formatted_match) {
-        sequel_analysis_segment(map, source_cursor, source_cursor, formatted_cursor,
-                                (size_t)(formatted_match - formatted), SEQUEL_MAP_INSERT);
+        sequel_analysis_segment(map, source_cursor, source_cursor, formatted_cursor, (size_t)(formatted_match - formatted), SEQUEL_MAP_INSERT);
         formatted_cursor = (size_t)(formatted_match - formatted);
         continue;
       }
-      sequel_analysis_segment(map, source_cursor, source_cursor + 1, formatted_cursor, formatted_cursor + 1,
-                              SEQUEL_MAP_REPLACE);
+      sequel_analysis_segment(map, source_cursor, source_cursor + 1, formatted_cursor, formatted_cursor + 1, SEQUEL_MAP_REPLACE);
       ++source_cursor;
       ++formatted_cursor;
       continue;
     }
     size_t run_start = source_cursor;
-    while (source_cursor < source_length && formatted_cursor < formatted_length &&
-           source[source_cursor] == formatted[formatted_cursor]) {
+    while (source_cursor < source_length && formatted_cursor < formatted_length && source[source_cursor] == formatted[formatted_cursor]) {
       ++source_cursor;
       ++formatted_cursor;
     }
     if (source_cursor > run_start)
-      sequel_analysis_segment(map, run_start, source_cursor, formatted_cursor - (source_cursor - run_start),
-                              formatted_cursor, SEQUEL_MAP_COPY);
+      sequel_analysis_segment(map, run_start, source_cursor, formatted_cursor - (source_cursor - run_start), formatted_cursor, SEQUEL_MAP_COPY);
   }
   sequel_analysis_segment(map, source_cursor, source_length, formatted_cursor, formatted_length,
                           source_cursor == source_length         ? SEQUEL_MAP_INSERT
@@ -100,8 +89,7 @@ void sequel_analysis_build_format_map(analysis_map *map, const char *source, siz
                                                                  : SEQUEL_MAP_REPLACE);
 }
 
-static int sequel_analysis_append_map_segment(sequel_analysis_map_segment_t **segments, size_t *count, size_t *capacity,
-                                              size_t from_start, size_t from_end, size_t to_start, size_t to_end,
+static int sequel_analysis_append_map_segment(sequel_analysis_map_segment_t **segments, size_t *count, size_t *capacity, size_t from_start, size_t from_end, size_t to_start, size_t to_end,
                                               sequel_analysis_map_kind_t kind) {
   if (from_start == from_end && to_start == to_end)
     return 1;
@@ -119,9 +107,7 @@ static int sequel_analysis_append_map_segment(sequel_analysis_map_segment_t **se
   return 1;
 }
 
-sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t original,
-                                                    const sequel_text_result_t *formatted,
-                                                    sequel_analysis_source_map_t *map,
+sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t original, const sequel_text_result_t *formatted, sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments) {
   sequel_parse_options_t options;
   sequel_parse_options_init(&options);
@@ -151,8 +137,7 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
     size_t match = rendered_index;
     while (match < rendered_count) {
       const sequel_token_t *candidate = &rendered_tokens[match];
-      if (candidate->kind != SEQUEL_TOKEN_EOF && candidate->kind != SEQUEL_TOKEN_WHITESPACE &&
-          candidate->range.end - candidate->range.start == source_length &&
+      if (candidate->kind != SEQUEL_TOKEN_EOF && candidate->kind != SEQUEL_TOKEN_WHITESPACE && candidate->range.end - candidate->range.start == source_length &&
           !memcmp(original.data + source_token->range.start, rendered.data + candidate->range.start, source_length))
         break;
       ++match;
@@ -160,11 +145,8 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
     if (match == rendered_count)
       continue;
     const sequel_token_t *candidate = &rendered_tokens[match];
-    if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, source_token->range.start, to,
-                                            candidate->range.start, SEQUEL_ANALYSIS_MAP_REPLACE) ||
-        !sequel_analysis_append_map_segment(&segments, &count, &capacity, source_token->range.start,
-                                            source_token->range.end, candidate->range.start, candidate->range.end,
-                                            SEQUEL_ANALYSIS_MAP_COPY)) {
+    if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, source_token->range.start, to, candidate->range.start, SEQUEL_ANALYSIS_MAP_REPLACE) ||
+        !sequel_analysis_append_map_segment(&segments, &count, &capacity, source_token->range.start, source_token->range.end, candidate->range.start, candidate->range.end, SEQUEL_ANALYSIS_MAP_COPY)) {
       free(segments);
       sequel_lexed_document_free(original_lexed);
       sequel_lexed_document_free(rendered_lexed);
@@ -174,8 +156,7 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
     to = candidate->range.end;
     rendered_index = match + 1;
   }
-  if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, original.length, to, rendered.length,
-                                          SEQUEL_ANALYSIS_MAP_REPLACE)) {
+  if (!sequel_analysis_append_map_segment(&segments, &count, &capacity, from, original.length, to, rendered.length, SEQUEL_ANALYSIS_MAP_REPLACE)) {
     free(segments);
     sequel_lexed_document_free(original_lexed);
     sequel_lexed_document_free(rendered_lexed);
@@ -188,8 +169,7 @@ sequel_status_t sequel_analysis_build_formatted_map(sequel_source_view_t origina
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags,
-                                                    sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
+sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_t *lexed, unsigned flags, sequel_text_result_t *sanitized, sequel_analysis_source_map_t *map,
                                                     sequel_analysis_map_segment_t **owned_segments) {
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
@@ -204,10 +184,9 @@ sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_
     if (segment_count == SIZE_MAX / sizeof(**owned_segments))
       return SEQUEL_ERR_OVERFLOW;
     ++segment_count;
-    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) ? 0
-                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token)
-                         ? 1
-                         : token->range.end - token->range.start;
+    output_offset += ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token))  ? 0
+                     : (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token) ? 1
+                                                                                                    : token->range.end - token->range.start;
   }
   sequel_analysis_map_segment_t *segments = calloc(segment_count ? segment_count : 1, sizeof(*segments));
   if (!segments)
@@ -222,8 +201,7 @@ sequel_status_t sequel_analysis_build_sanitized_map(const sequel_lexed_document_
     bool removed = (flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token);
     bool replaced = (flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && sequel_token_is_literal(token);
     size_t result_length = removed ? 0 : replaced ? 1 : source_length;
-    segments[segment++] = (sequel_analysis_map_segment_t){token->range.start, token->range.end, output_offset,
-                                                          output_offset + result_length,
+    segments[segment++] = (sequel_analysis_map_segment_t){token->range.start, token->range.end, output_offset, output_offset + result_length,
                                                           removed    ? SEQUEL_ANALYSIS_MAP_DELETE
                                                           : replaced ? SEQUEL_ANALYSIS_MAP_REPLACE
                                                                      : SEQUEL_ANALYSIS_MAP_COPY};

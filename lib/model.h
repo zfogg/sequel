@@ -22,10 +22,8 @@ sequel_operation_t sequel_query_operation_from_syntax(sequel_syntax_kind_t kind)
 bool sequel_query_word_equals_ci(const char *word, size_t length, const char *expected);
 sequel_operation_t sequel_query_operation_from_word(const char *word, size_t length);
 size_t sequel_query_statement_for_range(const sequel_query_document_t *document, sequel_source_range_t range);
-sequel_join_kind_t sequel_query_join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index,
-                                          const sequel_source_view_t *source);
-uint32_t sequel_query_join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index,
-                                 const sequel_source_view_t *source);
+sequel_join_kind_t sequel_query_join_kind(const sequel_token_t *tokens, size_t token_count, size_t join_index, const sequel_source_view_t *source);
+uint32_t sequel_query_join_flags(const sequel_token_t *tokens, size_t token_count, size_t join_index, const sequel_source_view_t *source);
 size_t sequel_query_expression_node_for_range(const sequel_syntax_document_t *syntax, sequel_source_range_t range);
 
 typedef struct {
@@ -33,13 +31,10 @@ typedef struct {
 } query_array_header;
 
 int sequel_query_array_append(void **array, size_t *count, size_t size, const void *value);
-sequel_status_t sequel_query_build_statements(sequel_query_document_t *document, const sequel_syntax_document_t *syntax,
-                                              const sequel_token_t *tokens, size_t token_count,
+sequel_status_t sequel_query_build_statements(sequel_query_document_t *document, const sequel_syntax_document_t *syntax, const sequel_token_t *tokens, size_t token_count,
                                               const sequel_source_view_t *source, size_t max_nodes);
-sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document, const sequel_token_t *tokens,
-                                              size_t token_count, const sequel_source_view_t *source);
-sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens,
-                                        size_t token_count, const sequel_source_view_t *source);
+sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, const sequel_source_view_t *source);
+sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, const sequel_source_view_t *source);
 
 static inline void sequel_query_array_free(void *array) {
   if (array)

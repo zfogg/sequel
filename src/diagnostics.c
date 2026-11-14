@@ -40,8 +40,7 @@ static void diagnostic_json(FILE *stream, const sequel_diagnostic_t *d) {
   fprintf(stream,
           ",\"offset\":%zu,\"end_offset\":%zu,\"line\":%zu,\"column\":%zu,"
           "\"end_line\":%zu,\"end_column\":%zu,\"incomplete\":%s,\"statement_complete\":%s,\"message\":",
-          d->offset, d->end_offset, d->line, d->column, d->end_line, d->end_column, d->incomplete ? "true" : "false",
-          d->statement_complete ? "true" : "false");
+          d->offset, d->end_offset, d->line, d->column, d->end_line, d->end_column, d->incomplete ? "true" : "false", d->statement_complete ? "true" : "false");
   diagnostic_json_text(stream, d->message);
   fputs(",\"explanation\":", stream);
   diagnostic_json_text(stream, d->explanation);
@@ -50,24 +49,19 @@ static void diagnostic_json(FILE *stream, const sequel_diagnostic_t *d) {
   fputc('}', stream);
 }
 
-static bool diagnostic_is_input_failure(sequel_diagnostic_code_t code) {
-  return code == SEQUEL_DIAG_CONTROL_CHARACTER || code == SEQUEL_DIAG_INVALID_UTF8 || code == SEQUEL_DIAG_NESTING_LIMIT;
-}
+static bool diagnostic_is_input_failure(sequel_diagnostic_code_t code) { return code == SEQUEL_DIAG_CONTROL_CHARACTER || code == SEQUEL_DIAG_INVALID_UTF8 || code == SEQUEL_DIAG_NESTING_LIMIT; }
 
-static bool diagnostic_is_duplicate(const sequel_diagnostic_list_t *diagnostics,
-                                    const sequel_diagnostic_record_t *candidate) {
+static bool diagnostic_is_duplicate(const sequel_diagnostic_list_t *diagnostics, const sequel_diagnostic_record_t *candidate) {
   for (size_t i = 0; i < diagnostics->count; ++i) {
     const sequel_diagnostic_record_t *existing = &diagnostics->records[i];
-    if (existing->code == candidate->code && existing->range.start == candidate->range.start &&
-        existing->range.end == candidate->range.end)
+    if (existing->code == candidate->code && existing->range.start == candidate->range.start && existing->range.end == candidate->range.end)
       return true;
   }
   return false;
 }
 
 static bool diagnostic_is_unterminated(sequel_diagnostic_code_t code) {
-  return code == SEQUEL_DIAG_UNTERMINATED_STRING || code == SEQUEL_DIAG_UNTERMINATED_COMMENT ||
-         code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER || code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
+  return code == SEQUEL_DIAG_UNTERMINATED_STRING || code == SEQUEL_DIAG_UNTERMINATED_COMMENT || code == SEQUEL_DIAG_UNTERMINATED_IDENTIFIER || code == SEQUEL_DIAG_UNTERMINATED_PARAMETER;
 }
 
 /* All strings are fixed library-owned explanations, not SQL or user content. */
@@ -77,8 +71,7 @@ void print_diagnostic(FILE *stream, const sequel_diagnostic_t *d, int json) {
     diagnostic_json(stream, d);
     fputc('\n', stream);
   } else {
-    fprintf(stream, "sequel: %zu:%zu: %s [%s]: %s\n  %s\n  Hint: %s\n", d->line, d->column, severity,
-            sequel_diagnostic_code_name(d->code), d->message, d->explanation, d->hint);
+    fprintf(stream, "sequel: %zu:%zu: %s [%s]: %s\n  %s\n  Hint: %s\n", d->line, d->column, severity, sequel_diagnostic_code_name(d->code), d->message, d->explanation, d->hint);
     if (d->code == SEQUEL_DIAG_NONE)
       fprintf(stream, "  Statement complete: %s\n", d->statement_complete ? "yes" : "no (no final semicolon)");
   }
@@ -99,10 +92,8 @@ sequel_status_t diagnose_all(FILE *stream, const char *sql, size_t length, seque
   const bool input_failure = input_status != SEQUEL_OK && diagnostic_is_input_failure(input_diagnostic.code);
   sequel_status_t status = input_failure ? input_status : sequel_parse_sql(&source, &parse_options, NULL, &syntax);
   if (input_failure) {
-    sequel_diagnostic_record_t record = {.origin = SEQUEL_DIAGNOSTIC_LEXICAL,
-                                         .code = input_diagnostic.code,
-                                         .severity = input_diagnostic.severity,
-                                         .range = {input_diagnostic.offset, input_diagnostic.end_offset}};
+    sequel_diagnostic_record_t record = {
+        .origin = SEQUEL_DIAGNOSTIC_LEXICAL, .code = input_diagnostic.code, .severity = input_diagnostic.severity, .range = {input_diagnostic.offset, input_diagnostic.end_offset}};
     if (!sequel_diagnostic_list_append(&diagnostics, record))
       status = SEQUEL_ERR_NOMEM;
   }

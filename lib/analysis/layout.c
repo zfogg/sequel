@@ -2,10 +2,8 @@
 
 /* Clause boundaries used by the shared layout pass. */
 bool sequel_analysis_is_layout_boundary(token t) {
-  const char *words[] = {"FROM",  "WHERE",     "GROUP",  "HAVING",    "ORDER", "LIMIT", "OFFSET",  "FETCH",  "FOR",
-                         "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET",   "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
-  if (t.clickhouse && (sequel_runtime_keyword(t, "PREWHERE") || sequel_runtime_keyword(t, "SETTINGS") ||
-                       sequel_runtime_keyword(t, "FORMAT") || sequel_runtime_keyword(t, "SAMPLE") ||
+  const char *words[] = {"FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET", "FETCH", "FOR", "UNION", "INTERSECT", "EXCEPT", "RETURNING", "SET", "USING", "QUALIFY", "WINDOW", "EXCLUDE"};
+  if (t.clickhouse && (sequel_runtime_keyword(t, "PREWHERE") || sequel_runtime_keyword(t, "SETTINGS") || sequel_runtime_keyword(t, "FORMAT") || sequel_runtime_keyword(t, "SAMPLE") ||
                        sequel_runtime_keyword(t, "VALUES")))
     return true;
   for (size_t i = 0; (sequel_work_tick(1), i < sizeof(words) / sizeof(*words)); ++i)

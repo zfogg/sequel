@@ -132,18 +132,14 @@ bool sequel_summary_starts_function_projection(const sequel_query_document_t *qu
     if (tokens[i].keyword_id != SEQUEL_KEYWORD_SELECT)
       continue;
     size_t next = i + 1;
-    while (next < count &&
-           (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT ||
-            tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
+    while (next < count && (tokens[next].kind == SEQUEL_TOKEN_WHITESPACE || tokens[next].kind == SEQUEL_TOKEN_LINE_COMMENT || tokens[next].kind == SEQUEL_TOKEN_BLOCK_COMMENT))
       ++next;
-    return next + 1 < count && tokens[next].kind == SEQUEL_TOKEN_IDENTIFIER &&
-           tokens[next + 1].kind == SEQUEL_TOKEN_PUNCTUATION;
+    return next + 1 < count && tokens[next].kind == SEQUEL_TOKEN_IDENTIFIER && tokens[next + 1].kind == SEQUEL_TOKEN_PUNCTUATION;
   }
   return false;
 }
 
-int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_t *capacity,
-                                              const sequel_query_document_t *query) {
+int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query) {
   if (sequel_query_projection_count(query) <= 1 || !*text || !sequel_summary_find_text(*text, "SELECT ? FROM "))
     return 1;
   char *mark = sequel_summary_find_text(*text, "SELECT ? FROM ") + strlen("SELECT ");
@@ -164,12 +160,10 @@ int sequel_summary_normalize_projection_shape(char **text, size_t *length, size_
   return 1;
 }
 
-int sequel_summary_render_scalar_projection_summary(char **text, size_t *length, size_t *capacity,
-                                                    const sequel_query_document_t *query, sequel_source_view_t source,
+int sequel_summary_render_scalar_projection_summary(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source,
                                                     const sequel_statement_info_t *statement) {
-  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || sequel_query_projection_count(query) < 2 ||
-      sequel_query_relation_count(query) == 0 || sequel_summary_find_text(source.data, " JOIN ") ||
-      sequel_summary_find_text(source.data, " LATERAL "))
+  if (!statement || statement->operation != SEQUEL_OPERATION_SELECT || sequel_query_projection_count(query) < 2 || sequel_query_relation_count(query) == 0 ||
+      sequel_summary_find_text(source.data, " JOIN ") || sequel_summary_find_text(source.data, " LATERAL "))
     return 0;
   const sequel_projection_info_t *projections = sequel_query_projections(query);
   const sequel_relation_info_t *relations = sequel_query_relations(query);
@@ -198,19 +192,16 @@ int sequel_summary_render_scalar_projection_summary(char **text, size_t *length,
     const char *end = table;
     while (*end && !isspace((unsigned char)*end) && *end != ')')
       ++end;
-    if (!sequel_summary_append_text(text, length, capacity, " (SELECT … FROM ") ||
-        !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(end - table)) ||
+    if (!sequel_summary_append_text(text, length, capacity, " (SELECT … FROM ") || !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(end - table)) ||
         !sequel_summary_append_text(text, length, capacity, " AS p WHERE … ORDER BY … LIMIT 1)"))
       return -1;
   }
   if (!sequel_summary_append_text(text, length, capacity, " FROM ") ||
-      !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].name_range.start,
-                                   relations[outer].name_range.end - relations[outer].name_range.start))
+      !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].name_range.start, relations[outer].name_range.end - relations[outer].name_range.start))
     return -1;
   if (relations[outer].alias_range.end > relations[outer].alias_range.start &&
       (!sequel_summary_append_text(text, length, capacity, " AS ") ||
-       !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].alias_range.start,
-                                    relations[outer].alias_range.end - relations[outer].alias_range.start)))
+       !sequel_summary_append_bytes(text, length, capacity, source.data + relations[outer].alias_range.start, relations[outer].alias_range.end - relations[outer].alias_range.start)))
     return -1;
   return sequel_summary_append_text(text, length, capacity, " WHERE …") ? 1 : -1;
 }
@@ -223,8 +214,7 @@ bool sequel_summary_has_projection_scope(const sequel_query_document_t *query) {
     for (size_t j = 0; j < sequel_query_join_count(query); ++j)
       if (joins[j].right_relation == i)
         joined = true;
-    if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) ||
-        ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && !joined))
+    if ((relations[i].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) || ((relations[i].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) && !joined))
       return true;
   }
   return false;
@@ -241,8 +231,7 @@ const char *sequel_summary_matching_close(const char *open, const char *end) {
   return NULL;
 }
 
-int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity,
-                                         const sequel_query_document_t *query, size_t start, size_t end) {
+int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, size_t start, size_t end) {
   const sequel_lexed_document_t *lexed = sequel_syntax_lexed(sequel_query_syntax(query));
   size_t token_count = 0;
   const sequel_token_t *tokens = sequel_lexed_tokens(lexed, &token_count);
@@ -259,20 +248,16 @@ int sequel_summary_append_redacted_range(char **text, size_t *length, size_t *ca
     size_t token_end = token->range.end > end ? end : token->range.end;
     if (token_start < token_end && source.data[token_start] == ']' && bracket_depth)
       --bracket_depth;
-    if (token_start > cursor &&
-        !sequel_summary_append_bytes(text, length, capacity, source.data + cursor, token_start - cursor))
+    if (token_start > cursor && !sequel_summary_append_bytes(text, length, capacity, source.data + cursor, token_start - cursor))
       return 0;
     bool token_opens_bracket = token_start < token_end && source.data[token_start] == '[';
     bool token_follows_bracket = token_start > start && source.data[token_start - 1] == '[';
-    bool redact = !bracket_depth && !token_opens_bracket && !token_follows_bracket &&
-                  !sequel_summary_range_is_bracketed(source, token_start) &&
+    bool redact = !bracket_depth && !token_opens_bracket && !token_follows_bracket && !sequel_summary_range_is_bracketed(source, token_start) &&
                   ((token->flags & SEQUEL_TOKEN_FLAG_LITERAL) || token->kind == SEQUEL_TOKEN_PARAMETER);
     if (redact) {
       if (!sequel_summary_append_text(text, length, capacity, "?"))
         return 0;
-    } else if (token_end > token_start &&
-               !sequel_summary_append_bytes(text, length, capacity, source.data + token_start,
-                                            token_end - token_start)) {
+    } else if (token_end > token_start && !sequel_summary_append_bytes(text, length, capacity, source.data + token_start, token_end - token_start)) {
       return 0;
     }
     cursor = token_end;

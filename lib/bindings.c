@@ -7,15 +7,13 @@
 #include "model.h"
 #include "runtime.h"
 
-sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement,
-                                   size_t supplied) {
+sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t count, size_t statement, size_t supplied) {
   if (!binds && count)
     return SEQUEL_ERR_NULL;
   size_t needed = 0;
   for (size_t i = 0; i < count; ++i) {
     sequel_work_tick(1);
-    if (!binds[i].slot || !binds[i].ordinal || binds[i].offset >= binds[i].end_offset ||
-        binds[i].style < SEQUEL_BIND_POSITIONAL || binds[i].style > SEQUEL_BIND_TYPED)
+    if (!binds[i].slot || !binds[i].ordinal || binds[i].offset >= binds[i].end_offset || binds[i].style < SEQUEL_BIND_POSITIONAL || binds[i].style > SEQUEL_BIND_TYPED)
       return SEQUEL_ERR_INVALID_ARGUMENT;
     if (binds[i].statement_index == statement && binds[i].slot > needed)
       needed = binds[i].slot;
@@ -23,8 +21,7 @@ sequel_status_t sequel_check_binds(const sequel_bind_descriptor_t *binds, size_t
   return supplied == needed ? SEQUEL_OK : SEQUEL_ERR_INVALID_ARGUMENT;
 }
 
-sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document, const sequel_token_t *tokens,
-                                              size_t token_count, const sequel_source_view_t *source) {
+sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, const sequel_source_view_t *source) {
   size_t ordinal = 0;
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_PARAMETER)
@@ -40,8 +37,7 @@ sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document,
     size_t name_end = tokens[i].range.end;
     if (style == SEQUEL_BIND_FORMAT && text[1] == '(') {
       name_start = tokens[i].range.start + 2;
-      name_end = tokens[i].range.end >= 2 && source->data[tokens[i].range.end - 2] == ')' ? tokens[i].range.end - 2
-                                                                                          : tokens[i].range.end;
+      name_end = tokens[i].range.end >= 2 && source->data[tokens[i].range.end - 2] == ')' ? tokens[i].range.end - 2 : tokens[i].range.end;
     }
     sequel_source_range_t name_range = {name_start, name_end};
     uint64_t identity = explicit_number ? explicit_number : ordinal;
@@ -50,8 +46,7 @@ sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document,
         const sequel_parameter_info_t *candidate = &document->parameters[previous];
         size_t candidate_length = candidate->name_range.end - candidate->name_range.start;
         size_t name_length = name_range.end - name_range.start;
-        if (candidate->style == style && candidate_length == name_length &&
-            !memcmp(source->data + candidate->name_range.start, source->data + name_range.start, name_length)) {
+        if (candidate->style == style && candidate_length == name_length && !memcmp(source->data + candidate->name_range.start, source->data + name_range.start, name_length)) {
           identity = candidate->identity;
           break;
         }
@@ -60,8 +55,7 @@ sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document,
     sequel_source_range_t type_range = {tokens[i].range.end, tokens[i].range.end};
     if (style == SEQUEL_BIND_TYPED) {
       size_t type_start = tokens[i].range.start;
-      while (type_start + 1 < tokens[i].range.end && source->data[type_start] != ':' &&
-             source->data[type_start + 1] != ':')
+      while (type_start + 1 < tokens[i].range.end && source->data[type_start] != ':' && source->data[type_start + 1] != ':')
         ++type_start;
       if (type_start + 1 < tokens[i].range.end) {
         type_start += 2;
@@ -76,8 +70,7 @@ sequel_status_t sequel_query_build_parameters(sequel_query_document_t *document,
                                          .name_range = name_range,
                                          .type_range = type_range,
                                          .identity = identity};
-    if (!sequel_query_array_append((void **)&document->parameters, &document->parameter_count, sizeof(parameter),
-                                   &parameter))
+    if (!sequel_query_array_append((void **)&document->parameters, &document->parameter_count, sizeof(parameter), &parameter))
       return SEQUEL_ERR_NOMEM;
   }
   return SEQUEL_OK;

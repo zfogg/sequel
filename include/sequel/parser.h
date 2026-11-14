@@ -63,8 +63,7 @@ typedef struct {
 void sequel_parse_options_init(sequel_parse_options_t *options);
 
 /** Lex explicit UTF-8 source bytes into a lossless token document. */
-sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options,
-                           const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out);
+sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out);
 
 /**
  * Parse a lexical document into a recovered syntax document.
@@ -73,15 +72,12 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
  * until the syntax document is released. `sequel_parse_sql` transfers the
  * lexical document's ownership to the returned syntax document instead.
  */
-sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options,
-                             const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
+sequel_status_t sequel_parse(const sequel_lexed_document_t *lexed, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
 
-sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node,
-                                    const sequel_syntax_visitor_t *visitor);
+sequel_status_t sequel_syntax_visit(const sequel_syntax_document_t *document, size_t root_node, const sequel_syntax_visitor_t *visitor);
 
 /** Parse and lex explicit UTF-8 source bytes in one operation. */
-sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options,
-                                 const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
+sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_syntax_document_t **out);
 
 /**
  * Reparse a document after replacing [edit->start, edit->old_end).
@@ -91,12 +87,10 @@ sequel_status_t sequel_parse_sql(const sequel_source_view_t *source, const seque
  * Unchanged ranges retain equivalent source coordinates, but callers must not
  * depend on pointer identity for tokens or syntax nodes.
  */
-sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
-                               const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
+sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
                                sequel_syntax_document_t **out);
 
 /** Compute the byte regions affected by an edit without reparsing. */
-sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit,
-                                      sequel_reparse_impact_t *impact);
+sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit, sequel_reparse_impact_t *impact);
 
 SEQUEL_EXTERN_C_END

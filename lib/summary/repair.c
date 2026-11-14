@@ -57,10 +57,8 @@ static size_t sequel_summary_count_keyword(const char *source, size_t length, co
       /* DISTINCT ON is a projection modifier, not a join condition.  Keep
        * the generic keyword repair pass from manufacturing an extra trailing
        * ON when a summary already preserves that modifier. */
-      bool projection_on =
-          !strcmp(keyword, "ON") && match >= source + 9 && !memcmp(match - 9, "DISTINCT ", sizeof("DISTINCT ") - 1);
-      bool conflict_on =
-          !strcmp(keyword, "ON") && !strncmp(match + keyword_length, " CONFLICT", sizeof(" CONFLICT") - 1);
+      bool projection_on = !strcmp(keyword, "ON") && match >= source + 9 && !memcmp(match - 9, "DISTINCT ", sizeof("DISTINCT ") - 1);
+      bool conflict_on = !strcmp(keyword, "ON") && !strncmp(match + keyword_length, " CONFLICT", sizeof(" CONFLICT") - 1);
       if (!projection_on && !conflict_on)
         ++count;
       cursor = (size_t)(match - source) + keyword_length;
@@ -71,8 +69,7 @@ static size_t sequel_summary_count_keyword(const char *source, size_t length, co
   return count;
 }
 
-int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                          const char *keyword, const char *replacement) {
+int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const char *keyword, const char *replacement) {
   if (!text || !*text || !length || !capacity || !source.data || !keyword || !replacement)
     return 0;
   size_t source_count = sequel_summary_count_keyword(source.data, source.length, keyword);
@@ -85,20 +82,16 @@ int sequel_summary_append_missing_keyword(char **text, size_t *length, size_t *c
   return 1;
 }
 
-int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query,
-                               sequel_source_view_t source) {
+int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !query)
     return 0;
   if (sequel_summary_find_text(source.data, "JOIN LATERAL"))
     return 1;
-  if (sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(*text, "LATERAL") &&
-      !sequel_summary_append_text(text, length, capacity, " LATERAL"))
+  if (sequel_summary_find_text(source.data, "LATERAL") && !sequel_summary_find_text(*text, "LATERAL") && !sequel_summary_append_text(text, length, capacity, " LATERAL"))
     return 0;
-  if (sequel_query_join_count(query) && !sequel_summary_find_text(*text, "JOIN LATERAL") &&
-      !sequel_summary_append_missing_keyword(text, length, capacity, source, "LATERAL", " LATERAL"))
+  if (sequel_query_join_count(query) && !sequel_summary_find_text(*text, "JOIN LATERAL") && !sequel_summary_append_missing_keyword(text, length, capacity, source, "LATERAL", " LATERAL"))
     return 0;
-  if (sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") &&
-      !sequel_summary_find_text(*text, "DISTINCT ON") &&
+  if (sequel_query_cte_count(query) && sequel_summary_find_text(source.data, "SELECT DISTINCT ON") && !sequel_summary_find_text(*text, "DISTINCT ON") &&
       !sequel_summary_append_text(text, length, capacity, " DISTINCT ON"))
     return 0;
   if (sequel_query_cte_count(query) > 1 && sequel_summary_find_text(source.data, "LIMIT ")) {
@@ -114,8 +107,7 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
       ++rendered_count;
     }
   }
-  if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ") &&
-      !sequel_summary_find_text(source.data, "JOIN LATERAL")) {
+  if (sequel_query_join_count(query) && sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(source.data, "JOIN LATERAL")) {
     char *nested_limit = sequel_summary_find_text(*text, " LIMIT ? ORDER BY ");
     if (nested_limit) {
       size_t nesting = 0;
@@ -135,12 +127,9 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
       *length -= removed;
     }
   }
-  if (sequel_summary_find_word(source.data, source.length, 0, "OFFSET") &&
-      !sequel_summary_preserve_keyword(text, length, capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
+  if (sequel_summary_find_word(source.data, source.length, 0, "OFFSET") && !sequel_summary_preserve_keyword(text, length, capacity, source.data, source.length, "OFFSET", " OFFSET ?"))
     return 0;
-  if (sequel_summary_find_word(source.data, source.length, 0, "RETURNING") &&
-      !sequel_summary_find_text(*text, "RETURNING") &&
-      !sequel_summary_append_text(text, length, capacity, " RETURNING …"))
+  if (sequel_summary_find_word(source.data, source.length, 0, "RETURNING") && !sequel_summary_find_text(*text, "RETURNING") && !sequel_summary_append_text(text, length, capacity, " RETURNING …"))
     return 0;
   return 1;
 }
@@ -148,8 +137,7 @@ int sequel_summary_repair_tail(char **text, size_t *length, size_t *capacity, co
 int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 0;
-  if (sequel_summary_word(source.data, source.length, 0, "UPDATE") &&
-      !sequel_summary_find_text(source.data, " FROM ")) {
+  if (sequel_summary_word(source.data, source.length, 0, "UPDATE") && !sequel_summary_find_text(source.data, " FROM ")) {
     const char *set = sequel_summary_find_text(source.data, " SET ");
     const char *where = set ? sequel_summary_find_text(set, " WHERE ") : NULL;
     const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
@@ -158,20 +146,14 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
       const char *target = source.data + strlen("UPDATE ");
       *length = 0;
       (*text)[0] = '\0';
-      if (!sequel_summary_append_text(text, length, capacity, "UPDATE ") ||
-          !sequel_summary_append_bytes(text, length, capacity, target, (size_t)(set - target)) ||
-          !sequel_summary_append_text(text, length, capacity, " SET ") ||
-          !sequel_summary_append_redacted_clause(text, length, capacity) ||
-          (where && !sequel_summary_append_text(text, length, capacity, " WHERE …")) ||
-          (order && !sequel_summary_append_text(text, length, capacity, " ORDER BY …")) ||
-          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
-                     !sequel_summary_append_bytes(text, length, capacity, limit + 7,
-                                                  (source.data + source.length) - (limit + 7)))))
+      if (!sequel_summary_append_text(text, length, capacity, "UPDATE ") || !sequel_summary_append_bytes(text, length, capacity, target, (size_t)(set - target)) ||
+          !sequel_summary_append_text(text, length, capacity, " SET ") || !sequel_summary_append_redacted_clause(text, length, capacity) ||
+          (where && !sequel_summary_append_text(text, length, capacity, " WHERE …")) || (order && !sequel_summary_append_text(text, length, capacity, " ORDER BY …")) ||
+          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") || !sequel_summary_append_bytes(text, length, capacity, limit + 7, (source.data + source.length) - (limit + 7)))))
         return 0;
     }
   }
-  if (sequel_summary_find_word(source.data, source.length, 0, "INSERT") &&
-      sequel_summary_find_text(source.data, "ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY")) {
+  if (sequel_summary_find_word(source.data, source.length, 0, "INSERT") && sequel_summary_find_text(source.data, "ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY")) {
     char *conflict = sequel_summary_find_text(*text, "ON CONFLICT");
     if (conflict) {
       const char insertion[] = " ORDER BY …";
@@ -187,8 +169,7 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
       *capacity = *length + 1;
     }
   }
-  if (sequel_summary_word(source.data, source.length, 0, "DELETE") &&
-      sequel_summary_find_text(source.data, " ORDER BY ")) {
+  if (sequel_summary_word(source.data, source.length, 0, "DELETE") && sequel_summary_find_text(source.data, " ORDER BY ")) {
     const char *from = sequel_summary_find_text(source.data, " FROM ");
     const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
     const char *order = where ? sequel_summary_find_text(where, " ORDER BY ") : NULL;
@@ -200,21 +181,16 @@ int sequel_summary_repair_write_order(char **text, size_t *length, size_t *capac
         --table_end;
       *length = 0;
       (*text)[0] = '\0';
-      if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") ||
-          !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
+      if (!sequel_summary_append_text(text, length, capacity, "DELETE FROM ") || !sequel_summary_append_bytes(text, length, capacity, table, (size_t)(table_end - table)) ||
           !sequel_summary_append_text(text, length, capacity, " WHERE … ORDER BY …") ||
-          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") ||
-                     !sequel_summary_append_bytes(text, length, capacity, limit + 7,
-                                                  (source.data + source.length) - (limit + 7)))))
+          (limit && (!sequel_summary_append_text(text, length, capacity, " LIMIT ") || !sequel_summary_append_bytes(text, length, capacity, limit + 7, (source.data + source.length) - (limit + 7)))))
         return 0;
     }
   }
   return 1;
 }
 
-int sequel_summary_repair_mysql_update_aliases(char **text, size_t *length, size_t *capacity,
-                                               const sequel_query_document_t *query, sequel_source_view_t source,
-                                               size_t outer_start) {
+int sequel_summary_repair_mysql_update_aliases(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source, size_t outer_start) {
   if (!text || !*text || !length || !capacity || !query)
     return 0;
   if (sequel_query_dialect(query) != SEQUEL_MYSQL || !sequel_summary_find_text(source.data, " JOIN "))
@@ -235,8 +211,7 @@ int sequel_summary_repair_mysql_update_aliases(char **text, size_t *length, size
     const char *alias_end = alias;
     while (alias_end < source.data + source.length && !isspace((unsigned char)*alias_end))
       ++alias_end;
-    if (table_end > table && alias_end > alias &&
-        !sequel_summary_word(source.data, source.length, (size_t)(alias - source.data), "ON")) {
+    if (table_end > table && alias_end > alias && !sequel_summary_word(source.data, source.length, (size_t)(alias - source.data), "ON")) {
       size_t table_length = (size_t)(table_end - table), alias_length = (size_t)(alias_end - alias);
       size_t pattern_length = strlen("JOIN ") + table_length + 1 + alias_length;
       char *pattern = malloc(pattern_length + 1);
@@ -266,25 +241,20 @@ int sequel_summary_repair_mysql_update_aliases(char **text, size_t *length, size
   return 1;
 }
 
-int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                       const sequel_query_document_t *query, const sequel_statement_info_t *statements,
+int sequel_summary_repair_create_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_query_document_t *query, const sequel_statement_info_t *statements,
                                        size_t statement_count, bool include_predicates) {
   if (!text || !*text || !length || !capacity || !query || !statements)
     return 0;
-  if (include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE &&
-      sequel_summary_word(source.data, source.length, 0, "CREATE") &&
-      sequel_summary_find_text(source.data, " ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY") &&
-      !sequel_summary_append_text(text, length, capacity, " ORDER BY"))
+  if (include_predicates && statement_count && statements[0].operation == SEQUEL_OPERATION_CREATE && sequel_summary_word(source.data, source.length, 0, "CREATE") &&
+      sequel_summary_find_text(source.data, " ORDER BY") && !sequel_summary_find_text(*text, "ORDER BY") && !sequel_summary_append_text(text, length, capacity, " ORDER BY"))
     return 0;
   return 1;
 }
 
-int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_source_view_t source,
-                                         const sequel_query_document_t *query) {
+int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_source_view_t source, const sequel_query_document_t *query) {
   if (!text || !*text || !length || !source.data || !query)
     return 0;
-  if (sequel_query_dialect(query) != SEQUEL_CLICKHOUSE || !sequel_query_cte_count(query) ||
-      strncmp(*text, "WITH ", 5) != 0)
+  if (sequel_query_dialect(query) != SEQUEL_CLICKHOUSE || !sequel_query_cte_count(query) || strncmp(*text, "WITH ", 5) != 0)
     return 1;
   char *select = sequel_summary_find_text(*text, " SELECT ");
   if (!select)
@@ -303,8 +273,7 @@ int sequel_summary_repair_clickhouse_cte(char **text, size_t *length, sequel_sou
 int sequel_summary_repair_group_order(char **text, size_t *length, size_t *capacity, sequel_source_view_t source) {
   if (!text || !*text || !length || !capacity || !source.data)
     return 0;
-  if (!sequel_summary_find_text(source.data, "GROUP BY") || !sequel_summary_find_text(source.data, "HAVING") ||
-      !sequel_summary_find_text(source.data, "ORDER BY"))
+  if (!sequel_summary_find_text(source.data, "GROUP BY") || !sequel_summary_find_text(source.data, "HAVING") || !sequel_summary_find_text(source.data, "ORDER BY"))
     return 1;
   char *group = sequel_summary_find_text(*text, "GROUP BY");
   char *order = group ? sequel_summary_find_text(group, "ORDER BY") : NULL;
@@ -333,8 +302,7 @@ int sequel_summary_repair_group_order(char **text, size_t *length, size_t *capac
   return 1;
 }
 
-int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                        const sequel_query_document_t *query, const sequel_statement_info_t *statements,
+int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_query_document_t *query, const sequel_statement_info_t *statements,
                                         size_t statement_count, bool include_predicates) {
   (void)query;
   if (!text || !*text || !length || !capacity || !statements)
@@ -344,15 +312,13 @@ int sequel_summary_repair_set_operators(char **text, size_t *length, size_t *cap
   const char *operators[] = {"EXCEPT", "INTERSECT ALL", "UNION ALL"};
   for (size_t i = 0; i < sizeof(operators) / sizeof(operators[0]); ++i) {
     if (sequel_summary_find_text(source.data, operators[i]) && !sequel_summary_find_text(*text, operators[i]) &&
-        (!sequel_summary_append_text(text, length, capacity, " ") ||
-         !sequel_summary_append_text(text, length, capacity, operators[i])))
+        (!sequel_summary_append_text(text, length, capacity, " ") || !sequel_summary_append_text(text, length, capacity, operators[i])))
       return 0;
   }
   return 1;
 }
 
-int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                         const sequel_query_document_t *query, size_t outer_start, bool include_tables,
+int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_query_document_t *query, size_t outer_start, bool include_tables,
                                          size_t statement_count) {
   if (!text || !*text || !length || !capacity || !query)
     return 0;
@@ -364,21 +330,18 @@ int sequel_summary_repair_format_clauses(char **text, size_t *length, size_t *ca
   for (size_t keyword = 0; keyword < sizeof(keywords) / sizeof(keywords[0]); ++keyword) {
     bool present = false;
     for (size_t clause = 0; clause < clause_count; ++clause) {
-      if (clauses[clause].statement_index == 0 &&
-          sequel_summary_word(source.data, source.length, clauses[clause].range.start, keywords[keyword])) {
+      if (clauses[clause].statement_index == 0 && sequel_summary_word(source.data, source.length, clauses[clause].range.start, keywords[keyword])) {
         present = true;
         break;
       }
     }
-    if (!present && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE &&
-        sequel_summary_find_word(source.data, source.length, outer_start, keywords[keyword]))
+    if (!present && sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && sequel_summary_find_word(source.data, source.length, outer_start, keywords[keyword]))
       present = true;
     if (!present)
       continue;
     for (size_t offset = outer_start; offset < source.length; ++offset) {
       if (sequel_summary_word(source.data, source.length, offset, keywords[keyword])) {
-        if (!sequel_summary_append_text(text, length, capacity, " ") ||
-            !sequel_summary_append_text(text, length, capacity, keywords[keyword]))
+        if (!sequel_summary_append_text(text, length, capacity, " ") || !sequel_summary_append_text(text, length, capacity, keywords[keyword]))
           return 0;
         break;
       }
@@ -393,8 +356,7 @@ int sequel_summary_repair_cte_insert(char **text, size_t *length, sequel_source_
   if (!cte_insert_scope)
     return 1;
   char *first_insert = sequel_summary_find_text(*text, " INSERT INTO ");
-  char *duplicate_insert =
-      first_insert ? sequel_summary_find_text(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
+  char *duplicate_insert = first_insert ? sequel_summary_find_text(first_insert + strlen(" INSERT INTO "), " INTO ") : NULL;
   if (duplicate_insert) {
     *duplicate_insert = '\0';
     *length = strlen(*text);
@@ -402,8 +364,7 @@ int sequel_summary_repair_cte_insert(char **text, size_t *length, sequel_source_
   return 1;
 }
 
-int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capacity,
-                                     const sequel_query_document_t *query, bool include_bind_count) {
+int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, bool include_bind_count) {
   if (!text || !*text || !length || !capacity || !query)
     return 0;
   if (!include_bind_count)
@@ -413,15 +374,13 @@ int sequel_summary_append_bind_count(char **text, size_t *length, size_t *capaci
   return sequel_summary_append_text(text, length, capacity, binds);
 }
 
-int sequel_summary_repair_outer_limit(char **text, size_t *length, size_t *capacity,
-                                      const sequel_query_document_t *query) {
+int sequel_summary_repair_outer_limit(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query) {
   if (!text || !*text || !length || !capacity || !query)
     return 0;
   if (!sequel_query_cte_count(query) || !sequel_query_outer_limit(query))
     return 1;
   size_t tail_start = *length > 64 ? *length - 64 : 0;
-  if (!sequel_summary_find_text(*text + tail_start, "LIMIT") &&
-      !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
+  if (!sequel_summary_find_text(*text + tail_start, "LIMIT") && !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
     return 0;
   return 1;
 }

@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(condition)                                                                                               \
-  do {                                                                                                                 \
-    if (!(condition)) {                                                                                                \
-      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                               \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(condition)                                                                                                                                                                               \
+  do {                                                                                                                                                                                                 \
+    if (!(condition)) {                                                                                                                                                                                \
+      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                                                                                                               \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
 
 int main(void) {
@@ -33,11 +33,8 @@ int main(void) {
   CHECK(sequel_collect_lexical_diagnostics(lexed, &lexical_diagnostics) == SEQUEL_OK);
   CHECK(lexical_diagnostics.count >= 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL);
   sequel_diagnostic_t projected = {0};
-  CHECK(sequel_diagnostic_project(lexical_source.data, lexical_source.length, &lexical_diagnostics.records[0],
-                                  &projected) == SEQUEL_OK &&
-        projected.code == lexical_diagnostics.records[0].code &&
-        projected.offset == lexical_diagnostics.records[0].range.start &&
-        projected.end_offset == lexical_diagnostics.records[0].range.end);
+  CHECK(sequel_diagnostic_project(lexical_source.data, lexical_source.length, &lexical_diagnostics.records[0], &projected) == SEQUEL_OK && projected.code == lexical_diagnostics.records[0].code &&
+        projected.offset == lexical_diagnostics.records[0].range.start && projected.end_offset == lexical_diagnostics.records[0].range.end);
   sequel_diagnostic_list_free(&lexical_diagnostics);
   sequel_lexed_document_free(lexed);
   sequel_syntax_document_t *syntax = NULL;
@@ -77,8 +74,7 @@ int main(void) {
   CHECK(portability_diagnostics.count == 0);
   CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_POSTGRESQL, &portability_diagnostics) == SEQUEL_OK);
   for (size_t i = 0; i < portability_diagnostics.count; ++i)
-    CHECK(portability_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_PORTABILITY &&
-          portability_diagnostics.records[i].message[0] && portability_diagnostics.records[i].explanation[0] &&
+    CHECK(portability_diagnostics.records[i].origin == SEQUEL_DIAGNOSTIC_PORTABILITY && portability_diagnostics.records[i].message[0] && portability_diagnostics.records[i].explanation[0] &&
           portability_diagnostics.records[i].hint[0]);
   sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_syntax_document_free(syntax);
@@ -88,8 +84,7 @@ int main(void) {
   CHECK(sequel_parse_sql(&dialect_source, &parse_options, NULL, &syntax) == SEQUEL_OK && syntax);
   CHECK(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK);
   CHECK(portability_diagnostics.count > 0);
-  CHECK(portability_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_PORTABILITY &&
-        portability_diagnostics.records[0].message[0] && portability_diagnostics.records[0].explanation[0] &&
+  CHECK(portability_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_PORTABILITY && portability_diagnostics.records[0].message[0] && portability_diagnostics.records[0].explanation[0] &&
         portability_diagnostics.records[0].hint[0]);
   sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_syntax_document_free(syntax);
@@ -172,15 +167,13 @@ int main(void) {
   CHECK(sequel_diagnose("SELECT ';'; SELECT 2", SEQUEL_GENERIC, &d) == SEQUEL_OK && !d.statement_complete);
   CHECK(sequel_diagnose("SELECT 1+2;", SEQUEL_GENERIC, &d) == SEQUEL_OK && d.statement_complete);
   char small[4] = "xxx";
-  CHECK(sequel_format_ex("SELECT 'bad", SEQUEL_GENERIC, small, sizeof(small), &length, &d) ==
-        SEQUEL_ERR_INVALID_ARGUMENT);
+  CHECK(sequel_format_ex("SELECT 'bad", SEQUEL_GENERIC, small, sizeof(small), &length, &d) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(!*small && !length && d.code == SEQUEL_DIAG_UNTERMINATED_STRING);
   CHECK(sequel_format_ex("SELECT 1", SEQUEL_GENERIC, small, sizeof(small), &length, &d) == SEQUEL_ERR_OVERFLOW);
   CHECK(!*small && length > 4 && d.code == SEQUEL_DIAG_OUTPUT_LIMIT);
   CHECK(sequel_format_ex("SELECT 1", SEQUEL_GENERIC, NULL, 1, &length, &d) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(d.code == SEQUEL_DIAG_INVALID_ARGUMENT);
-  CHECK(sequel_format_ex("SELECT CASE WHEN 1 THEN 2", SEQUEL_GENERIC, NULL, 0, &length, &d) ==
-        SEQUEL_ERR_INVALID_ARGUMENT);
+  CHECK(sequel_format_ex("SELECT CASE WHEN 1 THEN 2", SEQUEL_GENERIC, NULL, 0, &length, &d) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(d.code == SEQUEL_DIAG_UNSUPPORTED_LAYOUT);
   options.dialect = SEQUEL_GENERIC;
   CHECK(sequel_highlight_ex("'bad", &options, small, sizeof(small), &length, &d) == SEQUEL_ERR_OVERFLOW);

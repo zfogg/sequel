@@ -21,8 +21,7 @@ static bool sequel_api_word(const char *text, size_t length, const char *word) {
   return true;
 }
 
-static bool sequel_api_clickhouse_payload(const sequel_source_view_t *source, const sequel_token_t *tokens,
-                                          size_t count) {
+static bool sequel_api_clickhouse_payload(const sequel_source_view_t *source, const sequel_token_t *tokens, size_t count) {
   bool insert = false;
   for (size_t i = 0; i < count; ++i) {
     if (tokens[i].kind == SEQUEL_TOKEN_EOF)
@@ -43,9 +42,7 @@ static bool sequel_api_clickhouse_payload(const sequel_source_view_t *source, co
   return false;
 }
 
-sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags,
-                                           bool collapse_in_lists, size_t limit, char *out, size_t capacity,
-                                           bool *truncated) {
+sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dialect, unsigned flags, bool collapse_in_lists, size_t limit, char *out, size_t capacity, bool *truncated) {
   if (!sql || !out || !truncated)
     return SEQUEL_ERR_NULL;
   *truncated = false;
@@ -109,10 +106,8 @@ sequel_status_t sequel_sanitize_with_flags(const char *sql, sequel_dialect_t dia
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit,
-                                char *out, size_t capacity, bool *truncated) {
-  return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit, out, capacity,
-                                    truncated);
+sequel_status_t sequel_sanitize(const char *sql, sequel_dialect_t dialect, bool collapse_in_lists, size_t limit, char *out, size_t capacity, bool *truncated) {
+  return sequel_sanitize_with_flags(sql, dialect, SEQUEL_SANITIZE_ALL, collapse_in_lists, limit, out, capacity, truncated);
 }
 
 void sequel_metadata_free(sequel_metadata_t *metadata) {
@@ -122,8 +117,7 @@ void sequel_metadata_free(sequel_metadata_t *metadata) {
   }
 }
 
-sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metadata_options_t *options,
-                                  sequel_metadata_t *out) {
+sequel_status_t sequel_metadata_n(const char *sql, size_t n, const sequel_metadata_options_t *options, sequel_metadata_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   *out = (sequel_metadata_t){.text = "", .summary = "SQL", .operation = ""};

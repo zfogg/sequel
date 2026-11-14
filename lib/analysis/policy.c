@@ -1,12 +1,10 @@
 /* Policy diagnostics consume the shared token view; they do not rescan SQL text. */
 #include "internal.h"
 
-void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis_token_t *ts, size_t count,
-                                             sequel_dialect_t dialect, sequel_analysis_t *out) {
+void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis_token_t *ts, size_t count, sequel_dialect_t dialect, sequel_analysis_t *out) {
   (void)sql;
   if (out->statement_count > 1)
-    sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_MULTIPLE_STATEMENTS, out->statements[1].offset,
-                                   out->statements[1].end_offset);
+    sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_MULTIPLE_STATEMENTS, out->statements[1].offset, out->statements[1].end_offset);
   size_t depth = 0, joins = 0, in_items = 0, in_start = SIZE_MAX;
   bool write = false, where = false, table = false, operation = false, star = false;
   for (size_t i = 0; i < count; ++i) {
@@ -35,13 +33,11 @@ void sequel_analysis_policy_diagnostics_pass(const char *sql, size_t n, analysis
         operation = true;
         if (sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "DELETE"))
           write = true;
-        if (!(sequel_analysis_token_is_word(t, "SELECT") || sequel_analysis_token_is_word(t, "INSERT") ||
-              sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "DELETE") ||
+        if (!(sequel_analysis_token_is_word(t, "SELECT") || sequel_analysis_token_is_word(t, "INSERT") || sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "DELETE") ||
               sequel_analysis_token_is_word(t, "MERGE") || sequel_analysis_token_is_word(t, "WITH")))
           sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_UNKNOWN_OPERATION, t.source_offset, t.source_offset + t.t.n);
       }
-      if (sequel_analysis_token_is_word(t, "FROM") || sequel_analysis_token_is_word(t, "INTO") ||
-          sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "USING"))
+      if (sequel_analysis_token_is_word(t, "FROM") || sequel_analysis_token_is_word(t, "INTO") || sequel_analysis_token_is_word(t, "UPDATE") || sequel_analysis_token_is_word(t, "USING"))
         table = true;
       if (sequel_analysis_token_is_word(t, "WHERE"))
         where = true;

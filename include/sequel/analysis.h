@@ -67,13 +67,11 @@ typedef struct {
 } sequel_analysis_t;
 #endif
 
-sequel_status_t sequel_analyze_n(const char *sql, size_t length, const sequel_analysis_options_t *options,
-                                 sequel_analysis_t *out);
+sequel_status_t sequel_analyze_n(const char *sql, size_t length, const sequel_analysis_options_t *options, sequel_analysis_t *out);
 sequel_status_t sequel_analyze(const char *sql, const sequel_analysis_options_t *options, sequel_analysis_t *out);
 void sequel_analysis_free(sequel_analysis_t *out);
 
-sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t start, size_t end, bool reverse,
-                                        sequel_mapped_range_t *out);
+sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t start, size_t end, bool reverse, sequel_mapped_range_t *out);
 sequel_status_t sequel_utf8_to_utf16(const char *text, size_t length, size_t offset, size_t *units);
 sequel_status_t sequel_utf16_to_utf8(const char *text, size_t length, size_t units, size_t *offset);
 
@@ -94,12 +92,7 @@ typedef struct {
   size_t portability_target_count;
 } sequel_query_analysis_options_t;
 
-typedef enum {
-  SEQUEL_ANALYSIS_MAP_COPY,
-  SEQUEL_ANALYSIS_MAP_REPLACE,
-  SEQUEL_ANALYSIS_MAP_DELETE,
-  SEQUEL_ANALYSIS_MAP_INSERT
-} sequel_analysis_map_kind_t;
+typedef enum { SEQUEL_ANALYSIS_MAP_COPY, SEQUEL_ANALYSIS_MAP_REPLACE, SEQUEL_ANALYSIS_MAP_DELETE, SEQUEL_ANALYSIS_MAP_INSERT } sequel_analysis_map_kind_t;
 
 typedef struct {
   size_t from_start;
@@ -120,8 +113,7 @@ typedef struct {
 void sequel_query_analysis_options_init(sequel_query_analysis_options_t *options);
 
 /** Build an owned semantic analysis object from an immutable syntax document. */
-sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
-                                        const sequel_query_analysis_options_t *options,
+sequel_status_t sequel_analyze_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query, const sequel_query_analysis_options_t *options,
                                         const sequel_cancellation_t *cancellation, sequel_query_analysis_t **out);
 
 /** Release a document analysis object. NULL is permitted. */
@@ -146,8 +138,7 @@ const sequel_relation_info_t *sequel_query_analysis_relations(const sequel_query
 const sequel_join_info_t *sequel_query_analysis_joins(const sequel_query_analysis_t *analysis, size_t *count);
 
 /** Return projections when projection collection was requested. */
-const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis,
-                                                                  size_t *count);
+const sequel_projection_info_t *sequel_query_analysis_projections(const sequel_query_analysis_t *analysis, size_t *count);
 
 /** Return predicates when predicate collection was requested. */
 const sequel_predicate_info_t *sequel_query_analysis_predicates(const sequel_query_analysis_t *analysis, size_t *count);
@@ -162,8 +153,7 @@ const sequel_text_result_t *sequel_query_analysis_sanitized_sql(const sequel_que
 const sequel_text_result_t *sequel_query_analysis_formatted_sql(const sequel_query_analysis_t *analysis);
 
 /** Copy the optional requested fingerprint into a caller-provided buffer. */
-sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis,
-                                                  char out[SEQUEL_FINGERPRINT_LENGTH]);
+sequel_status_t sequel_query_analysis_fingerprint(const sequel_query_analysis_t *analysis, char out[SEQUEL_FINGERPRINT_LENGTH]);
 
 /** Return the original-to-sanitized provenance map when requested. */
 const sequel_analysis_source_map_t *sequel_query_analysis_sanitized_map(const sequel_query_analysis_t *analysis);

@@ -35,21 +35,14 @@ static inline bool sequel_runtime_keyword(token value, const char *word) {
   return true;
 }
 
-static inline bool sequel_runtime_symbol(token value, char character) {
-  return value.n == 1 && value.p && *value.p == character;
-}
+static inline bool sequel_runtime_symbol(token value, char character) { return value.n == 1 && value.p && *value.p == character; }
 
-static inline bool sequel_runtime_letter(unsigned char character) {
-  return character == '_' || (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z');
-}
+static inline bool sequel_runtime_letter(unsigned char character) { return character == '_' || (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z'); }
 
-static inline size_t sequel_runtime_dollar_tag_end(const char *text, size_t length, size_t offset,
-                                                   sequel_dialect_t dialect) {
+static inline size_t sequel_runtime_dollar_tag_end(const char *text, size_t length, size_t offset, sequel_dialect_t dialect) {
   size_t cursor = offset + 1;
-  if (cursor < length && (sequel_runtime_letter((unsigned char)text[cursor]) ||
-                          (dialect == SEQUEL_CLICKHOUSE && isdigit((unsigned char)text[cursor]))))
-    while (cursor < length &&
-           (sequel_runtime_letter((unsigned char)text[cursor]) || isdigit((unsigned char)text[cursor])))
+  if (cursor < length && (sequel_runtime_letter((unsigned char)text[cursor]) || (dialect == SEQUEL_CLICKHOUSE && isdigit((unsigned char)text[cursor]))))
+    while (cursor < length && (sequel_runtime_letter((unsigned char)text[cursor]) || isdigit((unsigned char)text[cursor])))
       ++cursor;
   return cursor < length && text[cursor] == '$' ? cursor : 0;
 }

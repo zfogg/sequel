@@ -4,8 +4,7 @@
 
 /* Whitespace is delayed across comments so deleted comment text never appears
  * in output. Every consumed source byte still has explicit map provenance. */
-static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t *ts, size_t count, analysis_state *a,
-                                     analysis_text *safe, analysis_map *map, sequel_sha256 *hash) {
+static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t *ts, size_t count, analysis_state *a, analysis_text *safe, analysis_map *map, sequel_sha256 *hash) {
   sequel_analysis_t *out = a->out;
   analysis_bindings dictionary = {0}, slot_dictionary = {0};
   size_t consumed = 0, statement = 0, bind_count = 0;
@@ -32,8 +31,7 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
         key = numeric;
         key_length = strlen(numeric);
       }
-      analysis_binding *canonical =
-          sequel_analysis_canonical_binding(&dictionary, &slot_dictionary, key, key_length, number, &fingerprint_next);
+      analysis_binding *canonical = sequel_analysis_canonical_binding(&dictionary, &slot_dictionary, key, key_length, number, &fingerprint_next);
       unsigned char kind = 'B';
       sha_update(hash, &kind, 1);
       sha_u64(hash, canonical->identity);
@@ -85,10 +83,8 @@ static void sequel_analysis_sanitize(const char *sql, size_t n, analysis_token_t
  * API exposes the structured renderer directly.  This is a projection boundary,
  * not a second parser: metadata() consumes the same parsed model and only
  * applies the established text-normalization contract. */
-static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t length, sequel_dialect_t dialect,
-                                                      sequel_analysis_t *out) {
-  sequel_metadata_options_t options = {
-      .dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
+static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t length, sequel_dialect_t dialect, sequel_analysis_t *out) {
+  sequel_metadata_options_t options = {.dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
   sequel_metadata_t metadata = {0};
   if (sequel_metadata_n(sql, length, &options, &metadata) != SEQUEL_OK || !metadata.summary) {
     sequel_metadata_free(&metadata);
@@ -104,28 +100,25 @@ static void sequel_analysis_restore_aggregate_summary(const char *sql, size_t le
   sequel_metadata_free(&metadata);
 }
 
-static void sequel_analysis_restore_aggregate_operation(const char *sql, size_t length, sequel_dialect_t dialect,
-                                                        sequel_analysis_t *out) {
+static void sequel_analysis_restore_aggregate_operation(const char *sql, size_t length, sequel_dialect_t dialect, sequel_analysis_t *out) {
   if (!sql || !out || out->operation[0])
     return;
-  sequel_metadata_options_t options = {
-      .dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
+  sequel_metadata_options_t options = {.dialect = dialect, .max_query_text_bytes = SEQUEL_TEXT_MAX, .keep_in_lists = false};
   sequel_metadata_t metadata = {0};
   if (sequel_metadata_n(sql, length, &options, &metadata) == SEQUEL_OK && metadata.operation[0])
     snprintf(out->operation, sizeof(out->operation), "%s", metadata.operation);
   sequel_metadata_free(&metadata);
 }
 
-sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options,
-                                 sequel_analysis_t *out) {
+sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysis_options_t *options, sequel_analysis_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   sequel_analysis_options_t o = options ? *options : (sequel_analysis_options_t){0};
   sequel_analysis_empty(out, n, o.dialect);
   if (!sql)
     return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_NULL, SEQUEL_DIAG_NULL_INPUT);
-  if (o.dialect < SEQUEL_GENERIC || o.dialect > SEQUEL_CLICKHOUSE || o.max_input_bytes > SEQUEL_INPUT_MAX ||
-      o.max_output_bytes > SEQUEL_TEXT_MAX || o.max_query_text_bytes > SEQUEL_TEXT_MAX || sequel_current_call)
+  if (o.dialect < SEQUEL_GENERIC || o.dialect > SEQUEL_CLICKHOUSE || o.max_input_bytes > SEQUEL_INPUT_MAX || o.max_output_bytes > SEQUEL_TEXT_MAX || o.max_query_text_bytes > SEQUEL_TEXT_MAX ||
+      sequel_current_call)
     return sequel_analysis_fail(out, n, o.dialect, SEQUEL_ERR_INVALID_ARGUMENT, SEQUEL_DIAG_INVALID_ARGUMENT);
   size_t input_limit = o.max_input_bytes ? o.max_input_bytes : SEQUEL_INPUT_MAX;
   if (n > input_limit)
@@ -179,10 +172,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     out->omission_reason = "malformed";
   } else {
     const char *ambiguous = NULL;
-    if (((o.dialect == SEQUEL_MYSQL || o.dialect == SEQUEL_SQLITE) &&
-         (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n))) ||
-        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_DUCKDB || o.dialect == SEQUEL_GENERIC ||
-          o.dialect == SEQUEL_SQLITE) &&
+    if (((o.dialect == SEQUEL_MYSQL || o.dialect == SEQUEL_SQLITE) && (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n))) ||
+        ((o.dialect == SEQUEL_POSTGRESQL || o.dialect == SEQUEL_DUCKDB || o.dialect == SEQUEL_GENERIC || o.dialect == SEQUEL_SQLITE) &&
          (ambiguous = sequel_analysis_ambiguous_escaped_quote(sql, n))) ||
         (o.dialect == SEQUEL_SQLITE && (ambiguous = sequel_analysis_dollar_quoted_literal(sql, n)))) {
       call->ambiguous_literal = true;
@@ -205,9 +196,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       }
     } else {
       valid = parse_status;
-      sequel_analysis_add_diagnostic(
-          out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT : SEQUEL_DIAG_INVALID_ARGUMENT, 0,
-          n ? 1 : 0);
+      sequel_analysis_add_diagnostic(out, parse_status == SEQUEL_ERR_LIMIT ? SEQUEL_DIAG_RESOURCE_LIMIT : SEQUEL_DIAG_INVALID_ARGUMENT, 0, n ? 1 : 0);
     }
     analysis_token_t *tokens = NULL;
     size_t scanned = 0;
@@ -223,12 +212,10 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
     }
     if (o.dialect == SEQUEL_POSTGRESQL && count != SIZE_MAX)
       for (size_t i = 0; i < count; ++i) {
-        bool contiguous_question_number =
-            tokens[i].t.n > 1 && tokens[i].t.p[0] == '?' && isdigit((unsigned char)tokens[i].t.p[1]);
+        bool contiguous_question_number = tokens[i].t.n > 1 && tokens[i].t.p[0] == '?' && isdigit((unsigned char)tokens[i].t.p[1]);
         if (!contiguous_question_number && i + 1 < count)
-          contiguous_question_number = sequel_runtime_symbol(tokens[i].t, '?') &&
-                                       tokens[i + 1].source_offset == tokens[i].source_offset + 1 &&
-                                       tokens[i + 1].t.n && isdigit((unsigned char)tokens[i + 1].t.p[0]);
+          contiguous_question_number =
+              sequel_runtime_symbol(tokens[i].t, '?') && tokens[i + 1].source_offset == tokens[i].source_offset + 1 && tokens[i + 1].t.n && isdigit((unsigned char)tokens[i + 1].t.p[0]);
         if (contiguous_question_number) {
           size_t end = tokens[i].source_offset + tokens[i].t.n;
           if (i + 1 < count && end == tokens[i + 1].source_offset)
@@ -238,15 +225,13 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
         }
       }
     if (call->ambiguous_literal) {
-      sequel_diagnostics_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset,
-                                call->ambiguous_offset + 2);
+      sequel_diagnostics_report(sql, n, &first, SEQUEL_DIAG_AMBIGUOUS_LITERAL, call->ambiguous_offset, call->ambiguous_offset + 2);
       count = SIZE_MAX;
     }
     if (syntax)
       sequel_analysis_recovered_statement_ranges(sequel_syntax_lexed(syntax), out);
     if (count == SIZE_MAX) {
-      if (out->statement_count && scanned &&
-          !(tokens[scanned - 1].kind == 0 && sequel_runtime_symbol(tokens[scanned - 1].t, ';')))
+      if (out->statement_count && scanned && !(tokens[scanned - 1].kind == 0 && sequel_runtime_symbol(tokens[scanned - 1].t, ';')))
         ((sequel_range_t *)out->statements)[out->statement_count - 1].end_offset = n;
       else if (first.offset < n)
         sequel_analysis_add_statement(out, first.offset, n);
@@ -257,10 +242,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
       for (size_t issue_index = 0; issue_index < parse_issue_count; ++issue_index) {
         sequel_diagnostic_t parser_diagnostic;
         if (sequel_syntax_diagnostic(syntax, issue_index, &parser_diagnostic) == SEQUEL_OK &&
-            !sequel_analysis_has_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
-                                            parser_diagnostic.end_offset))
-          sequel_analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset,
-                                         parser_diagnostic.end_offset);
+            !sequel_analysis_has_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset, parser_diagnostic.end_offset))
+          sequel_analysis_add_diagnostic(out, parser_diagnostic.code, parser_diagnostic.offset, parser_diagnostic.end_offset);
       }
     }
     if (out->diagnostic_count) {
@@ -316,8 +299,7 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
           sequel_analysis_add_diagnostic(out, SEQUEL_DIAG_OUT_OF_MEMORY, 0, 0);
         } else {
           for (size_t i = 0; i < policy.count; ++i)
-            sequel_analysis_add_diagnostic(out, policy.records[i].code, policy.records[i].range.start,
-                                           policy.records[i].range.end);
+            sequel_analysis_add_diagnostic(out, policy.records[i].code, policy.records[i].range.start, policy.records[i].range.end);
         }
         sequel_diagnostic_list_free(&policy);
         sequel_analysis_positions(sql, out);
@@ -352,10 +334,8 @@ sequel_status_t sequel_analyze_n(const char *sql, size_t n, const sequel_analysi
             if (maps) {
               analysis_map *format_map = calloc(1, sizeof(*format_map));
               if (format_map) {
-                sequel_analysis_build_format_map(format_map, safe.p, safe.n, formatted_result.data,
-                                                 formatted_result.length);
-                out->sanitized_to_formatted =
-                    (sequel_source_map_t){safe.n, formatted_result.length, format_map->p, format_map->n};
+                sequel_analysis_build_format_map(format_map, safe.p, safe.n, formatted_result.data, formatted_result.length);
+                out->sanitized_to_formatted = (sequel_source_map_t){safe.n, formatted_result.length, format_map->p, format_map->n};
               }
             }
             formatted_result.data = NULL;

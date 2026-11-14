@@ -14,8 +14,7 @@ bool sequel_analysis_token_is_word(analysis_token_t token, const char *word) {
   return true;
 }
 
-void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index,
-                                  sequel_dialect_t dialect, bool keep_in_lists) {
+void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t keyword_index, sequel_dialect_t dialect, bool keep_in_lists) {
   if (keep_in_lists || !sequel_analysis_token_is_word(tokens[keyword_index], "IN"))
     return;
   size_t open = keyword_index + 1;
@@ -35,8 +34,7 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
       const char *key;
       size_t length, number;
       sequel_bind_style_t style;
-      if (!sequel_analysis_literal(tokens[item], dialect) &&
-          !sequel_analysis_bind_token(tokens[item], dialect, &key, &length, &number, &style))
+      if (!sequel_analysis_literal(tokens[item], dialect) && !sequel_analysis_bind_token(tokens[item], dialect, &key, &length, &number, &style))
         return;
       items++;
       expecting = false;
@@ -51,8 +49,7 @@ void sequel_analysis_mark_in_list(analysis_token_t *tokens, size_t count, size_t
 }
 
 size_t sequel_analysis_sqlite_suffix(analysis_token_t token, sequel_dialect_t dialect, bool is_bind) {
-  if (!is_bind || dialect != SEQUEL_SQLITE || token.t.n <= 3 || token.t.p[0] != '$' ||
-      !sequel_runtime_letter((unsigned char)token.t.p[1]))
+  if (!is_bind || dialect != SEQUEL_SQLITE || token.t.n <= 3 || token.t.p[0] != '$' || !sequel_runtime_letter((unsigned char)token.t.p[1]))
     return SIZE_MAX;
   for (size_t offset = 1; offset + 1 < token.t.n; ++offset)
     if (token.t.p[offset] == ':' && token.t.p[offset + 1] == ':')
@@ -64,8 +61,7 @@ bool sequel_analysis_source_contains_word(sequel_source_view_t source, const cha
   size_t word_length = strlen(word);
   for (size_t offset = 0; offset + word_length <= source.length; ++offset) {
     bool starts_word = offset == 0 || !isalnum((unsigned char)source.data[offset - 1]);
-    bool ends_word =
-        offset + word_length == source.length || !isalnum((unsigned char)source.data[offset + word_length]);
+    bool ends_word = offset + word_length == source.length || !isalnum((unsigned char)source.data[offset + word_length]);
     if (starts_word && ends_word && sequel_query_word_equals_ci(source.data + offset, word_length, word))
       return true;
   }
@@ -102,8 +98,7 @@ static int sequel_analysis_shared_token_kind(sequel_token_kind_t kind) {
   }
 }
 
-sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out,
-                                                   size_t *count) {
+sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t *lexed, analysis_token_t **out, size_t *count) {
   if (!lexed || !out || !count)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -143,10 +138,8 @@ sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t
     for (size_t j = previous_end; j < token->range.start; ++j)
       newline |= source.data[j] == '\r' || source.data[j] == '\n';
     int kind = sequel_analysis_shared_token_kind(token->kind);
-    bool opening =
-        kind == 0 && token->range.end == token->range.start + 1 && strchr("([{", source.data[token->range.start]);
-    bool previous_open =
-        *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 && strchr("([{", *(*out)[*count - 1].t.p);
+    bool opening = kind == 0 && token->range.end == token->range.start + 1 && strchr("([{", source.data[token->range.start]);
+    bool previous_open = *count && (*out)[*count - 1].kind == 0 && (*out)[*count - 1].t.n == 1 && strchr("([{", *(*out)[*count - 1].t.p);
     (*out)[(*count)++] = (analysis_token_t){.t = {.p = source.data + token->range.start,
                                                   .n = token->range.end - token->range.start,
                                                   .word = kind == 1,
@@ -158,8 +151,7 @@ sequel_status_t sequel_analysis_adapt_lexed_tokens(const sequel_lexed_document_t
                                             .kind = kind,
                                             .matching = 0,
                                             .multiline = newline || (pending_newline && (!opening || previous_open)),
-                                            .flat_width = (*count > 1 ? (*out)[*count - 2].flat_width : 0) +
-                                                          token->range.end - token->range.start + 1,
+                                            .flat_width = (*count > 1 ? (*out)[*count - 2].flat_width : 0) + token->range.end - token->range.start + 1,
                                             .source_offset = token->range.start,
                                             .rendered_offset = 0};
     previous_end = token->range.end;

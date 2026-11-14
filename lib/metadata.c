@@ -5,15 +5,13 @@
 #include "metadata.h"
 #include "util/text.h"
 
-void sequel_metadata_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements,
-                                     size_t statement_count, char *operation, size_t operation_capacity) {
+void sequel_metadata_set_operation(const sequel_source_view_t *source, const sequel_statement_info_t *statements, size_t statement_count, char *operation, size_t operation_capacity) {
   if (!source || !statements || !operation || !operation_capacity || !statement_count)
     return;
   size_t first = 0;
   while (first < source->length && isspace((unsigned char)source->data[first]))
     ++first;
-  if (first + 3 <= source->length && sequel_text_equal_ci(source->data + first, 3, "SET") &&
-      (first + 3 == source->length || !isalpha((unsigned char)source->data[first + 3]))) {
+  if (first + 3 <= source->length && sequel_text_equal_ci(source->data + first, 3, "SET") && (first + 3 == source->length || !isalpha((unsigned char)source->data[first + 3]))) {
     operation[0] = 0;
     return;
   }

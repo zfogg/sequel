@@ -18,8 +18,7 @@ int sequel_analysis_append_diagnostics(sequel_diagnostic_list_t *destination, co
   return 1;
 }
 
-void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start,
-                                    size_t end) {
+void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
   size_t count = out->diagnostic_count;
   sequel_output_tick(sizeof(sequel_diagnostic_t));
   sequel_diagnostic_t *diagnostics = sequel_analysis_array((void *)out->diagnostics, count + 1, sizeof(*diagnostics));
@@ -30,11 +29,9 @@ void sequel_analysis_add_diagnostic(sequel_analysis_t *out, sequel_diagnostic_co
   out->diagnostic_count++;
 }
 
-bool sequel_analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start,
-                                    size_t end) {
+bool sequel_analysis_has_diagnostic(const sequel_analysis_t *out, sequel_diagnostic_code_t code, size_t start, size_t end) {
   for (size_t i = 0; i < out->diagnostic_count; ++i)
-    if (out->diagnostics[i].code == code && out->diagnostics[i].offset == start &&
-        out->diagnostics[i].end_offset == end)
+    if (out->diagnostics[i].code == code && out->diagnostics[i].offset == start && out->diagnostics[i].end_offset == end)
       return true;
   return false;
 }

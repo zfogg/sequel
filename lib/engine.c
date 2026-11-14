@@ -12,8 +12,7 @@
 
 static bool source_contains_json_operator(sequel_source_view_t source) {
   for (size_t i = 0; i + 1 < source.length; ++i) {
-    if ((source.data[i] == '#' && source.data[i + 1] == '>') ||
-        (source.data[i] == '?' && (source.data[i + 1] == '|' || source.data[i + 1] == '&')) ||
+    if ((source.data[i] == '#' && source.data[i + 1] == '>') || (source.data[i] == '?' && (source.data[i + 1] == '|' || source.data[i + 1] == '&')) ||
         (source.data[i] == '@' && source.data[i + 1] == '>') || (source.data[i] == '<' && source.data[i + 1] == '@'))
       return true;
   }
@@ -157,8 +156,7 @@ sequel_status_t sequel_format(const char *sql, sequel_dialect_t dialect, char *o
       ++comment_count;
       if (saw_sql) {
         for (size_t j = i + 1; j < token_count; ++j)
-          if (tokens[j].kind != SEQUEL_TOKEN_WHITESPACE && tokens[j].kind != SEQUEL_TOKEN_LINE_COMMENT &&
-              tokens[j].kind != SEQUEL_TOKEN_BLOCK_COMMENT && tokens[j].kind != SEQUEL_TOKEN_EOF) {
+          if (tokens[j].kind != SEQUEL_TOKEN_WHITESPACE && tokens[j].kind != SEQUEL_TOKEN_LINE_COMMENT && tokens[j].kind != SEQUEL_TOKEN_BLOCK_COMMENT && tokens[j].kind != SEQUEL_TOKEN_EOF) {
             comment_before_sql = true;
             break;
           }

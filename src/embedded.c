@@ -40,9 +40,7 @@ static void append(buffer *b, const char *p, size_t n) {
 
 static void str(buffer *b, const char *s) { append(b, s, strlen(s)); }
 
-static const char *text_find(const char *source, const char *needle) {
-  return source ? sequel_text_find(source, strlen(source), needle) : NULL;
-}
+static const char *text_find(const char *source, const char *needle) { return source ? sequel_text_find(source, strlen(source), needle) : NULL; }
 
 static int embedded_word_equals(const char *s, const char *w) {
   while (*w) {
@@ -80,22 +78,14 @@ static int embedded_sql_candidate(const char *s) {
     s += 6;
     while (isspace((unsigned char)*s))
       ++s;
-    return embedded_contains_word(s, "FROM") || embedded_contains_word(s, "AS") || isdigit((unsigned char)*s) ||
-           *s == '\'' || *s == '"' || *s == '*' || strchr(s, '(') != NULL;
+    return embedded_contains_word(s, "FROM") || embedded_contains_word(s, "AS") || isdigit((unsigned char)*s) || *s == '\'' || *s == '"' || *s == '*' || strchr(s, '(') != NULL;
   }
-  return (embedded_word_equals(s, "WITH") && embedded_contains_word(s, "SELECT")) ||
-         (embedded_word_equals(s, "INSERT") && embedded_contains_word(s, "INTO")) ||
-         (embedded_word_equals(s, "UPDATE") && embedded_contains_word(s, "SET")) ||
-         (embedded_word_equals(s, "DELETE") && embedded_contains_word(s, "FROM")) ||
-         (embedded_word_equals(s, "CREATE") &&
-          (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") ||
-           embedded_contains_word(s, "VIEW"))) ||
+  return (embedded_word_equals(s, "WITH") && embedded_contains_word(s, "SELECT")) || (embedded_word_equals(s, "INSERT") && embedded_contains_word(s, "INTO")) ||
+         (embedded_word_equals(s, "UPDATE") && embedded_contains_word(s, "SET")) || (embedded_word_equals(s, "DELETE") && embedded_contains_word(s, "FROM")) ||
+         (embedded_word_equals(s, "CREATE") && (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") || embedded_contains_word(s, "VIEW"))) ||
          (embedded_word_equals(s, "ALTER") && embedded_contains_word(s, "TABLE")) ||
-         (embedded_word_equals(s, "DROP") &&
-          (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") ||
-           embedded_contains_word(s, "VIEW"))) ||
-         (embedded_word_equals(s, "EXPLAIN") && embedded_contains_word(s, "SELECT")) ||
-         (embedded_word_equals(s, "TRUNCATE") && embedded_contains_word(s, "TABLE")) ||
+         (embedded_word_equals(s, "DROP") && (embedded_contains_word(s, "TABLE") || embedded_contains_word(s, "INDEX") || embedded_contains_word(s, "VIEW"))) ||
+         (embedded_word_equals(s, "EXPLAIN") && embedded_contains_word(s, "SELECT")) || (embedded_word_equals(s, "TRUNCATE") && embedded_contains_word(s, "TABLE")) ||
          embedded_word_equals(s, "PRAGMA") || (embedded_word_equals(s, "REPLACE") && embedded_contains_word(s, "INTO"));
 }
 
@@ -146,8 +136,7 @@ static char *format_sql(const char *s, sql_transform *policy) {
       return NULL;
     }
     bool truncated;
-    sequel_status_t status =
-        sequel_sanitize_with_flags(s, (sequel_dialect_t)dialect, policy->flags, true, n + 1, out, n + 2, &truncated);
+    sequel_status_t status = sequel_sanitize_with_flags(s, (sequel_dialect_t)dialect, policy->flags, true, n + 1, out, n + 2, &truncated);
     if (status != SEQUEL_OK || truncated) {
       free(out);
       policy->failed = 1;
@@ -196,8 +185,7 @@ int embedded_language(const char *name, const char *path) {
     return RUST;
   if (!strcmp(lower, "haskell") || !strcmp(lower, "hs"))
     return HS;
-  if (!strcmp(lower, "clojure") || !strcmp(lower, "clj") || !strcmp(lower, "cljs") || !strcmp(lower, "cljc") ||
-      !strcmp(lower, "edn"))
+  if (!strcmp(lower, "clojure") || !strcmp(lower, "clj") || !strcmp(lower, "cljs") || !strcmp(lower, "cljc") || !strcmp(lower, "edn"))
     return CLOJURE;
   return 0;
 }
@@ -488,16 +476,14 @@ static int embedded_is_quoted_character(const char *s, size_t n, size_t i) {
 static int embedded_has_continuation(const char *s) {
   if (*s == ' ' || *s == '\t' || *s == ')' || *s == ',')
     return 1;
-  const char *words[] = {"FROM",  "WHERE",  "AND",    "OR",    "JOIN",   "LEFT", "RIGHT", "INNER",     "GROUP", "ORDER",
-                         "LIMIT", "OFFSET", "HAVING", "UNION", "VALUES", "SET",  "ON",    "RETURNING", NULL};
+  const char *words[] = {"FROM", "WHERE", "AND", "OR", "JOIN", "LEFT", "RIGHT", "INNER", "GROUP", "ORDER", "LIMIT", "OFFSET", "HAVING", "UNION", "VALUES", "SET", "ON", "RETURNING", NULL};
   for (size_t i = 0; words[i]; ++i)
     if (embedded_word_equals(s, words[i]))
       return 1;
   return 0;
 }
 
-static void comment_lines(buffer *out, const char *sql, const char *indent, size_t indent_n, const char *prefix,
-                          const char *newline) {
+static void comment_lines(buffer *out, const char *sql, const char *indent, size_t indent_n, const char *prefix, const char *newline) {
   const char *p = sql;
   for (;;) {
     const char *end = strchr(p, '\n');
@@ -523,13 +509,9 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
   size_t i = 0;
   while (i < n && !out.bad) {
     size_t start = i;
-    int line = (lang == PY && s[i] == '#') || (lang == CLOJURE && s[i] == ';') ||
-               (lang == HS && s[i] == '-' && i + 1 < n && s[i + 1] == '-') ||
-               ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n &&
-                s[i + 1] == '/');
-    int block = (lang == HS && s[i] == '{' && i + 1 < n && s[i + 1] == '-') ||
-                ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n &&
-                 s[i + 1] == '*');
+    int line = (lang == PY && s[i] == '#') || (lang == CLOJURE && s[i] == ';') || (lang == HS && s[i] == '-' && i + 1 < n && s[i + 1] == '-') ||
+               ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n && s[i + 1] == '/');
+    int block = (lang == HS && s[i] == '{' && i + 1 < n && s[i + 1] == '-') || ((lang == GO || lang == C || lang == RUST || lang == JS || lang == TS) && s[i] == '/' && i + 1 < n && s[i + 1] == '*');
     if (line) {
       size_t marker = (lang == PY || lang == CLOJURE) ? 1 : 2, body = i + marker;
       if ((lang == RUST || lang == C) && body < n && (s[body] == '/' || s[body] == '!'))
@@ -723,9 +705,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
     }
     if (s[i] == '\'' &&
         ((lang == HS && i && (isalnum((unsigned char)s[i - 1]) || (unsigned char)s[i - 1] >= 128 || s[i - 1] == '_')) ||
-         ((lang == RUST || lang == HS) && i + 1 < n &&
-          (isalpha((unsigned char)s[i + 1]) || (unsigned char)s[i + 1] >= 128 || s[i + 1] == '_') &&
-          !embedded_is_quoted_character(s, n, i)))) {
+         ((lang == RUST || lang == HS) && i + 1 < n && (isalpha((unsigned char)s[i + 1]) || (unsigned char)s[i + 1] >= 128 || s[i + 1] == '_') && !embedded_is_quoted_character(s, n, i)))) {
       append(&out, s + i, 1);
       ++i;
       continue;
@@ -794,12 +774,10 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
           if (context.bad)
             safe = 0;
           else {
-            if (strchr(query.p, '%') &&
-                (text_find(context.p, "printf") || text_find(context.p, "Printf") || text_find(context.p, "format(")))
+            if (strchr(query.p, '%') && (text_find(context.p, "printf") || text_find(context.p, "Printf") || text_find(context.p, "format(")))
               safe = 0;
             if (lang == RUST && (strchr(query.p, '{') || strchr(query.p, '}'))) {
-              const char *macros[] = {"format!", "format_args!", "write!", "writeln!",
-                                      "print!",  "println!",     "panic!", NULL};
+              const char *macros[] = {"format!", "format_args!", "write!", "writeln!", "print!", "println!", "panic!", NULL};
               for (size_t j = 0; macros[j]; ++j)
                 if (text_find(context.p, macros[j]))
                   safe = 0;
@@ -828,8 +806,7 @@ char *transform_embedded(const char *s, int lang, int dialect, int sanitize, uns
           }
           free(closing);
         }
-        if (formatted && !first.cppraw && (first.triple || first.raw) &&
-            text_find(formatted, first.triple ? (first.quote == '"' ? "\"\"\"" : "'''") : "`")) {
+        if (formatted && !first.cppraw && (first.triple || first.raw) && text_find(formatted, first.triple ? (first.quote == '"' ? "\"\"\"" : "'''") : "`")) {
           free(formatted);
           formatted = NULL;
         }

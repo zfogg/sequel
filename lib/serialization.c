@@ -36,9 +36,7 @@ static int append_bytes(sequel_buffer_t *buffer, const void *data, size_t length
 
 static int append_u64(sequel_buffer_t *buffer, uint64_t value) { return append_bytes(buffer, &value, sizeof(value)); }
 
-static int append_range(sequel_buffer_t *buffer, sequel_source_range_t range) {
-  return append_u64(buffer, range.start) && append_u64(buffer, range.end);
-}
+static int append_range(sequel_buffer_t *buffer, sequel_source_range_t range) { return append_u64(buffer, range.start) && append_u64(buffer, range.end); }
 
 static int read_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) {
   if (*remaining < sizeof(*value))
@@ -49,14 +47,11 @@ static int read_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) 
   return 1;
 }
 
-static int serialized_range_valid(uint64_t start, uint64_t end, size_t source_length) {
-  return start <= end && end <= source_length;
-}
+static int serialized_range_valid(uint64_t start, uint64_t end, size_t source_length) { return start <= end && end <= source_length; }
 
 static int read_serialized_range(const uint8_t **cursor, size_t *remaining, size_t source_length) {
   uint64_t start = 0, end = 0;
-  return read_u64(cursor, remaining, &start) && read_u64(cursor, remaining, &end) &&
-         serialized_range_valid(start, end, source_length);
+  return read_u64(cursor, remaining, &start) && read_u64(cursor, remaining, &end) && serialized_range_valid(start, end, source_length);
 }
 
 static int add_words(uint64_t *total, uint64_t count, uint64_t words_per_record) {
@@ -71,13 +66,9 @@ static int add_words(uint64_t *total, uint64_t count, uint64_t words_per_record)
 
 static int serialized_index_valid(uint64_t index, uint64_t count) { return index == UINT64_MAX || index < count; }
 
-static int read_serialized_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) {
-  return read_u64(cursor, remaining, value);
-}
+static int read_serialized_u64(const uint8_t **cursor, size_t *remaining, uint64_t *value) { return read_u64(cursor, remaining, value); }
 
-static int read_serialized_query_range(const uint8_t **cursor, size_t *remaining, size_t source_length) {
-  return read_serialized_range(cursor, remaining, source_length);
-}
+static int read_serialized_query_range(const uint8_t **cursor, size_t *remaining, size_t source_length) { return read_serialized_range(cursor, remaining, source_length); }
 
 void sequel_serialization_options_init(sequel_serialization_options_t *options) {
   if (options)
@@ -91,8 +82,7 @@ void sequel_buffer_free(sequel_buffer_t *buffer) {
   *buffer = (sequel_buffer_t){0};
 }
 
-sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
-                                          const sequel_serialization_options_t *options, sequel_buffer_t *out) {
+sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query, const sequel_serialization_options_t *options, sequel_buffer_t *out) {
   if (!syntax || !out)
     return SEQUEL_ERR_NULL;
   sequel_serialization_options_t defaults;
@@ -110,8 +100,7 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
   for (size_t i = 0; i < node_count; ++i)
     child_count += nodes[i].child_count;
   sequel_diagnostic_list_t diagnostics = {0};
-  if (sequel_collect_syntax_diagnostics(syntax, &diagnostics) != SEQUEL_OK ||
-      (query && sequel_collect_query_diagnostics(query, &diagnostics) != SEQUEL_OK)) {
+  if (sequel_collect_syntax_diagnostics(syntax, &diagnostics) != SEQUEL_OK || (query && sequel_collect_query_diagnostics(query, &diagnostics) != SEQUEL_OK)) {
     sequel_diagnostic_list_free(&diagnostics);
     return SEQUEL_ERR_NOMEM;
   }
@@ -151,25 +140,15 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
       return SEQUEL_ERR_NOMEM;
   }
   for (size_t i = 0; i < node_count; ++i) {
-    uint64_t record[] = {nodes[i].kind,
-                         nodes[i].flags,
-                         nodes[i].range.start,
-                         nodes[i].range.end,
-                         nodes[i].header_range.start,
-                         nodes[i].header_range.end,
-                         nodes[i].first_child,
-                         nodes[i].child_count,
-                         nodes[i].first_token,
-                         nodes[i].token_count,
-                         nodes[i].production_id};
+    uint64_t record[] = {nodes[i].kind,        nodes[i].flags,       nodes[i].range.start, nodes[i].range.end,   nodes[i].header_range.start, nodes[i].header_range.end,
+                         nodes[i].first_child, nodes[i].child_count, nodes[i].first_token, nodes[i].token_count, nodes[i].production_id};
     if (!append_bytes(out, record, sizeof(record)))
       return SEQUEL_ERR_NOMEM;
   }
   size_t issue_count_for_serialization = 0;
   const sequel_parse_issue_t *issues = sequel_syntax_issues(syntax, &issue_count_for_serialization);
   for (size_t i = 0; i < issue_count_for_serialization; ++i)
-    if (!append_u64(out, issues[i].code) || !append_u64(out, issues[i].recovery) ||
-        !append_range(out, issues[i].range) || !append_u64(out, issues[i].statement_index))
+    if (!append_u64(out, issues[i].code) || !append_u64(out, issues[i].recovery) || !append_range(out, issues[i].range) || !append_u64(out, issues[i].statement_index))
       return SEQUEL_ERR_NOMEM;
   for (size_t i = 0; i < node_count; ++i) {
     size_t count = 0;
@@ -182,69 +161,56 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
     size_t count = sequel_query_statement_count(query);
     const sequel_statement_info_t *statements = sequel_query_statements(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, statements[i].range) || !append_u64(out, statements[i].operation) ||
-          !append_u64(out, statements[i].syntax_node) || !append_u64(out, statements[i].query_body) ||
+      if (!append_range(out, statements[i].range) || !append_u64(out, statements[i].operation) || !append_u64(out, statements[i].syntax_node) || !append_u64(out, statements[i].query_body) ||
           !append_u64(out, statements[i].flags))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_relation_count(query);
     const sequel_relation_info_t *relations = sequel_query_relations(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_u64(out, relations[i].kind) || !append_range(out, relations[i].range) ||
-          !append_range(out, relations[i].name_range) || !append_range(out, relations[i].alias_range) ||
-          !append_u64(out, relations[i].statement_index) || !append_u64(out, relations[i].syntax_node) ||
-          !append_u64(out, relations[i].parent_relation) || !append_u64(out, relations[i].subquery_statement) ||
-          !append_u64(out, relations[i].flags))
+      if (!append_u64(out, relations[i].kind) || !append_range(out, relations[i].range) || !append_range(out, relations[i].name_range) || !append_range(out, relations[i].alias_range) ||
+          !append_u64(out, relations[i].statement_index) || !append_u64(out, relations[i].syntax_node) || !append_u64(out, relations[i].parent_relation) ||
+          !append_u64(out, relations[i].subquery_statement) || !append_u64(out, relations[i].flags))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_cte_count(query);
     const sequel_cte_info_t *ctes = sequel_query_ctes(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, ctes[i].range) || !append_range(out, ctes[i].name_range) ||
-          !append_range(out, ctes[i].body_range) || !append_u64(out, ctes[i].statement_index) ||
+      if (!append_range(out, ctes[i].range) || !append_range(out, ctes[i].name_range) || !append_range(out, ctes[i].body_range) || !append_u64(out, ctes[i].statement_index) ||
           !append_u64(out, ctes[i].syntax_node) || !append_u64(out, ctes[i].flags))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_parameter_count(query);
     const sequel_parameter_info_t *parameters = sequel_query_parameters(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, parameters[i].range) || !append_u64(out, parameters[i].style) ||
-          !append_u64(out, parameters[i].statement_index) || !append_u64(out, parameters[i].ordinal) ||
-          !append_u64(out, parameters[i].explicit_number) || !append_range(out, parameters[i].name_range) ||
-          !append_range(out, parameters[i].type_range) || !append_u64(out, parameters[i].identity))
+      if (!append_range(out, parameters[i].range) || !append_u64(out, parameters[i].style) || !append_u64(out, parameters[i].statement_index) || !append_u64(out, parameters[i].ordinal) ||
+          !append_u64(out, parameters[i].explicit_number) || !append_range(out, parameters[i].name_range) || !append_range(out, parameters[i].type_range) || !append_u64(out, parameters[i].identity))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_join_count(query);
     const sequel_join_info_t *joins = sequel_query_joins(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_u64(out, joins[i].kind) || !append_range(out, joins[i].range) ||
-          !append_u64(out, joins[i].left_relation) || !append_u64(out, joins[i].right_relation) ||
-          !append_u64(out, joins[i].condition_node) || !append_u64(out, joins[i].has_condition) ||
-          !append_u64(out, joins[i].flags))
+      if (!append_u64(out, joins[i].kind) || !append_range(out, joins[i].range) || !append_u64(out, joins[i].left_relation) || !append_u64(out, joins[i].right_relation) ||
+          !append_u64(out, joins[i].condition_node) || !append_u64(out, joins[i].has_condition) || !append_u64(out, joins[i].flags))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_projection_count(query);
     const sequel_projection_info_t *projections = sequel_query_projections(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, projections[i].range) || !append_u64(out, projections[i].statement_index) ||
-          !append_u64(out, projections[i].expression_node) || !append_u64(out, projections[i].wildcard) ||
-          !append_range(out, projections[i].alias_range))
+      if (!append_range(out, projections[i].range) || !append_u64(out, projections[i].statement_index) || !append_u64(out, projections[i].expression_node) ||
+          !append_u64(out, projections[i].wildcard) || !append_range(out, projections[i].alias_range))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_predicate_count(query);
     const sequel_predicate_info_t *predicates = sequel_query_predicates(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, predicates[i].range) || !append_u64(out, predicates[i].statement_index) ||
-          !append_u64(out, predicates[i].expression_node) || !append_u64(out, predicates[i].normalized_hash) ||
-          !append_u64(out, predicates[i].depth))
+      if (!append_range(out, predicates[i].range) || !append_u64(out, predicates[i].statement_index) || !append_u64(out, predicates[i].expression_node) ||
+          !append_u64(out, predicates[i].normalized_hash) || !append_u64(out, predicates[i].depth))
         return SEQUEL_ERR_NOMEM;
     count = sequel_query_clause_count(query);
     const sequel_clause_info_t *clauses = sequel_query_clauses(query);
     for (size_t i = 0; i < count; ++i)
-      if (!append_range(out, clauses[i].range) || !append_u64(out, clauses[i].statement_index) ||
-          !append_u64(out, clauses[i].keyword_id))
+      if (!append_range(out, clauses[i].range) || !append_u64(out, clauses[i].statement_index) || !append_u64(out, clauses[i].keyword_id))
         return SEQUEL_ERR_NOMEM;
   }
   for (size_t i = 0; i < diagnostics.count; ++i) {
     const sequel_diagnostic_record_t *record = &diagnostics.records[i];
-    if (!append_u64(out, record->origin) || !append_u64(out, record->code) || !append_u64(out, record->severity) ||
-        !append_range(out, record->range) || !append_range(out, record->related_range) ||
-        !append_u64(out, record->statement_index) || !append_u64(out, record->syntax_node) ||
-        !append_u64(out, record->query_item) || !append_u64(out, record->incomplete) ||
+    if (!append_u64(out, record->origin) || !append_u64(out, record->code) || !append_u64(out, record->severity) || !append_range(out, record->range) || !append_range(out, record->related_range) ||
+        !append_u64(out, record->statement_index) || !append_u64(out, record->syntax_node) || !append_u64(out, record->query_item) || !append_u64(out, record->incomplete) ||
         !append_u64(out, record->recovered) || !append_u64(out, record->statement_complete))
       return SEQUEL_ERR_NOMEM;
   }
@@ -265,9 +231,7 @@ sequel_status_t sequel_document_serialize(const sequel_syntax_document_t *syntax
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, const sequel_buffer_view_t *serialized,
-                                            const sequel_serialization_options_t *options,
-                                            sequel_document_bundle_t **out) {
+sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, const sequel_buffer_view_t *serialized, const sequel_serialization_options_t *options, sequel_document_bundle_t **out) {
   if (!source || !serialized || !out)
     return SEQUEL_ERR_NULL;
   *out = NULL;
@@ -277,19 +241,15 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   for (size_t i = 0; i < 19; ++i)
     if (!read_u64(&cursor, &remaining, &header[i]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (header[0] != 0x31544451534c4553ull || header[1] != sequel_document_schema_major ||
-      header[2] > sequel_document_schema_minor || header[3] > SEQUEL_CLICKHOUSE ||
+  if (header[0] != 0x31544451534c4553ull || header[1] != sequel_document_schema_major || header[2] > sequel_document_schema_minor || header[3] > SEQUEL_CLICKHOUSE ||
       (options && (options->schema.major != header[1] || options->schema.minor < header[2])))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (header[4] != source->length)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   uint64_t words = 0;
-  if (!add_words(&words, header[5], 10) || !add_words(&words, header[6], 11) || !add_words(&words, header[7], 1) ||
-      !add_words(&words, header[8], 5) || !add_words(&words, header[9], 6) || !add_words(&words, header[10], 11) ||
-      !add_words(&words, header[11], 9) || !add_words(&words, header[12], 10) ||
-      !add_words(&words, header[13], header[2] >= 4 ? 7 : 6) || !add_words(&words, header[14], 6) ||
-      !add_words(&words, header[15], 6) || !add_words(&words, header[16], 4) || !add_words(&words, header[17], 13) ||
-      !add_words(&words, header[18], 1))
+  if (!add_words(&words, header[5], 10) || !add_words(&words, header[6], 11) || !add_words(&words, header[7], 1) || !add_words(&words, header[8], 5) || !add_words(&words, header[9], 6) ||
+      !add_words(&words, header[10], 11) || !add_words(&words, header[11], 9) || !add_words(&words, header[12], 10) || !add_words(&words, header[13], header[2] >= 4 ? 7 : 6) ||
+      !add_words(&words, header[14], 6) || !add_words(&words, header[15], 6) || !add_words(&words, header[16], 4) || !add_words(&words, header[17], 13) || !add_words(&words, header[18], 1))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (words > SIZE_MAX / sizeof(uint64_t) || remaining < words * sizeof(uint64_t) || remaining % sizeof(uint64_t) != 0)
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -301,8 +261,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 10; ++j)
       if (!read_u64(&validation_cursor, &validation_remaining, &record[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (record[0] > SEQUEL_TOKEN_ERROR || !serialized_range_valid(record[2], record[3], source->length) ||
-        !serialized_range_valid(record[4], record[5], source->length) ||
+    if (record[0] > SEQUEL_TOKEN_ERROR || !serialized_range_valid(record[2], record[3], source->length) || !serialized_range_valid(record[4], record[5], source->length) ||
         !serialized_range_valid(record[6], record[7], source->length))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -311,17 +270,14 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 11; ++j)
       if (!read_u64(&validation_cursor, &validation_remaining, &record[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (record[0] > SEQUEL_SYNTAX_ERROR || !serialized_range_valid(record[2], record[3], source->length) ||
-        !serialized_range_valid(record[4], record[5], source->length) || record[6] > header[6] ||
+    if (record[0] > SEQUEL_SYNTAX_ERROR || !serialized_range_valid(record[2], record[3], source->length) || !serialized_range_valid(record[4], record[5], source->length) || record[6] > header[6] ||
         record[6] + record[7] > header[7] || record[8] > header[5] || record[8] + record[9] > header[5])
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[8]; ++i) {
     uint64_t code, recovery, statement;
-    if (!read_u64(&validation_cursor, &validation_remaining, &code) ||
-        !read_u64(&validation_cursor, &validation_remaining, &recovery) ||
-        !read_serialized_range(&validation_cursor, &validation_remaining, source->length) ||
-        !read_u64(&validation_cursor, &validation_remaining, &statement) ||
+    if (!read_u64(&validation_cursor, &validation_remaining, &code) || !read_u64(&validation_cursor, &validation_remaining, &recovery) ||
+        !read_serialized_range(&validation_cursor, &validation_remaining, source->length) || !read_u64(&validation_cursor, &validation_remaining, &statement) ||
         code > SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN || recovery > SEQUEL_RECOVERY_OPAQUE_REGION)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -332,14 +288,10 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
   }
   for (uint64_t i = 0; i < header[9]; ++i) {
     uint64_t range_start, range_end, operation, syntax_node, query_body, flags;
-    if (!read_serialized_u64(&validation_cursor, &validation_remaining, &range_start) ||
-        !read_serialized_u64(&validation_cursor, &validation_remaining, &range_end) ||
-        !serialized_range_valid(range_start, range_end, source->length) ||
-        !read_serialized_u64(&validation_cursor, &validation_remaining, &operation) ||
-        !read_serialized_u64(&validation_cursor, &validation_remaining, &syntax_node) ||
-        !read_serialized_u64(&validation_cursor, &validation_remaining, &query_body) ||
-        !read_serialized_u64(&validation_cursor, &validation_remaining, &flags) ||
-        operation > SEQUEL_OPERATION_EXPLAIN || !serialized_index_valid(syntax_node, header[6]) ||
+    if (!read_serialized_u64(&validation_cursor, &validation_remaining, &range_start) || !read_serialized_u64(&validation_cursor, &validation_remaining, &range_end) ||
+        !serialized_range_valid(range_start, range_end, source->length) || !read_serialized_u64(&validation_cursor, &validation_remaining, &operation) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &syntax_node) || !read_serialized_u64(&validation_cursor, &validation_remaining, &query_body) ||
+        !read_serialized_u64(&validation_cursor, &validation_remaining, &flags) || operation > SEQUEL_OPERATION_EXPLAIN || !serialized_index_valid(syntax_node, header[6]) ||
         !serialized_index_valid(query_body, header[6]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -348,10 +300,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 12; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (values[0] > SEQUEL_RELATION_CTE || !serialized_range_valid(values[1], values[2], source->length) ||
-        !serialized_range_valid(values[3], values[4], source->length) ||
-        !serialized_range_valid(values[5], values[6], source->length) ||
-        !serialized_index_valid(values[7], header[9]) || !serialized_index_valid(values[8], header[6]) ||
+    if (values[0] > SEQUEL_RELATION_CTE || !serialized_range_valid(values[1], values[2], source->length) || !serialized_range_valid(values[3], values[4], source->length) ||
+        !serialized_range_valid(values[5], values[6], source->length) || !serialized_index_valid(values[7], header[9]) || !serialized_index_valid(values[8], header[6]) ||
         !serialized_index_valid(values[9], header[10]) || !serialized_index_valid(values[10], header[9]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -360,10 +310,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 9; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (!serialized_range_valid(values[0], values[1], source->length) ||
-        !serialized_range_valid(values[2], values[3], source->length) ||
-        !serialized_range_valid(values[4], values[5], source->length) ||
-        !serialized_index_valid(values[6], header[9]) || !serialized_index_valid(values[7], header[6]) ||
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_range_valid(values[2], values[3], source->length) ||
+        !serialized_range_valid(values[4], values[5], source->length) || !serialized_index_valid(values[6], header[9]) || !serialized_index_valid(values[7], header[6]) ||
         (values[8] & ~(uint64_t)(SEQUEL_CTE_FLAG_MATERIALIZED | SEQUEL_CTE_FLAG_NOT_MATERIALIZED)))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -372,10 +320,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 11; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (!serialized_range_valid(values[0], values[1], source->length) || values[2] > SEQUEL_BIND_TYPED ||
-        !serialized_index_valid(values[3], header[9]) ||
-        !serialized_range_valid(values[6], values[7], source->length) ||
-        !serialized_range_valid(values[8], values[9], source->length))
+    if (!serialized_range_valid(values[0], values[1], source->length) || values[2] > SEQUEL_BIND_TYPED || !serialized_index_valid(values[3], header[9]) ||
+        !serialized_range_valid(values[6], values[7], source->length) || !serialized_range_valid(values[8], values[9], source->length))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[13]; ++i) {
@@ -384,8 +330,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < value_count; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (values[0] > SEQUEL_JOIN_CROSS || !serialized_range_valid(values[1], values[2], source->length) ||
-        !serialized_index_valid(values[3], header[10]) || !serialized_index_valid(values[4], header[10]))
+    if (values[0] > SEQUEL_JOIN_CROSS || !serialized_range_valid(values[1], values[2], source->length) || !serialized_index_valid(values[3], header[10]) ||
+        !serialized_index_valid(values[4], header[10]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[14]; ++i) {
@@ -393,8 +339,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 7; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (!serialized_range_valid(values[0], values[1], source->length) ||
-        !serialized_index_valid(values[2], header[9]) || !serialized_index_valid(values[3], header[6]) ||
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_index_valid(values[2], header[9]) || !serialized_index_valid(values[3], header[6]) ||
         !serialized_range_valid(values[5], values[6], source->length))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -403,8 +348,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 6; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (!serialized_range_valid(values[0], values[1], source->length) ||
-        !serialized_index_valid(values[2], header[9]) || !serialized_index_valid(values[3], header[6]))
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_index_valid(values[2], header[9]) || !serialized_index_valid(values[3], header[6]))
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[16]; ++i) {
@@ -412,8 +356,7 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 4; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (!serialized_range_valid(values[0], values[1], source->length) ||
-        !serialized_index_valid(values[2], header[9]) || values[3] > SEQUEL_KEYWORD_PREWHERE)
+    if (!serialized_range_valid(values[0], values[1], source->length) || !serialized_index_valid(values[2], header[9]) || values[3] > SEQUEL_KEYWORD_PREWHERE)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   for (uint64_t i = 0; i < header[17]; ++i) {
@@ -421,10 +364,8 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     for (size_t j = 0; j < 13; ++j)
       if (!read_serialized_u64(&validation_cursor, &validation_remaining, &values[j]))
         return SEQUEL_ERR_INVALID_ARGUMENT;
-    if (values[0] > SEQUEL_DIAGNOSTIC_API || values[1] > SEQUEL_DIAG_SQLC_ANNOTATION || values[2] > SEQUEL_ERROR ||
-        !serialized_range_valid(values[3], values[4], source->length) ||
-        !serialized_range_valid(values[5], values[6], source->length) ||
-        !serialized_index_valid(values[7], header[9]) || !serialized_index_valid(values[8], header[6]) ||
+    if (values[0] > SEQUEL_DIAGNOSTIC_API || values[1] > SEQUEL_DIAG_SQLC_ANNOTATION || values[2] > SEQUEL_ERROR || !serialized_range_valid(values[3], values[4], source->length) ||
+        !serialized_range_valid(values[5], values[6], source->length) || !serialized_index_valid(values[7], header[9]) || !serialized_index_valid(values[8], header[6]) ||
         !serialized_index_valid(values[9], header[14]) || values[10] > 1 || values[11] > 1 || values[12] > 1)
       return SEQUEL_ERR_INVALID_ARGUMENT;
   }
@@ -449,26 +390,20 @@ sequel_status_t sequel_document_deserialize(const sequel_source_view_t *source, 
     sequel_document_bundle_free(bundle);
     return status;
   }
-  if (sequel_lexed_token_count(sequel_syntax_lexed(bundle->syntax)) != header[5] ||
-      sequel_syntax_node_count(bundle->syntax) != header[6] || sequel_syntax_issue_count(bundle->syntax) != header[8] ||
-      sequel_query_statement_count(bundle->query) != header[9] ||
-      sequel_query_relation_count(bundle->query) != header[10] || sequel_query_cte_count(bundle->query) != header[11] ||
-      sequel_query_parameter_count(bundle->query) != header[12] ||
-      sequel_query_join_count(bundle->query) != header[13] ||
-      sequel_query_projection_count(bundle->query) != header[14] ||
+  if (sequel_lexed_token_count(sequel_syntax_lexed(bundle->syntax)) != header[5] || sequel_syntax_node_count(bundle->syntax) != header[6] || sequel_syntax_issue_count(bundle->syntax) != header[8] ||
+      sequel_query_statement_count(bundle->query) != header[9] || sequel_query_relation_count(bundle->query) != header[10] || sequel_query_cte_count(bundle->query) != header[11] ||
+      sequel_query_parameter_count(bundle->query) != header[12] || sequel_query_join_count(bundle->query) != header[13] || sequel_query_projection_count(bundle->query) != header[14] ||
       sequel_query_predicate_count(bundle->query) != header[15]) {
     sequel_document_bundle_free(bundle);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
-  if (sequel_collect_syntax_diagnostics(bundle->syntax, &bundle->diagnostics) != SEQUEL_OK ||
-      sequel_collect_query_diagnostics(bundle->query, &bundle->diagnostics) != SEQUEL_OK ||
+  if (sequel_collect_syntax_diagnostics(bundle->syntax, &bundle->diagnostics) != SEQUEL_OK || sequel_collect_query_diagnostics(bundle->query, &bundle->diagnostics) != SEQUEL_OK ||
       bundle->diagnostics.count != header[17]) {
     sequel_document_bundle_free(bundle);
     return SEQUEL_ERR_INVALID_ARGUMENT;
   }
   char rebuilt_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
-  if (sequel_fingerprint_document(bundle->syntax, bundle->query, SEQUEL_FINGERPRINT_QUERY_SHAPE, rebuilt_fingerprint) !=
-          SEQUEL_OK ||
+  if (sequel_fingerprint_document(bundle->syntax, bundle->query, SEQUEL_FINGERPRINT_QUERY_SHAPE, rebuilt_fingerprint) != SEQUEL_OK ||
       strcmp((const char *)serialized_fingerprint, rebuilt_fingerprint) != 0) {
     sequel_document_bundle_free(bundle);
     return SEQUEL_ERR_INVALID_ARGUMENT;
@@ -486,14 +421,8 @@ void sequel_document_bundle_free(sequel_document_bundle_t *bundle) {
   free(bundle);
 }
 
-const sequel_syntax_document_t *sequel_document_bundle_syntax(const sequel_document_bundle_t *bundle) {
-  return bundle ? bundle->syntax : NULL;
-}
+const sequel_syntax_document_t *sequel_document_bundle_syntax(const sequel_document_bundle_t *bundle) { return bundle ? bundle->syntax : NULL; }
 
-const sequel_query_document_t *sequel_document_bundle_query(const sequel_document_bundle_t *bundle) {
-  return bundle ? bundle->query : NULL;
-}
+const sequel_query_document_t *sequel_document_bundle_query(const sequel_document_bundle_t *bundle) { return bundle ? bundle->query : NULL; }
 
-const sequel_diagnostic_list_t *sequel_document_bundle_diagnostics(const sequel_document_bundle_t *bundle) {
-  return bundle ? &bundle->diagnostics : NULL;
-}
+const sequel_diagnostic_list_t *sequel_document_bundle_diagnostics(const sequel_document_bundle_t *bundle) { return bundle ? &bundle->diagnostics : NULL; }

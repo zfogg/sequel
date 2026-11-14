@@ -65,13 +65,10 @@ static bool count_ctes(const sequel_query_document_t *document, size_t index, vo
 
 int main(void) {
   const sequel_dialect_definition_t *postgres = sequel_dialect_definition(SEQUEL_POSTGRESQL);
-  if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0,
-             "dialect exposes operator and clause metadata"))
+  if (!check(postgres && postgres->operator_count > 0 && postgres->clause_count > 0, "dialect exposes operator and clause metadata"))
     return 1;
-  if (!check(!strcmp(sequel_dialect_name(SEQUEL_GENERIC), "generic") &&
-                 !strcmp(sequel_dialect_name(SEQUEL_POSTGRESQL), "postgresql") &&
-                 !strcmp(sequel_dialect_name(SEQUEL_CLICKHOUSE), "clickhouse") &&
-                 !strcmp(sequel_dialect_name((sequel_dialect_t)-1), "invalid"),
+  if (!check(!strcmp(sequel_dialect_name(SEQUEL_GENERIC), "generic") && !strcmp(sequel_dialect_name(SEQUEL_POSTGRESQL), "postgresql") &&
+                 !strcmp(sequel_dialect_name(SEQUEL_CLICKHOUSE), "clickhouse") && !strcmp(sequel_dialect_name((sequel_dialect_t)-1), "invalid"),
              "dialect names are stable"))
     return 1;
   if (!check(sequel_dialect_operator(SEQUEL_POSTGRESQL, ">=", 2) != NULL, "dialect resolves operators"))
@@ -82,26 +79,19 @@ int main(void) {
   {
     const char source_text[] = "SELECT\nπ";
     sequel_source_view_t view = {source_text, strlen(source_text)};
-    sequel_source_options_t copied_options = {
-        .view = view, .storage = SEQUEL_SOURCE_COPIED, .dialect = SEQUEL_POSTGRESQL};
+    sequel_source_options_t copied_options = {.view = view, .storage = SEQUEL_SOURCE_COPIED, .dialect = SEQUEL_POSTGRESQL};
     sequel_source_t *copied = NULL;
     if (!check(sequel_source_create(&view, &copied_options, &copied) == SEQUEL_OK && copied, "create copied source"))
       return 1;
     sequel_position_t position = {0};
     sequel_location_t location = {0};
-    if (!check(sequel_source_position(copied, 7, &position) == SEQUEL_OK && position.line == 2 && position.column == 1,
-               "source byte position") ||
-        !check(sequel_source_range_position(copied, (sequel_source_range_t){7, view.length}, &location) == SEQUEL_OK &&
-                   location.start.line == 2 && location.end.column == 2,
-               "source range location"))
+    if (!check(sequel_source_position(copied, 7, &position) == SEQUEL_OK && position.line == 2 && position.column == 1, "source byte position") ||
+        !check(sequel_source_range_position(copied, (sequel_source_range_t){7, view.length}, &location) == SEQUEL_OK && location.start.line == 2 && location.end.column == 2, "source range location"))
       return 1;
     sequel_source_free(copied);
-    sequel_source_options_t borrowed_options = {
-        .view = view, .storage = SEQUEL_SOURCE_BORROWED, .dialect = SEQUEL_POSTGRESQL};
+    sequel_source_options_t borrowed_options = {.view = view, .storage = SEQUEL_SOURCE_BORROWED, .dialect = SEQUEL_POSTGRESQL};
     sequel_source_t *borrowed = NULL;
-    if (!check(sequel_source_create(&view, &borrowed_options, &borrowed) == SEQUEL_OK &&
-                   sequel_source_view(borrowed).data == source_text,
-               "create borrowed source"))
+    if (!check(sequel_source_create(&view, &borrowed_options, &borrowed) == SEQUEL_OK && sequel_source_view(borrowed).data == source_text, "create borrowed source"))
       return 1;
     sequel_source_free(borrowed);
   }
@@ -112,14 +102,12 @@ int main(void) {
   const char formatter_sql[] = "SELECT :name, $1 FROM records";
   sequel_source_view_t formatter_source = {formatter_sql, strlen(formatter_sql)};
   sequel_syntax_document_t *formatter_syntax = NULL;
-  if (!check(sequel_parse_sql(&formatter_source, &formatter_options, NULL, &formatter_syntax) == SEQUEL_OK,
-             "parse formatter input"))
+  if (!check(sequel_parse_sql(&formatter_source, &formatter_options, NULL, &formatter_syntax) == SEQUEL_OK, "parse formatter input"))
     return 1;
   sequel_format_options_t formatter_settings;
   sequel_format_options_init(&formatter_settings);
   sequel_text_result_t formatter_result = {0};
-  if (!check(sequel_format_syntax(formatter_syntax, &formatter_settings, &formatter_result) == SEQUEL_OK &&
-                 strstr(formatter_result.data, ":name") && strstr(formatter_result.data, "$1"),
+  if (!check(sequel_format_syntax(formatter_syntax, &formatter_settings, &formatter_result) == SEQUEL_OK && strstr(formatter_result.data, ":name") && strstr(formatter_result.data, "$1"),
              "formatter preserves parameter spelling"))
     return 1;
   sequel_text_result_free(&formatter_result);
@@ -136,8 +124,7 @@ int main(void) {
       return 1;
     size_t named_count = 0;
     const sequel_token_t *named_tokens = sequel_lexed_tokens(named_lexed, &named_count);
-    if (!check(named_count >= 3, "named marker token count") ||
-        !check(named_tokens[1].kind == SEQUEL_TOKEN_PARAMETER, "named marker token kind"))
+    if (!check(named_count >= 3, "named marker token count") || !check(named_tokens[1].kind == SEQUEL_TOKEN_PARAMETER, "named marker token kind"))
       return 1;
     sequel_lexed_document_free(named_lexed);
   }
@@ -147,18 +134,13 @@ int main(void) {
     sequel_parse_options_t arithmetic_options;
     sequel_parse_options_init(&arithmetic_options);
     sequel_lexed_document_t *arithmetic_lexed = NULL;
-    if (!check(sequel_lex(&arithmetic_source, &arithmetic_options, NULL, &arithmetic_lexed) == SEQUEL_OK,
-               "operator lexing"))
+    if (!check(sequel_lex(&arithmetic_source, &arithmetic_options, NULL, &arithmetic_lexed) == SEQUEL_OK, "operator lexing"))
       return 1;
     size_t arithmetic_count = 0;
     const sequel_token_t *arithmetic_tokens = sequel_lexed_tokens(arithmetic_lexed, &arithmetic_count);
     if (!check(arithmetic_count >= 6, "operator token count") ||
-        !check(arithmetic_tokens[2].kind == SEQUEL_TOKEN_OPERATOR &&
-                   arithmetic_tokens[2].range.end - arithmetic_tokens[2].range.start == 2,
-               "comparison boundary") ||
-        !check(arithmetic_tokens[3].kind == SEQUEL_TOKEN_OPERATOR &&
-                   arithmetic_tokens[3].range.end - arithmetic_tokens[3].range.start == 1,
-               "unary boundary"))
+        !check(arithmetic_tokens[2].kind == SEQUEL_TOKEN_OPERATOR && arithmetic_tokens[2].range.end - arithmetic_tokens[2].range.start == 2, "comparison boundary") ||
+        !check(arithmetic_tokens[3].kind == SEQUEL_TOKEN_OPERATOR && arithmetic_tokens[3].range.end - arithmetic_tokens[3].range.start == 1, "unary boundary"))
       return 1;
     sequel_lexed_document_free(arithmetic_lexed);
   }
@@ -169,20 +151,16 @@ int main(void) {
     sequel_parse_options_init(&clickhouse_options);
     clickhouse_options.dialect = SEQUEL_CLICKHOUSE;
     sequel_lexed_document_t *clickhouse_lexed = NULL;
-    if (!check(sequel_lex(&clickhouse_source, &clickhouse_options, NULL, &clickhouse_lexed) == SEQUEL_OK,
-               "ClickHouse hexadecimal float lexing"))
+    if (!check(sequel_lex(&clickhouse_source, &clickhouse_options, NULL, &clickhouse_lexed) == SEQUEL_OK, "ClickHouse hexadecimal float lexing"))
       return 1;
     size_t clickhouse_count = 0;
     const sequel_token_t *clickhouse_tokens = sequel_lexed_tokens(clickhouse_lexed, &clickhouse_count);
-    if (!check(clickhouse_count >= 3, "ClickHouse hexadecimal float token count") ||
-        !check(clickhouse_tokens[1].kind == SEQUEL_TOKEN_NUMBER, "ClickHouse hexadecimal float token kind") ||
-        !check(clickhouse_tokens[1].range.end - clickhouse_tokens[1].range.start == strlen("0x1.fp+2"),
-               "ClickHouse hexadecimal float token range"))
+    if (!check(clickhouse_count >= 3, "ClickHouse hexadecimal float token count") || !check(clickhouse_tokens[1].kind == SEQUEL_TOKEN_NUMBER, "ClickHouse hexadecimal float token kind") ||
+        !check(clickhouse_tokens[1].range.end - clickhouse_tokens[1].range.start == strlen("0x1.fp+2"), "ClickHouse hexadecimal float token range"))
       return 1;
     sequel_lexed_document_free(clickhouse_lexed);
   }
-  const char sql[] =
-      "SELECT coalesce(id, 1), 'value' /* removed */ FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
+  const char sql[] = "SELECT coalesce(id, 1), 'value' /* removed */ FROM users WHERE id = $1 AND (id IN (1, 2)); SELECT 2";
   sequel_source_view_t source = {sql, strlen(sql)};
   sequel_source_t *owned_source = NULL;
   if (!check(sequel_source_create(&source, NULL, &owned_source) == SEQUEL_OK, "owned source"))
@@ -201,22 +179,16 @@ int main(void) {
 
   sequel_source_view_t positioned = {"α\r\nβ", 6};
   sequel_position_t position;
-  if (!check(sequel_source_view_position(&positioned, 5, &position) == SEQUEL_OK && position.line == 2 &&
-                 position.column == 2,
-             "source position"))
+  if (!check(sequel_source_view_position(&positioned, 5, &position) == SEQUEL_OK && position.line == 2 && position.column == 2, "source position"))
     return 1;
   sequel_source_t *positioned_source = NULL;
   sequel_source_options_t positioned_options = {.storage = SEQUEL_SOURCE_COPIED, .dialect = SEQUEL_GENERIC};
-  if (!check(sequel_source_create(&positioned, &positioned_options, &positioned_source) == SEQUEL_OK,
-             "positioned source object"))
+  if (!check(sequel_source_create(&positioned, &positioned_options, &positioned_source) == SEQUEL_OK, "positioned source object"))
     return 1;
-  if (!check(sequel_source_position(positioned_source, 5, &position) == SEQUEL_OK && position.line == 2 &&
-                 position.column == 2,
-             "source object position"))
+  if (!check(sequel_source_position(positioned_source, 5, &position) == SEQUEL_OK && position.line == 2 && position.column == 2, "source object position"))
     return 1;
   sequel_location_t location;
-  if (!check(sequel_source_range_position(positioned_source, (sequel_source_range_t){0, 5}, &location) == SEQUEL_OK &&
-                 location.start.line == 1 && location.end.line == 2,
+  if (!check(sequel_source_range_position(positioned_source, (sequel_source_range_t){0, 5}, &location) == SEQUEL_OK && location.start.line == 1 && location.end.line == 2,
              "source object range position"))
     return 1;
   sequel_source_free(positioned_source);
@@ -236,21 +208,15 @@ int main(void) {
     return 1;
   size_t numeric_count = 0;
   const sequel_token_t *numeric_tokens = sequel_lexed_tokens(numeric_lexed, &numeric_count);
-  if (!check(numeric_count >= 5 && numeric_tokens[1].kind == SEQUEL_TOKEN_NUMBER &&
-                 numeric_tokens[3].kind == SEQUEL_TOKEN_NUMBER,
-             "numeric token boundaries"))
+  if (!check(numeric_count >= 5 && numeric_tokens[1].kind == SEQUEL_TOKEN_NUMBER && numeric_tokens[3].kind == SEQUEL_TOKEN_NUMBER, "numeric token boundaries"))
     return 1;
   sequel_lexed_document_free(numeric_lexed);
-  if (!check(sequel_lexed_source_object(lexed) != NULL &&
-                 sequel_source_dialect(sequel_lexed_source_object(lexed)) == SEQUEL_POSTGRESQL,
-             "lexed source ownership"))
+  if (!check(sequel_lexed_source_object(lexed) != NULL && sequel_source_dialect(sequel_lexed_source_object(lexed)) == SEQUEL_POSTGRESQL, "lexed source ownership"))
     return 1;
   const char *token_text = NULL;
   size_t token_text_length = 0;
   sequel_source_view_t token_source_view = sequel_lexed_source(lexed);
-  if (!check(sequel_token_text(&token_source_view, &tokens[0], &token_text, &token_text_length) == SEQUEL_OK &&
-                 token_text_length > 0,
-             "token text accessor"))
+  if (!check(sequel_token_text(&token_source_view, &tokens[0], &token_text, &token_text_length) == SEQUEL_OK && token_text_length > 0, "token text accessor"))
     return 1;
   int found_string = 0;
   for (size_t i = 0; i < token_count; ++i)
@@ -266,9 +232,7 @@ int main(void) {
     return 1;
   size_t operator_count = 0;
   const sequel_token_t *operator_tokens = sequel_lexed_tokens(operator_lexed, &operator_count);
-  if (!check(operator_tokens[1].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER &&
-                 !(operator_tokens[1].flags & SEQUEL_TOKEN_FLAG_LITERAL),
-             "quoted identifier is not a literal"))
+  if (!check(operator_tokens[1].kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER && !(operator_tokens[1].flags & SEQUEL_TOKEN_FLAG_LITERAL), "quoted identifier is not a literal"))
     return 1;
   if (!check(operator_tokens[4].kind == SEQUEL_TOKEN_OPERATOR, "multi-character operator"))
     return 1;
@@ -276,8 +240,7 @@ int main(void) {
     return 1;
   sequel_lexed_document_free(operator_lexed);
   sequel_text_result_t sanitized = {0};
-  if (!check(sequel_sanitize_tokens(lexed, SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized) == SEQUEL_OK &&
-                 strstr(sanitized.data, "?") != NULL && strstr(sanitized.data, "'value'") == NULL,
+  if (!check(sequel_sanitize_tokens(lexed, SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized) == SEQUEL_OK && strstr(sanitized.data, "?") != NULL && strstr(sanitized.data, "'value'") == NULL,
              "token sanitizer"))
     return 1;
   sequel_text_result_free(&sanitized);
@@ -290,11 +253,9 @@ int main(void) {
     return 1;
   sequel_diagnostic_list_t lexical_diagnostics = {0};
   const sequel_diagnostic_record_t *retained_lexical_diagnostics = sequel_lexed_diagnostics(lexical_document);
-  if (!check(sequel_lexed_diagnostic_count(lexical_document) == 1 && retained_lexical_diagnostics &&
-                 retained_lexical_diagnostics[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
-                 sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK &&
-                 lexical_diagnostics.count == 1 && lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL &&
-                 lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
+  if (!check(sequel_lexed_diagnostic_count(lexical_document) == 1 && retained_lexical_diagnostics && retained_lexical_diagnostics[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
+                 sequel_collect_lexical_diagnostics(lexical_document, &lexical_diagnostics) == SEQUEL_OK && lexical_diagnostics.count == 1 &&
+                 lexical_diagnostics.records[0].origin == SEQUEL_DIAGNOSTIC_LEXICAL && lexical_diagnostics.records[0].code == SEQUEL_DIAG_UNTERMINATED_STRING &&
                  lexical_diagnostics.records[0].message[0] != 0 && lexical_diagnostics.records[0].hint[0] != 0,
              "lexical diagnostic collection"))
     return 1;
@@ -305,27 +266,21 @@ int main(void) {
   sequel_parse_options_t limited_options = options;
   limited_options.max_diagnostics = 1;
   sequel_syntax_document_t *limited_syntax = NULL;
-  if (!check(sequel_parse_sql(&limited_source, &limited_options, NULL, &limited_syntax) == SEQUEL_OK,
-             "diagnostic budget parse"))
+  if (!check(sequel_parse_sql(&limited_source, &limited_options, NULL, &limited_syntax) == SEQUEL_OK, "diagnostic budget parse"))
     return 1;
   size_t limited_issue_count = 0;
   (void)sequel_syntax_issues(limited_syntax, &limited_issue_count);
-  if (!check(limited_issue_count == 1 && sequel_syntax_issue_count(limited_syntax) == limited_issue_count,
-             "diagnostic budget"))
+  if (!check(limited_issue_count == 1 && sequel_syntax_issue_count(limited_syntax) == limited_issue_count, "diagnostic budget"))
     return 1;
   sequel_syntax_document_free(limited_syntax);
   sequel_parse_options_t node_limited_options = options;
   node_limited_options.max_nodes = 1;
   sequel_syntax_document_t *node_limited_syntax = NULL;
-  if (!check(sequel_parse_sql(&source, &node_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT &&
-                 node_limited_syntax == NULL,
-             "node budget"))
+  if (!check(sequel_parse_sql(&source, &node_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT && node_limited_syntax == NULL, "node budget"))
     return 1;
   sequel_parse_options_t memory_limited_options = options;
   memory_limited_options.max_memory_bytes = source.length;
-  if (!check(sequel_parse_sql(&source, &memory_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT &&
-                 node_limited_syntax == NULL,
-             "memory budget"))
+  if (!check(sequel_parse_sql(&source, &memory_limited_options, NULL, &node_limited_syntax) == SEQUEL_ERR_LIMIT && node_limited_syntax == NULL, "memory budget"))
     return 1;
 
   sequel_syntax_document_t *syntax = NULL;
@@ -334,8 +289,7 @@ int main(void) {
   sequel_format_options_t format_options;
   sequel_format_options_init(&format_options);
   sequel_text_result_t formatted = {0};
-  if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK && formatted.data != NULL &&
-                 formatted.length > 0 && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE &&
+  if (!check(sequel_format_syntax(syntax, &format_options, &formatted) == SEQUEL_OK && formatted.data != NULL && formatted.length > 0 && formatted.mode == SEQUEL_FORMAT_SYNTAX_AWARE &&
                  formatted.data[formatted.length] == 0,
              "syntax formatter result"))
     return 1;
@@ -396,14 +350,12 @@ int main(void) {
     return 1;
   if (!check(sequel_query_dialect(query) == SEQUEL_POSTGRESQL, "query retains dialect"))
     return 1;
-  if (!check(sequel_query_clause_count(query) > 0 && sequel_query_clauses(query) != NULL &&
-                 sequel_query_clauses(query)[0].range.start < sequel_query_clauses(query)[0].range.end,
+  if (!check(sequel_query_clause_count(query) > 0 && sequel_query_clauses(query) != NULL && sequel_query_clauses(query)[0].range.start < sequel_query_clauses(query)[0].range.end,
              "query retains clause ranges"))
     return 1;
-  if (!check(
-          sequel_query_projection_count(query) > 0 && sequel_query_projections(query)[0].expression_node != SIZE_MAX &&
-              sequel_query_predicate_count(query) > 0 && sequel_query_predicates(query)[0].expression_node != SIZE_MAX,
-          "query links expression nodes"))
+  if (!check(sequel_query_projection_count(query) > 0 && sequel_query_projections(query)[0].expression_node != SIZE_MAX && sequel_query_predicate_count(query) > 0 &&
+                 sequel_query_predicates(query)[0].expression_node != SIZE_MAX,
+             "query links expression nodes"))
     return 1;
   sequel_diagnostic_list_t query_diagnostics = {0};
   if (!check(sequel_collect_query_diagnostics(query, &query_diagnostics) == SEQUEL_OK, "query diagnostic collection"))
@@ -423,18 +375,14 @@ int main(void) {
     return 1;
   if (!check(sequel_query_parameter_count(query) == 1, "parameter count"))
     return 1;
-  if (!check(sequel_query_parameters(query)[0].style == SEQUEL_BIND_NUMBERED &&
-                 sequel_query_parameters(query)[0].explicit_number == 1,
-             "numbered parameter"))
+  if (!check(sequel_query_parameters(query)[0].style == SEQUEL_BIND_NUMBERED && sequel_query_parameters(query)[0].explicit_number == 1, "numbered parameter"))
     return 1;
   sequel_source_view_t repeated_bind_source = {"SELECT :account, :account", strlen("SELECT :account, :account")};
   sequel_syntax_document_t *repeated_bind_syntax = NULL;
   sequel_query_document_t *repeated_bind_query = NULL;
   if (!check(sequel_parse_sql(&repeated_bind_source, &options, NULL, &repeated_bind_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(repeated_bind_syntax, &options, &repeated_bind_query) == SEQUEL_OK &&
-                 sequel_query_parameter_count(repeated_bind_query) == 2 &&
-                 sequel_query_parameters(repeated_bind_query)[0].identity ==
-                     sequel_query_parameters(repeated_bind_query)[1].identity,
+                 sequel_build_query_document(repeated_bind_syntax, &options, &repeated_bind_query) == SEQUEL_OK && sequel_query_parameter_count(repeated_bind_query) == 2 &&
+                 sequel_query_parameters(repeated_bind_query)[0].identity == sequel_query_parameters(repeated_bind_query)[1].identity,
              "repeated named bind identity"))
     return 1;
   char repeated_bind_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
@@ -444,10 +392,8 @@ int main(void) {
   sequel_query_document_t *distinct_bind_query = NULL;
   if (!check(sequel_parse_sql(&distinct_bind_source, &options, NULL, &distinct_bind_syntax) == SEQUEL_OK &&
                  sequel_build_query_document(distinct_bind_syntax, &options, &distinct_bind_query) == SEQUEL_OK &&
-                 sequel_fingerprint_document(repeated_bind_syntax, repeated_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE,
-                                             repeated_bind_fingerprint) == SEQUEL_OK &&
-                 sequel_fingerprint_document(distinct_bind_syntax, distinct_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE,
-                                             distinct_bind_fingerprint) == SEQUEL_OK &&
+                 sequel_fingerprint_document(repeated_bind_syntax, repeated_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE, repeated_bind_fingerprint) == SEQUEL_OK &&
+                 sequel_fingerprint_document(distinct_bind_syntax, distinct_bind_query, SEQUEL_FINGERPRINT_QUERY_SHAPE, distinct_bind_fingerprint) == SEQUEL_OK &&
                  strcmp(repeated_bind_fingerprint, distinct_bind_fingerprint) != 0,
              "query fingerprint bind identity"))
     return 1;
@@ -461,24 +407,20 @@ int main(void) {
     return 1;
   size_t visited_clauses = 0;
   query_visitor = (sequel_query_visitor_t){.clause = count_clauses, .userdata = &visited_clauses};
-  if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK &&
-                 visited_clauses == sequel_query_clause_count(query),
-             "clause visitor"))
+  if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_OK && visited_clauses == sequel_query_clause_count(query), "clause visitor"))
     return 1;
   query_visitor = (sequel_query_visitor_t){.statement = stop_query_visit};
   if (!check(sequel_query_visit(query, &query_visitor) == SEQUEL_ERR_CANCELLED, "query visitor cancellation"))
     return 1;
   if (!check(sequel_query_relation_count(query) == 1, "relation count"))
     return 1;
-  if (!check(sequel_query_relations(query)[0].name_range.end > sequel_query_relations(query)[0].name_range.start,
-             "relation name range"))
+  if (!check(sequel_query_relations(query)[0].name_range.end > sequel_query_relations(query)[0].name_range.start, "relation name range"))
     return 1;
   if (!check(sequel_query_projection_count(query) >= 2, "projection count"))
     return 1;
   if (!check(!sequel_query_projections(query)[0].wildcard, "projection metadata"))
     return 1;
-  if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0,
-             "predicate metadata"))
+  if (!check(sequel_query_predicate_count(query) == 1 && sequel_query_predicates(query)[0].normalized_hash != 0, "predicate metadata"))
     return 1;
   const char lowercase_sql[] = "select id from users where id = 42";
   sequel_source_view_t lowercase_source = {lowercase_sql, strlen(lowercase_sql)};
@@ -487,10 +429,8 @@ int main(void) {
   sequel_text_result_t lowercase_summary = {0};
   sequel_summary_options_t lowercase_summary_options;
   sequel_summary_options_init(&lowercase_summary_options);
-  if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK &&
-                 sequel_summarize_query(lowercase_query, &lowercase_summary_options, &lowercase_summary) == SEQUEL_OK &&
-                 lowercase_summary.data && lowercase_summary.length >= strlen("SELECT") &&
+  if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK && sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK &&
+                 sequel_summarize_query(lowercase_query, &lowercase_summary_options, &lowercase_summary) == SEQUEL_OK && lowercase_summary.data && lowercase_summary.length >= strlen("SELECT") &&
                  !strncmp(lowercase_summary.data, "SELECT", strlen("SELECT")),
              "lowercase keyword summary"))
     return 1;
@@ -501,14 +441,12 @@ int main(void) {
   sequel_source_view_t quoted_join_source = {quoted_join_sql, strlen(quoted_join_sql)};
   sequel_syntax_document_t *quoted_join_syntax = NULL;
   sequel_query_document_t *quoted_join_query = NULL;
-  if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
+  if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK && sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
                  sequel_query_relation_count(quoted_join_query) == 2 && sequel_query_join_count(quoted_join_query) == 1,
              "quoted keyword join metadata"))
     return 1;
   sequel_text_result_t quoted_join_summary = {0};
-  if (!check(sequel_summarize_query(quoted_join_query, &lowercase_summary_options, &quoted_join_summary) == SEQUEL_OK &&
-                 quoted_join_summary.data && contains_text(quoted_join_summary.data, "JOIN"),
+  if (!check(sequel_summarize_query(quoted_join_query, &lowercase_summary_options, &quoted_join_summary) == SEQUEL_OK && quoted_join_summary.data && contains_text(quoted_join_summary.data, "JOIN"),
              "quoted keyword join summary"))
     return 1;
   sequel_text_result_free(&quoted_join_summary);
@@ -520,22 +458,19 @@ int main(void) {
   sequel_syntax_document_t *nested_relation_syntax = NULL;
   sequel_query_document_t *nested_relation_query = NULL;
   if (!check(sequel_parse_sql(&nested_relation_source, &options, NULL, &nested_relation_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(nested_relation_syntax, &options, &nested_relation_query) == SEQUEL_OK &&
-                 sequel_query_scope_statement_count(nested_relation_query) > 0,
+                 sequel_build_query_document(nested_relation_syntax, &options, &nested_relation_query) == SEQUEL_OK && sequel_query_scope_statement_count(nested_relation_query) > 0,
              "nested statement scope"))
     return 1;
   bool linked_nested_relation = false;
   for (size_t i = 0; i < sequel_query_relation_count(nested_relation_query); ++i)
-    if (sequel_query_relations(nested_relation_query)[i].kind == SEQUEL_RELATION_SUBQUERY &&
-        sequel_query_relations(nested_relation_query)[i].subquery_statement != SIZE_MAX)
+    if (sequel_query_relations(nested_relation_query)[i].kind == SEQUEL_RELATION_SUBQUERY && sequel_query_relations(nested_relation_query)[i].subquery_statement != SIZE_MAX)
       linked_nested_relation = true;
   if (!check(linked_nested_relation, "nested relation statement association"))
     return 1;
   sequel_query_document_free(nested_relation_query);
   sequel_syntax_document_free(nested_relation_syntax);
   sequel_diagnostic_list_t semantic_diagnostics = {0}, policy_diagnostics = {0};
-  if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK &&
-                 sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,
+  if (!check(sequel_collect_semantic_diagnostics(query, &semantic_diagnostics) == SEQUEL_OK && sequel_collect_policy_diagnostics(query, &policy_diagnostics) == SEQUEL_OK,
              "diagnostic pass collection"))
     return 1;
   for (size_t i = 0; i < semantic_diagnostics.count; ++i)
@@ -547,29 +482,21 @@ int main(void) {
   sequel_diagnostic_list_free(&semantic_diagnostics);
   sequel_diagnostic_list_free(&policy_diagnostics);
   sequel_diagnostic_list_t portability_diagnostics = {0};
-  if (!check(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK &&
-                 portability_diagnostics.count == 0,
-             "portability diagnostic pass"))
+  if (!check(sequel_collect_portability_diagnostics(syntax, SEQUEL_GENERIC, &portability_diagnostics) == SEQUEL_OK && portability_diagnostics.count == 0, "portability diagnostic pass"))
     return 1;
   sequel_diagnostic_list_free(&portability_diagnostics);
   sequel_query_analysis_options_t analysis_options;
   sequel_query_analysis_options_init(&analysis_options);
   sequel_query_analysis_t *document_analysis = NULL;
-  if (!check(sequel_analyze_document(syntax, query, &analysis_options, NULL, &document_analysis) == SEQUEL_OK &&
-                 sequel_query_analysis_query(document_analysis) != NULL,
-             "document analysis"))
+  if (!check(sequel_analyze_document(syntax, query, &analysis_options, NULL, &document_analysis) == SEQUEL_OK && sequel_query_analysis_query(document_analysis) != NULL, "document analysis"))
     return 1;
   if (!check(sequel_query_analysis_diagnostics(document_analysis) != NULL, "analysis diagnostics ownership"))
     return 1;
-  size_t statement_count = 0, relation_count = 0, join_count = 0, projection_count = 0, predicate_count = 0,
-         parameter_count = 0;
-  if (!check(sequel_query_analysis_statements(document_analysis, &statement_count) != NULL && statement_count == 2 &&
-                 sequel_query_analysis_relations(document_analysis, &relation_count) != NULL && relation_count == 1 &&
-                 sequel_query_analysis_joins(document_analysis, &join_count) == NULL && join_count == 0 &&
-                 sequel_query_analysis_projections(document_analysis, &projection_count) != NULL &&
-                 projection_count >= 2 &&
-                 sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL &&
-                 predicate_count == 1 &&
+  size_t statement_count = 0, relation_count = 0, join_count = 0, projection_count = 0, predicate_count = 0, parameter_count = 0;
+  if (!check(sequel_query_analysis_statements(document_analysis, &statement_count) != NULL && statement_count == 2 && sequel_query_analysis_relations(document_analysis, &relation_count) != NULL &&
+                 relation_count == 1 && sequel_query_analysis_joins(document_analysis, &join_count) == NULL && join_count == 0 &&
+                 sequel_query_analysis_projections(document_analysis, &projection_count) != NULL && projection_count >= 2 &&
+                 sequel_query_analysis_predicates(document_analysis, &predicate_count) != NULL && predicate_count == 1 &&
                  sequel_query_analysis_parameters(document_analysis, &parameter_count) != NULL && parameter_count == 1,
              "analysis semantic collections"))
     return 1;
@@ -577,20 +504,17 @@ int main(void) {
   selective_analysis_options.include_bindings = false;
   selective_analysis_options.include_relations = false;
   sequel_query_analysis_t *selective_analysis = NULL;
-  if (!check(
-          sequel_analyze_document(syntax, query, &selective_analysis_options, NULL, &selective_analysis) == SEQUEL_OK &&
-              sequel_query_analysis_parameters(selective_analysis, &parameter_count) == NULL && parameter_count == 0 &&
-              sequel_query_analysis_relations(selective_analysis, &relation_count) == NULL && relation_count == 0,
-          "analysis collection options"))
+  if (!check(sequel_analyze_document(syntax, query, &selective_analysis_options, NULL, &selective_analysis) == SEQUEL_OK &&
+                 sequel_query_analysis_parameters(selective_analysis, &parameter_count) == NULL && parameter_count == 0 &&
+                 sequel_query_analysis_relations(selective_analysis, &relation_count) == NULL && relation_count == 0,
+             "analysis collection options"))
     return 1;
   sequel_query_analysis_free(selective_analysis);
   const sequel_text_result_t *analysis_summary = sequel_query_analysis_summary(document_analysis);
   if (!check(analysis_summary && analysis_summary->length > 0, "analysis summary output"))
     return 1;
   char analysis_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
-  if (!check(sequel_query_analysis_fingerprint(document_analysis, analysis_fingerprint) == SEQUEL_OK &&
-                 strlen(analysis_fingerprint) == 16,
-             "analysis fingerprint output"))
+  if (!check(sequel_query_analysis_fingerprint(document_analysis, analysis_fingerprint) == SEQUEL_OK && strlen(analysis_fingerprint) == 16, "analysis fingerprint output"))
     return 1;
   const char portability_sql[] = "SELECT $tag$value$tag$";
   sequel_source_view_t portability_source = {portability_sql, strlen(portability_sql)};
@@ -603,17 +527,14 @@ int main(void) {
              "portability document"))
     return 1;
   sequel_query_analysis_t *mismatched_analysis = (sequel_query_analysis_t *)(uintptr_t)1;
-  if (!check(sequel_analyze_document(syntax, portability_query, &analysis_options, NULL, &mismatched_analysis) ==
-                     SEQUEL_ERR_INVALID_ARGUMENT &&
-                 mismatched_analysis == NULL,
+  if (!check(sequel_analyze_document(syntax, portability_query, &analysis_options, NULL, &mismatched_analysis) == SEQUEL_ERR_INVALID_ARGUMENT && mismatched_analysis == NULL,
              "reject mismatched analysis documents"))
     return 1;
   sequel_query_analysis_options_t portability_analysis_options = analysis_options;
   portability_analysis_options.include_portability = true;
   portability_analysis_options.target_dialect = SEQUEL_GENERIC;
   sequel_query_analysis_t *portability_analysis = NULL;
-  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL,
-                                     &portability_analysis) == SEQUEL_OK &&
+  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL, &portability_analysis) == SEQUEL_OK &&
                  sequel_query_analysis_diagnostics(portability_analysis)->count > 0,
              "portability diagnostics"))
     return 1;
@@ -622,8 +543,7 @@ int main(void) {
   portability_analysis_options.portability_targets = portability_targets;
   portability_analysis_options.portability_target_count = 2;
   portability_analysis = NULL;
-  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL,
-                                     &portability_analysis) == SEQUEL_OK &&
+  if (!check(sequel_analyze_document(portability_syntax, portability_query, &portability_analysis_options, NULL, &portability_analysis) == SEQUEL_OK &&
                  sequel_query_analysis_diagnostics(portability_analysis)->count >= 2,
              "multiple portability targets"))
     return 1;
@@ -636,12 +556,9 @@ int main(void) {
   output_options.include_source_maps = true;
   sequel_query_analysis_t *output_analysis = NULL;
   bool has_deleted_segment = false;
-  if (!check(sequel_analyze_document(syntax, query, &output_options, NULL, &output_analysis) == SEQUEL_OK &&
-                 sequel_query_analysis_sanitized_sql(output_analysis) != NULL &&
-                 sequel_query_analysis_formatted_sql(output_analysis) != NULL &&
-                 sequel_query_analysis_sanitized_map(output_analysis) != NULL &&
-                 sequel_query_analysis_formatted_map(output_analysis) != NULL &&
-                 sequel_query_analysis_sanitized_map(output_analysis)->count > 1,
+  if (!check(sequel_analyze_document(syntax, query, &output_options, NULL, &output_analysis) == SEQUEL_OK && sequel_query_analysis_sanitized_sql(output_analysis) != NULL &&
+                 sequel_query_analysis_formatted_sql(output_analysis) != NULL && sequel_query_analysis_sanitized_map(output_analysis) != NULL &&
+                 sequel_query_analysis_formatted_map(output_analysis) != NULL && sequel_query_analysis_sanitized_map(output_analysis)->count > 1,
              "analysis rendered outputs"))
     return 1;
   const sequel_analysis_source_map_t *sanitized_map = sequel_query_analysis_sanitized_map(output_analysis);
@@ -652,46 +569,35 @@ int main(void) {
   sequel_query_analysis_free(output_analysis);
   sequel_source_view_t broken_source = {"select 'unterminated", strlen("select 'unterminated")};
   sequel_syntax_document_t *broken_syntax = NULL;
-  if (!check(sequel_parse_sql(&broken_source, &options, NULL, &broken_syntax) == SEQUEL_OK,
-             "recoverable lexical parse"))
+  if (!check(sequel_parse_sql(&broken_source, &options, NULL, &broken_syntax) == SEQUEL_OK, "recoverable lexical parse"))
     return 1;
   sequel_query_document_t *broken_query = NULL;
-  if (!check(sequel_build_query_document(broken_syntax, &options, &broken_query) == SEQUEL_OK,
-             "recoverable lexical query"))
+  if (!check(sequel_build_query_document(broken_syntax, &options, &broken_query) == SEQUEL_OK, "recoverable lexical query"))
     return 1;
   sequel_query_analysis_t *broken_analysis = NULL;
-  if (!check(sequel_analyze_document(broken_syntax, broken_query, &analysis_options, NULL, &broken_analysis) ==
-                     SEQUEL_OK &&
-                 sequel_query_analysis_diagnostics(broken_analysis)->count > 0,
+  if (!check(sequel_analyze_document(broken_syntax, broken_query, &analysis_options, NULL, &broken_analysis) == SEQUEL_OK && sequel_query_analysis_diagnostics(broken_analysis)->count > 0,
              "analysis includes lexical diagnostics"))
     return 1;
   sequel_query_analysis_free(broken_analysis);
   sequel_query_document_free(broken_query);
   sequel_syntax_document_free(broken_syntax);
   size_t analysis_parameter_count = 0;
-  const sequel_parameter_info_t *analysis_parameters =
-      sequel_query_analysis_parameters(document_analysis, &analysis_parameter_count);
-  if (!check(analysis_parameter_count == 1 && analysis_parameters[0].ordinal == 1 &&
-                 analysis_parameters[0].style == SEQUEL_BIND_NUMBERED,
-             "analysis bind metadata"))
+  const sequel_parameter_info_t *analysis_parameters = sequel_query_analysis_parameters(document_analysis, &analysis_parameter_count);
+  if (!check(analysis_parameter_count == 1 && analysis_parameters[0].ordinal == 1 && analysis_parameters[0].style == SEQUEL_BIND_NUMBERED, "analysis bind metadata"))
     return 1;
   char token_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   char syntax_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   char query_fingerprint[SEQUEL_FINGERPRINT_LENGTH];
   if (!check(sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_TOKENS, token_fingerprint) == SEQUEL_OK &&
-                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_SYNTAX, syntax_fingerprint) ==
-                     SEQUEL_OK &&
-                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, query_fingerprint) ==
-                     SEQUEL_OK &&
-                 strlen(token_fingerprint) == 16 && strlen(syntax_fingerprint) == 16 && strlen(query_fingerprint) == 16,
+                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_SYNTAX, syntax_fingerprint) == SEQUEL_OK &&
+                 sequel_fingerprint_document(syntax, query, SEQUEL_FINGERPRINT_QUERY_SHAPE, query_fingerprint) == SEQUEL_OK && strlen(token_fingerprint) == 16 && strlen(syntax_fingerprint) == 16 &&
+                 strlen(query_fingerprint) == 16,
              "document fingerprints"))
     return 1;
   sequel_summary_options_t summary_options;
   sequel_summary_options_init(&summary_options);
   sequel_text_result_t summary = {0};
-  if (!check(sequel_summarize_query(query, &summary_options, &summary) == SEQUEL_OK && summary.length > 0 &&
-                 strstr(summary.data, "SELECT") != NULL,
-             "query summary"))
+  if (!check(sequel_summarize_query(query, &summary_options, &summary) == SEQUEL_OK && summary.length > 0 && strstr(summary.data, "SELECT") != NULL, "query summary"))
     return 1;
   sequel_text_result_free(&summary);
   {
@@ -701,22 +607,17 @@ int main(void) {
     sequel_source_view_t scalar_source = {scalar_sql, strlen(scalar_sql)};
     sequel_syntax_document_t *scalar_syntax = NULL;
     sequel_query_document_t *scalar_query = NULL;
-    if (!check(sequel_parse_sql(&scalar_source, &options, NULL, &scalar_syntax) == SEQUEL_OK,
-               "parse scalar projection query") ||
-        !check(sequel_build_query_document(scalar_syntax, &options, &scalar_query) == SEQUEL_OK,
-               "build scalar projection query") ||
-        !check(sequel_query_projection_count(scalar_query) == 2, "scalar projection boundaries") ||
-        !check(sequel_query_relation_count(scalar_query) == 3, "scalar projection relations") ||
-        !check((sequel_query_relations(scalar_query)[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 &&
-                   (sequel_query_relations(scalar_query)[1].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 &&
+    if (!check(sequel_parse_sql(&scalar_source, &options, NULL, &scalar_syntax) == SEQUEL_OK, "parse scalar projection query") ||
+        !check(sequel_build_query_document(scalar_syntax, &options, &scalar_query) == SEQUEL_OK, "build scalar projection query") ||
+        !check(sequel_query_projection_count(scalar_query) == 2, "scalar projection boundaries") || !check(sequel_query_relation_count(scalar_query) == 3, "scalar projection relations") ||
+        !check((sequel_query_relations(scalar_query)[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 && (sequel_query_relations(scalar_query)[1].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) != 0 &&
                    (sequel_query_relations(scalar_query)[0].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) != 0 &&
                    (sequel_query_relations(scalar_query)[1].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE) != 0 &&
                    (sequel_query_relations(scalar_query)[2].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) == 0,
                "scalar projection relation ownership"))
       return 1;
     sequel_text_result_t scalar_summary = {0};
-    if (!check(sequel_summarize_query(scalar_query, &summary_options, &scalar_summary) == SEQUEL_OK &&
-                   strstr(scalar_summary.data, "FROM revisions AS r") != NULL &&
+    if (!check(sequel_summarize_query(scalar_query, &summary_options, &scalar_summary) == SEQUEL_OK && strstr(scalar_summary.data, "FROM revisions AS r") != NULL &&
                    strstr(scalar_summary.data, "LIMIT 1") != NULL,
                "scalar projection summary"))
       return 1;
@@ -730,13 +631,9 @@ int main(void) {
     sequel_syntax_document_t *nested_limit_syntax = NULL;
     sequel_query_document_t *nested_limit_query = NULL;
     sequel_text_result_t nested_limit_summary = {0};
-    if (!check(sequel_parse_sql(&nested_limit_source, &options, NULL, &nested_limit_syntax) == SEQUEL_OK,
-               "nested limit parsing") ||
-        !check(sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK,
-               "nested limit query extraction") ||
-        !check(sequel_summarize_query(nested_limit_query, NULL, &nested_limit_summary) == SEQUEL_OK &&
-                   strstr(nested_limit_summary.data, "LIMIT 1)") == NULL,
-               "nested limit summary"))
+    if (!check(sequel_parse_sql(&nested_limit_source, &options, NULL, &nested_limit_syntax) == SEQUEL_OK, "nested limit parsing") ||
+        !check(sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK, "nested limit query extraction") ||
+        !check(sequel_summarize_query(nested_limit_query, NULL, &nested_limit_summary) == SEQUEL_OK && strstr(nested_limit_summary.data, "LIMIT 1)") == NULL, "nested limit summary"))
       return 1;
     sequel_text_result_free(&nested_limit_summary);
     sequel_query_document_free(nested_limit_query);
@@ -748,12 +645,9 @@ int main(void) {
     sequel_syntax_document_t *lowercase_syntax = NULL;
     sequel_query_document_t *lowercase_query = NULL;
     sequel_text_result_t lowercase_summary = {0};
-    if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK,
-               "lowercase keyword parsing") ||
-        !check(sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK,
-               "lowercase query extraction") ||
-        !check(sequel_summarize_query(lowercase_query, &summary_options, &lowercase_summary) == SEQUEL_OK &&
-                   strstr(lowercase_summary.data, "FROM records") != NULL &&
+    if (!check(sequel_parse_sql(&lowercase_source, &options, NULL, &lowercase_syntax) == SEQUEL_OK, "lowercase keyword parsing") ||
+        !check(sequel_build_query_document(lowercase_syntax, &options, &lowercase_query) == SEQUEL_OK, "lowercase query extraction") ||
+        !check(sequel_summarize_query(lowercase_query, &summary_options, &lowercase_summary) == SEQUEL_OK && strstr(lowercase_summary.data, "FROM records") != NULL &&
                    strstr(lowercase_summary.data, "WHERE") != NULL,
                "lowercase keyword summary"))
       return 1;
@@ -763,38 +657,29 @@ int main(void) {
   }
   sequel_query_analysis_free(document_analysis);
   sequel_buffer_t serialized = {0};
-  if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32,
-             "document serialization"))
+  if (!check(sequel_document_serialize(syntax, query, NULL, &serialized) == SEQUEL_OK && serialized.length > 32, "document serialization"))
     return 1;
   sequel_buffer_view_t serialized_view = {serialized.data, serialized.length};
   sequel_document_bundle_t *bundle = NULL;
   sequel_status_t deserialize_status = sequel_document_deserialize(&source, &serialized_view, NULL, &bundle);
-  if (!check(deserialize_status == SEQUEL_OK && sequel_document_bundle_syntax(bundle) != NULL &&
-                 sequel_document_bundle_query(bundle) != NULL &&
-                 sequel_query_clause_count(sequel_document_bundle_query(bundle)) == sequel_query_clause_count(query) &&
-                 sequel_document_bundle_diagnostics(bundle) != NULL,
+  if (!check(deserialize_status == SEQUEL_OK && sequel_document_bundle_syntax(bundle) != NULL && sequel_document_bundle_query(bundle) != NULL &&
+                 sequel_query_clause_count(sequel_document_bundle_query(bundle)) == sequel_query_clause_count(query) && sequel_document_bundle_diagnostics(bundle) != NULL,
              "document deserialization"))
     return 1;
   sequel_document_bundle_free(bundle);
   {
-    const char cte_serialization_sql[] =
-        "WITH recent AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM recent";
+    const char cte_serialization_sql[] = "WITH recent AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM recent";
     sequel_source_view_t cte_source = {cte_serialization_sql, strlen(cte_serialization_sql)};
     sequel_syntax_document_t *cte_syntax = NULL;
     sequel_query_document_t *cte_query = NULL;
     sequel_buffer_t cte_serialized = {0};
     sequel_document_bundle_t *cte_bundle = NULL;
-    if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK &&
-                   sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
-                   sequel_query_cte_count(cte_query) == 1 &&
-                   (sequel_query_ctes(cte_query)[0].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 &&
+    if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK && sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
+                   sequel_query_cte_count(cte_query) == 1 && (sequel_query_ctes(cte_query)[0].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 &&
                    sequel_document_serialize(cte_syntax, cte_query, NULL, &cte_serialized) == SEQUEL_OK &&
-                   sequel_document_deserialize(&cte_source,
-                                               &(sequel_buffer_view_t){cte_serialized.data, cte_serialized.length},
-                                               NULL, &cte_bundle) == SEQUEL_OK &&
+                   sequel_document_deserialize(&cte_source, &(sequel_buffer_view_t){cte_serialized.data, cte_serialized.length}, NULL, &cte_bundle) == SEQUEL_OK &&
                    sequel_query_cte_count(sequel_document_bundle_query(cte_bundle)) == 1 &&
-                   (sequel_query_ctes(sequel_document_bundle_query(cte_bundle))[0].flags &
-                    SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0,
+                   (sequel_query_ctes(sequel_document_bundle_query(cte_bundle))[0].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0,
                "CTE metadata serialization"))
       return 1;
     sequel_document_bundle_free(cte_bundle);
@@ -805,20 +690,16 @@ int main(void) {
   sequel_serialization_options_t older_schema;
   sequel_serialization_options_init(&older_schema);
   older_schema.schema.minor = 0;
-  if (!check(sequel_document_deserialize(&source, &serialized_view, &older_schema, &bundle) ==
-                 SEQUEL_ERR_INVALID_ARGUMENT,
-             "deserialize rejects unsupported newer schema"))
+  if (!check(sequel_document_deserialize(&source, &serialized_view, &older_schema, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT, "deserialize rejects unsupported newer schema"))
     return 1;
   uint64_t corrupt_range = UINT64_MAX;
   memcpy(serialized.data + 19 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &corrupt_range, sizeof(corrupt_range));
-  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
-             "serialized range validation"))
+  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT, "serialized range validation"))
     return 1;
   uint64_t valid_range = 0;
   memcpy(serialized.data + 18 * sizeof(uint64_t) + 2 * sizeof(uint64_t), &valid_range, sizeof(valid_range));
   serialized_view.length -= 1;
-  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT,
-             "truncated document rejection"))
+  if (!check(sequel_document_deserialize(&source, &serialized_view, NULL, &bundle) == SEQUEL_ERR_INVALID_ARGUMENT, "truncated document rejection"))
     return 1;
   sequel_buffer_free(&serialized);
   int found_from = 0;
@@ -828,12 +709,10 @@ int main(void) {
   visitor = (sequel_syntax_visitor_t){.enter_node = stop_syntax_visit};
   if (!check(sequel_syntax_visit(syntax, 0, &visitor) == SEQUEL_ERR_CANCELLED, "syntax visitor cancellation"))
     return 1;
-  const char expression_sql[] =
-      "SELECT CASE WHEN id IN (1, 2) THEN CAST(value AS INTEGER) ELSE EXISTS (SELECT 1) END FROM t";
+  const char expression_sql[] = "SELECT CASE WHEN id IN (1, 2) THEN CAST(value AS INTEGER) ELSE EXISTS (SELECT 1) END FROM t";
   sequel_source_view_t expression_source = {expression_sql, strlen(expression_sql)};
   sequel_syntax_document_t *expression_syntax = NULL;
-  if (!check(sequel_parse_sql(&expression_source, &options, NULL, &expression_syntax) == SEQUEL_OK,
-             "expression family parse"))
+  if (!check(sequel_parse_sql(&expression_source, &options, NULL, &expression_syntax) == SEQUEL_OK, "expression family parse"))
     return 1;
   size_t expression_nodes = 0;
   const sequel_syntax_node_t *expression_node_list = sequel_syntax_nodes(expression_syntax, &expression_nodes);
@@ -887,10 +766,8 @@ int main(void) {
   sequel_syntax_document_t *prewhere_syntax = NULL;
   sequel_query_document_t *prewhere_query = NULL;
   sequel_text_result_t prewhere_summary = {0};
-  if (!check(sequel_parse_sql(&prewhere_source, &options, NULL, &prewhere_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(prewhere_syntax, &options, &prewhere_query) == SEQUEL_OK &&
-                 sequel_summarize_query(prewhere_query, NULL, &prewhere_summary) == SEQUEL_OK &&
-                 strstr(prewhere_summary.data, "PREWHERE") != NULL,
+  if (!check(sequel_parse_sql(&prewhere_source, &options, NULL, &prewhere_syntax) == SEQUEL_OK && sequel_build_query_document(prewhere_syntax, &options, &prewhere_query) == SEQUEL_OK &&
+                 sequel_summarize_query(prewhere_query, NULL, &prewhere_summary) == SEQUEL_OK && strstr(prewhere_summary.data, "PREWHERE") != NULL,
              "vendor predicate summary"))
     return 1;
   sequel_text_result_free(&prewhere_summary);
@@ -901,11 +778,8 @@ int main(void) {
   sequel_syntax_document_t *ddl_syntax = NULL;
   sequel_query_document_t *ddl_query = NULL;
   sequel_text_result_t ddl_summary = {0};
-  if (!check(sequel_parse_sql(&ddl_source, &options, NULL, &ddl_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(ddl_syntax, &options, &ddl_query) == SEQUEL_OK &&
-                 sequel_query_relation_count(ddl_query) == 1 &&
-                 sequel_summarize_query(ddl_query, NULL, &ddl_summary) == SEQUEL_OK &&
-                 strstr(ddl_summary.data, " ON participants") != NULL,
+  if (!check(sequel_parse_sql(&ddl_source, &options, NULL, &ddl_syntax) == SEQUEL_OK && sequel_build_query_document(ddl_syntax, &options, &ddl_query) == SEQUEL_OK &&
+                 sequel_query_relation_count(ddl_query) == 1 && sequel_summarize_query(ddl_query, NULL, &ddl_summary) == SEQUEL_OK && strstr(ddl_summary.data, " ON participants") != NULL,
              "ddl relation summary"))
     return 1;
   sequel_text_result_free(&ddl_summary);
@@ -916,13 +790,10 @@ int main(void) {
   sequel_syntax_document_t *cte_syntax = NULL;
   sequel_query_document_t *cte_query = NULL;
   sequel_source_range_t cte_outer_range = {0};
-  if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
-                 sequel_query_cte_count(cte_query) == 1 &&
-                 sequel_query_ctes(cte_query)[0].range.end <= cte_source.length &&
-                 (cte_outer_range = sequel_query_outer_range(cte_query)).start >=
-                     sequel_query_ctes(cte_query)[0].range.end &&
-                 cte_outer_range.end == cte_source.length && !sequel_query_outer_distinct_on(cte_query),
+  if (!check(sequel_parse_sql(&cte_source, &options, NULL, &cte_syntax) == SEQUEL_OK && sequel_build_query_document(cte_syntax, &options, &cte_query) == SEQUEL_OK &&
+                 sequel_query_cte_count(cte_query) == 1 && sequel_query_ctes(cte_query)[0].range.end <= cte_source.length &&
+                 (cte_outer_range = sequel_query_outer_range(cte_query)).start >= sequel_query_ctes(cte_query)[0].range.end && cte_outer_range.end == cte_source.length &&
+                 !sequel_query_outer_distinct_on(cte_query),
              "cte query metadata"))
     return 1;
   sequel_query_document_free(cte_query);
@@ -932,8 +803,7 @@ int main(void) {
   sequel_syntax_document_t *distinct_cte_syntax = NULL;
   sequel_query_document_t *distinct_cte_query = NULL;
   if (!check(sequel_parse_sql(&distinct_cte_source, &options, NULL, &distinct_cte_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(distinct_cte_syntax, &options, &distinct_cte_query) == SEQUEL_OK &&
-                 sequel_query_outer_distinct_on(distinct_cte_query),
+                 sequel_build_query_document(distinct_cte_syntax, &options, &distinct_cte_query) == SEQUEL_OK && sequel_query_outer_distinct_on(distinct_cte_query),
              "cte outer distinct metadata"))
     return 1;
   sequel_query_document_free(distinct_cte_query);
@@ -944,52 +814,37 @@ int main(void) {
   sequel_query_document_t *limited_cte_query = NULL;
   sequel_source_range_t limited_range = {0};
   sequel_source_range_t limited_value_range = {0};
-  if (!check(sequel_parse_sql(&limited_cte_source, &options, NULL, &limited_cte_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(limited_cte_syntax, &options, &limited_cte_query) == SEQUEL_OK &&
-                 sequel_query_outer_limit(limited_cte_query) &&
-                 (limited_range = sequel_query_outer_limit_range(limited_cte_query)).end > limited_range.start &&
-                 (limited_value_range = sequel_query_outer_limit_value_range(limited_cte_query)).end >
-                     limited_value_range.start &&
-                 !strncmp(limited_cte_sql + limited_value_range.start, "10", 2),
+  if (!check(sequel_parse_sql(&limited_cte_source, &options, NULL, &limited_cte_syntax) == SEQUEL_OK && sequel_build_query_document(limited_cte_syntax, &options, &limited_cte_query) == SEQUEL_OK &&
+                 sequel_query_outer_limit(limited_cte_query) && (limited_range = sequel_query_outer_limit_range(limited_cte_query)).end > limited_range.start &&
+                 (limited_value_range = sequel_query_outer_limit_value_range(limited_cte_query)).end > limited_value_range.start && !strncmp(limited_cte_sql + limited_value_range.start, "10", 2),
              "cte outer limit metadata"))
     return 1;
   sequel_query_document_free(limited_cte_query);
   sequel_syntax_document_free(limited_cte_syntax);
-  const char materialized_cte_sql[] =
-      "WITH filtered AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM filtered";
+  const char materialized_cte_sql[] = "WITH filtered AS NOT MATERIALIZED (SELECT id FROM events) SELECT id FROM filtered";
   sequel_source_view_t materialized_cte_source = {materialized_cte_sql, strlen(materialized_cte_sql)};
   sequel_syntax_document_t *materialized_cte_syntax = NULL;
   sequel_query_document_t *materialized_cte_query = NULL;
   if (!check(sequel_parse_sql(&materialized_cte_source, &options, NULL, &materialized_cte_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(materialized_cte_syntax, &options, &materialized_cte_query) == SEQUEL_OK &&
-                 sequel_query_cte_count(materialized_cte_query) == 1,
+                 sequel_build_query_document(materialized_cte_syntax, &options, &materialized_cte_query) == SEQUEL_OK && sequel_query_cte_count(materialized_cte_query) == 1,
              "not materialized cte metadata"))
     return 1;
   size_t visited_ctes = 0;
   sequel_query_visitor_t cte_visitor = {.cte = count_ctes, .userdata = &visited_ctes};
-  if (!check(sequel_query_visit(materialized_cte_query, &cte_visitor) == SEQUEL_OK && visited_ctes == 1,
-             "CTE query visitor"))
+  if (!check(sequel_query_visit(materialized_cte_query, &cte_visitor) == SEQUEL_OK && visited_ctes == 1, "CTE query visitor"))
     return 1;
   sequel_query_document_free(materialized_cte_query);
   sequel_syntax_document_free(materialized_cte_syntax);
-  const char lateral_sql[] =
-      "SELECT s.id FROM signals s JOIN LATERAL (SELECT * FROM bars WHERE symbol=s.symbol LIMIT 1) b ON true";
+  const char lateral_sql[] = "SELECT s.id FROM signals s JOIN LATERAL (SELECT * FROM bars WHERE symbol=s.symbol LIMIT 1) b ON true";
   sequel_source_view_t lateral_source = {lateral_sql, strlen(lateral_sql)};
   sequel_syntax_document_t *lateral_syntax = NULL;
   sequel_query_document_t *lateral_query = NULL;
   sequel_text_result_t lateral_summary = {0};
-  if (!check(sequel_parse_sql(&lateral_source, &options, NULL, &lateral_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(lateral_syntax, &options, &lateral_query) == SEQUEL_OK &&
-                 sequel_query_relation_count(lateral_query) >= 2 && sequel_query_join_count(lateral_query) >= 1 &&
-                 sequel_query_joins(lateral_query)[0].kind == SEQUEL_JOIN_LATERAL &&
-                 sequel_query_joins(lateral_query)[0].has_condition &&
-                 sequel_query_joins(lateral_query)[0].condition_range.end >
-                     sequel_query_joins(lateral_query)[0].condition_range.start &&
-                 sequel_query_joins(lateral_query)[0].range.end ==
-                     sequel_query_joins(lateral_query)[0].condition_range.end &&
-                 sequel_query_joins(lateral_query)[0].condition_node != SIZE_MAX &&
-                 (sequel_query_joins(lateral_query)[0].flags & SEQUEL_JOIN_FLAG_LATERAL) != 0 &&
-                 sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
+  if (!check(sequel_parse_sql(&lateral_source, &options, NULL, &lateral_syntax) == SEQUEL_OK && sequel_build_query_document(lateral_syntax, &options, &lateral_query) == SEQUEL_OK &&
+                 sequel_query_relation_count(lateral_query) >= 2 && sequel_query_join_count(lateral_query) >= 1 && sequel_query_joins(lateral_query)[0].kind == SEQUEL_JOIN_LATERAL &&
+                 sequel_query_joins(lateral_query)[0].has_condition && sequel_query_joins(lateral_query)[0].condition_range.end > sequel_query_joins(lateral_query)[0].condition_range.start &&
+                 sequel_query_joins(lateral_query)[0].range.end == sequel_query_joins(lateral_query)[0].condition_range.end && sequel_query_joins(lateral_query)[0].condition_node != SIZE_MAX &&
+                 (sequel_query_joins(lateral_query)[0].flags & SEQUEL_JOIN_FLAG_LATERAL) != 0 && sequel_summarize_query(lateral_query, NULL, &lateral_summary) == SEQUEL_OK &&
                  strstr(lateral_summary.data, "JOIN LATERAL") != NULL && strstr(lateral_summary.data, " ON ?") != NULL,
              "lateral relation summary"))
     return 1;
@@ -1006,9 +861,8 @@ int main(void) {
   if (!check(sequel_parse_sql(&lateral_union_source, &options, NULL, &lateral_union_syntax) == SEQUEL_OK &&
                  sequel_build_query_document(lateral_union_syntax, &options, &lateral_union_query) == SEQUEL_OK &&
                  sequel_summarize_query(lateral_union_query, NULL, &lateral_union_summary) == SEQUEL_OK &&
-                 strcmp(lateral_union_summary.data,
-                        "SELECT … FROM a JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ? "
-                        "UNION ALL SELECT … FROM c JOIN d USING (id)") == 0,
+                 strcmp(lateral_union_summary.data, "SELECT … FROM a JOIN LATERAL (SELECT … FROM b LIMIT ?) AS recent ON ? "
+                                                    "UNION ALL SELECT … FROM c JOIN d USING (id)") == 0,
              "lateral union summary"))
     return 1;
   sequel_text_result_free(&lateral_union_summary);
@@ -1021,15 +875,13 @@ int main(void) {
     sequel_source_view_t nested_join_source = {nested_join_sql, strlen(nested_join_sql)};
     sequel_syntax_document_t *nested_join_syntax = NULL;
     sequel_query_document_t *nested_join_query = NULL;
-    if (!check(sequel_parse_sql(&nested_join_source, &options, NULL, &nested_join_syntax) == SEQUEL_OK &&
-                   sequel_build_query_document(nested_join_syntax, &options, &nested_join_query) == SEQUEL_OK &&
+    if (!check(sequel_parse_sql(&nested_join_source, &options, NULL, &nested_join_syntax) == SEQUEL_OK && sequel_build_query_document(nested_join_syntax, &options, &nested_join_query) == SEQUEL_OK &&
                    sequel_query_join_count(nested_join_query) >= 1,
                "nested join query model"))
       return 1;
     const char *interval = strstr(nested_join_sql, "interval");
     const sequel_join_info_t *nested_join = sequel_query_joins(nested_join_query);
-    if (!check(nested_join[0].condition_range.end > (size_t)(interval - nested_join_sql),
-               "nested join condition preserves nested scope"))
+    if (!check(nested_join[0].condition_range.end > (size_t)(interval - nested_join_sql), "nested join condition preserves nested scope"))
       return 1;
     sequel_query_document_free(nested_join_query);
     sequel_syntax_document_free(nested_join_syntax);
@@ -1040,15 +892,12 @@ int main(void) {
     sequel_source_view_t modifiers_source = {modifiers_sql, strlen(modifiers_sql)};
     sequel_syntax_document_t *modifiers_syntax = NULL;
     sequel_query_document_t *modifiers_query = NULL;
-    if (!check(sequel_parse_sql(&modifiers_source, &options, NULL, &modifiers_syntax) == SEQUEL_OK &&
-                   sequel_build_query_document(modifiers_syntax, &options, &modifiers_query) == SEQUEL_OK &&
+    if (!check(sequel_parse_sql(&modifiers_source, &options, NULL, &modifiers_syntax) == SEQUEL_OK && sequel_build_query_document(modifiers_syntax, &options, &modifiers_query) == SEQUEL_OK &&
                    sequel_query_join_count(modifiers_query) == 1,
                "join modifier query model"))
       return 1;
     const sequel_join_info_t *join = sequel_query_joins(modifiers_query);
-    if (!check((join[0].flags & (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING)) ==
-                   (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING),
-               "outer and using join modifier flags") ||
+    if (!check((join[0].flags & (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING)) == (SEQUEL_JOIN_FLAG_OUTER | SEQUEL_JOIN_FLAG_USING), "outer and using join modifier flags") ||
         !check(join[0].range.end == modifiers_source.length, "using join range includes delimiter"))
       return 1;
     sequel_query_document_free(modifiers_query);
@@ -1065,14 +914,10 @@ int main(void) {
     sequel_summary_options_t quoted_join_options;
     sequel_summary_options_init(&quoted_join_options);
     quoted_join_options.redact_relations = true;
-    if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK &&
-                   sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
-                   sequel_query_join_count(quoted_join_query) == 1 &&
-                   sequel_query_joins(quoted_join_query)[0].has_condition &&
-                   sequel_query_joins(quoted_join_query)[0].condition_range.end >
-                       sequel_query_joins(quoted_join_query)[0].condition_range.start &&
-                   sequel_query_joins(quoted_join_query)[0].condition_node != SIZE_MAX &&
-                   sequel_summarize_query(quoted_join_query, &quoted_join_options, &quoted_join_summary) == SEQUEL_OK &&
+    if (!check(sequel_parse_sql(&quoted_join_source, &options, NULL, &quoted_join_syntax) == SEQUEL_OK && sequel_build_query_document(quoted_join_syntax, &options, &quoted_join_query) == SEQUEL_OK &&
+                   sequel_query_join_count(quoted_join_query) == 1 && sequel_query_joins(quoted_join_query)[0].has_condition &&
+                   sequel_query_joins(quoted_join_query)[0].condition_range.end > sequel_query_joins(quoted_join_query)[0].condition_range.start &&
+                   sequel_query_joins(quoted_join_query)[0].condition_node != SIZE_MAX && sequel_summarize_query(quoted_join_query, &quoted_join_options, &quoted_join_summary) == SEQUEL_OK &&
                    strstr(quoted_join_summary.data, " ON ") != NULL,
                "quoted alias join summary"))
       return 1;
@@ -1085,8 +930,7 @@ int main(void) {
   sequel_syntax_document_t *nested_limit_syntax = NULL;
   sequel_query_document_t *nested_limit_query = NULL;
   if (!check(sequel_parse_sql(&nested_limit_source, &options, NULL, &nested_limit_syntax) == SEQUEL_OK &&
-                 sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK &&
-                 !sequel_query_outer_limit(nested_limit_query),
+                 sequel_build_query_document(nested_limit_syntax, &options, &nested_limit_query) == SEQUEL_OK && !sequel_query_outer_limit(nested_limit_query),
              "nested limit scope"))
     return 1;
   sequel_query_document_free(nested_limit_query);
@@ -1099,18 +943,14 @@ int main(void) {
     return 1;
   size_t issue_count = 0;
   const sequel_parse_issue_t *issues = sequel_syntax_issues(malformed_syntax, &issue_count);
-  if (!check(issue_count == 1 && issues[0].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP &&
-                 issues[0].recovery == SEQUEL_RECOVERY_INSERTED_TOKEN,
-             "unclosed group recovery"))
+  if (!check(issue_count == 1 && issues[0].code == SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP && issues[0].recovery == SEQUEL_RECOVERY_INSERTED_TOKEN, "unclosed group recovery"))
     return 1;
   sequel_diagnostic_t recovered_diagnostic;
-  if (!check(sequel_syntax_diagnostic(malformed_syntax, 0, &recovered_diagnostic) == SEQUEL_OK &&
-                 recovered_diagnostic.code == SEQUEL_DIAG_UNCLOSED_GROUP && recovered_diagnostic.incomplete,
+  if (!check(sequel_syntax_diagnostic(malformed_syntax, 0, &recovered_diagnostic) == SEQUEL_OK && recovered_diagnostic.code == SEQUEL_DIAG_UNCLOSED_GROUP && recovered_diagnostic.incomplete,
              "recovery diagnostic bridge"))
     return 1;
   sequel_diagnostic_list_t collected = {0};
-  if (!check(sequel_collect_syntax_diagnostics(malformed_syntax, &collected) == SEQUEL_OK && collected.count == 1 &&
-                 collected.records[0].origin == SEQUEL_DIAGNOSTIC_SYNTAX &&
+  if (!check(sequel_collect_syntax_diagnostics(malformed_syntax, &collected) == SEQUEL_OK && collected.count == 1 && collected.records[0].origin == SEQUEL_DIAGNOSTIC_SYNTAX &&
                  collected.records[0].code == SEQUEL_DIAG_UNCLOSED_GROUP && collected.records[0].incomplete,
              "layered syntax diagnostic collection"))
     return 1;
@@ -1122,13 +962,11 @@ int main(void) {
   sequel_syntax_document_t *updated = NULL;
   if (!check(sequel_reparse(syntax, &edit, &options, NULL, &updated) == SEQUEL_OK, "incremental reparse"))
     return 1;
-  if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2 &&
-                 strstr(sequel_lexed_source(sequel_syntax_lexed(updated)).data, "name") != NULL,
+  if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2 && strstr(sequel_lexed_source(sequel_syntax_lexed(updated)).data, "name") != NULL,
              "incremental reparse owns replacement source"))
     return 1;
   sequel_reparse_impact_t impact;
-  if (!check(sequel_reparse_impact(strlen(sql), &edit, &impact) == SEQUEL_OK && impact.preserved_prefix == 7 &&
-                 impact.preserved_suffix == strlen(sql) - 9 && impact.new_range.end == 11,
+  if (!check(sequel_reparse_impact(strlen(sql), &edit, &impact) == SEQUEL_OK && impact.preserved_prefix == 7 && impact.preserved_suffix == strlen(sql) - 9 && impact.new_range.end == 11,
              "incremental impact"))
     return 1;
   if (!check(sequel_lexed_source(sequel_syntax_lexed(updated)).length == strlen(sql) + 2, "edited source length"))
@@ -1140,49 +978,39 @@ int main(void) {
   sequel_parse_options_t postgres_options = options;
   postgres_options.dialect = SEQUEL_POSTGRESQL;
   sequel_syntax_document_t *postgres_syntax = NULL;
-  if (!check(sequel_parse_sql(&postgres_source, &postgres_options, NULL, &postgres_syntax) == SEQUEL_OK,
-             "postgres incremental source parse"))
+  if (!check(sequel_parse_sql(&postgres_source, &postgres_options, NULL, &postgres_syntax) == SEQUEL_OK, "postgres incremental source parse"))
     return 1;
   sequel_text_edit_t postgres_edit = {.start = 7, .old_end = 9, .replacement = "$2", .replacement_length = 2};
   sequel_syntax_document_t *postgres_updated = NULL;
-  if (!check(sequel_reparse(postgres_syntax, &postgres_edit, NULL, NULL, &postgres_updated) == SEQUEL_OK,
-             "incremental reparse inherits dialect"))
+  if (!check(sequel_reparse(postgres_syntax, &postgres_edit, NULL, NULL, &postgres_updated) == SEQUEL_OK, "incremental reparse inherits dialect"))
     return 1;
   size_t postgres_tokens = 0;
-  const sequel_token_t *postgres_token_list =
-      sequel_lexed_tokens(sequel_syntax_lexed(postgres_updated), &postgres_tokens);
-  if (!check(postgres_tokens >= 2 && postgres_token_list[1].kind == SEQUEL_TOKEN_PARAMETER,
-             "inherited dialect tokenization"))
+  const sequel_token_t *postgres_token_list = sequel_lexed_tokens(sequel_syntax_lexed(postgres_updated), &postgres_tokens);
+  if (!check(postgres_tokens >= 2 && postgres_token_list[1].kind == SEQUEL_TOKEN_PARAMETER, "inherited dialect tokenization"))
     return 1;
   sequel_syntax_document_free(postgres_updated);
   sequel_syntax_document_free(postgres_syntax);
 
   sequel_syntax_document_t *invalid_output = (sequel_syntax_document_t *)(uintptr_t)1;
   sequel_text_edit_t invalid_edit = {.start = 9, .old_end = 8};
-  if (!check(sequel_reparse(syntax, &invalid_edit, NULL, NULL, &invalid_output) == SEQUEL_ERR_INVALID_ARGUMENT &&
-                 invalid_output == NULL,
-             "invalid incremental edit clears output"))
+  if (!check(sequel_reparse(syntax, &invalid_edit, NULL, NULL, &invalid_output) == SEQUEL_ERR_INVALID_ARGUMENT && invalid_output == NULL, "invalid incremental edit clears output"))
     return 1;
   sequel_query_document_free(query);
   sequel_syntax_document_free(syntax);
   {
-    const char *join_sql =
-        "SELECT * FROM a NATURAL LEFT JOIN b JOIN c USING(id,tenant_id) FULL OUTER JOIN d ON d.id=c.id";
+    const char *join_sql = "SELECT * FROM a NATURAL LEFT JOIN b JOIN c USING(id,tenant_id) FULL OUTER JOIN d ON d.id=c.id";
     sequel_source_view_t join_source = {join_sql, strlen(join_sql)};
     sequel_syntax_document_t *join_syntax = NULL;
     sequel_query_document_t *join_query = NULL;
     sequel_parse_options_t join_options;
     sequel_parse_options_init(&join_options);
     if (!check(sequel_parse_sql(&join_source, &join_options, NULL, &join_syntax) == SEQUEL_OK, "chained join parse") ||
-        !check(sequel_build_query_document(join_syntax, &join_options, &join_query) == SEQUEL_OK,
-               "chained join query")) {
+        !check(sequel_build_query_document(join_syntax, &join_options, &join_query) == SEQUEL_OK, "chained join query")) {
       sequel_syntax_document_free(join_syntax);
       return 1;
     }
     const sequel_join_info_t *joins = sequel_query_joins(join_query);
-    if (!check(sequel_query_join_count(join_query) == 3 && !joins[0].has_condition && !joins[1].has_condition &&
-                   joins[2].has_condition,
-               "join conditions attach to their own join")) {
+    if (!check(sequel_query_join_count(join_query) == 3 && !joins[0].has_condition && !joins[1].has_condition && joins[2].has_condition, "join conditions attach to their own join")) {
       sequel_query_document_free(join_query);
       sequel_syntax_document_free(join_syntax);
       return 1;
@@ -1197,10 +1025,8 @@ int main(void) {
     sequel_query_document_t *comma_query = NULL;
     sequel_parse_options_t comma_options;
     sequel_parse_options_init(&comma_options);
-    if (!check(sequel_parse_sql(&comma_source, &comma_options, NULL, &comma_syntax) == SEQUEL_OK,
-               "comma relation parse") ||
-        !check(sequel_build_query_document(comma_syntax, &comma_options, &comma_query) == SEQUEL_OK,
-               "comma relation query")) {
+    if (!check(sequel_parse_sql(&comma_source, &comma_options, NULL, &comma_syntax) == SEQUEL_OK, "comma relation parse") ||
+        !check(sequel_build_query_document(comma_syntax, &comma_options, &comma_query) == SEQUEL_OK, "comma relation query")) {
       sequel_syntax_document_free(comma_syntax);
       return 1;
     }
@@ -1219,24 +1045,18 @@ int main(void) {
     sequel_query_document_t *quoted_query = NULL;
     sequel_parse_options_t quoted_options;
     sequel_parse_options_init(&quoted_options);
-    if (!check(sequel_parse_sql(&quoted_source, &quoted_options, NULL, &quoted_syntax) == SEQUEL_OK,
-               "quoted relation parse") ||
-        !check(sequel_build_query_document(quoted_syntax, &quoted_options, &quoted_query) == SEQUEL_OK,
-               "quoted relation query")) {
+    if (!check(sequel_parse_sql(&quoted_source, &quoted_options, NULL, &quoted_syntax) == SEQUEL_OK, "quoted relation parse") ||
+        !check(sequel_build_query_document(quoted_syntax, &quoted_options, &quoted_query) == SEQUEL_OK, "quoted relation query")) {
       sequel_syntax_document_free(quoted_syntax);
       return 1;
     }
-    if (!check(sequel_query_relation_count(quoted_query) == 2 && sequel_query_join_count(quoted_query) == 1,
-               "quoted relations retained")) {
+    if (!check(sequel_query_relation_count(quoted_query) == 2 && sequel_query_join_count(quoted_query) == 1, "quoted relations retained")) {
       sequel_query_document_free(quoted_query);
       sequel_syntax_document_free(quoted_syntax);
       return 1;
     }
-    if (!check(sequel_query_relation(quoted_query, 0) == &sequel_query_relations(quoted_query)[0] &&
-                   sequel_query_relation(quoted_query, 1) == &sequel_query_relations(quoted_query)[1] &&
-                   sequel_query_relation(quoted_query, 2) == NULL &&
-                   sequel_query_join(quoted_query, 0) == &sequel_query_joins(quoted_query)[0] &&
-                   sequel_query_join(quoted_query, 1) == NULL,
+    if (!check(sequel_query_relation(quoted_query, 0) == &sequel_query_relations(quoted_query)[0] && sequel_query_relation(quoted_query, 1) == &sequel_query_relations(quoted_query)[1] &&
+                   sequel_query_relation(quoted_query, 2) == NULL && sequel_query_join(quoted_query, 0) == &sequel_query_joins(quoted_query)[0] && sequel_query_join(quoted_query, 1) == NULL,
                "indexed relation and join accessors")) {
       sequel_query_document_free(quoted_query);
       sequel_syntax_document_free(quoted_syntax);
@@ -1246,8 +1066,8 @@ int main(void) {
     sequel_summary_options_init(&quoted_summary_options);
     quoted_summary_options.redact_relations = true;
     sequel_text_result_t quoted_summary = {0};
-    if (!check(sequel_summarize_query(quoted_query, &quoted_summary_options, &quoted_summary) == SEQUEL_OK &&
-                   strstr(quoted_summary.data, "JOIN") != NULL && strstr(quoted_summary.data, "ON ?") != NULL,
+    if (!check(sequel_summarize_query(quoted_query, &quoted_summary_options, &quoted_summary) == SEQUEL_OK && strstr(quoted_summary.data, "JOIN") != NULL &&
+                   strstr(quoted_summary.data, "ON ?") != NULL,
                "quoted join summary")) {
       sequel_text_result_free(&quoted_summary);
       sequel_query_document_free(quoted_query);
@@ -1267,18 +1087,14 @@ int main(void) {
     heredoc_options.dialect = SEQUEL_CLICKHOUSE;
     sequel_syntax_document_t *heredoc_syntax = NULL;
     sequel_query_document_t *heredoc_query = NULL;
-    if (!check(sequel_parse_sql(&heredoc_source, &heredoc_options, NULL, &heredoc_syntax) == SEQUEL_OK,
-               "ClickHouse heredoc parse") ||
-        !check(sequel_build_query_document(heredoc_syntax, &heredoc_options, &heredoc_query) == SEQUEL_OK,
-               "ClickHouse heredoc query")) {
+    if (!check(sequel_parse_sql(&heredoc_source, &heredoc_options, NULL, &heredoc_syntax) == SEQUEL_OK, "ClickHouse heredoc parse") ||
+        !check(sequel_build_query_document(heredoc_syntax, &heredoc_options, &heredoc_query) == SEQUEL_OK, "ClickHouse heredoc query")) {
       sequel_syntax_document_free(heredoc_syntax);
       return 1;
     }
     const sequel_relation_info_t *heredoc_relation = sequel_query_relations(heredoc_query);
-    if (!check(sequel_query_relation_count(heredoc_query) == 1 &&
-                   heredoc_relation[0].name_range.end > heredoc_relation[0].name_range.start &&
-                   !strncmp(heredoc_sql + heredoc_relation[0].name_range.start, "events", 6) &&
-                   !(heredoc_relation[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) &&
+    if (!check(sequel_query_relation_count(heredoc_query) == 1 && heredoc_relation[0].name_range.end > heredoc_relation[0].name_range.start &&
+                   !strncmp(heredoc_sql + heredoc_relation[0].name_range.start, "events", 6) && !(heredoc_relation[0].flags & SEQUEL_RELATION_FLAG_NESTED_SCOPE) &&
                    !(heredoc_relation[0].flags & SEQUEL_RELATION_FLAG_PROJECTION_SCOPE),
                "ClickHouse heredoc relation retained")) {
       sequel_query_document_free(heredoc_query);
@@ -1288,8 +1104,7 @@ int main(void) {
     sequel_summary_options_t heredoc_summary_options;
     sequel_summary_options_init(&heredoc_summary_options);
     sequel_text_result_t heredoc_summary = {0};
-    if (!check(sequel_summarize_query(heredoc_query, &heredoc_summary_options, &heredoc_summary) == SEQUEL_OK &&
-                   strstr(heredoc_summary.data, "FROM events") != NULL,
+    if (!check(sequel_summarize_query(heredoc_query, &heredoc_summary_options, &heredoc_summary) == SEQUEL_OK && strstr(heredoc_summary.data, "FROM events") != NULL,
                "ClickHouse heredoc summary retains relation")) {
       sequel_text_result_free(&heredoc_summary);
       sequel_query_document_free(heredoc_query);
@@ -1305,13 +1120,11 @@ int main(void) {
     sequel_source_view_t comma_limit_source = {comma_limit_sql, strlen(comma_limit_sql)};
     sequel_syntax_document_t *comma_limit_syntax = NULL;
     sequel_query_document_t *comma_limit_query = NULL;
-    if (!check(sequel_parse_sql(&comma_limit_source, &options, NULL, &comma_limit_syntax) == SEQUEL_OK &&
-                   sequel_build_query_document(comma_limit_syntax, &options, &comma_limit_query) == SEQUEL_OK,
+    if (!check(sequel_parse_sql(&comma_limit_source, &options, NULL, &comma_limit_syntax) == SEQUEL_OK && sequel_build_query_document(comma_limit_syntax, &options, &comma_limit_query) == SEQUEL_OK,
                "comma limit query model"))
       return 1;
     sequel_source_range_t comma_limit_range = sequel_query_outer_limit_clause_range(comma_limit_query);
-    if (!check(comma_limit_range.end > comma_limit_range.start && comma_limit_range.end <= comma_limit_source.length &&
-                   !strncmp(comma_limit_sql + comma_limit_range.start, "LIMIT 5, ?", 9),
+    if (!check(comma_limit_range.end > comma_limit_range.start && comma_limit_range.end <= comma_limit_source.length && !strncmp(comma_limit_sql + comma_limit_range.start, "LIMIT 5, ?", 9),
                "complete comma limit range"))
       return 1;
     sequel_query_document_free(comma_limit_query);
@@ -1322,9 +1135,7 @@ int main(void) {
     sequel_source_view_t borrowed_view = {borrowed_sql, strlen(borrowed_sql)};
     sequel_lexed_document_t *borrowed_lexed = NULL;
     sequel_syntax_document_t *borrowed_syntax = NULL;
-    if (!check(sequel_lex(&borrowed_view, &options, NULL, &borrowed_lexed) == SEQUEL_OK &&
-                   sequel_parse(borrowed_lexed, &options, NULL, &borrowed_syntax) == SEQUEL_OK,
-               "borrowed parse pipeline"))
+    if (!check(sequel_lex(&borrowed_view, &options, NULL, &borrowed_lexed) == SEQUEL_OK && sequel_parse(borrowed_lexed, &options, NULL, &borrowed_syntax) == SEQUEL_OK, "borrowed parse pipeline"))
       return 1;
     sequel_syntax_document_free(borrowed_syntax);
     if (!check(sequel_lexed_token_count(borrowed_lexed) > 0, "syntax free preserves borrowed lexer")) {

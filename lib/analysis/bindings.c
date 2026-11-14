@@ -14,8 +14,7 @@ static uint64_t sequel_analysis_key_hash(const char *data, size_t length) {
   return value;
 }
 
-analysis_binding *sequel_analysis_binding_slot(analysis_bindings *bindings, const char *key, size_t length,
-                                               size_t number) {
+analysis_binding *sequel_analysis_binding_slot(analysis_bindings *bindings, const char *key, size_t length, size_t number) {
   if (!bindings->capacity || bindings->count >= bindings->capacity / 2) {
     size_t next = bindings->capacity ? bindings->capacity * 2 : 16;
     if (next < bindings->capacity || next > SIZE_MAX / sizeof(*bindings->p))
@@ -79,20 +78,15 @@ void sequel_analysis_dictionary_clear(analysis_bindings *bindings) {
   *bindings = (analysis_bindings){0};
 }
 
-void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot,
-                                            size_t statement, size_t start, size_t end, sequel_bind_style_t style) {
+void sequel_analysis_append_bind_descriptor(sequel_analysis_t *analysis, size_t *bind_number, size_t slot, size_t statement, size_t start, size_t end, sequel_bind_style_t style) {
   sequel_output_tick(sizeof(sequel_bind_descriptor_t));
-  sequel_bind_descriptor_t *binds =
-      sequel_analysis_array((void *)analysis->binds, analysis->bind_count + 1, sizeof(*binds));
-  binds[analysis->bind_count] =
-      (sequel_bind_descriptor_t){++*bind_number, slot, statement, start, end, style};
+  sequel_bind_descriptor_t *binds = sequel_analysis_array((void *)analysis->binds, analysis->bind_count + 1, sizeof(*binds));
+  binds[analysis->bind_count] = (sequel_bind_descriptor_t){++*bind_number, slot, statement, start, end, style};
   analysis->binds = binds;
   analysis->bind_count++;
 }
 
-analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings, analysis_bindings *canonical_bindings,
-                                                    const char *key, size_t key_length, size_t number,
-                                                    size_t *fingerprint_number) {
+analysis_binding *sequel_analysis_canonical_binding(analysis_bindings *bindings, analysis_bindings *canonical_bindings, const char *key, size_t key_length, size_t number, size_t *fingerprint_number) {
   analysis_binding *identity = sequel_analysis_binding_slot(bindings, key, key_length, number);
   if (number && identity->key == key) {
     char *owned = malloc(key_length);

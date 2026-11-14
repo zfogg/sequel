@@ -5,22 +5,18 @@
 
 #include "internal.h"
 
-int sequel_summary_finish_render(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out,
-                                 const sequel_query_document_t *query, sequel_source_view_t source, size_t outer_start,
+int sequel_summary_finish_render(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out, const sequel_query_document_t *query, sequel_source_view_t source, size_t outer_start,
                                  const sequel_statement_info_t *statements, size_t statement_count) {
   if (!text || !length || !capacity || !out || !query || !statements)
     return 0;
-  if (!sequel_summary_repair_tail(text, length, capacity, query, source) ||
-      !sequel_summary_repair_write_order(text, length, capacity, source))
+  if (!sequel_summary_repair_tail(text, length, capacity, query, source) || !sequel_summary_repair_write_order(text, length, capacity, source))
     return 0;
-  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE &&
-      !sequel_summary_repair_mysql_update_aliases(text, length, capacity, query, source, outer_start))
+  if (statement_count && statements[0].operation == SEQUEL_OPERATION_UPDATE && !sequel_summary_repair_mysql_update_aliases(text, length, capacity, query, source, outer_start))
     return 0;
   return sequel_summary_finalize_output(text, length, capacity, out);
 }
 
-int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source,
-                                    size_t source_length, const char *keyword, const char *replacement) {
+int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacity, const char *source, size_t source_length, const char *keyword, const char *replacement) {
   if (!text || !*text || !length || !capacity || !source || !keyword || !replacement)
     return 0;
   size_t source_count = 0;
@@ -48,19 +44,16 @@ int sequel_summary_preserve_keyword(char **text, size_t *length, size_t *capacit
   return 1;
 }
 
-int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capacity,
-                                       const sequel_query_document_t *query, sequel_source_view_t source,
-                                       size_t statement_count, const sequel_statement_info_t *statements) {
+int sequel_summary_prepare_postprocess(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source, size_t statement_count,
+                                       const sequel_statement_info_t *statements) {
   if (!text || !length || !capacity || !query || !statements)
     return 0;
   if (!sequel_summary_normalize_projection_shape(text, length, capacity, query))
     return 0;
-  if (sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(*text, " LIMIT ") &&
-      !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
+  if (sequel_summary_find_text(source.data, " LIMIT ") && !sequel_summary_find_text(*text, " LIMIT ") && !sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
     return 0;
   if (statement_count && statements[0].operation == SEQUEL_OPERATION_INSERT &&
-      (!sequel_summary_normalize_insert_clause_order(text, length, capacity) ||
-       !sequel_summary_normalize_insert_conflict_order(text, length) ||
+      (!sequel_summary_normalize_insert_clause_order(text, length, capacity) || !sequel_summary_normalize_insert_conflict_order(text, length) ||
        !sequel_summary_remove_insert_projection_tail(*text, length)))
     return 0;
   return 1;
@@ -121,8 +114,7 @@ int sequel_summary_finalize_output(char **text, size_t *length, size_t *capacity
   }
   (*text)[*length] = 0;
   sequel_text_result_free(out);
-  *out = (sequel_text_result_t){
-      .data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+  *out = (sequel_text_result_t){.data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
   return 1;
 }
 
@@ -262,8 +254,7 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length, sequel_
       *length -= end - i;
       continue;
     }
-    if (text[i] == '0' && i + 2 < *length && (text[i + 1] == 'x' || text[i + 1] == 'X') &&
-        isxdigit((unsigned char)text[i + 2])) {
+    if (text[i] == '0' && i + 2 < *length && (text[i + 1] == 'x' || text[i + 1] == 'X') && isxdigit((unsigned char)text[i + 2])) {
       size_t end = i + 2;
       while (end < *length && isxdigit((unsigned char)text[end]))
         ++end;
@@ -274,10 +265,8 @@ void sequel_summary_redact_rendered_literals(char *text, size_t *length, sequel_
       continue;
     }
     bool word_boundary = (i == 0 || !isalnum((unsigned char)text[i - 1]));
-    bool true_word =
-        i + 4 <= *length && !memcmp(text + i, "true", 4) && (i + 4 == *length || !isalnum((unsigned char)text[i + 4]));
-    bool false_word =
-        i + 5 <= *length && !memcmp(text + i, "false", 5) && (i + 5 == *length || !isalnum((unsigned char)text[i + 5]));
+    bool true_word = i + 4 <= *length && !memcmp(text + i, "true", 4) && (i + 4 == *length || !isalnum((unsigned char)text[i + 4]));
+    bool false_word = i + 5 <= *length && !memcmp(text + i, "false", 5) && (i + 5 == *length || !isalnum((unsigned char)text[i + 5]));
     if (word_boundary && (true_word || false_word)) {
       size_t word_length = true_word ? 4 : 5;
       text[i] = '?';
@@ -346,8 +335,7 @@ void sequel_summary_normalize_projection(char *text, size_t *length) {
   for (size_t operator_index = 0; operator_index < 4; ++operator_index) {
     const char *operator = operators[operator_index];
     size_t width = strlen(operator);
-    for (char *match = sequel_summary_find_text(text, operator); match;
-         match = sequel_summary_find_text(match + width, operator)) {
+    for (char *match = sequel_summary_find_text(text, operator); match; match = sequel_summary_find_text(match + width, operator)) {
       while (match[width] == ' ')
         memmove(match + width, match + width + 1, strlen(match + width + 1) + 1), --*length;
     }

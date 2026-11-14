@@ -11,8 +11,7 @@ struct sequel_source {
   sequel_dialect_t dialect;
 };
 
-sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options,
-                                     sequel_source_t **out) {
+sequel_status_t sequel_source_create(const sequel_source_view_t *view, const sequel_source_options_t *options, sequel_source_t **out) {
   if (!view || !out)
     return SEQUEL_ERR_NULL;
   if (view->length && !view->data)
@@ -54,21 +53,13 @@ void sequel_source_free(sequel_source_t *source) {
   free(source);
 }
 
-sequel_source_view_t sequel_source_view(const sequel_source_t *source) {
-  return source ? source->view : (sequel_source_view_t){0};
-}
+sequel_source_view_t sequel_source_view(const sequel_source_t *source) { return source ? source->view : (sequel_source_view_t){0}; }
 
-sequel_dialect_t sequel_source_dialect(const sequel_source_t *source) {
-  return source ? source->dialect : SEQUEL_GENERIC;
-}
+sequel_dialect_t sequel_source_dialect(const sequel_source_t *source) { return source ? source->dialect : SEQUEL_GENERIC; }
 
-int sequel_source_range_valid(sequel_source_range_t range, size_t source_length) {
-  return range.start <= range.end && range.end <= source_length;
-}
+int sequel_source_range_valid(sequel_source_range_t range, size_t source_length) { return range.start <= range.end && range.end <= source_length; }
 
-int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_range_t inner) {
-  return outer.start <= inner.start && inner.start <= inner.end && inner.end <= outer.end;
-}
+int sequel_source_range_contains(sequel_source_range_t outer, sequel_source_range_t inner) { return outer.start <= inner.start && inner.start <= inner.end && inner.end <= outer.end; }
 
 static void position_at(const char *data, size_t length, size_t offset, sequel_position_t *position) {
   position->line = 1;
@@ -91,8 +82,7 @@ static void position_at(const char *data, size_t length, size_t offset, sequel_p
   }
 }
 
-sequel_status_t sequel_source_view_position(const sequel_source_view_t *source, size_t byte_offset,
-                                            sequel_position_t *position) {
+sequel_status_t sequel_source_view_position(const sequel_source_view_t *source, size_t byte_offset, sequel_position_t *position) {
   if (!source || !position)
     return SEQUEL_ERR_NULL;
   if (byte_offset > source->length)
@@ -101,8 +91,7 @@ sequel_status_t sequel_source_view_position(const sequel_source_view_t *source, 
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_source_view_range_position(const sequel_source_view_t *source, sequel_source_range_t range,
-                                                  sequel_location_t *location) {
+sequel_status_t sequel_source_view_range_position(const sequel_source_view_t *source, sequel_source_range_t range, sequel_location_t *location) {
   if (!source || !location)
     return SEQUEL_ERR_NULL;
   if (!sequel_source_range_valid(range, source->length))
@@ -119,8 +108,7 @@ sequel_status_t sequel_source_position(const sequel_source_t *source, size_t byt
   return sequel_source_view_position(&source->view, byte_offset, position);
 }
 
-sequel_status_t sequel_source_range_position(const sequel_source_t *source, sequel_source_range_t range,
-                                             sequel_location_t *location) {
+sequel_status_t sequel_source_range_position(const sequel_source_t *source, sequel_source_range_t range, sequel_location_t *location) {
   if (!source)
     return SEQUEL_ERR_NULL;
   return sequel_source_view_range_position(&source->view, range, location);

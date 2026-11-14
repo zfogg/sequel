@@ -28,8 +28,7 @@ static int sanitizer_append_bytes(char **data, size_t *length, size_t *capacity,
   return 1;
 }
 
-sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, unsigned flags,
-                                       sequel_text_result_t *out) {
+sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, unsigned flags, sequel_text_result_t *out) {
   if (!lexed || !out)
     return SEQUEL_ERR_NULL;
   sequel_source_view_t source = sequel_lexed_source(lexed);
@@ -55,15 +54,13 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
         --square_depth;
     }
     if ((flags & SEQUEL_SANITIZE_REMOVE_COMMENTS) && sequel_token_is_comment(token)) {
-      bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count &&
-                            tokens[i + 1].range.start == token->range.end;
+      bool adjacent_block = token->kind == SEQUEL_TOKEN_BLOCK_COMMENT && i + 1 < token_count && tokens[i + 1].range.start == token->range.end;
       if (adjacent_block && length && data[length - 1] != ' ' && data[length - 1] != '\n')
         if (!sanitizer_append_bytes(&data, &length, &capacity, " ", 1))
           goto no_memory;
       continue;
     }
-    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && !(token->flags & SEQUEL_TOKEN_FLAG_COMMENT) &&
-        (sequel_token_is_literal(token) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
+    if ((flags & SEQUEL_SANITIZE_REPLACE_LITERALS) && !(token->flags & SEQUEL_TOKEN_FLAG_COMMENT) && (sequel_token_is_literal(token) || token->kind == SEQUEL_TOKEN_PARAMETER)) {
       if (!sanitizer_append_bytes(&data, &length, &capacity, "?", 1))
         goto no_memory;
       if (token->kind == SEQUEL_TOKEN_PARAMETER) {
@@ -76,8 +73,7 @@ sequel_status_t sequel_sanitize_tokens(const sequel_lexed_document_t *lexed, uns
       }
       continue;
     }
-    if (!sanitizer_append_bytes(&data, &length, &capacity, source.data + token->range.start,
-                                token->range.end - token->range.start))
+    if (!sanitizer_append_bytes(&data, &length, &capacity, source.data + token->range.start, token->range.end - token->range.start))
       goto no_memory;
   }
   if (square_depth)

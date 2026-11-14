@@ -24,7 +24,5 @@ typedef struct {
 void sequel_format_options_init(sequel_format_options_t *options);
 void sequel_text_result_free(sequel_text_result_t *result);
 
-sequel_status_t sequel_format_tokens(const sequel_lexed_document_t *lexed, const sequel_format_options_t *options,
-                                     sequel_text_result_t *out);
-sequel_status_t sequel_format_syntax(const sequel_syntax_document_t *syntax, const sequel_format_options_t *options,
-                                     sequel_text_result_t *out);
+sequel_status_t sequel_format_tokens(const sequel_lexed_document_t *lexed, const sequel_format_options_t *options, sequel_text_result_t *out);
+sequel_status_t sequel_format_syntax(const sequel_syntax_document_t *syntax, const sequel_format_options_t *options, sequel_text_result_t *out);

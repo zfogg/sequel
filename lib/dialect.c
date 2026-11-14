@@ -4,31 +4,23 @@
 #include <sequel/dialect.h>
 
 static const sequel_keyword_definition_t keywords[] = {
-    {"SELECT", 1},   {"INSERT", 2},    {"UPDATE", 3},    {"DELETE", 4},     {"WITH", 5},    {"FROM", 6},
-    {"WHERE", 7},    {"GROUP", 8},     {"ORDER", 9},     {"LIMIT", 11},     {"OFFSET", 12}, {"JOIN", 13},
-    {"ON", 14},      {"UNION", 15},    {"HAVING", 16},   {"RETURNING", 17}, {"VALUES", 18}, {"TRUE", 19},
-    {"FALSE", 20},   {"NULL", 21},     {"EXPLAIN", 22},  {"CREATE", 23},    {"ALTER", 24},  {"DROP", 25},
-    {"BEGIN", 26},   {"COMMIT", 27},   {"ROLLBACK", 28}, {"SET", 29},       {"INTO", 30},   {"USING", 31},
-    {"WINDOW", 32},  {"QUALIFY", 33},  {"MERGE", 34},    {"AND", 35},       {"OR", 36},     {"IN", 37},
-    {"BETWEEN", 38}, {"LIKE", 39},     {"IS", 40},       {"NOT", 41},       {"CASE", 42},   {"WHEN", 43},
-    {"THEN", 44},    {"ELSE", 45},     {"END", 46},      {"CAST", 47},      {"EXISTS", 48}, {"OVER", 49},
-    {"AS", 50},      {"PREWHERE", 51},
+    {"SELECT", 1},   {"INSERT", 2},   {"UPDATE", 3}, {"DELETE", 4}, {"WITH", 5},    {"FROM", 6},       {"WHERE", 7},     {"GROUP", 8}, {"ORDER", 9},  {"LIMIT", 11},
+    {"OFFSET", 12},  {"JOIN", 13},    {"ON", 14},    {"UNION", 15}, {"HAVING", 16}, {"RETURNING", 17}, {"VALUES", 18},   {"TRUE", 19}, {"FALSE", 20}, {"NULL", 21},
+    {"EXPLAIN", 22}, {"CREATE", 23},  {"ALTER", 24}, {"DROP", 25},  {"BEGIN", 26},  {"COMMIT", 27},    {"ROLLBACK", 28}, {"SET", 29},  {"INTO", 30},  {"USING", 31},
+    {"WINDOW", 32},  {"QUALIFY", 33}, {"MERGE", 34}, {"AND", 35},   {"OR", 36},     {"IN", 37},        {"BETWEEN", 38},  {"LIKE", 39}, {"IS", 40},    {"NOT", 41},
+    {"CASE", 42},    {"WHEN", 43},    {"THEN", 44},  {"ELSE", 45},  {"END", 46},    {"CAST", 47},      {"EXISTS", 48},   {"OVER", 49}, {"AS", 50},    {"PREWHERE", 51},
 };
 
 static const sequel_operator_definition_t operators[] = {
-    {"OR", 10, false, false}, {"AND", 20, false, false}, {"=", 30, false, false}, {"<>", 30, false, false},
-    {"!=", 30, false, false}, {"<", 30, false, false},   {">", 30, false, false}, {"<=", 30, false, false},
-    {">=", 30, false, false}, {"+", 40, false, false},   {"-", 40, false, false}, {"*", 50, false, false},
-    {"/", 50, false, false},  {"%", 50, false, false},   {"+", 60, true, true},   {"-", 60, true, true},
+    {"OR", 10, false, false}, {"AND", 20, false, false}, {"=", 30, false, false},  {"<>", 30, false, false}, {"!=", 30, false, false}, {"<", 30, false, false},
+    {">", 30, false, false},  {"<=", 30, false, false},  {">=", 30, false, false}, {"+", 40, false, false},  {"-", 40, false, false},  {"*", 50, false, false},
+    {"/", 50, false, false},  {"%", 50, false, false},   {"+", 60, true, true},    {"-", 60, true, true},
 };
 
 static const sequel_clause_definition_t clauses[] = {
-    {"FROM", SEQUEL_KEYWORD_FROM, false},     {"WHERE", SEQUEL_KEYWORD_WHERE, false},
-    {"GROUP", SEQUEL_KEYWORD_GROUP, false},   {"HAVING", SEQUEL_KEYWORD_HAVING, false},
-    {"WINDOW", SEQUEL_KEYWORD_WINDOW, false}, {"QUALIFY", SEQUEL_KEYWORD_QUALIFY, false},
-    {"ORDER", SEQUEL_KEYWORD_ORDER, false},   {"LIMIT", SEQUEL_KEYWORD_LIMIT, false},
-    {"OFFSET", SEQUEL_KEYWORD_OFFSET, false}, {"RETURNING", SEQUEL_KEYWORD_RETURNING, false},
-    {"USING", SEQUEL_KEYWORD_USING, false},   {"SET", SEQUEL_KEYWORD_SET, false},
+    {"FROM", SEQUEL_KEYWORD_FROM, false},     {"WHERE", SEQUEL_KEYWORD_WHERE, false},         {"GROUP", SEQUEL_KEYWORD_GROUP, false}, {"HAVING", SEQUEL_KEYWORD_HAVING, false},
+    {"WINDOW", SEQUEL_KEYWORD_WINDOW, false}, {"QUALIFY", SEQUEL_KEYWORD_QUALIFY, false},     {"ORDER", SEQUEL_KEYWORD_ORDER, false}, {"LIMIT", SEQUEL_KEYWORD_LIMIT, false},
+    {"OFFSET", SEQUEL_KEYWORD_OFFSET, false}, {"RETURNING", SEQUEL_KEYWORD_RETURNING, false}, {"USING", SEQUEL_KEYWORD_USING, false}, {"SET", SEQUEL_KEYWORD_SET, false},
 };
 
 static const sequel_dialect_definition_t definitions[] = {
@@ -96,9 +88,7 @@ static const sequel_dialect_definition_t definitions[] = {
                            .clause_count = sizeof(clauses) / sizeof(*clauses)},
 };
 
-const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t dialect) {
-  return dialect >= SEQUEL_GENERIC && dialect <= SEQUEL_CLICKHOUSE ? &definitions[dialect] : NULL;
-}
+const sequel_dialect_definition_t *sequel_dialect_definition(sequel_dialect_t dialect) { return dialect >= SEQUEL_GENERIC && dialect <= SEQUEL_CLICKHOUSE ? &definitions[dialect] : NULL; }
 
 const char *sequel_dialect_name(sequel_dialect_t dialect) {
   static const char *names[] = {"generic", "sqlite", "postgresql", "duckdb", "mysql", "clickhouse"};

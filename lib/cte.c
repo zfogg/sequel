@@ -5,16 +5,14 @@
 #include "model.h"
 #include "tokens.h"
 
-sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens,
-                                        size_t token_count, const sequel_source_view_t *source) {
+sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const sequel_token_t *tokens, size_t token_count, const sequel_source_view_t *source) {
   for (size_t i = 0; i < token_count; ++i) {
     if (tokens[i].kind != SEQUEL_TOKEN_KEYWORD || tokens[i].keyword_id != SEQUEL_KEYWORD_WITH)
       continue;
     size_t cursor = i + 1;
     while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
       ++cursor;
-    if (cursor < token_count && tokens[cursor].range.end - tokens[cursor].range.start == 9 &&
-        sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 9, "RECURSIVE"))
+    if (cursor < token_count && tokens[cursor].range.end - tokens[cursor].range.start == 9 && sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 9, "RECURSIVE"))
       ++cursor;
     for (;;) {
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
@@ -25,8 +23,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
       uint32_t cte_flags = SEQUEL_CTE_FLAG_NONE;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION &&
-          source->data[tokens[cursor].range.start] == '(') {
+      if (cursor < token_count && tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION && source->data[tokens[cursor].range.start] == '(') {
         unsigned depth = 0;
         do {
           if (tokens[cursor].kind == SEQUEL_TOKEN_PUNCTUATION) {
@@ -41,16 +38,14 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
         while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
           ++cursor;
       }
-      if (cursor >= token_count || tokens[cursor].range.end - tokens[cursor].range.start != 2 ||
-          !sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 2, "AS"))
+      if (cursor >= token_count || tokens[cursor].range.end - tokens[cursor].range.start != 2 || !sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 2, "AS"))
         break;
       ++cursor;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
       if (cursor < token_count) {
         size_t modifier = tokens[cursor].range.end - tokens[cursor].range.start;
-        if ((modifier == 12 &&
-             sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED")) ||
+        if ((modifier == 12 && sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 12, "MATERIALIZED")) ||
             (modifier == 3 && sequel_query_word_equals_ci(source->data + tokens[cursor].range.start, 3, "NOT"))) {
           cte_flags = modifier == 3 ? SEQUEL_CTE_FLAG_NOT_MATERIALIZED : SEQUEL_CTE_FLAG_MATERIALIZED;
           ++cursor;
@@ -63,8 +58,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
             ++cursor;
         }
       }
-      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
-          source->data[tokens[cursor].range.start] != '(')
+      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION || source->data[tokens[cursor].range.start] != '(')
         break;
       size_t body_open = cursor++;
       unsigned depth = 1;
@@ -89,8 +83,7 @@ sequel_status_t sequel_query_build_ctes(sequel_query_document_t *document, const
         return SEQUEL_ERR_NOMEM;
       while (cursor < token_count && sequel_token_is_trivia(&tokens[cursor]))
         ++cursor;
-      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION ||
-          source->data[tokens[cursor].range.start] != ',')
+      if (cursor >= token_count || tokens[cursor].kind != SEQUEL_TOKEN_PUNCTUATION || source->data[tokens[cursor].range.start] != ',')
         break;
       ++cursor;
     }

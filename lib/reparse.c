@@ -3,8 +3,7 @@
 
 #include <sequel/parser.h>
 
-sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit,
-                               const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
+sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const sequel_text_edit_t *edit, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation,
                                sequel_syntax_document_t **out) {
   if (!previous || !edit || !out)
     return SEQUEL_ERR_NULL;
@@ -13,8 +12,7 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
   if (!old_lexed)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   sequel_source_view_t old_source = sequel_lexed_source(old_lexed);
-  if (edit->start > edit->old_end || edit->old_end > old_source.length ||
-      (edit->replacement_length && !edit->replacement))
+  if (edit->start > edit->old_end || edit->old_end > old_source.length || (edit->replacement_length && !edit->replacement))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   size_t removed = edit->old_end - edit->start;
   if (old_source.length - removed > SIZE_MAX - edit->replacement_length)
@@ -25,8 +23,7 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
     return SEQUEL_ERR_NOMEM;
   memcpy(data, old_source.data, edit->start);
   memcpy(data + edit->start, edit->replacement, edit->replacement_length);
-  memcpy(data + edit->start + edit->replacement_length, old_source.data + edit->old_end,
-         old_source.length - edit->old_end);
+  memcpy(data + edit->start + edit->replacement_length, old_source.data + edit->old_end, old_source.length - edit->old_end);
   sequel_source_view_t source = {data, length};
   sequel_parse_options_t inherited;
   if (!options) {
@@ -39,8 +36,7 @@ sequel_status_t sequel_reparse(const sequel_syntax_document_t *previous, const s
   return status;
 }
 
-sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit,
-                                      sequel_reparse_impact_t *impact) {
+sequel_status_t sequel_reparse_impact(size_t old_length, const sequel_text_edit_t *edit, sequel_reparse_impact_t *impact) {
   if (!edit || !impact)
     return SEQUEL_ERR_NULL;
   if (edit->start > edit->old_end || edit->old_end > old_length || (edit->replacement_length && !edit->replacement))

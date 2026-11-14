@@ -72,13 +72,11 @@ typedef struct sequel_diagnostic {
 
 const char *sequel_diagnostic_code_name(sequel_diagnostic_code_t code);
 sequel_status_t sequel_diagnose(const char *sql, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
-sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect,
-                                  sequel_diagnostic_t *diagnostic);
+sequel_status_t sequel_diagnose_n(const char *sql, size_t length, sequel_dialect_t dialect, sequel_diagnostic_t *diagnostic);
 
 size_t sequel_diagnostic_catalog_count(void);
 sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out);
-sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input,
-                                               sequel_diagnostic_t *out);
+sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input, sequel_diagnostic_t *out);
 
 /** Layer that produced a structured diagnostic. */
 typedef enum {
@@ -116,8 +114,7 @@ typedef struct {
 } sequel_diagnostic_list_t;
 
 /** Project one structured record into the fixed diagnostic representation. */
-sequel_status_t sequel_diagnostic_project(const char *source, size_t source_length,
-                                          const sequel_diagnostic_record_t *record, sequel_diagnostic_t *out);
+sequel_status_t sequel_diagnostic_project(const char *source, size_t source_length, const sequel_diagnostic_record_t *record, sequel_diagnostic_t *out);
 
 void sequel_diagnostic_list_free(sequel_diagnostic_list_t *diagnostics);
 
@@ -128,31 +125,23 @@ bool sequel_diagnostic_list_append(sequel_diagnostic_list_t *diagnostics, sequel
 void sequel_diagnostic_list_sort(sequel_diagnostic_list_t *diagnostics);
 
 /** Collect recoverable lexical-token diagnostics from a lossless token document. */
-sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed,
-                                                   sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_lexical_diagnostics(const sequel_lexed_document_t *lexed, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect semantic and policy diagnostics from the normalized query model. */
-sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *query,
-                                                 sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_query_diagnostics(const sequel_query_document_t *query, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect only semantic diagnostics from the normalized query model. */
-sequel_status_t sequel_collect_semantic_diagnostics(const sequel_query_document_t *query,
-                                                    sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_semantic_diagnostics(const sequel_query_document_t *query, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect only policy diagnostics from the normalized query model. */
-sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t *query,
-                                                  sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_policy_diagnostics(const sequel_query_document_t *query, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect dialect portability diagnostics for a syntax document. */
-sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target,
-                                                       sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_portability_diagnostics(const sequel_syntax_document_t *syntax, sequel_dialect_t target, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect every recoverable syntax issue from a parsed document. */
-sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax,
-                                                  sequel_diagnostic_list_t *diagnostics);
+sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax, sequel_diagnostic_list_t *diagnostics);
 
 /** Collect lexical, syntax, semantic, and policy diagnostics into one sorted list. */
-sequel_status_t sequel_collect_document_diagnostics(const sequel_lexed_document_t *lexed,
-                                                    const sequel_syntax_document_t *syntax,
-                                                    const sequel_query_document_t *query,
+sequel_status_t sequel_collect_document_diagnostics(const sequel_lexed_document_t *lexed, const sequel_syntax_document_t *syntax, const sequel_query_document_t *query,
                                                     sequel_diagnostic_list_t *diagnostics);

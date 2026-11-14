@@ -4,5 +4,4 @@
 
 #include <sequel.h>
 
-sequel_status_t sequel_metadata_document(const char *sql, size_t length, const sequel_metadata_options_t *options,
-                                         sequel_metadata_t *out);
+sequel_status_t sequel_metadata_document(const char *sql, size_t length, const sequel_metadata_options_t *options, sequel_metadata_t *out);

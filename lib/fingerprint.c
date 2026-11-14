@@ -39,9 +39,7 @@ static void hash_bytes(uint64_t *hash, const void *data, size_t length) {
 
 static void sequel_fingerprint_hash_u64(uint64_t *hash, uint64_t value) { hash_bytes(hash, &value, sizeof(value)); }
 
-sequel_status_t sequel_fingerprint_document(const sequel_syntax_document_t *syntax,
-                                            const sequel_query_document_t *query, sequel_fingerprint_mode_t mode,
-                                            char out[SEQUEL_FINGERPRINT_LENGTH]) {
+sequel_status_t sequel_fingerprint_document(const sequel_syntax_document_t *syntax, const sequel_query_document_t *query, sequel_fingerprint_mode_t mode, char out[SEQUEL_FINGERPRINT_LENGTH]) {
   if (!syntax || !out || mode < SEQUEL_FINGERPRINT_TOKENS || mode > SEQUEL_FINGERPRINT_QUERY_SHAPE)
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (mode == SEQUEL_FINGERPRINT_QUERY_SHAPE && !query)

@@ -5,15 +5,13 @@
 
 static const char summary_ellipsis[] = "\342\200\246";
 
-int sequel_summary_append_nested_cte_projection(char **text, size_t *length, size_t *capacity,
-                                                sequel_source_view_t source, bool *nested_cte_scope) {
+int sequel_summary_append_nested_cte_projection(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, bool *nested_cte_scope) {
   if (!text || !length || !capacity || !nested_cte_scope)
     return 0;
   const char *nested = sequel_summary_find_text(source.data, " FROM (WITH ");
   if (!nested)
     return 1;
-  if (!sequel_summary_append_text(text, length, capacity, "SELECT ") ||
-      !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
+  if (!sequel_summary_append_text(text, length, capacity, "SELECT ") || !sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) ||
       !sequel_summary_append_text(text, length, capacity, " FROM "))
     return 0;
   const char *cursor = nested + 6;
@@ -40,8 +38,7 @@ int sequel_summary_append_nested_cte_projection(char **text, size_t *length, siz
   return 1;
 }
 
-int sequel_summary_append_cte_insert_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                           const sequel_cte_info_t *ctes, size_t cte_count, bool *cte_insert_scope) {
+int sequel_summary_append_cte_insert_shape(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_cte_info_t *ctes, size_t cte_count, bool *cte_insert_scope) {
   if (!text || !length || !capacity || !ctes || !cte_count || !cte_insert_scope)
     return 0;
   const char *outer_insert = sequel_summary_find_text(source.data + ctes[cte_count - 1].range.end, "INSERT INTO ");
@@ -59,16 +56,12 @@ int sequel_summary_append_cte_insert_shape(char **text, size_t *length, size_t *
   const char *relation_end = relation;
   while (*relation_end && !isspace((unsigned char)*relation_end) && *relation_end != ';')
     ++relation_end;
-  return sequel_summary_append_text(text, length, capacity, "INSERT INTO ") &&
-         sequel_summary_append_bytes(text, length, capacity, target, (size_t)(target_end - target)) &&
-         sequel_summary_append_text(text, length, capacity, " SELECT ") &&
-         sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) &&
-         sequel_summary_append_text(text, length, capacity, " FROM ") &&
-         sequel_summary_append_bytes(text, length, capacity, relation, (size_t)(relation_end - relation));
+  return sequel_summary_append_text(text, length, capacity, "INSERT INTO ") && sequel_summary_append_bytes(text, length, capacity, target, (size_t)(target_end - target)) &&
+         sequel_summary_append_text(text, length, capacity, " SELECT ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1) &&
+         sequel_summary_append_text(text, length, capacity, " FROM ") && sequel_summary_append_bytes(text, length, capacity, relation, (size_t)(relation_end - relation));
 }
 
-int sequel_summary_append_cte_definitions(char **text, size_t *length, size_t *capacity, sequel_source_view_t source,
-                                          const sequel_cte_info_t *ctes, size_t cte_count, bool recursive,
+int sequel_summary_append_cte_definitions(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, const sequel_cte_info_t *ctes, size_t cte_count, bool recursive,
                                           size_t *cte_prefix_end) {
   if (!text || !length || !capacity || !ctes || !cte_count || !cte_prefix_end)
     return 0;
@@ -77,16 +70,12 @@ int sequel_summary_append_cte_definitions(char **text, size_t *length, size_t *c
   for (size_t i = 0; i < cte_count; ++i) {
     if (i && !sequel_summary_append_text(text, length, capacity, ", "))
       return 0;
-    const char *modifier = (ctes[i].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 ? " AS NOT MATERIALIZED ("
-                           : (ctes[i].flags & SEQUEL_CTE_FLAG_MATERIALIZED) != 0   ? " AS MATERIALIZED ("
-                                                                                   : " AS (";
-    if (!sequel_summary_append_bytes(text, length, capacity, source.data + ctes[i].name_range.start,
-                                     ctes[i].name_range.end - ctes[i].name_range.start) ||
+    const char *modifier = (ctes[i].flags & SEQUEL_CTE_FLAG_NOT_MATERIALIZED) != 0 ? " AS NOT MATERIALIZED (" : (ctes[i].flags & SEQUEL_CTE_FLAG_MATERIALIZED) != 0 ? " AS MATERIALIZED (" : " AS (";
+    if (!sequel_summary_append_bytes(text, length, capacity, source.data + ctes[i].name_range.start, ctes[i].name_range.end - ctes[i].name_range.start) ||
         !sequel_summary_append_text(text, length, capacity, modifier))
       return 0;
     bool preserve_limit = (ctes[i].flags & (SEQUEL_CTE_FLAG_MATERIALIZED | SEQUEL_CTE_FLAG_NOT_MATERIALIZED)) != 0;
-    if (!sequel_summary_append_body_summary(text, length, capacity, source.data, ctes[i].body_range, preserve_limit) ||
-        !sequel_summary_append_text(text, length, capacity, ")"))
+    if (!sequel_summary_append_body_summary(text, length, capacity, source.data, ctes[i].body_range, preserve_limit) || !sequel_summary_append_text(text, length, capacity, ")"))
       return 0;
   }
   if (!sequel_summary_append_text(text, length, capacity, " "))

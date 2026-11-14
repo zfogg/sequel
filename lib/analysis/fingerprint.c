@@ -12,10 +12,7 @@ void sequel_fingerprint_hash_token(sequel_sha256 *hash, analysis_token_t token, 
             token.kind == 1   ? 'W'
             : token.kind == 2 ? 'Q'
                               : 'T',
-            token.t.p, token.t.n,
-            token.kind == 1 &&
-                (token.t.keyword || (dialect != SEQUEL_MYSQL && dialect != SEQUEL_CLICKHOUSE) ||
-                 isupper((unsigned char)token.t.p[0])));
+            token.t.p, token.t.n, token.kind == 1 && (token.t.keyword || (dialect != SEQUEL_MYSQL && dialect != SEQUEL_CLICKHOUSE) || isupper((unsigned char)token.t.p[0])));
 }
 
 void sequel_fingerprint_hash_bind_type(sequel_sha256 *hash, analysis_token_t token, sequel_dialect_t dialect) {
@@ -42,8 +39,7 @@ void sequel_fingerprint_hash_bind_type(sequel_sha256 *hash, analysis_token_t tok
     const sequel_token_t *current = &tokens[i];
     bool literal = (current->flags & SEQUEL_TOKEN_FLAG_LITERAL) != 0;
     char frame = literal ? 'L' : current->kind == SEQUEL_TOKEN_KEYWORD || current->kind == SEQUEL_TOKEN_IDENTIFIER ? 'W' : 'T';
-    sha_frame(&type_hash, frame, view.data + current->range.start,
-              current->range.end - current->range.start, false);
+    sha_frame(&type_hash, frame, view.data + current->range.start, current->range.end - current->range.start, false);
   }
   char digest[65];
   sha_final(&type_hash, digest);

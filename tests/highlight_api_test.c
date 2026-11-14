@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(condition)                                                                                               \
-  do {                                                                                                                 \
-    if (!(condition)) {                                                                                                \
-      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                               \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(condition)                                                                                                                                                                               \
+  do {                                                                                                                                                                                                 \
+    if (!(condition)) {                                                                                                                                                                                \
+      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                                                                                                               \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
 
 int main(void) {
@@ -64,16 +64,14 @@ int main(void) {
     sequel_colorscheme_t scheme;
     CHECK(sequel_colorscheme(sequel_colorscheme_name(i), &scheme) == SEQUEL_OK);
     CHECK(sequel_highlight_set_colorscheme(&options, &scheme) == SEQUEL_OK);
-    CHECK(sequel_highlight("select count(*), true, null, '🙂' from t where id=:id", &options, NULL, 0, &length) ==
-          SEQUEL_OK);
+    CHECK(sequel_highlight("select count(*), true, null, '🙂' from t where id=:id", &options, NULL, 0, &length) == SEQUEL_OK);
     sequel_colorscheme_t original = scheme;
     CHECK(sequel_colorscheme_set_appearance(&scheme, SEQUEL_APPEARANCE_AUTO) == SEQUEL_OK);
     CHECK(!memcmp(&scheme, &original, sizeof(scheme)));
     for (int a = SEQUEL_APPEARANCE_DARK; a <= SEQUEL_APPEARANCE_LIGHT; ++a) {
       scheme = original;
       const char *variant = sequel_colorscheme_variant_name(sequel_colorscheme_name(i), (sequel_appearance_t)a);
-      sequel_status_t status =
-          sequel_colorscheme_for_appearance(sequel_colorscheme_name(i), (sequel_appearance_t)a, &scheme);
+      sequel_status_t status = sequel_colorscheme_for_appearance(sequel_colorscheme_name(i), (sequel_appearance_t)a, &scheme);
       if (!variant) {
         CHECK(status == SEQUEL_ERR_INVALID_ARGUMENT);
         CHECK(!memcmp(&scheme, &original, sizeof(scheme)));

@@ -14,8 +14,7 @@ sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t 
   return SEQUEL_OK;
 }
 
-sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input,
-                                               sequel_diagnostic_t *out) {
+sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_length, const sequel_diagnostic_t *input, sequel_diagnostic_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   sequel_diagnostic_t candidate = {0};
@@ -25,18 +24,13 @@ sequel_status_t sequel_diagnostic_canonicalize(unsigned version, size_t source_l
   if (!input)
     return SEQUEL_ERR_NULL;
   sequel_diagnostic_t canonical;
-  if (version != SEQUEL_DIAGNOSTIC_VERSION || candidate.code < 0 ||
-      sequel_diagnostic_catalog_get((size_t)candidate.code, &canonical) != SEQUEL_OK)
+  if (version != SEQUEL_DIAGNOSTIC_VERSION || candidate.code < 0 || sequel_diagnostic_catalog_get((size_t)candidate.code, &canonical) != SEQUEL_OK)
     return SEQUEL_ERR_INVALID_ARGUMENT;
-  if (candidate.severity != canonical.severity || candidate.incomplete != canonical.incomplete ||
-      (candidate.code != SEQUEL_DIAG_NONE && candidate.statement_complete) || candidate.offset > candidate.end_offset ||
-      candidate.end_offset > source_length || !candidate.line || !candidate.column || !candidate.end_line ||
-      !candidate.end_column || candidate.line > candidate.end_line ||
-      (candidate.line == candidate.end_line && candidate.column > candidate.end_column) ||
-      candidate.line - 1 > candidate.offset || candidate.column - 1 > candidate.offset ||
-      candidate.end_line - 1 > candidate.end_offset || candidate.end_column - 1 > candidate.end_offset ||
-      (candidate.offset == candidate.end_offset &&
-       (candidate.line != candidate.end_line || candidate.column != candidate.end_column)) ||
+  if (candidate.severity != canonical.severity || candidate.incomplete != canonical.incomplete || (candidate.code != SEQUEL_DIAG_NONE && candidate.statement_complete) ||
+      candidate.offset > candidate.end_offset || candidate.end_offset > source_length || !candidate.line || !candidate.column || !candidate.end_line || !candidate.end_column ||
+      candidate.line > candidate.end_line || (candidate.line == candidate.end_line && candidate.column > candidate.end_column) || candidate.line - 1 > candidate.offset ||
+      candidate.column - 1 > candidate.offset || candidate.end_line - 1 > candidate.end_offset || candidate.end_column - 1 > candidate.end_offset ||
+      (candidate.offset == candidate.end_offset && (candidate.line != candidate.end_line || candidate.column != candidate.end_column)) ||
       (candidate.code == SEQUEL_DIAG_NONE && (candidate.offset || candidate.end_offset)))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   canonical.offset = candidate.offset;
@@ -58,8 +52,7 @@ static bool source_map_valid(const sequel_source_map_t *map) {
   size_t from = 0, to = 0;
   for (size_t i = 0; i < map->count; ++i) {
     sequel_map_segment_t s = map->segments[i];
-    if (s.from_start != from || s.to_start != to || s.from_end < from || s.to_end < to ||
-        s.from_end > map->from_length || s.to_end > map->to_length)
+    if (s.from_start != from || s.to_start != to || s.from_end < from || s.to_end < to || s.from_end > map->from_length || s.to_end > map->to_length)
       return false;
     size_t a = s.from_end - from, b = s.to_end - to;
     switch (s.kind) {
@@ -88,8 +81,7 @@ static bool source_map_valid(const sequel_source_map_t *map) {
   return from == map->from_length && to == map->to_length;
 }
 
-sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t start, size_t end, bool reverse,
-                                        sequel_mapped_range_t *out) {
+sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t start, size_t end, bool reverse, sequel_mapped_range_t *out) {
   if (!out)
     return SEQUEL_ERR_NULL;
   *out = (sequel_mapped_range_t){0};
@@ -156,11 +148,7 @@ sequel_status_t sequel_source_map_range(const sequel_source_map_t *map, size_t s
 
 static size_t contract_scalar_width(const char *text, size_t length, size_t offset) {
   unsigned char c = (unsigned char)text[offset];
-  size_t width = c < 0x80                 ? 1
-                 : c >= 0xc2 && c <= 0xdf ? 2
-                 : c >= 0xe0 && c <= 0xef ? 3
-                 : c >= 0xf0 && c <= 0xf4 ? 4
-                                          : 0;
+  size_t width = c < 0x80 ? 1 : c >= 0xc2 && c <= 0xdf ? 2 : c >= 0xe0 && c <= 0xef ? 3 : c >= 0xf0 && c <= 0xf4 ? 4 : 0;
   return width && width <= length - offset && sequel_utf8_valid(text + offset, width) ? width : 0;
 }
 
