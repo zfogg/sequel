@@ -179,6 +179,144 @@ static int sequel_summary_append_limit_completions(char **text, size_t *length, 
   return 1;
 }
 
+static int sequel_summary_render_redacted_multi(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out, const sequel_query_document_t *query,
+                                                const sequel_summary_options_t *settings, sequel_source_view_t source, size_t statement_count, const sequel_statement_info_t *statements) {
+  if (strstr(source.data, "--") || strstr(source.data, "/*")) {
+    size_t duckdb_length = 0;
+    char *duckdb_summary = sequel_summary_duckdb_multi_source(source, &duckdb_length);
+    if (!duckdb_summary)
+      return -1;
+    free(text);
+    *out = (sequel_text_result_t){.data = duckdb_summary, .length = duckdb_length, .capacity = source.length + 1, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return 1;
+  }
+  sequel_text_result_t sanitized = {0};
+  if (sequel_sanitize_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized) != SEQUEL_OK)
+    return -1;
+  if (sanitized.length >= 3 && !memcmp(sanitized.data, "SET", 3)) {
+    const char *semicolon = memchr(sanitized.data, ';', sanitized.length);
+    if (semicolon && strstr(semicolon, "SELECT")) {
+      const char replacement[] = "SET; SELECT ?";
+      char *multi = malloc(sizeof(replacement));
+      if (!multi) {
+        sequel_text_result_free(&sanitized);
+        return -1;
+      }
+      memcpy(multi, replacement, sizeof(replacement));
+      sequel_text_result_free(&sanitized);
+      sequel_text_result_free(out);
+      *out = (sequel_text_result_t){.data = multi, .length = sizeof(replacement) - 1, .capacity = sizeof(replacement), .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+      return 1;
+    }
+  }
+  char *multi = NULL;
+  size_t multi_length = 0, multi_capacity = 0;
+  bool after_first = false;
+  size_t statement_index = 0;
+  bool compact_tail = false;
+  bool compact_initial_set = false;
+  for (size_t i = 0; i < sanitized.length; ++i) {
+    if (!compact_initial_set && i == 0 && sequel_summary_word(sanitized.data, sanitized.length, 0, "SET")) {
+      if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, "SET")) {
+        free(multi);
+        sequel_text_result_free(&sanitized);
+        return -1;
+      }
+      while (i < sanitized.length && sanitized.data[i] != ';')
+        ++i;
+      compact_initial_set = true;
+    }
+    if (sanitized.data[i] == ';') {
+      after_first = true, ++statement_index;
+      compact_tail = false;
+    }
+    bool compact_literals = after_first && statement_index < statement_count && statements[statement_index].operation != SEQUEL_OPERATION_SELECT;
+    if (compact_literals && !compact_tail && (sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") || sequel_summary_word(sanitized.data, sanitized.length, i, "SET"))) {
+      const char *keyword = sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") ? " WHERE " : " SET ";
+      if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, keyword) ||
+          !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
+        free(multi);
+        sequel_text_result_free(&sanitized);
+        return -1;
+      }
+      while (i < sanitized.length && sanitized.data[i] != ';')
+        ++i;
+      --i;
+      compact_tail = true;
+      continue;
+    }
+    size_t tail_prefix = 0;
+    if (compact_literals && !compact_tail && i + 5 <= sanitized.length && !memcmp(sanitized.data + i, " SET ", 5))
+      tail_prefix = 5;
+    else if (compact_literals && !compact_tail && i + 7 <= sanitized.length && !memcmp(sanitized.data + i, " WHERE ", 7))
+      tail_prefix = 7;
+    if (tail_prefix) {
+      if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sanitized.data + i, tail_prefix) ||
+          !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
+        free(multi);
+        sequel_text_result_free(&sanitized);
+        return -1;
+      }
+      i += tail_prefix;
+      while (i < sanitized.length && sanitized.data[i] != ';')
+        ++i;
+      --i;
+      compact_tail = true;
+    } else if (compact_literals && sanitized.data[i] == '?') {
+      if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
+        free(multi);
+        sequel_text_result_free(&sanitized);
+        return -1;
+      }
+    } else if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sanitized.data + i, 1)) {
+      free(multi);
+      sequel_text_result_free(&sanitized);
+      return -1;
+    }
+  }
+  sequel_text_result_free(&sanitized);
+  for (char *empty = sequel_summary_find_text(multi, ";;"); empty; empty = sequel_summary_find_text(multi, ";;")) {
+    memmove(empty + 1, empty + 2, strlen(empty + 2) + 1);
+    --multi_length;
+  }
+  for (char *empty = sequel_summary_find_text(multi, "; ;"); empty; empty = sequel_summary_find_text(multi, "; ;")) {
+    memmove(empty + 1, empty + 3, strlen(empty + 3) + 1);
+    multi_length -= 2;
+  }
+  while (multi_length && multi[multi_length - 1] == ';')
+    multi[--multi_length] = 0;
+  size_t normalized = 0;
+  for (size_t read = 0; read < multi_length; ++read) {
+    if (multi[read] == ';') {
+      while (normalized && isspace((unsigned char)multi[normalized - 1]))
+        --normalized;
+      multi[normalized++] = ';';
+      while (read + 1 < multi_length && isspace((unsigned char)multi[read + 1]))
+        ++read;
+      if (read + 1 < multi_length)
+        multi[normalized++] = ' ';
+    } else {
+      multi[normalized++] = multi[read];
+    }
+  }
+  while (normalized && isspace((unsigned char)multi[normalized - 1]))
+    --normalized;
+  multi[normalized] = 0;
+  size_t leading = 0;
+  while (leading < normalized && isspace((unsigned char)multi[leading]))
+    ++leading;
+  if (leading) {
+    memmove(multi, multi + leading, normalized - leading + 1);
+    normalized -= leading;
+  }
+  multi_length = normalized;
+  sequel_text_result_free(out);
+  *out = (sequel_text_result_t){.data = multi, .length = multi_length, .capacity = multi_capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+  return 1;
+
+  return 0;
+}
+
 static sequel_status_t sequel_summary_render_query_core(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
   if (!query || !out)
     return SEQUEL_ERR_NULL;
@@ -207,140 +345,11 @@ static sequel_status_t sequel_summary_render_query_core(const sequel_query_docum
   if (special_result > 0)
     return SEQUEL_OK;
   const sequel_source_range_t outer_range = sequel_query_outer_range(query);
-  if (statement_count > 1 && settings->redact_literals) {
-    if (strstr(source.data, "--") || strstr(source.data, "/*")) {
-      size_t duckdb_length = 0;
-      char *duckdb_summary = sequel_summary_duckdb_multi_source(source, &duckdb_length);
-      if (!duckdb_summary)
-        goto no_memory;
-      free(text);
-      *out = (sequel_text_result_t){.data = duckdb_summary, .length = duckdb_length, .capacity = source.length + 1, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-      return SEQUEL_OK;
-    }
-    sequel_text_result_t sanitized = {0};
-    if (sequel_sanitize_tokens(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_SANITIZE_REMOVE_COMMENTS | SEQUEL_SANITIZE_REPLACE_LITERALS, &sanitized) != SEQUEL_OK)
-      goto no_memory;
-    if (sanitized.length >= 3 && !memcmp(sanitized.data, "SET", 3)) {
-      const char *semicolon = memchr(sanitized.data, ';', sanitized.length);
-      if (semicolon && strstr(semicolon, "SELECT")) {
-        const char replacement[] = "SET; SELECT ?";
-        char *multi = malloc(sizeof(replacement));
-        if (!multi) {
-          sequel_text_result_free(&sanitized);
-          goto no_memory;
-        }
-        memcpy(multi, replacement, sizeof(replacement));
-        sequel_text_result_free(&sanitized);
-        sequel_text_result_free(out);
-        *out = (sequel_text_result_t){.data = multi, .length = sizeof(replacement) - 1, .capacity = sizeof(replacement), .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-        return SEQUEL_OK;
-      }
-    }
-    char *multi = NULL;
-    size_t multi_length = 0, multi_capacity = 0;
-    bool after_first = false;
-    size_t statement_index = 0;
-    bool compact_tail = false;
-    bool compact_initial_set = false;
-    for (size_t i = 0; i < sanitized.length; ++i) {
-      if (!compact_initial_set && i == 0 && sequel_summary_word(sanitized.data, sanitized.length, 0, "SET")) {
-        if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, "SET")) {
-          free(multi);
-          sequel_text_result_free(&sanitized);
-          goto no_memory;
-        }
-        while (i < sanitized.length && sanitized.data[i] != ';')
-          ++i;
-        compact_initial_set = true;
-      }
-      if (sanitized.data[i] == ';') {
-        after_first = true, ++statement_index;
-        compact_tail = false;
-      }
-      bool compact_literals = after_first && statement_index < statement_count && statements[statement_index].operation != SEQUEL_OPERATION_SELECT;
-      if (compact_literals && !compact_tail && (sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") || sequel_summary_word(sanitized.data, sanitized.length, i, "SET"))) {
-        const char *keyword = sequel_summary_word(sanitized.data, sanitized.length, i, "WHERE") ? " WHERE " : " SET ";
-        if (!sequel_summary_append_text(&multi, &multi_length, &multi_capacity, keyword) ||
-            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
-          free(multi);
-          sequel_text_result_free(&sanitized);
-          goto no_memory;
-        }
-        while (i < sanitized.length && sanitized.data[i] != ';')
-          ++i;
-        --i;
-        compact_tail = true;
-        continue;
-      }
-      size_t tail_prefix = 0;
-      if (compact_literals && !compact_tail && i + 5 <= sanitized.length && !memcmp(sanitized.data + i, " SET ", 5))
-        tail_prefix = 5;
-      else if (compact_literals && !compact_tail && i + 7 <= sanitized.length && !memcmp(sanitized.data + i, " WHERE ", 7))
-        tail_prefix = 7;
-      if (tail_prefix) {
-        if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sanitized.data + i, tail_prefix) ||
-            !sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
-          free(multi);
-          sequel_text_result_free(&sanitized);
-          goto no_memory;
-        }
-        i += tail_prefix;
-        while (i < sanitized.length && sanitized.data[i] != ';')
-          ++i;
-        --i;
-        compact_tail = true;
-      } else if (compact_literals && sanitized.data[i] == '?') {
-        if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())) {
-          free(multi);
-          sequel_text_result_free(&sanitized);
-          goto no_memory;
-        }
-      } else if (!sequel_summary_append_bytes(&multi, &multi_length, &multi_capacity, sanitized.data + i, 1)) {
-        free(multi);
-        sequel_text_result_free(&sanitized);
-        goto no_memory;
-      }
-    }
-    sequel_text_result_free(&sanitized);
-    for (char *empty = sequel_summary_find_text(multi, ";;"); empty; empty = sequel_summary_find_text(multi, ";;")) {
-      memmove(empty + 1, empty + 2, strlen(empty + 2) + 1);
-      --multi_length;
-    }
-    for (char *empty = sequel_summary_find_text(multi, "; ;"); empty; empty = sequel_summary_find_text(multi, "; ;")) {
-      memmove(empty + 1, empty + 3, strlen(empty + 3) + 1);
-      multi_length -= 2;
-    }
-    while (multi_length && multi[multi_length - 1] == ';')
-      multi[--multi_length] = 0;
-    size_t normalized = 0;
-    for (size_t read = 0; read < multi_length; ++read) {
-      if (multi[read] == ';') {
-        while (normalized && isspace((unsigned char)multi[normalized - 1]))
-          --normalized;
-        multi[normalized++] = ';';
-        while (read + 1 < multi_length && isspace((unsigned char)multi[read + 1]))
-          ++read;
-        if (read + 1 < multi_length)
-          multi[normalized++] = ' ';
-      } else {
-        multi[normalized++] = multi[read];
-      }
-    }
-    while (normalized && isspace((unsigned char)multi[normalized - 1]))
-      --normalized;
-    multi[normalized] = 0;
-    size_t leading = 0;
-    while (leading < normalized && isspace((unsigned char)multi[leading]))
-      ++leading;
-    if (leading) {
-      memmove(multi, multi + leading, normalized - leading + 1);
-      normalized -= leading;
-    }
-    multi_length = normalized;
-    sequel_text_result_free(out);
-    *out = (sequel_text_result_t){.data = multi, .length = multi_length, .capacity = multi_capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+  int redact_result = sequel_summary_render_redacted_multi(&text, &length, &capacity, out, query, settings, source, statement_count, statements);
+  if (redact_result < 0)
+    goto no_memory;
+  if (redact_result > 0)
     return SEQUEL_OK;
-  }
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) && !nested_cte_scope && !cte_insert_scope &&
       !sequel_summary_append_statement_shape(&text, &length, &capacity, source, query, settings, &statements[0]))
     goto no_memory;
