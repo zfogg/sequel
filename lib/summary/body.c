@@ -90,7 +90,7 @@ static int sequel_summary_append_exists(char **text, size_t *length, size_t *cap
   return sequel_summary_append_text(text, length, capacity, ")");
 }
 
-int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source, sequel_source_range_t range, bool preserve_limit) {
+static size_t sequel_summary_body_start(const char *source, sequel_source_range_t range) {
   size_t start = sequel_summary_skip_space(source, range.end, range.start);
   if (!sequel_summary_word(source, range.end, start, "SELECT") && !sequel_summary_word(source, range.end, start, "INSERT") && !sequel_summary_word(source, range.end, start, "UPDATE") &&
       !sequel_summary_word(source, range.end, start, "DELETE")) {
@@ -104,6 +104,11 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
     if (first)
       start = (size_t)(first - source);
   }
+  return start;
+}
+
+static int sequel_summary_append_body_summary_impl(char **text, size_t *length, size_t *capacity, const char *source, sequel_source_range_t range, bool preserve_limit) {
+  size_t start = sequel_summary_body_start(source, range);
   if (sequel_summary_word(source, range.end, start, "SELECT")) {
     size_t distinct = sequel_summary_skip_space(source, range.end, start + 6);
     bool distinct_on = sequel_summary_word(source, range.end, distinct, "DISTINCT") && sequel_summary_word(source, range.end, sequel_summary_skip_space(source, range.end, distinct + 8), "ON");
@@ -404,4 +409,10 @@ int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capa
   if (sequel_summary_word(source, range.end, start, "VALUES"))
     return sequel_summary_append_text(text, length, capacity, "VALUES ") && sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
   return sequel_summary_append_bytes(text, length, capacity, summary_ellipsis, sizeof(summary_ellipsis) - 1);
+}
+
+int sequel_summary_append_body_summary(char **text, size_t *length, size_t *capacity, const char *source, sequel_source_range_t range, bool preserve_limit) {
+  if (!text || !length || !capacity || !source || range.start > range.end)
+    return 0;
+  return sequel_summary_append_body_summary_impl(text, length, capacity, source, range, preserve_limit);
 }
