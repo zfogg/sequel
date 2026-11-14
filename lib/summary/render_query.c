@@ -181,12 +181,14 @@ static int sequel_summary_append_limit_completions(char **text, size_t *length, 
 
 static int sequel_summary_render_redacted_multi(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out, const sequel_query_document_t *query,
                                                 const sequel_summary_options_t *settings, sequel_source_view_t source, size_t statement_count, const sequel_statement_info_t *statements) {
+  if (statement_count <= 1 || !settings->redact_literals)
+    return 0;
   if (strstr(source.data, "--") || strstr(source.data, "/*")) {
     size_t duckdb_length = 0;
     char *duckdb_summary = sequel_summary_duckdb_multi_source(source, &duckdb_length);
     if (!duckdb_summary)
       return -1;
-    free(text);
+    free(*text);
     *out = (sequel_text_result_t){.data = duckdb_summary, .length = duckdb_length, .capacity = source.length + 1, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
     return 1;
   }
