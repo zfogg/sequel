@@ -5,13 +5,14 @@ MAX_INPUT_BYTES: Final[int]
 DEFAULT_MAX_QUERY_TEXT_BYTES: Final[int]
 DEFAULT_MAX_SUMMARY_BYTES: Final[int]
 
-def inspect(
+def metadata(
     sql: str,
     dialect: int,
     max_query_text_bytes: int,
     omit_query_text: bool,
     keep_in_lists: bool,
 ) -> tuple[str, str, str, bool, int]: ...
+def parse_document(sql: str, dialect: int) -> dict: ...
 
 class DiagnosticDict(TypedDict):
     code: str

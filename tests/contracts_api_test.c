@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(condition)                                                                                               \
-  do {                                                                                                                 \
-    if (!(condition)) {                                                                                                \
-      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                               \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(condition)                                                                                                                                                                               \
+  do {                                                                                                                                                                                                 \
+    if (!(condition)) {                                                                                                                                                                                \
+      fprintf(stderr, "%d: %s\n", __LINE__, #condition);                                                                                                                                               \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
 
 static int catalog_tests(void) {
@@ -78,8 +78,7 @@ static int catalog_tests(void) {
   bad = d;
   bad.end_offset = bad.offset;
   CHECK(sequel_diagnostic_canonicalize(1, 8, &bad, &canonical) == SEQUEL_ERR_INVALID_ARGUMENT);
-  CHECK(sequel_diagnose("-- \xf0\x9f\x99\x82\r\nSELECT e\xcc\x81, )", SEQUEL_POSTGRESQL, &d) ==
-        SEQUEL_ERR_INVALID_ARGUMENT);
+  CHECK(sequel_diagnose("-- \xf0\x9f\x99\x82\r\nSELECT e\xcc\x81, )", SEQUEL_POSTGRESQL, &d) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(d.line == 2 && d.column == 12);
   CHECK(sequel_diagnostic_canonicalize(1, d.end_offset, &d, &canonical) == SEQUEL_OK);
   CHECK(canonical.line == 2 && canonical.column == 12);
@@ -122,10 +121,7 @@ static int utf_tests(void) {
 }
 
 static int map_tests(void) {
-  sequel_map_segment_t segments[] = {{0, 2, 0, 2, SEQUEL_MAP_COPY},
-                                     {2, 8, 2, 3, SEQUEL_MAP_REPLACE},
-                                     {8, 13, 3, 3, SEQUEL_MAP_DELETE},
-                                     {13, 15, 3, 5, SEQUEL_MAP_COPY}};
+  sequel_map_segment_t segments[] = {{0, 2, 0, 2, SEQUEL_MAP_COPY}, {2, 8, 2, 3, SEQUEL_MAP_REPLACE}, {8, 13, 3, 3, SEQUEL_MAP_DELETE}, {13, 15, 3, 5, SEQUEL_MAP_COPY}};
   sequel_source_map_t map = {15, 5, segments, 4};
   sequel_mapped_range_t r;
   CHECK(sequel_source_map_range(&map, 3, 4, false, &r) == SEQUEL_OK && r.start == 2 && r.end == 3 && !r.exact);
@@ -143,8 +139,7 @@ static int map_tests(void) {
   CHECK(sequel_source_map_range(&map, 0, SIZE_MAX, false, &r) == SEQUEL_ERR_INVALID_ARGUMENT);
   CHECK(sequel_source_map_range(NULL, 0, 0, false, &r) == SEQUEL_ERR_NULL);
   CHECK(sequel_source_map_range(&map, 0, 0, false, NULL) == SEQUEL_ERR_NULL);
-  sequel_map_segment_t layout[] = {
-      {0, 2, 0, 2, SEQUEL_MAP_COPY}, {2, 2, 2, 5, SEQUEL_MAP_INSERT}, {2, 5, 5, 8, SEQUEL_MAP_COPY}};
+  sequel_map_segment_t layout[] = {{0, 2, 0, 2, SEQUEL_MAP_COPY}, {2, 2, 2, 5, SEQUEL_MAP_INSERT}, {2, 5, 5, 8, SEQUEL_MAP_COPY}};
   map = (sequel_source_map_t){5, 8, layout, 3};
   CHECK(sequel_source_map_range(&map, 2, 3, false, &r) == SEQUEL_OK && r.start == 5 && r.end == 6 && r.exact);
   CHECK(sequel_source_map_range(&map, 2, 2, false, &r) == SEQUEL_OK && r.start == 2 && r.end == 5 && !r.exact);

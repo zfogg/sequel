@@ -1,0 +1,125 @@
+/** @file
+ * @brief Lossless recovered concrete-syntax-tree API.
+ */
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <sequel/lexer.h>
+
+typedef struct sequel_lexed_document sequel_lexed_document_t;
+typedef struct sequel_syntax_document sequel_syntax_document_t;
+
+typedef enum { SEQUEL_PARSE_ISSUE_UNMATCHED_CLOSE = 1, SEQUEL_PARSE_ISSUE_UNCLOSED_GROUP, SEQUEL_PARSE_ISSUE_UNTERMINATED_TOKEN, SEQUEL_PARSE_ISSUE_UNEXPECTED_TOKEN } sequel_parse_issue_code_t;
+
+typedef enum { SEQUEL_RECOVERY_NONE = 0, SEQUEL_RECOVERY_INSERTED_TOKEN, SEQUEL_RECOVERY_SKIPPED_TOKEN, SEQUEL_RECOVERY_SYNCHRONIZED_CLAUSE, SEQUEL_RECOVERY_OPAQUE_REGION } sequel_recovery_kind_t;
+
+typedef struct {
+  sequel_parse_issue_code_t code;
+  sequel_recovery_kind_t recovery;
+  sequel_source_range_t range;
+  size_t statement_index;
+} sequel_parse_issue_t;
+
+SEQUEL_EXTERN_C_BEGIN
+
+typedef enum {
+  SEQUEL_SYNTAX_DOCUMENT = 0,
+  SEQUEL_SYNTAX_STATEMENT,
+  SEQUEL_SYNTAX_EMPTY_STATEMENT,
+  SEQUEL_SYNTAX_SELECT_STATEMENT,
+  SEQUEL_SYNTAX_INSERT_STATEMENT,
+  SEQUEL_SYNTAX_UPDATE_STATEMENT,
+  SEQUEL_SYNTAX_DELETE_STATEMENT,
+  SEQUEL_SYNTAX_MERGE_STATEMENT,
+  SEQUEL_SYNTAX_EXPLAIN_STATEMENT,
+  SEQUEL_SYNTAX_CREATE_STATEMENT,
+  SEQUEL_SYNTAX_ALTER_STATEMENT,
+  SEQUEL_SYNTAX_DROP_STATEMENT,
+  SEQUEL_SYNTAX_TRANSACTION_STATEMENT,
+  SEQUEL_SYNTAX_UNKNOWN_STATEMENT,
+  SEQUEL_SYNTAX_CTE,
+  SEQUEL_SYNTAX_QUERY_BODY,
+  SEQUEL_SYNTAX_SET_OPERATION,
+  SEQUEL_SYNTAX_SELECT_LIST,
+  SEQUEL_SYNTAX_SELECT_ITEM,
+  SEQUEL_SYNTAX_FROM_CLAUSE,
+  SEQUEL_SYNTAX_WHERE_CLAUSE,
+  SEQUEL_SYNTAX_GROUP_BY_CLAUSE,
+  SEQUEL_SYNTAX_HAVING_CLAUSE,
+  SEQUEL_SYNTAX_WINDOW_CLAUSE,
+  SEQUEL_SYNTAX_QUALIFY_CLAUSE,
+  SEQUEL_SYNTAX_ORDER_BY_CLAUSE,
+  SEQUEL_SYNTAX_LIMIT_CLAUSE,
+  SEQUEL_SYNTAX_OFFSET_CLAUSE,
+  SEQUEL_SYNTAX_RETURNING_CLAUSE,
+  SEQUEL_SYNTAX_INTO_CLAUSE,
+  SEQUEL_SYNTAX_VALUES_CLAUSE,
+  SEQUEL_SYNTAX_SET_CLAUSE,
+  SEQUEL_SYNTAX_USING_CLAUSE,
+  SEQUEL_SYNTAX_TABLE_REFERENCE,
+  SEQUEL_SYNTAX_TABLE_NAME,
+  SEQUEL_SYNTAX_TABLE_ALIAS,
+  SEQUEL_SYNTAX_JOIN,
+  SEQUEL_SYNTAX_JOIN_CONDITION,
+  SEQUEL_SYNTAX_IDENTIFIER,
+  SEQUEL_SYNTAX_LITERAL,
+  SEQUEL_SYNTAX_PARAMETER,
+  SEQUEL_SYNTAX_FUNCTION_CALL,
+  SEQUEL_SYNTAX_CAST,
+  SEQUEL_SYNTAX_CASE,
+  SEQUEL_SYNTAX_SUBQUERY,
+  SEQUEL_SYNTAX_BINARY_EXPRESSION,
+  SEQUEL_SYNTAX_UNARY_EXPRESSION,
+  SEQUEL_SYNTAX_PREDICATE,
+  SEQUEL_SYNTAX_IN_LIST,
+  SEQUEL_SYNTAX_BETWEEN,
+  SEQUEL_SYNTAX_IS_NULL,
+  SEQUEL_SYNTAX_EXISTS,
+  SEQUEL_SYNTAX_GROUP,
+  SEQUEL_SYNTAX_WINDOW_EXPRESSION,
+  SEQUEL_SYNTAX_VENDOR_EXTENSION,
+  SEQUEL_SYNTAX_ERROR
+} sequel_syntax_kind_t;
+
+typedef struct {
+  sequel_syntax_kind_t kind;
+  uint32_t flags;
+  sequel_source_range_t range;
+  sequel_source_range_t header_range;
+  size_t first_child;
+  size_t child_count;
+  size_t first_token;
+  size_t token_count;
+  uint32_t production_id;
+} sequel_syntax_node_t;
+
+/** Release a syntax document. NULL is permitted. */
+void sequel_syntax_document_free(sequel_syntax_document_t *document);
+
+/** Return the lexical document retained by a syntax document. */
+const sequel_lexed_document_t *sequel_syntax_lexed(const sequel_syntax_document_t *document);
+
+/** Return the immutable syntax-node array. */
+const sequel_syntax_node_t *sequel_syntax_nodes(const sequel_syntax_document_t *document, size_t *count);
+
+/** Return one immutable syntax node, or NULL for an invalid index. */
+const sequel_syntax_node_t *sequel_syntax_node(const sequel_syntax_document_t *document, size_t node_index);
+
+/** Return the number of syntax nodes in the document. */
+size_t sequel_syntax_node_count(const sequel_syntax_document_t *document);
+
+/** Return child node indexes for a syntax node. */
+const size_t *sequel_syntax_children(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+/** Return the immutable token span covered by a syntax node. */
+const sequel_token_t *sequel_syntax_tokens(const sequel_syntax_document_t *document, size_t node_index, size_t *count);
+
+/** Return recovered syntax issues retained by the document. */
+const sequel_parse_issue_t *sequel_syntax_issues(const sequel_syntax_document_t *document, size_t *count);
+
+/** Return the number of recovered syntax issues in the document. */
+size_t sequel_syntax_issue_count(const sequel_syntax_document_t *document);
+
+SEQUEL_EXTERN_C_END

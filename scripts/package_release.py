@@ -26,7 +26,8 @@ def validate_version(tag: str) -> str:
         actual = data["project" if manifest == "pyproject.toml" else "package"]["version"]
         if actual != version:
             raise ValueError(f"{manifest} version {actual} does not match {tag}")
-    if f"project(sequel VERSION {version} LANGUAGES C)" not in (ROOT / "CMakeLists.txt").read_text():
+    cmake = (ROOT / "CMakeLists.txt").read_text()
+    if not re.search(rf"project\(sequel\s+VERSION\s+{re.escape(version)}\b", cmake):
         raise ValueError("CMake version does not match the release")
     return version
 
@@ -66,7 +67,11 @@ def check_binary(path: Path, system: str, arch: str, *, static_cli: bool = False
 def package_native(tag: str, stage: Path, system: str, arch: str, linkage: str, output: Path) -> Path:
     validate_version(tag)
     stage = stage.resolve()
-    for path in (stage / "include/sequel.h", stage / "lib/cmake/sequel/sequelConfig.cmake"):
+    public_header_dir = stage / "include/sequel"
+    public_headers = [stage / "include/sequel.h", *sorted(public_header_dir.glob("*.h"))]
+    if not public_header_dir.is_dir() or len(public_headers) < 2 or any(not path.is_file() for path in public_headers):
+        raise FileNotFoundError("Missing installed public SDK headers")
+    for path in (stage / "lib/cmake/sequel/sequelConfig.cmake",):
         if not path.is_file():
             raise FileNotFoundError(path)
     if linkage == "static":

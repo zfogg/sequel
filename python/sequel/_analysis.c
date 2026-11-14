@@ -1,5 +1,6 @@
 /* Python wrappers for the versioned, privacy-safe native analysis contract. */
 #include <limits.h>
+
 static int analysis_set(PyObject *dict, const char *key, PyObject *value) {
   if (!value)
     return -1;
@@ -7,6 +8,7 @@ static int analysis_set(PyObject *dict, const char *key, PyObject *value) {
   Py_DECREF(value);
   return status;
 }
+
 static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   PyObject *result = PyDict_New(), *segments = PyList_New((Py_ssize_t)map->count);
   if (!result || !segments) {
@@ -17,8 +19,7 @@ static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   static const char *names[] = {"copy", "replace", "delete", "insert"};
   for (size_t i = 0; i < map->count; ++i) {
     const sequel_map_segment_t *s = &map->segments[i];
-    PyObject *entry = Py_BuildValue("{s:n,s:n,s:n,s:n,s:s}", "from_start", (Py_ssize_t)s->from_start, "from_end",
-                                    (Py_ssize_t)s->from_end, "to_start", (Py_ssize_t)s->to_start, "to_end",
+    PyObject *entry = Py_BuildValue("{s:n,s:n,s:n,s:n,s:s}", "from_start", (Py_ssize_t)s->from_start, "from_end", (Py_ssize_t)s->from_end, "to_start", (Py_ssize_t)s->to_start, "to_end",
                                     (Py_ssize_t)s->to_end, "kind", names[s->kind]);
     if (!entry) {
       Py_DECREF(result);
@@ -27,8 +28,7 @@ static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
     }
     PyList_SET_ITEM(segments, (Py_ssize_t)i, entry);
   }
-  if (analysis_set(result, "from_length", PyLong_FromSize_t(map->from_length)) < 0 ||
-      analysis_set(result, "to_length", PyLong_FromSize_t(map->to_length)) < 0) {
+  if (analysis_set(result, "from_length", PyLong_FromSize_t(map->from_length)) < 0 || analysis_set(result, "to_length", PyLong_FromSize_t(map->to_length)) < 0) {
     Py_DECREF(segments);
     Py_DECREF(result);
     return NULL;
@@ -39,22 +39,24 @@ static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   }
   return result;
 }
+
 static PyObject *analysis_dict(const sequel_analysis_t *a) {
   PyObject *result = PyDict_New();
   if (!result)
     return NULL;
-#define ANALYSIS_FIELD(key, value)                                                                                     \
-  if (analysis_set(result, key, value) < 0)                                                                            \
+#define ANALYSIS_TEXT(value) PyUnicode_FromString((value) ? (value) : "")
+#define ANALYSIS_FIELD(key, value)                                                                                                                                                                     \
+  if (analysis_set(result, key, value) < 0)                                                                                                                                                            \
   goto failed
   ANALYSIS_FIELD("schema_version", PyLong_FromUnsignedLong(a->schema_version));
   ANALYSIS_FIELD("dialect", PyLong_FromLong(a->dialect));
-  ANALYSIS_FIELD("status", PyUnicode_FromString(a->status));
-  ANALYSIS_FIELD("omission_reason", PyUnicode_FromString(a->omission_reason));
-  ANALYSIS_FIELD("text", PyUnicode_FromString(a->text));
-  ANALYSIS_FIELD("summary", PyUnicode_FromString(a->summary));
-  ANALYSIS_FIELD("formatted", PyUnicode_FromString(a->formatted));
-  ANALYSIS_FIELD("operation", PyUnicode_FromString(a->operation));
-  ANALYSIS_FIELD("fingerprint", PyUnicode_FromString(a->fingerprint));
+  ANALYSIS_FIELD("status", ANALYSIS_TEXT(a->status));
+  ANALYSIS_FIELD("omission_reason", ANALYSIS_TEXT(a->omission_reason));
+  ANALYSIS_FIELD("text", ANALYSIS_TEXT(a->text));
+  ANALYSIS_FIELD("summary", ANALYSIS_TEXT(a->summary));
+  ANALYSIS_FIELD("formatted", ANALYSIS_TEXT(a->formatted));
+  ANALYSIS_FIELD("operation", ANALYSIS_TEXT(a->operation));
+  ANALYSIS_FIELD("fingerprint", ANALYSIS_TEXT(a->fingerprint));
   ANALYSIS_FIELD("truncated", PyBool_FromLong(a->truncated));
   ANALYSIS_FIELD("original_length", PyLong_FromSize_t(a->original_length));
   ANALYSIS_FIELD("statement_count", PyLong_FromSize_t(a->statement_count));
@@ -80,10 +82,8 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   static const char *styles[] = {"positional", "numbered", "named", "typed"};
   for (size_t i = 0; i < a->bind_count; ++i) {
     const sequel_bind_descriptor_t *b = &a->binds[i];
-    PyObject *entry =
-        Py_BuildValue("{s:n,s:n,s:n,s:n,s:n,s:s}", "ordinal", (Py_ssize_t)b->ordinal, "slot", (Py_ssize_t)b->slot,
-                      "statement_index", (Py_ssize_t)b->statement_index, "offset", (Py_ssize_t)b->offset, "end_offset",
-                      (Py_ssize_t)b->end_offset, "style", styles[b->style]);
+    PyObject *entry = Py_BuildValue("{s:n,s:n,s:n,s:n,s:n,s:s}", "ordinal", (Py_ssize_t)b->ordinal, "slot", (Py_ssize_t)b->slot, "statement_index", (Py_ssize_t)b->statement_index, "offset",
+                                    (Py_ssize_t)b->offset, "end_offset", (Py_ssize_t)b->end_offset, "style", styles[b->style]);
     if (!entry) {
       Py_DECREF(binds);
       goto failed;
@@ -95,8 +95,7 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   if (!statements)
     goto failed;
   for (size_t i = 0; i < a->statement_count; ++i) {
-    PyObject *entry = Py_BuildValue("{s:n,s:n}", "offset", (Py_ssize_t)a->statements[i].offset, "end_offset",
-                                    (Py_ssize_t)a->statements[i].end_offset);
+    PyObject *entry = Py_BuildValue("{s:n,s:n}", "offset", (Py_ssize_t)a->statements[i].offset, "end_offset", (Py_ssize_t)a->statements[i].end_offset);
     if (!entry) {
       Py_DECREF(statements);
       goto failed;
@@ -105,11 +104,13 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   }
   ANALYSIS_FIELD("statements", statements);
 #undef ANALYSIS_FIELD
+#undef ANALYSIS_TEXT
   return result;
 failed:
   Py_DECREF(result);
   return NULL;
 }
+
 static bool analysis_cancel(void *userdata) {
   PyObject *callback = (PyObject *)userdata;
   if (PyErr_Occurred())
@@ -121,14 +122,14 @@ static bool analysis_cancel(void *userdata) {
   Py_DECREF(value);
   return result != 0;
 }
+
 static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   const char *sql;
   Py_ssize_t length;
   int dialect, omit, format, keep, omit_maps, omit_binds, include_lints;
   PyObject *input_limit, *output_limit, *memory_limit, *work_limit, *query_limit, *callback;
-  if (!PyArg_ParseTuple(args, "s#iOOOOOppppppO", &sql, &length, &dialect, &input_limit, &output_limit, &memory_limit,
-                        &work_limit, &query_limit, &omit, &format, &keep, &omit_maps, &omit_binds, &include_lints,
-                        &callback))
+  if (!PyArg_ParseTuple(args, "s#iOOOOOppppppO", &sql, &length, &dialect, &input_limit, &output_limit, &memory_limit, &work_limit, &query_limit, &omit, &format, &keep, &omit_maps, &omit_binds,
+                        &include_lints, &callback))
     return NULL;
   sequel_analysis_options_t options = {0};
   options.dialect = (sequel_dialect_t)dialect;
@@ -159,6 +160,7 @@ static PyObject *analyze_sql(PyObject *self, PyObject *args) {
   sequel_analysis_free(&result);
   return value;
 }
+
 static PyObject *analysis_catalog(PyObject *self, PyObject *unused) {
   size_t count = sequel_diagnostic_catalog_count();
   PyObject *result = PyTuple_New((Py_ssize_t)count);
@@ -176,13 +178,13 @@ static PyObject *analysis_catalog(PyObject *self, PyObject *unused) {
   }
   return result;
 }
+
 static PyObject *analysis_canonicalize(PyObject *self, PyObject *args) {
   PyObject *version_object;
   Py_ssize_t source_length, offset, end_offset, line, column, end_line, end_column;
   const char *code, *severity;
   int incomplete, complete;
-  if (!PyArg_ParseTuple(args, "Onssnnnnnnpp", &version_object, &source_length, &code, &severity, &offset, &end_offset,
-                        &line, &column, &end_line, &end_column, &incomplete, &complete))
+  if (!PyArg_ParseTuple(args, "Onssnnnnnnpp", &version_object, &source_length, &code, &severity, &offset, &end_offset, &line, &column, &end_line, &end_column, &incomplete, &complete))
     return NULL;
   unsigned long version = PyLong_AsUnsignedLong(version_object);
   if (PyErr_Occurred())
@@ -202,10 +204,7 @@ static PyObject *analysis_canonicalize(PyObject *self, PyObject *args) {
       input.code = (sequel_diagnostic_code_t)i;
       break;
     }
-  input.severity = !strcmp(severity, "note")      ? SEQUEL_NOTE
-                   : !strcmp(severity, "warning") ? SEQUEL_WARNING
-                   : !strcmp(severity, "error")   ? SEQUEL_ERROR
-                                                  : (sequel_severity_t)-1;
+  input.severity = !strcmp(severity, "note") ? SEQUEL_NOTE : !strcmp(severity, "warning") ? SEQUEL_WARNING : !strcmp(severity, "error") ? SEQUEL_ERROR : (sequel_severity_t)-1;
   input.offset = (size_t)offset;
   input.end_offset = (size_t)end_offset;
   input.line = (size_t)line;
@@ -220,6 +219,7 @@ static PyObject *analysis_canonicalize(PyObject *self, PyObject *args) {
   }
   return diagnostic_dict(&output);
 }
+
 static PyObject *analysis_map_range(PyObject *self, PyObject *args) {
   Py_ssize_t from_length, to_length, start, end;
   PyObject *segments;
@@ -259,8 +259,7 @@ static PyObject *analysis_map_range(PyObject *self, PyObject *args) {
   }
   sequel_source_map_t map = {(size_t)from_length, (size_t)to_length, items, (size_t)count};
   sequel_mapped_range_t result;
-  sequel_status_t status =
-      valid ? sequel_source_map_range(&map, (size_t)start, (size_t)end, reverse, &result) : SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_status_t status = valid ? sequel_source_map_range(&map, (size_t)start, (size_t)end, reverse, &result) : SEQUEL_ERR_INVALID_ARGUMENT;
   PyMem_Free(items);
   Py_DECREF(sequence);
   if (status != SEQUEL_OK) {
@@ -270,6 +269,7 @@ static PyObject *analysis_map_range(PyObject *self, PyObject *args) {
   }
   return Py_BuildValue("nnO", (Py_ssize_t)result.start, (Py_ssize_t)result.end, result.exact ? Py_True : Py_False);
 }
+
 static PyObject *analysis_utf8_to_utf16(PyObject *self, PyObject *args) {
   const char *text;
   Py_ssize_t length, offset;
@@ -282,6 +282,7 @@ static PyObject *analysis_utf8_to_utf16(PyObject *self, PyObject *args) {
   }
   return PyLong_FromSize_t(result);
 }
+
 static PyObject *analysis_utf16_to_utf8(PyObject *self, PyObject *args) {
   const char *text;
   Py_ssize_t length, offset;
@@ -294,6 +295,7 @@ static PyObject *analysis_utf16_to_utf8(PyObject *self, PyObject *args) {
   }
   return PyLong_FromSize_t(result);
 }
+
 static PyObject *analysis_check_binds(PyObject *self, PyObject *args) {
   PyObject *binds;
   Py_ssize_t statement, supplied;
@@ -317,8 +319,7 @@ static PyObject *analysis_check_binds(PyObject *self, PyObject *args) {
   for (Py_ssize_t i = 0; i < count; ++i) {
     Py_ssize_t ordinal, slot, index, offset, end;
     const char *style;
-    if (!PyArg_ParseTuple(PySequence_Fast_GET_ITEM(sequence, i), "nnnnns", &ordinal, &slot, &index, &offset, &end,
-                          &style)) {
+    if (!PyArg_ParseTuple(PySequence_Fast_GET_ITEM(sequence, i), "nnnnns", &ordinal, &slot, &index, &offset, &end, &style)) {
       valid = false;
       break;
     }
@@ -329,11 +330,9 @@ static PyObject *analysis_check_binds(PyObject *self, PyObject *args) {
       valid = false;
       break;
     }
-    items[i] = (sequel_bind_descriptor_t){(size_t)ordinal, (size_t)slot, (size_t)index,
-                                          (size_t)offset,  (size_t)end,  (sequel_bind_style_t)k};
+    items[i] = (sequel_bind_descriptor_t){(size_t)ordinal, (size_t)slot, (size_t)index, (size_t)offset, (size_t)end, (sequel_bind_style_t)k};
   }
-  sequel_status_t status = valid ? sequel_check_binds(items, (size_t)count, (size_t)statement, (size_t)supplied)
-                                 : SEQUEL_ERR_INVALID_ARGUMENT;
+  sequel_status_t status = valid ? sequel_check_binds(items, (size_t)count, (size_t)statement, (size_t)supplied) : SEQUEL_ERR_INVALID_ARGUMENT;
   PyMem_Free(items);
   Py_DECREF(sequence);
   if (status != SEQUEL_OK) {

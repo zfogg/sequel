@@ -20,7 +20,9 @@ assert sum(not c["safe"] for c in cases) >= 10
 def probe(queries, mode=None, limit=0):
     args = [sys.argv[1]] + ([mode] if mode else [])
     data = "".join(f"5 {limit} 0 0 {q.encode().hex()}\n" for q in queries)
-    result = subprocess.run(args, input=data, text=True, capture_output=True, check=True, timeout=60)
+    result = subprocess.run(args, input=data, text=True, capture_output=True, check=False, timeout=60)
+    if result.returncode:
+        raise AssertionError(f"sequel-probe exited {result.returncode}: {result.stderr}")
     lines = result.stdout.splitlines()
     assert len(lines) == len(queries), result.stderr
     return [line.split(" ") for line in lines]

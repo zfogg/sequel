@@ -1,4 +1,5 @@
 BasedOnStyle: LLVM
 IndentWidth: 2
-ColumnLimit: 120
+ColumnLimit: 200
 SortIncludes: Never
+SeparateDefinitionBlocks: Always

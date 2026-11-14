@@ -2,10 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 static void hex(const char *s) {
   for (; *s; ++s)
     printf("%02x", (unsigned char)*s);
 }
+
+static void hex_n(const char *s, size_t length) {
+  for (size_t i = 0; i < length && s[i]; ++i)
+    printf("%02x", (unsigned char)s[i]);
+}
+
 static int nibble(char c) {
   if (c >= '0' && c <= '9')
     return c - '0';
@@ -15,6 +22,7 @@ static int nibble(char c) {
     return c - 'A' + 10;
   return -1;
 }
+
 int main(int argc, char **argv) {
   bool sanitize_only = argc == 2 && strcmp(argv[1], "--sanitize") == 0;
   bool format_only = argc == 2 && strcmp(argv[1], "--format") == 0;
@@ -57,21 +65,17 @@ int main(int argc, char **argv) {
       size_t capacity = n / 2 + 1;
       if (capacity > 1048600)
         return 2;
-      sequel_status_t status =
-          sequel_sanitize(query, (sequel_dialect_t)dialect, !keep, limit, sanitized, capacity, &truncated);
+      sequel_status_t status = sequel_sanitize(query, (sequel_dialect_t)dialect, !keep, limit, sanitized, capacity, &truncated);
       printf("%d %d ", (int)status, (int)truncated);
       hex(sanitized);
       putchar('\n');
       continue;
     }
-    sequel_metadata_t metadata;
-    sequel_options_t options = {.dialect = (sequel_dialect_t)dialect,
-                                .max_query_text_bytes = limit,
-                                .omit_query_text = omit != 0,
-                                .keep_in_lists = keep != 0};
-    sequel_status_t status = sequel_inspect(query, &options, &metadata);
+    sequel_metadata_t metadata = {0};
+    sequel_metadata_options_t options = {.dialect = (sequel_dialect_t)dialect, .max_query_text_bytes = limit, .omit_query_text = omit != 0, .keep_in_lists = keep != 0};
+    sequel_status_t status = sequel_metadata(query, &options, &metadata);
     printf("%d %d %zu ", (int)status, (int)metadata.truncated, metadata.statement_count);
-    hex(metadata.operation);
+    hex_n(metadata.operation, sizeof(metadata.operation));
     putchar(' ');
     hex(metadata.text);
     putchar(' ');

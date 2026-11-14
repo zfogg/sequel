@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHECK(expr)                                                                                                    \
-  do {                                                                                                                 \
-    if (!(expr)) {                                                                                                     \
-      fprintf(stderr, "failed line %d: %s\n", __LINE__, #expr);                                                        \
-      return 1;                                                                                                        \
-    }                                                                                                                  \
+#define CHECK(expr)                                                                                                                                                                                    \
+  do {                                                                                                                                                                                                 \
+    if (!(expr)) {                                                                                                                                                                                     \
+      fprintf(stderr, "failed line %d: %s\n", __LINE__, #expr);                                                                                                                                        \
+      return 1;                                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
   } while (0)
+
 int main(void) {
   const char *sql = "SELECT a,b FROM t WHERE id=$1; -- trailing  ";
   char out[256] = "old";

@@ -9,6 +9,31 @@ namespace {
 
 sequel_dialect_t native_dialect(dialect value) { return static_cast<sequel_dialect_t>(value); }
 
+std::string_view operation_name(sequel_operation_t operation) {
+  switch (operation) {
+  case SEQUEL_OPERATION_SELECT:
+    return "SELECT";
+  case SEQUEL_OPERATION_INSERT:
+    return "INSERT";
+  case SEQUEL_OPERATION_UPDATE:
+    return "UPDATE";
+  case SEQUEL_OPERATION_DELETE:
+    return "DELETE";
+  case SEQUEL_OPERATION_MERGE:
+    return "MERGE";
+  case SEQUEL_OPERATION_CREATE:
+    return "CREATE";
+  case SEQUEL_OPERATION_ALTER:
+    return "ALTER";
+  case SEQUEL_OPERATION_DROP:
+    return "DROP";
+  case SEQUEL_OPERATION_EXPLAIN:
+    return "EXPLAIN";
+  default:
+    return {};
+  }
+}
+
 error make_error(sequel_status_t code) { return {static_cast<status>(code), std::nullopt}; }
 
 template <typename T> std::expected<T, error> fail(sequel_status_t code) { return std::unexpected(make_error(code)); }
@@ -29,16 +54,52 @@ template <typename F> std::expected<std::string, error> measure(F &&function) {
 } // namespace
 
 std::string diagnostic::code_name() const { return sequel_diagnostic_code_name(native.code); }
+
 std::string diagnostic::message() const { return native.message; }
+
 std::string error::message() const { return detail ? detail->message() : "Sequel operation failed"; }
 
+document::~document() {
+  sequel_query_document_free(query_);
+  sequel_syntax_document_free(syntax_);
+}
+
+document::document(document &&other) noexcept : syntax_(other.syntax_), query_(other.query_) {
+  other.syntax_ = nullptr;
+  other.query_ = nullptr;
+}
+
+document &document::operator=(document &&other) noexcept {
+  if (this != &other) {
+    sequel_query_document_free(query_);
+    sequel_syntax_document_free(syntax_);
+    syntax_ = other.syntax_;
+    query_ = other.query_;
+    other.syntax_ = nullptr;
+    other.query_ = nullptr;
+  }
+  return *this;
+}
+
+std::size_t document::token_count() const noexcept {
+  return syntax_ ? sequel_lexed_token_count(sequel_syntax_lexed(syntax_)) : 0;
+}
+
+std::size_t document::syntax_issue_count() const noexcept { return syntax_ ? sequel_syntax_issue_count(syntax_) : 0; }
+
+std::size_t document::statement_count() const noexcept { return query_ ? sequel_query_statement_count(query_) : 0; }
+
+std::size_t document::relation_count() const noexcept { return query_ ? sequel_query_relation_count(query_) : 0; }
+
 metadata::~metadata() { sequel_metadata_free(&native_); }
+
 metadata::metadata(metadata &&other) noexcept
     : native_(other.native_), text_(other.text_), summary_(other.summary_), operation_(other.operation_),
       truncated_(other.truncated_), statement_count_(other.statement_count_) {
   other.native_ = {};
   other.text_ = other.summary_ = other.operation_ = {};
 }
+
 metadata &metadata::operator=(metadata &&other) noexcept {
   if (this != &other) {
     sequel_metadata_free(&native_);
@@ -54,6 +115,7 @@ metadata &metadata::operator=(metadata &&other) noexcept {
 }
 
 analysis::~analysis() { sequel_analysis_free(&native_); }
+
 analysis::analysis(analysis &&other) noexcept
     : native_(other.native_), status_(other.status_), omission_reason_(other.omission_reason_), text_(other.text_),
       summary_(other.summary_), formatted_(other.formatted_), operation_(other.operation_),
@@ -62,6 +124,7 @@ analysis::analysis(analysis &&other) noexcept
   other.status_ = other.omission_reason_ = other.text_ = other.summary_ = other.formatted_ = other.operation_ =
       other.fingerprint_ = {};
 }
+
 analysis &analysis::operator=(analysis &&other) noexcept {
   if (this != &other) {
     sequel_analysis_free(&native_);
@@ -78,9 +141,68 @@ analysis &analysis::operator=(analysis &&other) noexcept {
   return *this;
 }
 
-std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t options) {
+query_analysis::~query_analysis() {
+  sequel_query_analysis_free(analysis_);
+  sequel_query_document_free(query_);
+  sequel_syntax_document_free(syntax_);
+}
+
+query_analysis::query_analysis(query_analysis &&other) noexcept
+    : syntax_(other.syntax_), query_(other.query_), analysis_(other.analysis_), summary_(std::move(other.summary_)),
+      sanitized_(std::move(other.sanitized_)), formatted_(std::move(other.formatted_)),
+      fingerprint_(std::move(other.fingerprint_)), operation_(std::move(other.operation_)) {
+  other.syntax_ = nullptr;
+  other.query_ = nullptr;
+  other.analysis_ = nullptr;
+}
+
+query_analysis &query_analysis::operator=(query_analysis &&other) noexcept {
+  if (this != &other) {
+    sequel_query_analysis_free(analysis_);
+    sequel_query_document_free(query_);
+    sequel_syntax_document_free(syntax_);
+    syntax_ = other.syntax_;
+    query_ = other.query_;
+    analysis_ = other.analysis_;
+    summary_ = std::move(other.summary_);
+    sanitized_ = std::move(other.sanitized_);
+    formatted_ = std::move(other.formatted_);
+    fingerprint_ = std::move(other.fingerprint_);
+    operation_ = std::move(other.operation_);
+    other.syntax_ = nullptr;
+    other.query_ = nullptr;
+    other.analysis_ = nullptr;
+  }
+  return *this;
+}
+
+const sequel_diagnostic_list_t *query_analysis::diagnostics() const noexcept {
+  return sequel_query_analysis_diagnostics(analysis_);
+}
+
+std::size_t query_analysis::statement_count() const noexcept {
+  return query_ ? sequel_query_statement_count(query_) : 0;
+}
+
+std::size_t query_analysis::relation_count() const noexcept { return query_ ? sequel_query_relation_count(query_) : 0; }
+
+std::size_t query_analysis::parameter_count() const noexcept {
+  return query_ ? sequel_query_parameter_count(query_) : 0;
+}
+
+std::size_t query_analysis::join_count() const noexcept { return query_ ? sequel_query_join_count(query_) : 0; }
+
+std::size_t query_analysis::projection_count() const noexcept {
+  return query_ ? sequel_query_projection_count(query_) : 0;
+}
+
+std::size_t query_analysis::predicate_count() const noexcept {
+  return query_ ? sequel_query_predicate_count(query_) : 0;
+}
+
+std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options) {
   metadata result;
-  auto code = sequel_inspect(sql.data(), &options, &result.native_);
+  auto code = sequel_metadata_n(sql.data(), sql.size(), &options, &result.native_);
   if (code != SEQUEL_OK)
     return std::unexpected(make_error(code));
   result.text_ = result.native_.text ? result.native_.text : "";
@@ -88,6 +210,21 @@ std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t op
   result.operation_ = result.native_.operation;
   result.truncated_ = result.native_.truncated;
   result.statement_count_ = result.native_.statement_count;
+  return result;
+}
+
+std::expected<document, error> parse(std::string_view sql, dialect dialect_value) {
+  sequel_parse_options_t options;
+  sequel_parse_options_init(&options);
+  options.dialect = native_dialect(dialect_value);
+  sequel_source_view_t source{sql.data(), sql.size()};
+  document result;
+  auto code = sequel_parse_sql(&source, &options, nullptr, &result.syntax_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
+  code = sequel_build_query_document(result.syntax_, &options, &result.query_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
   return result;
 }
 
@@ -116,6 +253,49 @@ std::expected<analysis, error> analyze(std::string_view sql, analysis_options op
   result.formatted_ = result.native_.formatted ? result.native_.formatted : "";
   result.operation_ = result.native_.operation;
   result.fingerprint_ = result.native_.fingerprint;
+  return result;
+}
+
+std::expected<query_analysis, error> analyze_query(std::string_view sql, analysis_options options) {
+  query_analysis result;
+  sequel_parse_options_t parse_options;
+  sequel_parse_options_init(&parse_options);
+  parse_options.dialect = native_dialect(options.dialect_value);
+  parse_options.retain_comments = true;
+  parse_options.tolerant = true;
+  parse_options.recover_errors = true;
+  sequel_source_view_t source{sql.data(), sql.size()};
+  auto code = sequel_parse_sql(&source, &parse_options, nullptr, &result.syntax_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
+  code = sequel_build_query_document(result.syntax_, &parse_options, &result.query_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
+  sequel_query_analysis_options_t analysis_options;
+  sequel_query_analysis_options_init(&analysis_options);
+  analysis_options.include_lints = options.include_lints;
+  analysis_options.include_summary = true;
+  analysis_options.include_fingerprint = true;
+  analysis_options.include_sanitized_sql = !options.omit_query_text;
+  analysis_options.include_formatted_sql = options.format;
+  code = sequel_analyze_document(result.syntax_, result.query_, &analysis_options, nullptr, &result.analysis_);
+  if (code != SEQUEL_OK)
+    return std::unexpected(make_error(code));
+  const sequel_text_result_t *text = sequel_query_analysis_summary(result.analysis_);
+  if (text)
+    result.summary_.assign(text->data ? text->data : "", text->length);
+  text = sequel_query_analysis_sanitized_sql(result.analysis_);
+  if (text)
+    result.sanitized_.assign(text->data ? text->data : "", text->length);
+  text = sequel_query_analysis_formatted_sql(result.analysis_);
+  if (text)
+    result.formatted_.assign(text->data ? text->data : "", text->length);
+  char fingerprint[SEQUEL_FINGERPRINT_LENGTH] = {0};
+  if (sequel_query_analysis_fingerprint(result.analysis_, fingerprint) == SEQUEL_OK)
+    result.fingerprint_ = fingerprint;
+  if (sequel_query_statement_count(result.query_)) {
+    result.operation_ = operation_name(sequel_query_statements(result.query_)[0].operation);
+  }
   return result;
 }
 

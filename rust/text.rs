@@ -197,8 +197,8 @@ pub fn fingerprint(sql: &str, dialect: Dialect) -> Result<String, Error> {
     }
     Ok(r.fingerprint)
 }
-/// Inspect safe text and structural metadata without generating maps/bind arrays.
-pub fn inspect(sql: &str, dialect: Dialect) -> Result<crate::Analysis, Error> {
+/// Extract safe text and structural metadata without generating maps/bind arrays.
+pub fn metadata(sql: &str, dialect: Dialect) -> Result<crate::Analysis, Error> {
     analyze(
         sql,
         &AnalysisOptions {

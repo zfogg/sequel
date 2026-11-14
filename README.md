@@ -51,10 +51,13 @@ With no selection flags, `sanitize` applies both transformations. Use
 comments, or both flags for both. Retained values or comments may contain secrets.
 The equivalent library API is `sequel_sanitize_with_flags`, Go's
 `SanitizeSelective`, or Python's `sanitize(remove_comments=..., replace_literals=...)`.
-Formatting does not sanitize or execute SQL. See [CLI details](src/binary/README.md)
+Formatting does not sanitize or execute SQL. See [CLI details](src/README.md)
 for embedded source formatting and conservative file editing.
 
 ## Unified analysis
+
+The parser layers, ownership rules, diagnostics, analysis consumers, and
+serialization contracts are documented in [Parser architecture](docs/parser-architecture.md).
 
 Use C `sequel_analyze_n`, Go `Analyze`, or Python `analyze` for sanitized text,
 summary, operation, versioned SHA-256 fingerprints, canonical diagnostics, bind
@@ -82,9 +85,9 @@ Include `<sequel.h>` and link `sequel::sequel`. All public types and functions
 use the `sequel_` prefix and constants use `SEQUEL_`.
 
 ```c
-sequel_options_t options = {.dialect = SEQUEL_POSTGRESQL};
+sequel_metadata_options_t options = {.dialect = SEQUEL_POSTGRESQL};
 sequel_metadata_t query;
-if (sequel_inspect("SELECT * FROM users WHERE id=$1", &options, &query) == SEQUEL_OK) {
+if (sequel_metadata("SELECT * FROM users WHERE id=$1", &options, &query) == SEQUEL_OK) {
   puts(query.text);     /* SELECT * FROM users WHERE id=? */
   puts(query.summary);  /* SELECT … FROM users WHERE … */
 }
@@ -96,7 +99,7 @@ the actual results. Call `sequel_metadata_free` before reusing or discarding a
 result, including on failure. This replaces the previous inline-buffer C metadata
 layout; C consumers must rebuild and add the cleanup call.
 
-`sequel_inspect` returns bounded UTF-8 text, summary, operation, statement count
+`sequel_metadata` returns bounded UTF-8 text, summary, operation, statement count
 and truncation status. `sequel_sanitize` accepts a caller-sized buffer and limit.
 `sequel_format` supports a measure pass with `out=NULL, capacity=0` before allocating.
 `sequel_compact` preserves newlines while collapsing horizontal token gaps.
@@ -127,8 +130,8 @@ uv run --extra test pytest
 The distribution is `sequel`; its import is `sequel`.
 
 ```python
-from sequel import Dialect, inspect, format_sql
-query = inspect("SELECT * FROM users WHERE token='secret'", dialect=Dialect.POSTGRESQL)
+from sequel import Dialect, metadata, format_sql
+query = metadata("SELECT * FROM users WHERE token='secret'", dialect=Dialect.POSTGRESQL)
 print(query.text, query.summary)
 print(format_sql("select a,b from users", dialect=Dialect.POSTGRESQL))
 ```
@@ -272,7 +275,7 @@ html = highlight_sql(
 Go's `HighlightOptions.Mode` and Python's `mode` select `html` or `ansi`;
 `SchemeYAML`/`scheme_yaml` load a custom palette string. Both expose the complete
 palette registry through `Colorschemes()`/`colorschemes()`. Python implementations
-live in `highlighting.py`, `formatting.py`, `sanitization.py`, `inspection.py` and
+live in `highlighting.py`, `formatting.py`, `sanitization.py`, `metadata.py` and
 `dialect.py`; `__init__.py` only re-exports the public API.
 
 The checked-in [HTML and ANSI examples](examples/highlight/README.md) are tested

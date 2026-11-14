@@ -113,7 +113,7 @@ for scheme in data["schemes"]:
     )
 lines.extend(["};", "// clang-format on", ""])
 generated = "\n".join(lines)
-target = ROOT / "src/sql/base16.h"
+target = ROOT / "lib/base16.h"
 if args.check:
     if target.read_text(encoding="utf-8") != generated:
         raise SystemExit("Run uv run python scripts/base16.py to regenerate the palette table")

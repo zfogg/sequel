@@ -1,6 +1,14 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <sequel.h>
+#include <sequel/analysis.h>
+#include <sequel/query.h>
+#ifdef __cplusplus
+}
+#endif
 
 #include <cstddef>
 #include <cstdint>
@@ -44,6 +52,30 @@ struct error {
   [[nodiscard]] std::string message() const;
 };
 
+class document {
+public:
+  document() = default;
+  ~document();
+  document(const document &) = delete;
+  document &operator=(const document &) = delete;
+  document(document &&other) noexcept;
+  document &operator=(document &&other) noexcept;
+
+  [[nodiscard]] std::size_t token_count() const noexcept;
+  [[nodiscard]] std::size_t syntax_issue_count() const noexcept;
+  [[nodiscard]] std::size_t statement_count() const noexcept;
+  [[nodiscard]] std::size_t relation_count() const noexcept;
+
+  [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+
+  [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+
+private:
+  friend std::expected<document, error> parse(std::string_view, dialect);
+  sequel_syntax_document_t *syntax_ = nullptr;
+  sequel_query_document_t *query_ = nullptr;
+};
+
 class metadata {
 public:
   metadata() = default;
@@ -54,13 +86,17 @@ public:
   metadata &operator=(metadata &&other) noexcept;
 
   [[nodiscard]] std::string_view text() const noexcept { return text_; }
+
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
   [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] bool truncated() const noexcept { return truncated_; }
+
   [[nodiscard]] std::size_t statement_count() const noexcept { return statement_count_; }
 
 private:
-  friend std::expected<metadata, error> inspect(std::string_view, sequel_options_t);
+  friend std::expected<metadata, error> metadata_for(std::string_view, sequel_metadata_options_t);
   sequel_metadata_t native_{};
   std::string_view text_;
   std::string_view summary_;
@@ -94,13 +130,21 @@ public:
   analysis &operator=(analysis &&other) noexcept;
 
   [[nodiscard]] std::string_view status_text() const noexcept { return status_; }
+
   [[nodiscard]] std::string_view omission_reason() const noexcept { return omission_reason_; }
+
   [[nodiscard]] std::string_view text() const noexcept { return text_; }
+
   [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
   [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
-  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+
+  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
   [[nodiscard]] bool truncated() const noexcept { return native_.truncated; }
+
   [[nodiscard]] const sequel_analysis_t &native() const noexcept { return native_; }
 
 private:
@@ -109,9 +153,53 @@ private:
   std::string_view status_, omission_reason_, text_, summary_, formatted_, operation_, fingerprint_;
 };
 
-[[nodiscard]] std::expected<metadata, error> inspect(std::string_view sql, sequel_options_t options = {});
+class query_analysis {
+public:
+  query_analysis() = default;
+  ~query_analysis();
+  query_analysis(const query_analysis &) = delete;
+  query_analysis &operator=(const query_analysis &) = delete;
+  query_analysis(query_analysis &&other) noexcept;
+  query_analysis &operator=(query_analysis &&other) noexcept;
+
+  [[nodiscard]] const sequel_diagnostic_list_t *diagnostics() const noexcept;
+
+  [[nodiscard]] std::string_view summary() const noexcept { return summary_; }
+
+  [[nodiscard]] std::string_view sanitized() const noexcept { return sanitized_; }
+
+  [[nodiscard]] std::string_view formatted() const noexcept { return formatted_; }
+
+  [[nodiscard]] std::string_view fingerprint() const noexcept { return fingerprint_; }
+
+  [[nodiscard]] std::string_view operation() const noexcept { return operation_; }
+
+  [[nodiscard]] const sequel_query_document_t *query() const noexcept { return query_; }
+
+  [[nodiscard]] const sequel_syntax_document_t *syntax() const noexcept { return syntax_; }
+
+  [[nodiscard]] std::size_t statement_count() const noexcept;
+  [[nodiscard]] std::size_t relation_count() const noexcept;
+  [[nodiscard]] std::size_t parameter_count() const noexcept;
+  [[nodiscard]] std::size_t join_count() const noexcept;
+  [[nodiscard]] std::size_t projection_count() const noexcept;
+  [[nodiscard]] std::size_t predicate_count() const noexcept;
+
+private:
+  friend std::expected<query_analysis, error> analyze_query(std::string_view, analysis_options);
+  sequel_syntax_document_t *syntax_ = nullptr;
+  sequel_query_document_t *query_ = nullptr;
+  sequel_query_analysis_t *analysis_ = nullptr;
+  std::string summary_, sanitized_, formatted_, fingerprint_, operation_;
+};
+
+[[nodiscard]] std::expected<metadata, error> metadata_for(std::string_view sql, sequel_metadata_options_t options = {});
+
+[[nodiscard]] std::expected<document, error> parse(std::string_view sql, dialect dialect_value = dialect::generic);
 
 [[nodiscard]] std::expected<analysis, error> analyze(std::string_view sql, analysis_options options = {});
+
+[[nodiscard]] std::expected<query_analysis, error> analyze_query(std::string_view sql, analysis_options options = {});
 
 [[nodiscard]] std::expected<std::string, error> sanitize(std::string_view sql, dialect dialect_value = dialect::generic,
                                                          bool collapse_in_lists = false, std::size_t limit = 0);

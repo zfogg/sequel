@@ -1,4 +1,4 @@
-/* C engine SHA256: e9d53057558b4b263ff9c9e89a4348703799dc88a8136d8001371bacc03aa9e9 */
-#include "../src/sql/main.c"
-#include "../src/utf8.c"
-#include "../third_party/utf8proc.c"
+/* C engine SHA256: 3e2d6b8535586a58fb09603d0b76e8df8fac340dd96456d00ff5732b2ed561e8 */
+#include "../lib/engine.c"
+#include "../lib/util/utf8.c"
+#include "../third_party/utf8proc/utf8proc.c"

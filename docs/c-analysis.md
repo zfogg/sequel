@@ -223,23 +223,23 @@ re-enter the same analysis. Cancellation callbacks and options are per call;
 there is no mutable process-wide budget configuration. Budget and cancellation
 failures return canonical resource diagnostics and empty text/fingerprint/maps.
 
-Existing formatting, highlighting, sanitizing, inspection, and first-diagnostic
-APIs retain their compatibility behavior. Formatting or highlighting original
+Existing formatting, highlighting, sanitizing, metadata, and first-diagnostic
+APIs share the same parser and lexical policies. Formatting or highlighting original
 SQL can preserve secrets; the unified analysis's formatted output is produced
 from sanitized text.
 
-## Compatibility with inspection
+## Shared metadata model
 
 For supported, unambiguous lexical input, unified analysis preserves
-`sequel_inspect` query text, summary, operation, statement count, and truncation
+Metadata query text, summary, operation, statement count, and truncation
 under equivalent text/IN-list policies. Summaries retain legacy structural row
 bounds such as `LIMIT 20`; sanitized text still replaces those numeric values,
 and fingerprints exclude them. JOIN/ON whitespace and typed recordset aliases
 retain their legacy summary semantics. The parity tests reuse the reference,
 ClickHouse, recorded PostgreSQL, formatting, and named sqlc corpora.
 
-Intentional differences are explicit: Analyze additionally rejects unmatched or
-unfinished delimiters that legacy inspection did not validate, and MySQL user or
+Intentional differences are explicit: analysis additionally rejects unmatched or
+unfinished delimiters, and MySQL user or
 system variables are preserved as variable references rather than described as
 supplied bind parameters. Bind descriptors, diagnostics, fingerprints, and maps
 are new metadata. Requested formatted output formats sanitized text; the legacy
@@ -258,6 +258,6 @@ to export a numeric suffix through an operator-like token.
 SQLite Tcl-style markers consume their complete namespace suffix: `$1::text`
 is a named parameter, not `$1` followed by a PostgreSQL `::text` cast. Its entire
 marker is redacted, and its descriptor reports a named slot. Legacy inspection's
-numeric-prefix interpretation is retained only by its compatibility API; unified
-analysis follows SQLite binding boundaries. These exact policy differences are
+numeric-prefix interpretation is not exposed by the metadata API; analysis
+follows SQLite binding boundaries. These exact policy differences are
 asserted separately from the otherwise exact shared-corpus metadata comparison.

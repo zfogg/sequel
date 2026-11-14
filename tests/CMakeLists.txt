@@ -8,6 +8,14 @@ endforeach()
 add_executable(sequel-api-test sql_format_api_test.c)
 target_link_libraries(sequel-api-test PRIVATE sequel::sequel)
 add_test(NAME sequel-api COMMAND sequel-api-test)
+
+add_executable(sequel-parser-api-test parse_api_test.c)
+target_link_libraries(sequel-parser-api-test PRIVATE sequel::sequel)
+add_test(NAME sequel-parser-api COMMAND sequel-parser-api-test)
+
+add_executable(sequel-heap-regression-test heap_regression_test.c)
+target_link_libraries(sequel-heap-regression-test PRIVATE sequel::sequel)
+add_test(NAME sequel-heap-regression COMMAND sequel-heap-regression-test)
 if(SEQUEL_BUILD_CXX)
   add_executable(sequel-cxx-api-test cxx_api_test.cpp)
   target_link_libraries(sequel-cxx-api-test PRIVATE sequel::cxx)
@@ -45,7 +53,92 @@ add_executable(sequel-limits-test limits_api_test.c)
 target_link_libraries(sequel-limits-test PRIVATE sequel::sequel)
 add_test(NAME sequel-limits COMMAND sequel-limits-test)
 # Exercise exact boundaries with the same engine and small test-only constants.
-add_executable(sequel-limit-boundary-test limit_boundary_test.c ../src/sql/main.c ../src/utf8.c)
+set(SEQUEL_PARSER_SOURCES
+  ../lib/runtime.c
+  ../lib/diagnostics/diagnostics.c
+  ../lib/diagnostics/diagnostic_catalog.c
+  ../lib/diagnostics/diagnostic_report.c
+  ../lib/diagnostics/diagnose.c
+  ../lib/contracts.c
+  ../lib/sha256.c
+  ../lib/highlight.c
+  ../lib/compact.c
+  ../lib/api.c
+  ../lib/metadata_document.c
+  ../lib/analysis/core.c
+  ../lib/analysis/bindings.c
+  ../lib/analysis/diagnostics.c
+  ../lib/analysis/sanitize.c
+  ../lib/analysis/fingerprint.c
+  ../lib/analysis/maps.c
+  ../lib/analysis/statements.c
+  ../lib/analysis/format.c
+  ../lib/analysis/layout.c
+  ../lib/analysis/locations.c
+  ../lib/analysis/operation.c
+  ../lib/analysis/lifecycle.c
+  ../lib/bindings.c
+  ../lib/cte.c
+  ../lib/tokens.c
+  ../lib/analysis/summary.c
+  ../lib/statements.c
+  ../lib/joins.c
+  ../lib/expressions.c
+  ../lib/analysis/literal.c
+  ../lib/analysis/binding_token.c
+  ../lib/analysis/text.c
+  ../lib/analysis/policy.c
+  ../lib/source.c
+  ../lib/dialect.c
+  ../lib/lexer.c
+  ../lib/parser.c
+  ../lib/parser_accessors.c
+  ../lib/query.c
+  ../lib/arrays.c
+  ../lib/access.c
+  ../lib/visit/query.c
+  ../lib/visit/syntax.c
+  ../lib/parse_entry.c
+  ../lib/reparse.c
+  ../lib/analysis/document.c
+  ../lib/serialization.c
+  ../lib/formatter.c
+  ../lib/format_buffer.c
+  ../lib/format_rules.c
+  ../lib/metadata.c
+  ../lib/metadata_text.c
+  ../lib/fingerprint.c
+  ../lib/summary/render/render.c
+  ../lib/summary/document.c
+  ../lib/summary/render/query.c
+  ../lib/summary/render/shape.c
+  ../lib/summary/render/repairs.c
+  ../lib/summary/render/cte.c
+  ../lib/summary/render/clauses.c
+  ../lib/summary/render/postprocess.c
+  ../lib/summary/limits.c
+  ../lib/summary/prepare.c
+  ../lib/summary/routes.c
+  ../lib/summary/cte.c
+  ../lib/summary/entry.c
+  ../lib/summary/special.c
+  ../lib/summary/recovery.c
+  ../lib/summary/normalize.c
+  ../lib/summary/buffer.c
+  ../lib/summary/options.c
+  ../lib/summary/lexical.c
+  ../lib/summary/operation.c
+  ../lib/summary/clause.c
+  ../lib/summary/body.c
+  ../lib/summary/relation.c
+  ../lib/summary/postprocess.c
+  ../lib/summary/statement.c
+  ../lib/summary/subquery.c
+  ../lib/summary/repair.c
+  ../lib/sanitizer.c
+  )
+
+add_executable(sequel-limit-boundary-test limit_boundary_test.c ../lib/engine.c ../lib/util/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-limit-boundary-test PRIVATE ../include)
 target_link_libraries(sequel-limit-boundary-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 target_compile_definitions(sequel-limit-boundary-test PRIVATE
@@ -62,15 +155,15 @@ target_link_libraries(sequel-analysis-test PRIVATE sequel::sequel)
 add_test(NAME sequel-analysis-api COMMAND sequel-analysis-test)
 
 # Test the private streaming digest against standard vectors without exposing it.
-add_executable(sequel-sha256-test sha256_api_test.c ../src/utf8.c)
+add_executable(sequel-sha256-test sha256_api_test.c ../lib/engine.c ../lib/util/utf8.c ${SEQUEL_PARSER_SOURCES})
 target_include_directories(sequel-sha256-test PRIVATE ../include)
 target_link_libraries(sequel-sha256-test PRIVATE ${SEQUEL_UTF8PROC_TARGET})
 add_test(NAME sequel-sha256-api COMMAND sequel-sha256-test)
 
 # Keep the bundled utf8proc malloc/free ABI and scan accounting unchanged when
 # the SQL implementation is followed by other sources in cgo's unity build.
-add_executable(sequel-unity-test unity_api_test.c)
-target_include_directories(sequel-unity-test PRIVATE ../include ../third_party)
+add_executable(sequel-unity-test unity_api_test.c ${SEQUEL_PARSER_SOURCES})
+target_include_directories(sequel-unity-test PRIVATE ../include ../third_party/utf8proc)
 target_compile_definitions(sequel-unity-test PRIVATE SEQUEL_TEST_UNITY UTF8PROC_STATIC)
 target_compile_features(sequel-unity-test PRIVATE c_std_11)
 add_test(NAME sequel-unity-api COMMAND sequel-unity-test)
@@ -96,5 +189,8 @@ foreach(_target IN LISTS _sequel_test_targets)
     target_compile_options(${_target} PRIVATE /UNDEBUG)
   else()
     target_compile_options(${_target} PRIVATE -UNDEBUG)
+  endif()
+  if(COMMAND sequel_copy_asan_runtime)
+    sequel_copy_asan_runtime(${_target})
   endif()
 endforeach()

@@ -29,7 +29,7 @@ not free native Sequel results manually.
 
 @section cxx_surface API surface
 
-The C++ facade currently covers inspection, unified analysis, sanitization,
+The C++ facade currently covers metadata, unified analysis, sanitization,
 formatting, fingerprints, diagnostics, source maps, bind descriptors, limits,
 and cancellation options. The C API remains available for C and ABI-oriented
 consumers.

@@ -32,7 +32,28 @@ func FormatSQL(dialect Dialect, query string) (string, error) {
 	if status != C.SEQUEL_OK {
 		return query, &DiagnosticError{diagnosticFromNative(&diagnostic)}
 	}
-	return string(buf[:int(length)]), nil
+	formatted := string(buf[:int(length)])
+	for i := 0; i < 4; i++ {
+		nextSQL := C.CString(formatted)
+		var nextLength C.size_t
+		status = C.sequel_format_ex(nextSQL, nativeDialect(dialect), nil, 0, &nextLength, &diagnostic)
+		if status != C.SEQUEL_OK {
+			C.free(unsafe.Pointer(nextSQL))
+			break
+		}
+		next := make([]byte, int(nextLength)+1)
+		status = C.sequel_format_ex(nextSQL, nativeDialect(dialect), (*C.char)(unsafe.Pointer(&next[0])), C.size_t(len(next)), &nextLength, &diagnostic)
+		C.free(unsafe.Pointer(nextSQL))
+		if status != C.SEQUEL_OK {
+			break
+		}
+		nextFormatted := string(next[:int(nextLength)])
+		if nextFormatted == formatted {
+			break
+		}
+		formatted = nextFormatted
+	}
+	return formatted, nil
 }
 
 // FormatSQLOrOriginal is for presentation paths that must tolerate incomplete

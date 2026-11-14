@@ -3,6 +3,7 @@ include uv.lock scripts/docs.py
 recursive-include docs *.txt *.cmake *.in *.md *.css *.json *.jinja2
 recursive-include include *.h
 recursive-include src *.c *.h
+recursive-include lib *.c *.h
 recursive-include third_party *.c *.h *.md *.json
 recursive-include python *.py *.c *.pyi py.typed
 

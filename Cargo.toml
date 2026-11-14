@@ -9,7 +9,7 @@ repository = "https://github.com/zfogg/sequel"
 readme = "rust/README.md"
 links = "sequel"
 build = "rust/build.rs"
-include = ["/Cargo.toml", "/Cargo.lock", "/rust/**", "/include/sequel.h", "/src/sql/**", "/src/utf8.c", "/src/utf8.h", "/third_party/**", "/LICENSE"]
+include = ["/Cargo.toml", "/Cargo.lock", "/rust/**", "/include/sequel.h", "/lib/**", "/third_party/**", "/LICENSE"]
 
 [lib]
 path = "rust/lib.rs"

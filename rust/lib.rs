@@ -17,11 +17,13 @@ mod diagnostics;
 )]
 mod ffi;
 mod highlighting;
+mod parser;
 mod text;
 
 pub use analysis::*;
 pub use diagnostics::*;
 pub use highlighting::*;
+pub use parser::*;
 pub use text::*;
 
 use std::ffi::{CStr, CString};
