@@ -1,6 +1,7 @@
+/** @file
+ * @brief Unified analysis, lints, bindings, fingerprints, and maps.
+ */
 #pragma once
-
-/** @file @brief Unified analysis, lints, bindings, fingerprints, and maps. */
 
 #include <stdbool.h>
 

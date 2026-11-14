@@ -1,11 +1,10 @@
-#pragma once
-
 /** @file sequel.h
  * @brief SQL parsing, metadata, formatting, sanitization, diagnostics and highlighting.
  *
  * All input is UTF-8. No SQL is executed. Buffers and options are caller-owned;
  * formatting and highlighting preserve potentially sensitive SQL contents.
  */
+#pragma once
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

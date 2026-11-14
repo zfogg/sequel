@@ -1,6 +1,7 @@
+/** @file
+ * @brief Lossless SQL token kinds, flags, and lexical-document accessors.
+ */
 #pragma once
-
-/** @file @brief Lossless SQL token kinds, flags, and lexical-document accessors. */
 
 #include <stddef.h>
 #include <stdint.h>

@@ -1,6 +1,7 @@
+/** @file
+ * @brief Owned/borrowed source storage, ranges, and UTF-8 locations.
+ */
 #pragma once
-
-/** @file @brief Owned/borrowed source storage, ranges, and UTF-8 locations. */
 
 #include <stddef.h>
 

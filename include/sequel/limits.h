@@ -1,6 +1,7 @@
+/** @file
+ * @brief Compile-time safety ceilings used by public operations.
+ */
 #pragma once
-
-/** @file @brief Compile-time safety ceilings used by public operations. */
 
 #include <stddef.h>
 

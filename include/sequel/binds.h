@@ -1,6 +1,7 @@
+/** @file
+ * @brief Value-free parameter descriptors and bind-arity validation.
+ */
 #pragma once
-
-/** @file @brief Value-free parameter descriptors and bind-arity validation. */
 
 #include <stddef.h>
 

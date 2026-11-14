@@ -1,6 +1,7 @@
+/** @file
+ * @brief Stable single-diagnostic and layered diagnostic collection APIs.
+ */
 #pragma once
-
-/** @file @brief Stable single-diagnostic and layered diagnostic collection APIs. */
 
 #include <stddef.h>
 

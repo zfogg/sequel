@@ -1,6 +1,7 @@
+/** @file
+ * @brief Normalized query model accessors and visitor API.
+ */
 #pragma once
-
-/** @file @brief Normalized query model accessors and visitor API. */
 
 #include <stdbool.h>
 #include <stddef.h>

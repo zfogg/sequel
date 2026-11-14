@@ -1,6 +1,7 @@
+/** @file
+ * @brief Lossless recovered concrete-syntax-tree API.
+ */
 #pragma once
-
-/** @file @brief Lossless recovered concrete-syntax-tree API. */
 
 #include <stddef.h>
 #include <stdint.h>
