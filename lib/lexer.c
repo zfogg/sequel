@@ -126,19 +126,19 @@ void sequel_parse_options_init(sequel_parse_options_t *options) {
                                       .enable_incremental_metadata = true};
 }
 
-sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out) {
-  if (!source || !out)
+static sequel_status_t sequel_lexer_validate_input(const sequel_source_view_t *source, const sequel_parse_options_t *settings) {
+  if (!source || !settings)
     return SEQUEL_ERR_NULL;
-  *out = NULL;
-  sequel_parse_options_t defaults;
-  sequel_parse_options_init(&defaults);
-  const sequel_parse_options_t *settings = options ? options : &defaults;
   if (!sequel_dialect_definition(settings->dialect))
     return SEQUEL_ERR_INVALID_ARGUMENT;
   if (source->length > settings->max_input_bytes || source->length > SEQUEL_INPUT_MAX)
     return SEQUEL_ERR_OVERFLOW;
   if ((settings->max_memory_bytes && source->length + 1 > settings->max_memory_bytes) || (settings->max_work_units && source->length > settings->max_work_units))
     return SEQUEL_ERR_LIMIT;
+  return SEQUEL_OK;
+}
+
+static sequel_status_t sequel_lexer_create_document(const sequel_source_view_t *source, const sequel_parse_options_t *settings, sequel_lexed_document_t **out) {
   sequel_lexed_document_t *document = calloc(1, sizeof(*document));
   if (!document)
     return SEQUEL_ERR_NOMEM;
@@ -157,6 +157,40 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
     free(document);
     return SEQUEL_ERR_NOMEM;
   }
+  *out = document;
+  return SEQUEL_OK;
+}
+
+static sequel_status_t sequel_lexer_append_eof(sequel_lexed_document_t *document, size_t length, size_t token_limit) {
+  sequel_token_t eof = {.kind = SEQUEL_TOKEN_EOF, .range = {length, length}};
+  return sequel_lexer_append_token(document, eof, token_limit) ? SEQUEL_OK : SEQUEL_ERR_LIMIT;
+}
+
+static sequel_status_t sequel_lexer_finalize_token(sequel_lexed_document_t *document, sequel_token_kind_t kind, uint32_t flags, size_t start, size_t end, sequel_dialect_t dialect,
+                                                   size_t diagnostic_limit, size_t token_limit, const char *source) {
+  sequel_token_t token = {.kind = kind,
+                          .flags = flags,
+                          .range = {start, end},
+                          .leading_trivia = {start, start},
+                          .trailing_trivia = {end, end},
+                          .keyword_id = kind == SEQUEL_TOKEN_KEYWORD ? sequel_dialect_keyword_id(dialect, source + start, end - start) : 0,
+                          .dialect_id = (uint32_t)dialect};
+  if (flags & SEQUEL_TOKEN_FLAG_UNTERMINATED) {
+    sequel_diagnostic_code_t code = kind == SEQUEL_TOKEN_BLOCK_COMMENT && (flags & SEQUEL_TOKEN_FLAG_RECOVERED) ? SEQUEL_DIAG_NESTING_LIMIT
+                                    : kind == SEQUEL_TOKEN_BLOCK_COMMENT                                        ? SEQUEL_DIAG_UNTERMINATED_COMMENT
+                                    : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER                                    ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
+                                    : kind == SEQUEL_TOKEN_PARAMETER                                            ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
+                                                                                                                : SEQUEL_DIAG_UNTERMINATED_STRING;
+    if (!sequel_lexer_append_diagnostic(document, code, token.range, diagnostic_limit))
+      return SEQUEL_ERR_NOMEM;
+  }
+  if (kind == SEQUEL_TOKEN_ERROR && !sequel_lexer_append_diagnostic(document, SEQUEL_DIAG_INVALID_ARGUMENT, token.range, diagnostic_limit))
+    return SEQUEL_ERR_NOMEM;
+  return sequel_lexer_append_token(document, token, token_limit) ? SEQUEL_OK : SEQUEL_ERR_LIMIT;
+}
+
+static sequel_status_t sequel_lexer_scan_document(const sequel_source_view_t *source, const sequel_parse_options_t *settings, const sequel_cancellation_t *cancellation,
+                                                  sequel_lexed_document_t *document) {
   size_t limit = settings->max_tokens ? settings->max_tokens : (size_t)-1;
   size_t diagnostic_limit = settings->max_diagnostics ? settings->max_diagnostics : (size_t)-1;
   size_t i = 0;
@@ -500,36 +534,33 @@ sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_pars
       ++i;
       kind = ispunct((unsigned char)source->data[start]) ? SEQUEL_TOKEN_PUNCTUATION : SEQUEL_TOKEN_ERROR;
     }
-    sequel_token_t token = {.kind = kind,
-                            .flags = flags,
-                            .range = {start, i},
-                            .leading_trivia = {start, start},
-                            .trailing_trivia = {i, i},
-                            .keyword_id = kind == SEQUEL_TOKEN_KEYWORD ? sequel_dialect_keyword_id(settings->dialect, source->data + start, i - start) : 0,
-                            .dialect_id = (uint32_t)settings->dialect};
-    if ((flags & SEQUEL_TOKEN_FLAG_UNTERMINATED) && !sequel_lexer_append_diagnostic(document,
-                                                                                    kind == SEQUEL_TOKEN_BLOCK_COMMENT && (flags & SEQUEL_TOKEN_FLAG_RECOVERED) ? SEQUEL_DIAG_NESTING_LIMIT
-                                                                                    : kind == SEQUEL_TOKEN_BLOCK_COMMENT                                        ? SEQUEL_DIAG_UNTERMINATED_COMMENT
-                                                                                    : kind == SEQUEL_TOKEN_QUOTED_IDENTIFIER                                    ? SEQUEL_DIAG_UNTERMINATED_IDENTIFIER
-                                                                                    : kind == SEQUEL_TOKEN_PARAMETER                                            ? SEQUEL_DIAG_UNTERMINATED_PARAMETER
-                                                                                                                                                                : SEQUEL_DIAG_UNTERMINATED_STRING,
-                                                                                    token.range, diagnostic_limit)) {
+    sequel_status_t token_status = sequel_lexer_finalize_token(document, kind, flags, start, i, settings->dialect, diagnostic_limit, limit, source->data);
+    if (token_status != SEQUEL_OK) {
       sequel_lexed_document_free(document);
-      return SEQUEL_ERR_NOMEM;
-    }
-    if (kind == SEQUEL_TOKEN_ERROR && !sequel_lexer_append_diagnostic(document, SEQUEL_DIAG_INVALID_ARGUMENT, token.range, diagnostic_limit)) {
-      sequel_lexed_document_free(document);
-      return SEQUEL_ERR_NOMEM;
-    }
-    if (!sequel_lexer_append_token(document, token, limit)) {
-      sequel_lexed_document_free(document);
-      return SEQUEL_ERR_LIMIT;
+      return token_status;
     }
   }
-  sequel_token_t eof = {.kind = SEQUEL_TOKEN_EOF, .range = {source->length, source->length}};
-  if (!sequel_lexer_append_token(document, eof, limit)) {
+  return sequel_lexer_append_eof(document, source->length, limit);
+}
+
+sequel_status_t sequel_lex(const sequel_source_view_t *source, const sequel_parse_options_t *options, const sequel_cancellation_t *cancellation, sequel_lexed_document_t **out) {
+  if (!source || !out)
+    return SEQUEL_ERR_NULL;
+  *out = NULL;
+  sequel_parse_options_t defaults;
+  sequel_parse_options_init(&defaults);
+  const sequel_parse_options_t *settings = options ? options : &defaults;
+  sequel_status_t status = sequel_lexer_validate_input(source, settings);
+  if (status != SEQUEL_OK)
+    return status;
+  sequel_lexed_document_t *document = NULL;
+  status = sequel_lexer_create_document(source, settings, &document);
+  if (status != SEQUEL_OK)
+    return status;
+  status = sequel_lexer_scan_document(source, settings, cancellation, document);
+  if (status != SEQUEL_OK) {
     sequel_lexed_document_free(document);
-    return SEQUEL_ERR_LIMIT;
+    return status;
   }
   *out = document;
   return SEQUEL_OK;
