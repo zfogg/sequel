@@ -20,6 +20,9 @@ int sequel_summary_render_postprocess(sequel_summary_render_state_t *state, cons
 int sequel_summary_render_repairs(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
                                   size_t statement_count, const sequel_statement_info_t *statements, size_t outer_start, bool cte_insert_scope);
 
+int sequel_summary_render_cte_shape(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
+                                    size_t statement_count, const sequel_statement_info_t *statements, size_t outer_start);
+
 int sequel_summary_append_join_completion(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source);
 int sequel_summary_append_limit_completions(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query);
 void sequel_summary_restore_dialect_features(const sequel_query_document_t *query, char *text, size_t length, sequel_source_view_t source);
