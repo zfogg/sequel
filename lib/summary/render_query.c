@@ -68,7 +68,122 @@ static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, siz
   return result;
 }
 
-static sequel_status_t sequel_summary_render_query_with_settings(const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_text_result_t *out) {
+static int sequel_summary_render_clickhouse_route(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, sequel_text_result_t *out) {
+  const char *semicolon = strchr(source.data, ';');
+  const char *first_quote = semicolon ? strchr(source.data, '\'') : NULL;
+  const char *second_quote = semicolon ? strchr(semicolon + 1, '\'') : NULL;
+  if (semicolon && first_quote && second_quote) {
+    const char *first_close = strchr(first_quote + 1, '\'');
+    const char *second_close = strchr(second_quote + 1, '\'');
+    if (first_close && second_close) {
+      free(*text);
+      *text = NULL;
+      *length = *capacity = 0;
+      if (!sequel_summary_append_bytes(text, length, capacity, source.data, (size_t)(first_quote - source.data)) || !sequel_summary_append_text(text, length, capacity, "?") ||
+          !sequel_summary_append_bytes(text, length, capacity, first_close + 1, (size_t)(second_quote - first_close - 1)) ||
+          !sequel_summary_append_bytes(text, length, capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+          !sequel_summary_append_bytes(text, length, capacity, second_close + 1, source.length - (size_t)(second_close + 1 - source.data)))
+        return -1;
+      *out = (sequel_text_result_t){.data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int sequel_summary_render_set_route(char **text, size_t *length, size_t *capacity, sequel_source_view_t source, size_t statement_count, sequel_text_result_t *out) {
+  if (statement_count > 1 && source.length >= 3 && !memcmp(source.data, "SET", 3) && strchr(source.data, ';')) {
+    const char replacement[] = "SET; SELECT ?";
+    free(*text);
+    *text = malloc(sizeof(replacement));
+    if (!*text)
+      return -1;
+    memcpy(*text, replacement, sizeof(replacement));
+    *length = sizeof(replacement) - 1;
+    *capacity = sizeof(replacement);
+    *out = (sequel_text_result_t){.data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+    return 1;
+  }
+  return 0;
+}
+
+static int sequel_summary_render_special_route(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source, size_t statement_count,
+                                               int special_route, sequel_text_result_t *out) {
+  if (!(special_route == 1 || (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && statement_count > 1)))
+    return 0;
+  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && statement_count > 1) {
+    int clickhouse_result = sequel_summary_render_clickhouse_route(text, length, capacity, source, out);
+    if (clickhouse_result != 0)
+      return clickhouse_result;
+  }
+  if (sequel_summary_render_set_route(text, length, capacity, source, statement_count, out))
+    return 1;
+  *out = (sequel_text_result_t){.data = *text, .length = *length, .capacity = *capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+  return 1;
+}
+
+static int sequel_summary_finalize_query(char **text, size_t *length, size_t *capacity, sequel_text_result_t *out, const sequel_query_document_t *query, sequel_source_view_t source,
+                                         size_t outer_start, const sequel_statement_info_t *statements, size_t statement_count) {
+  if (!sequel_summary_finish_render(text, length, capacity, out, query, source, outer_start, statements, statement_count))
+    return 0;
+  if (!sequel_summary_restore_numeric_limit_shape(&out->data, &out->length, &out->capacity, source, sequel_query_outer_limit_clause_range(query)) ||
+      !sequel_summary_restore_numeric_offset_shape(&out->data, &out->length, &out->capacity, source) || !sequel_summary_restore_scalar_limit_shape(&out->data, &out->length, &out->capacity, source)) {
+    sequel_text_result_free(out);
+    return 0;
+  }
+  return 1;
+}
+
+static const sequel_summary_options_t *sequel_summary_select_options(const sequel_summary_options_t *options, sequel_summary_options_t *defaults) {
+  if (options)
+    return options;
+  sequel_summary_options_init(defaults);
+  return defaults;
+}
+
+static int sequel_summary_prepare_render_document(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, const sequel_summary_options_t *settings,
+                                                  sequel_source_view_t source, size_t statement_count, const sequel_statement_info_t *statements, int *special_route, size_t *cte_prefix_end,
+                                                  size_t *outer_start, bool *nested_cte_scope, bool *cte_insert_scope, bool *scalar_with_scope) {
+  return sequel_summary_prepare_document(text, length, capacity, query, settings, source, statement_count, statements, special_route, cte_prefix_end, outer_start, nested_cte_scope, cte_insert_scope,
+                                         scalar_with_scope);
+}
+
+static void sequel_summary_restore_dialect_features(const sequel_query_document_t *query, char *text, size_t length, sequel_source_view_t source) {
+  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
+    sequel_summary_restore_clickhouse_limit_by(text, length, source);
+}
+
+static int sequel_summary_append_join_completion(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source) {
+  if (!*text || sequel_summary_has_outer_from(query) || !sequel_query_join_count(query) || !sequel_summary_find_word(source.data, source.length, 0, "JOIN"))
+    return 1;
+  return sequel_summary_append_missing_keyword(text, length, capacity, source, "JOIN", " JOIN");
+}
+
+static int sequel_summary_append_limit_completions(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query) {
+  if (!*text || !sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT))
+    return 1;
+  size_t source_limits = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
+  size_t rendered_limits = 0;
+  for (size_t cursor = 0; cursor < *length;) {
+    const char *limit = sequel_summary_find_word(*text, *length, cursor, "LIMIT");
+    if (!limit)
+      break;
+    ++rendered_limits;
+    cursor = (size_t)(limit - *text) + 5;
+  }
+  while (rendered_limits < source_limits) {
+    if (!sequel_summary_append_text(text, length, capacity, " LIMIT ?"))
+      return 0;
+    ++rendered_limits;
+  }
+  return 1;
+}
+
+sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
+  if (!query || !out)
+    return SEQUEL_ERR_NULL;
+  sequel_summary_options_t defaults;
+  const sequel_summary_options_t *settings = sequel_summary_select_options(options, &defaults);
   sequel_summary_set_utf8_output(settings->utf8_output);
   char *text = NULL;
   size_t length = 0, capacity = 0;
@@ -82,51 +197,16 @@ static sequel_status_t sequel_summary_render_query_with_settings(const sequel_qu
   bool insert_values_scope = false;
   bool cte_insert_scope = false;
   bool scalar_with_scope = false;
-  if (!sequel_summary_prepare_document(&text, &length, &capacity, query, settings, source, statement_count, statements, &special_route, &cte_prefix_end, &outer_start, &nested_cte_scope,
-                                       &cte_insert_scope, &scalar_with_scope))
+  if (!sequel_summary_prepare_render_document(&text, &length, &capacity, query, settings, source, statement_count, statements, &special_route, &cte_prefix_end, &outer_start, &nested_cte_scope,
+                                              &cte_insert_scope, &scalar_with_scope))
     goto no_memory;
-  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
-    sequel_summary_restore_clickhouse_limit_by(text, length, source);
-  if (special_route == 1 || (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && statement_count > 1)) {
-    if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE && statement_count > 1) {
-      const char *semicolon = strchr(source.data, ';');
-      const char *first_quote = semicolon ? strchr(source.data, '\'') : NULL;
-      const char *second_quote = semicolon ? strchr(semicolon + 1, '\'') : NULL;
-      if (semicolon && first_quote && second_quote) {
-        const char *first_close = strchr(first_quote + 1, '\'');
-        const char *second_close = strchr(second_quote + 1, '\'');
-        if (first_close && second_close) {
-          free(text);
-          text = NULL;
-          length = capacity = 0;
-          if (!sequel_summary_append_bytes(&text, &length, &capacity, source.data, (size_t)(first_quote - source.data)) || !sequel_summary_append_text(&text, &length, &capacity, "?") ||
-              !sequel_summary_append_bytes(&text, &length, &capacity, first_close + 1, (size_t)(second_quote - first_close - 1)) ||
-              !sequel_summary_append_bytes(&text, &length, &capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
-              !sequel_summary_append_bytes(&text, &length, &capacity, second_close + 1, source.length - (size_t)(second_close + 1 - source.data)))
-            goto no_memory;
-          *out = (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
-          return SEQUEL_OK;
-        }
-      }
-    }
-    if (statement_count > 1 && source.length >= 3 && !memcmp(source.data, "SET", 3) && strchr(source.data, ';')) {
-      const char replacement[] = "SET; SELECT ?";
-      free(text);
-      text = malloc(sizeof(replacement));
-      if (!text)
-        goto no_memory;
-      memcpy(text, replacement, sizeof(replacement));
-      length = sizeof(replacement) - 1;
-      capacity = sizeof(replacement);
-    }
-    *out = (sequel_text_result_t){.data = text, .length = length, .capacity = capacity, .mode = SEQUEL_FORMAT_SYNTAX_AWARE};
+  sequel_summary_restore_dialect_features(query, text, length, source);
+  int special_result = sequel_summary_render_special_route(&text, &length, &capacity, query, source, statement_count, special_route, out);
+  if (special_result < 0)
+    goto no_memory;
+  if (special_result > 0)
     return SEQUEL_OK;
-  }
-  if (special_route == 2)
-    goto summary_postprocess;
   const sequel_source_range_t outer_range = sequel_query_outer_range(query);
-  if (special_route == 2)
-    goto summary_postprocess;
   if (statement_count > 1 && settings->redact_literals) {
     if (strstr(source.data, "--") || strstr(source.data, "/*")) {
       size_t duckdb_length = 0;
@@ -2368,41 +2448,13 @@ summary_postprocess:
     if (!sequel_summary_append_text(&text, &length, &capacity, " JOIN … ON ?"))
       goto no_memory;
   }
-  if (text && !sequel_summary_has_outer_from(query) && sequel_query_join_count(query) && sequel_summary_find_word(source.data, source.length, 0, "JOIN") &&
-      !sequel_summary_append_missing_keyword(&text, &length, &capacity, source, "JOIN", " JOIN"))
+  if (!sequel_summary_append_join_completion(&text, &length, &capacity, query, source))
     goto no_memory;
-  if (text && sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT)) {
-    size_t source_limits = sequel_token_count_keyword(sequel_syntax_lexed(sequel_query_syntax(query)), SEQUEL_KEYWORD_LIMIT);
-    size_t rendered_limits = 0;
-    for (size_t cursor = 0; cursor < length;) {
-      const char *limit = sequel_summary_find_word(text, length, cursor, "LIMIT");
-      if (!limit)
-        break;
-      ++rendered_limits;
-      cursor = (size_t)(limit - text) + 5;
-    }
-    while (rendered_limits < source_limits) {
-      if (!sequel_summary_append_text(&text, &length, &capacity, " LIMIT ?"))
-        goto no_memory;
-      ++rendered_limits;
-    }
-  }
-  if (sequel_query_dialect(query) == SEQUEL_CLICKHOUSE)
-    sequel_summary_restore_clickhouse_limit_by(text, length, source);
-  if (!sequel_summary_finish_render(&text, &length, &capacity, out, query, source, outer_start, statements, statement_count))
+  if (!sequel_summary_append_limit_completions(&text, &length, &capacity, query))
     goto no_memory;
-  if (!sequel_summary_restore_numeric_limit_shape(&out->data, &out->length, &out->capacity, source, sequel_query_outer_limit_clause_range(query))) {
-    sequel_text_result_free(out);
-    return SEQUEL_ERR_NOMEM;
-  }
-  if (!sequel_summary_restore_numeric_offset_shape(&out->data, &out->length, &out->capacity, source)) {
-    sequel_text_result_free(out);
-    return SEQUEL_ERR_NOMEM;
-  }
-  if (!sequel_summary_restore_scalar_limit_shape(&out->data, &out->length, &out->capacity, source)) {
-    sequel_text_result_free(out);
-    return SEQUEL_ERR_NOMEM;
-  }
+  sequel_summary_restore_dialect_features(query, text, length, source);
+  if (!sequel_summary_finalize_query(&text, &length, &capacity, out, query, source, outer_start, statements, statement_count))
+    goto no_memory;
   return SEQUEL_OK;
 invalid:
   free(text);
@@ -2410,12 +2462,4 @@ invalid:
 no_memory:
   free(text);
   return SEQUEL_ERR_NOMEM;
-}
-
-sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
-  if (!query || !out)
-    return SEQUEL_ERR_NULL;
-  sequel_summary_options_t defaults;
-  sequel_summary_options_init(&defaults);
-  return sequel_summary_render_query_with_settings(query, options ? options : &defaults, out);
 }
