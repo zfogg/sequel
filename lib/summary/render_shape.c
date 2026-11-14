@@ -6,9 +6,53 @@
 #include "internal.h"
 #include "../tokens.h"
 
+static int sequel_summary_render_parenthesized_relation(sequel_summary_render_state_t *state, const sequel_query_document_t *query, sequel_source_view_t source) {
+  size_t start = 0;
+  while (start < source.length && isspace((unsigned char)source.data[start]))
+    ++start;
+  if (start >= source.length || source.data[start] != '(')
+    return 0;
+  const char *open = source.data + start;
+  const char *select = sequel_summary_find_text(open, "SELECT ");
+  const char *from = select ? sequel_summary_find_text(select, " FROM ") : NULL;
+  const char *where = from ? sequel_summary_find_text(from, " WHERE ") : NULL;
+  const char *limit = where ? sequel_summary_find_text(where, " LIMIT ") : (from ? sequel_summary_find_text(from, " LIMIT ") : NULL);
+  const char *close = sequel_summary_matching_close(open, source.data + source.length);
+  if (!select || !from || !limit || !close || (size_t)(close - source.data) >= source.length || !sequel_summary_find_text(close + 1, " ON "))
+    return 0;
+  state->length = 0;
+  if (state->text)
+    state->text[0] = '\0';
+  const char *table = from + 6;
+  while (*table && isspace((unsigned char)*table))
+    ++table;
+  const char *table_end = table;
+  while (*table_end && !isspace((unsigned char)*table_end) && *table_end != ')')
+    ++table_end;
+  if (table == table_end)
+    return 0;
+  if (!sequel_summary_append_text(&state->text, &state->length, &state->capacity, "(SELECT ") ||
+      !sequel_summary_append_bytes(&state->text, &state->length, &state->capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length()) ||
+      !sequel_summary_append_text(&state->text, &state->length, &state->capacity, " FROM ") ||
+      !sequel_summary_append_bytes(&state->text, &state->length, &state->capacity, table, (size_t)(table_end - table)))
+    return -1;
+  if (where && where < limit &&
+      (!sequel_summary_append_text(&state->text, &state->length, &state->capacity, " WHERE ") ||
+       !sequel_summary_append_bytes(&state->text, &state->length, &state->capacity, sequel_summary_ellipsis(), sequel_summary_ellipsis_length())))
+    return -1;
+  if (!sequel_summary_append_bytes(&state->text, &state->length, &state->capacity, limit, (size_t)(close - limit)) ||
+      !sequel_summary_append_text(&state->text, &state->length, &state->capacity, ")"))
+    return -1;
+  const char *outer_limit = sequel_summary_find_text(close + 1, " LIMIT ");
+  return !outer_limit || sequel_summary_append_text(&state->text, &state->length, &state->capacity, " LIMIT ?") ? 1 : -1;
+}
+
 int sequel_summary_render_shape_phases(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
                                        size_t statement_count, const sequel_statement_info_t *statements, sequel_source_range_t outer_range, size_t cte_prefix_end, size_t outer_start,
                                        bool nested_cte_scope, bool insert_values_scope, bool cte_insert_scope, bool scalar_with_scope) {
+  int parenthesized_result = sequel_summary_render_parenthesized_relation(state, query, source);
+  if (parenthesized_result != 0)
+    return parenthesized_result > 0 ? 0 : -1;
   if (settings->include_operation && statement_count && !sequel_query_cte_count(query) && !nested_cte_scope && !cte_insert_scope &&
       !sequel_summary_append_statement_shape(&state->text, &state->length, &state->capacity, source, query, settings, &statements[0]))
     return -1;

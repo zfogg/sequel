@@ -256,6 +256,7 @@
 #undef summary_ellipsis
 #include "../lib/summary/relation.c"
 #include "../lib/summary/render.c"
+/* Keep the amalgamation invalidated when split summary render sources change. */
 #define summary_ellipsis summary_render_ellipsis
 #include "../lib/summary/render_query.c"
 #undef summary_ellipsis

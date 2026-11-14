@@ -56,6 +56,9 @@ add_test(NAME sequel-limits COMMAND sequel-limits-test)
 set(SEQUEL_PARSER_SOURCES
   ../lib/runtime.c
   ../lib/diagnostics.c
+  ../lib/diagnostic_catalog.c
+  ../lib/diagnostic_report.c
+  ../lib/diagnose.c
   ../lib/contracts.c
   ../lib/sha256.c
   ../lib/highlight.c
@@ -89,6 +92,7 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/dialect.c
   ../lib/lexer.c
   ../lib/parser.c
+  ../lib/parser_accessors.c
   ../lib/query.c
   ../lib/arrays.c
   ../lib/access.c
@@ -107,6 +111,11 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/summary/render.c
   ../lib/summary/document.c
   ../lib/summary/render_query.c
+  ../lib/summary/render_shape.c
+  ../lib/summary/render_repairs.c
+  ../lib/summary/render_cte.c
+  ../lib/summary/render_clauses.c
+  ../lib/summary/render_postprocess.c
   ../lib/summary/limits.c
   ../lib/summary/prepare.c
   ../lib/summary/routes.c
