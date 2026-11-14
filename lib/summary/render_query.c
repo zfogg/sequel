@@ -68,12 +68,7 @@ static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, siz
   return result;
 }
 
-sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
-  if (!query || !out)
-    return SEQUEL_ERR_NULL;
-  sequel_summary_options_t defaults;
-  sequel_summary_options_init(&defaults);
-  const sequel_summary_options_t *settings = options ? options : &defaults;
+static sequel_status_t sequel_summary_render_query_with_settings(const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_text_result_t *out) {
   sequel_summary_set_utf8_output(settings->utf8_output);
   char *text = NULL;
   size_t length = 0, capacity = 0;
@@ -2415,4 +2410,12 @@ invalid:
 no_memory:
   free(text);
   return SEQUEL_ERR_NOMEM;
+}
+
+sequel_status_t sequel_summary_render_query(const sequel_query_document_t *query, const sequel_summary_options_t *options, sequel_text_result_t *out) {
+  if (!query || !out)
+    return SEQUEL_ERR_NULL;
+  sequel_summary_options_t defaults;
+  sequel_summary_options_init(&defaults);
+  return sequel_summary_render_query_with_settings(query, options ? options : &defaults, out);
 }
