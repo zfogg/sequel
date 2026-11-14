@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Compile-time safety ceilings used by public operations. */
+
 #include <stddef.h>
 
 /** Maximum accepted source bytes unless a smaller limit is requested. */

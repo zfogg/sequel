@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Dialect descriptors, keyword tables, operators, and clauses. */
+
 #include <stdbool.h>
 #include <stddef.h>
 

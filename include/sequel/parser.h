@@ -1,5 +1,12 @@
 #pragma once
 
+/** @file
+ * @brief Public lexing, parsing, recovery, and incremental reparse API.
+ *
+ * Parsing produces lossless tokens and a recovered syntax tree. Returned
+ * objects own their internal arrays; accessor results are borrowed.
+ */
+
 #include <stddef.h>
 #include <stdbool.h>
 

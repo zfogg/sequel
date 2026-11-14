@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Common C ABI status codes and C++ linkage helpers. */
+
 #ifdef __cplusplus
 #define SEQUEL_EXTERN_C_BEGIN extern "C" {
 #define SEQUEL_EXTERN_C_END }

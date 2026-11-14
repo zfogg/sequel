@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Lexical-preserving and syntax-aware SQL formatting APIs. */
+
 #include <stddef.h>
 #include <stdbool.h>
 

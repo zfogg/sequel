@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Normalized query model accessors and visitor API. */
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,6 +15,7 @@ SEQUEL_EXTERN_C_BEGIN
 
 typedef struct sequel_query_document sequel_query_document_t;
 
+/** Identifies the top-level operation represented by a statement. */
 typedef enum {
   SEQUEL_OPERATION_UNKNOWN = 0,
   SEQUEL_OPERATION_SELECT,
@@ -29,6 +32,7 @@ typedef enum {
   SEQUEL_OPERATION_TRUNCATE
 } sequel_operation_t;
 
+/** Describes one top-level statement in a normalized query document. */
 typedef struct {
   sequel_source_range_t range;
   sequel_operation_t operation;
@@ -141,46 +145,104 @@ typedef struct {
  * The syntax document and its lexical source must outlive the query document.
  */
 sequel_status_t sequel_build_query_document(const sequel_syntax_document_t *syntax, const sequel_parse_options_t *options, sequel_query_document_t **out);
+/** Release a query document and its owned indexes. */
 void sequel_query_document_free(sequel_query_document_t *document);
+
+/** Return the number of top-level statements. */
 size_t sequel_query_statement_count(const sequel_query_document_t *document);
+
+/** Return the contiguous top-level statement array, owned by @p document. */
 const sequel_statement_info_t *sequel_query_statements(const sequel_query_document_t *document);
+
+/** Return the number of statements in the query's active scope. */
 size_t sequel_query_scope_statement_count(const sequel_query_document_t *document);
+
+/** Return statements in the query's active scope, owned by @p document. */
 const sequel_statement_info_t *sequel_query_scope_statements(const sequel_query_document_t *document);
+
+/** Return the number of relation references. */
 size_t sequel_query_relation_count(const sequel_query_document_t *document);
+
+/** Return all relation references, owned by @p document. */
 const sequel_relation_info_t *sequel_query_relations(const sequel_query_document_t *document);
+
+/** Return relation @p index, or NULL when @p index is out of range. */
 const sequel_relation_info_t *sequel_query_relation(const sequel_query_document_t *document, size_t index);
+
+/** Return the number of common-table expressions. */
 size_t sequel_query_cte_count(const sequel_query_document_t *document);
+
+/** Return all common-table expressions, owned by @p document. */
 const sequel_cte_info_t *sequel_query_ctes(const sequel_query_document_t *document);
+
+/** Return whether the outer query uses DISTINCT ON. */
 bool sequel_query_outer_distinct_on(const sequel_query_document_t *document);
+
+/** Return whether the outer query has a LIMIT clause. */
 bool sequel_query_outer_limit(const sequel_query_document_t *document);
 
+/** Return the source range of the outer LIMIT value and its operands. */
 sequel_source_range_t sequel_query_outer_limit_range(const sequel_query_document_t *document);
 
 /** Return the complete outer LIMIT clause, including comma or OFFSET operands. */
 sequel_source_range_t sequel_query_outer_limit_clause_range(const sequel_query_document_t *document);
 
+/** Return the source range occupied by the outer LIMIT value only. */
 sequel_source_range_t sequel_query_outer_limit_value_range(const sequel_query_document_t *document);
+
+/** Return the source range occupied by the outer query. */
 sequel_source_range_t sequel_query_outer_range(const sequel_query_document_t *document);
+
+/** Return the number of parameter references. */
 size_t sequel_query_parameter_count(const sequel_query_document_t *document);
+
+/** Return all parameter references, owned by @p document. */
 const sequel_parameter_info_t *sequel_query_parameters(const sequel_query_document_t *document);
+
+/** Return parameter @p index, or NULL when @p index is out of range. */
 const sequel_parameter_info_t *sequel_query_parameter(const sequel_query_document_t *document, size_t index);
+
+/** Return the number of joins. */
 size_t sequel_query_join_count(const sequel_query_document_t *document);
+
+/** Return all joins, owned by @p document. */
 const sequel_join_info_t *sequel_query_joins(const sequel_query_document_t *document);
+
+/** Return join @p index, or NULL when @p index is out of range. */
 const sequel_join_info_t *sequel_query_join(const sequel_query_document_t *document, size_t index);
+
+/** Return the number of projected expressions. */
 size_t sequel_query_projection_count(const sequel_query_document_t *document);
+
+/** Return all projected expressions, owned by @p document. */
 const sequel_projection_info_t *sequel_query_projections(const sequel_query_document_t *document);
+
+/** Return projection @p index, or NULL when @p index is out of range. */
 const sequel_projection_info_t *sequel_query_projection(const sequel_query_document_t *document, size_t index);
+
+/** Return the number of predicates. */
 size_t sequel_query_predicate_count(const sequel_query_document_t *document);
+
+/** Return all predicates, owned by @p document. */
 const sequel_predicate_info_t *sequel_query_predicates(const sequel_query_document_t *document);
+
+/** Return predicate @p index, or NULL when @p index is out of range. */
 const sequel_predicate_info_t *sequel_query_predicate(const sequel_query_document_t *document, size_t index);
+
+/** Return the number of clauses. */
 size_t sequel_query_clause_count(const sequel_query_document_t *document);
+
+/** Return all clauses, owned by @p document. */
 const sequel_clause_info_t *sequel_query_clauses(const sequel_query_document_t *document);
+
+/** Return the source view borrowed by @p document. */
 sequel_source_view_t sequel_query_source(const sequel_query_document_t *document);
 
 /** Return the dialect retained by the query document. */
 sequel_dialect_t sequel_query_dialect(const sequel_query_document_t *document);
 const sequel_syntax_document_t *sequel_query_syntax(const sequel_query_document_t *document);
 
+/** Visit normalized query entities in document order. */
 sequel_status_t sequel_query_visit(const sequel_query_document_t *document, const sequel_query_visitor_t *visitor);
 
 SEQUEL_EXTERN_C_END

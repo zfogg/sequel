@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Value-free parameter descriptors and bind-arity validation. */
+
 #include <stddef.h>
 
 #include <sequel/status.h>

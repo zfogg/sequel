@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Unified analysis, lints, bindings, fingerprints, and maps. */
+
 #include <stdbool.h>
 
 #include <sequel/query.h>

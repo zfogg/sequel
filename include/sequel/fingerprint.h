@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Versioned lexical, syntax, and query-shape fingerprints. */
+
 #include <sequel/parser.h>
 #include <sequel/query.h>
 #include <sequel/status.h>

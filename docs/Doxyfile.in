@@ -1,7 +1,7 @@
 PROJECT_NAME = "Sequel C API"
 PROJECT_BRIEF = "SQL processing from a shared C engine"
 OUTPUT_DIRECTORY = "@DOCS_OUTPUT_DIR@/c"
-INPUT = "@_docs_root@/include/sequel.h" "@_docs_root@/docs/c.md" "@_docs_root@/docs/c-analysis.md"
+INPUT = "@_docs_root@/include" "@_docs_root@/docs/c.md" "@_docs_root@/docs/c-analysis.md" "@_docs_root@/docs/parser-architecture.md"
 USE_MDFILE_AS_MAINPAGE = "@_docs_root@/docs/c.md"
 HTML_OUTPUT = .
 GENERATE_HTML = YES

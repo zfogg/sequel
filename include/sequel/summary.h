@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Deterministic summaries generated from normalized query data. */
+
 #include <stdbool.h>
 
 #include <sequel/formatter.h>

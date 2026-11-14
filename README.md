@@ -56,6 +56,9 @@ for embedded source formatting and conservative file editing.
 
 ## Unified analysis
 
+The parser layers, ownership rules, diagnostics, analysis consumers, and
+serialization contracts are documented in [Parser architecture](docs/parser-architecture.md).
+
 Use C `sequel_analyze_n`, Go `Analyze`, or Python `analyze` for sanitized text,
 summary, operation, versioned SHA-256 fingerprints, canonical diagnostics, bind
 arity metadata, original statement ranges and safe numeric source maps from one

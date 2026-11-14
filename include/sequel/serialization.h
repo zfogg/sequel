@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Versioned syntax/query serialization and deserialization. */
+
 #include <stdint.h>
 
 #include <sequel/query.h>

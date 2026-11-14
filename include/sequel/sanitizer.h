@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file @brief Token-based comment and literal sanitization. */
+
 #include <stdbool.h>
 
 #include <sequel/formatter.h>
