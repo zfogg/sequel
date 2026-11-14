@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 int sequel_summary_render_repairs(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
                                   size_t statement_count, const sequel_statement_info_t *statements, size_t outer_start, bool cte_insert_scope) {

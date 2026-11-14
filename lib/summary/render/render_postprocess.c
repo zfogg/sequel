@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "internal.h"
-#include "../tokens.h"
+#include "../internal.h"
+#include "../../tokens.h"
 
 int sequel_summary_render_postprocess(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
                                       size_t statement_count, const sequel_statement_info_t *statements, size_t outer_start, size_t cte_prefix_end) {

@@ -4,9 +4,9 @@
 #include <string.h>
 
 #include <sequel.h>
-#include "resources.h"
-#include "util/text.h"
-#include "util/utf8.h"
+#include "../resources.h"
+#include "../util/text.h"
+#include "../util/utf8.h"
 #include "diagnostic_catalog.h"
 
 static void sequel_diagnostics_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column);

@@ -6,8 +6,8 @@
 #include <sequel/summary.h>
 #include <sequel/sanitizer.h>
 
-#include "internal.h"
-#include "../tokens.h"
+#include "../internal.h"
+#include "../../tokens.h"
 
 static char *sequel_summary_duckdb_multi_source(sequel_source_view_t source, size_t *length) {
   char *result = malloc(source.length + 1);

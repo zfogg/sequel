@@ -203,10 +203,10 @@
 #include "../lib/compact.c"
 #include "../lib/contracts.c"
 #include "../lib/cte.c"
-#include "../lib/diagnostics.c"
-#include "../lib/diagnostic_catalog.c"
-#include "../lib/diagnostic_report.c"
-#include "../lib/diagnose.c"
+#include "../lib/diagnostics/diagnostics.c"
+#include "../lib/diagnostics/diagnostic_catalog.c"
+#include "../lib/diagnostics/diagnostic_report.c"
+#include "../lib/diagnostics/diagnose.c"
 #include "../lib/dialect.c"
 #include "../lib/expressions.c"
 #include "../lib/fingerprint.c"
@@ -255,16 +255,16 @@
 #include "../lib/summary/recovery.c"
 #undef summary_ellipsis
 #include "../lib/summary/relation.c"
-#include "../lib/summary/render.c"
+#include "../lib/summary/render/render.c"
 /* Keep the amalgamation invalidated when split summary render sources change. */
 #define summary_ellipsis summary_render_ellipsis
-#include "../lib/summary/render_query.c"
+#include "../lib/summary/render/render_query.c"
 #undef summary_ellipsis
-#include "../lib/summary/render_shape.c"
-#include "../lib/summary/render_repairs.c"
-#include "../lib/summary/render_cte.c"
-#include "../lib/summary/render_clauses.c"
-#include "../lib/summary/render_postprocess.c"
+#include "../lib/summary/render/render_shape.c"
+#include "../lib/summary/render/render_repairs.c"
+#include "../lib/summary/render/render_cte.c"
+#include "../lib/summary/render/render_clauses.c"
+#include "../lib/summary/render/render_postprocess.c"
 #include "../lib/summary/repair.c"
 #include "../lib/summary/routes.c"
 #define summary_ellipsis summary_special_ellipsis

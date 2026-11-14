@@ -55,10 +55,10 @@ add_test(NAME sequel-limits COMMAND sequel-limits-test)
 # Exercise exact boundaries with the same engine and small test-only constants.
 set(SEQUEL_PARSER_SOURCES
   ../lib/runtime.c
-  ../lib/diagnostics.c
-  ../lib/diagnostic_catalog.c
-  ../lib/diagnostic_report.c
-  ../lib/diagnose.c
+  ../lib/diagnostics/diagnostics.c
+  ../lib/diagnostics/diagnostic_catalog.c
+  ../lib/diagnostics/diagnostic_report.c
+  ../lib/diagnostics/diagnose.c
   ../lib/contracts.c
   ../lib/sha256.c
   ../lib/highlight.c
@@ -108,14 +108,14 @@ set(SEQUEL_PARSER_SOURCES
   ../lib/metadata.c
   ../lib/metadata_text.c
   ../lib/fingerprint.c
-  ../lib/summary/render.c
+  ../lib/summary/render/render.c
   ../lib/summary/document.c
-  ../lib/summary/render_query.c
-  ../lib/summary/render_shape.c
-  ../lib/summary/render_repairs.c
-  ../lib/summary/render_cte.c
-  ../lib/summary/render_clauses.c
-  ../lib/summary/render_postprocess.c
+  ../lib/summary/render/render_query.c
+  ../lib/summary/render/render_shape.c
+  ../lib/summary/render/render_repairs.c
+  ../lib/summary/render/render_cte.c
+  ../lib/summary/render/render_clauses.c
+  ../lib/summary/render/render_postprocess.c
   ../lib/summary/limits.c
   ../lib/summary/prepare.c
   ../lib/summary/routes.c

@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "internal.h"
-#include "../tokens.h"
+#include "../internal.h"
+#include "../../tokens.h"
 
 static int sequel_summary_render_parenthesized_relation(sequel_summary_render_state_t *state, const sequel_query_document_t *query, sequel_source_view_t source) {
   size_t start = 0;

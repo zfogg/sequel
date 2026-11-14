@@ -5,9 +5,9 @@
 
 #include <sequel.h>
 #include "diagnostic_catalog.h"
-#include "resources.h"
-#include "util/text.h"
-#include "util/utf8.h"
+#include "../resources.h"
+#include "../util/text.h"
+#include "../util/utf8.h"
 
 sequel_status_t sequel_collect_syntax_diagnostics(const sequel_syntax_document_t *syntax, sequel_diagnostic_list_t *diagnostics) {
   if (!syntax || !diagnostics)

@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include <sequel.h>
-#include "diagnostics.h"
+#include "diagnostics/diagnostics.h"
 #include "base16.h"
 #include "util/text.h"
 #include "util/utf8.h"

@@ -1,7 +1,7 @@
 /* Public transport contracts. */
 #include <string.h>
 #include <sequel.h>
-#include "diagnostics.h"
+#include "diagnostics/diagnostics.h"
 #include "util/utf8.h"
 
 sequel_status_t sequel_diagnostic_catalog_get(size_t index, sequel_diagnostic_t *out) {
