@@ -4,6 +4,23 @@
 #include <sequel/summary.h>
 #include <sequel/query.h>
 
+typedef struct {
+  char *text;
+  size_t length;
+  size_t capacity;
+} sequel_summary_render_state_t;
+
+int sequel_summary_render_shape_phases(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
+                                       size_t statement_count, const sequel_statement_info_t *statements, sequel_source_range_t outer_range, size_t cte_prefix_end, size_t outer_start,
+                                       bool nested_cte_scope, bool insert_values_scope, bool cte_insert_scope, bool scalar_with_scope);
+
+int sequel_summary_render_postprocess(sequel_summary_render_state_t *state, const sequel_query_document_t *query, const sequel_summary_options_t *settings, sequel_source_view_t source,
+                                      size_t statement_count, const sequel_statement_info_t *statements, size_t outer_start, size_t cte_prefix_end);
+
+int sequel_summary_append_join_completion(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query, sequel_source_view_t source);
+int sequel_summary_append_limit_completions(char **text, size_t *length, size_t *capacity, const sequel_query_document_t *query);
+void sequel_summary_restore_dialect_features(const sequel_query_document_t *query, char *text, size_t length, sequel_source_view_t source);
+
 int sequel_summary_append_text(char **text, size_t *length, size_t *capacity, const char *value);
 int sequel_summary_append_bytes(char **text, size_t *length, size_t *capacity, const char *value, size_t amount);
 void sequel_summary_set_utf8_output(bool enabled);
