@@ -9,7 +9,7 @@
 #include "util/utf8.h"
 #include "diagnostic_catalog.h"
 
-void sequel_diagnostics_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column);
+static void sequel_diagnostics_position(const char *sql, size_t n, size_t offset, size_t *line, size_t *column);
 void sequel_diagnostics_report(const char *sql, size_t n, sequel_diagnostic_t *out, sequel_diagnostic_code_t code, size_t start, size_t end);
 
 sequel_status_t sequel_syntax_diagnostic(const sequel_syntax_document_t *document, size_t issue_index, sequel_diagnostic_t *diagnostic) {

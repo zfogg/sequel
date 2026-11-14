@@ -204,6 +204,9 @@
 #include "../lib/contracts.c"
 #include "../lib/cte.c"
 #include "../lib/diagnostics.c"
+#include "../lib/diagnostic_catalog.c"
+#include "../lib/diagnostic_report.c"
+#include "../lib/diagnose.c"
 #include "../lib/dialect.c"
 #include "../lib/expressions.c"
 #include "../lib/fingerprint.c"
@@ -218,6 +221,7 @@
 #include "../lib/metadata_text.c"
 #include "../lib/parse_entry.c"
 #include "../lib/parser.c"
+#include "../lib/parser_accessors.c"
 #include "../lib/query.c"
 #include "../lib/reparse.c"
 #include "../lib/runtime.c"
@@ -255,6 +259,11 @@
 #define summary_ellipsis summary_render_ellipsis
 #include "../lib/summary/render_query.c"
 #undef summary_ellipsis
+#include "../lib/summary/render_shape.c"
+#include "../lib/summary/render_repairs.c"
+#include "../lib/summary/render_cte.c"
+#include "../lib/summary/render_clauses.c"
+#include "../lib/summary/render_postprocess.c"
 #include "../lib/summary/repair.c"
 #include "../lib/summary/routes.c"
 #define summary_ellipsis summary_special_ellipsis
