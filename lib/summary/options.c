@@ -1,6 +1,12 @@
 #include <sequel/summary.h>
 
-static _Thread_local bool sequel_summary_utf8_output = true;
+#if defined(_MSC_VER)
+#define SEQUEL_THREAD_LOCAL __declspec(thread)
+#else
+#define SEQUEL_THREAD_LOCAL _Thread_local
+#endif
+
+static SEQUEL_THREAD_LOCAL bool sequel_summary_utf8_output = true;
 
 void sequel_summary_set_utf8_output(bool enabled) { sequel_summary_utf8_output = enabled; }
 
