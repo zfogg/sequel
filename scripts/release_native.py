@@ -37,8 +37,17 @@ def main() -> None:
             f"-DSEQUEL_STATIC_CLI={'ON' if linkage == 'static' else 'OFF'}",
             f"-DPython3_EXECUTABLE={sys.executable}",
         ]
+        compiler = os.environ.get("SEQUEL_CC")
+        cxx_compiler = os.environ.get("SEQUEL_CXX")
+        if compiler:
+            options.append(f"-DCMAKE_C_COMPILER={compiler}")
+        if cxx_compiler:
+            options.append(f"-DCMAKE_CXX_COMPILER={cxx_compiler}")
         if args.os == "windows":
-            options += ["-DCMAKE_C_COMPILER=clang-cl", f"-DCMAKE_C_COMPILER_TARGET={args.target}"]
+            options += [
+                f"-DCMAKE_C_COMPILER_TARGET={args.target}",
+                f"-DCMAKE_CXX_COMPILER_TARGET={args.target}",
+            ]
         if args.os == "macos":
             options += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0"]
         run("cmake", "-S", ".", "-B", str(build), *options)
@@ -58,8 +67,15 @@ def main() -> None:
         env[loader] = str(prefix / "lib") + os.pathsep + env.get(loader, "")
         consumer = base / f"consumer-{linkage}"
         consumer_options = ["-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_PREFIX_PATH={prefix}"]
+        if compiler:
+            consumer_options.append(f"-DCMAKE_C_COMPILER={compiler}")
+        if cxx_compiler:
+            consumer_options.append(f"-DCMAKE_CXX_COMPILER={cxx_compiler}")
         if args.os == "windows":
-            consumer_options += ["-DCMAKE_C_COMPILER=clang-cl", f"-DCMAKE_C_COMPILER_TARGET={args.target}"]
+            consumer_options += [
+                f"-DCMAKE_C_COMPILER_TARGET={args.target}",
+                f"-DCMAKE_CXX_COMPILER_TARGET={args.target}",
+            ]
             if linkage == "static":
                 consumer_options += ["-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
         run("cmake", "-S", "tests/cmake-consumer", "-B", str(consumer), *consumer_options, env=env)
