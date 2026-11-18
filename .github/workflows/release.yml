@@ -83,6 +83,14 @@ jobs:
         run: bash scripts/install-deps.sh linux
       - if: matrix.os == 'macos'
         run: bash scripts/install-deps.sh macos
+      - name: Verify macOS C++2d compiler
+        if: matrix.os == 'macos'
+        shell: bash
+        run: |
+          "$SEQUEL_CXX" --version
+          major=$("$SEQUEL_CXX" --version | sed -n 's/.*clang version \([0-9][0-9]*\).*/\1/p' | head -n 1)
+          test "$major" = 23
+          printf 'int main() { return 0; }\n' | "$SEQUEL_CXX" -std=c++2d -x c++ -fsyntax-only -
       - name: Validate Windows build tools
         if: matrix.os == 'windows'
         shell: pwsh

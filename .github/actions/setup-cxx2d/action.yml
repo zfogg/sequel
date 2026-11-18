@@ -16,13 +16,22 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
+        brew update
         if brew list --versions llvm >/dev/null; then
-          if brew outdated --quiet llvm | grep -q .; then brew upgrade llvm; fi
+          brew reinstall llvm
         else
           brew install llvm
         fi
-        echo "SEQUEL_CC=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
-        echo "SEQUEL_CXX=$(brew --prefix llvm)/bin/clang++" >> "$GITHUB_ENV"
+        llvm_prefix=$(brew --prefix llvm)
+        clang="$llvm_prefix/bin/clang"
+        clangxx="$llvm_prefix/bin/clang++"
+        major=$($clang --version | sed -n 's/.*clang version \([0-9][0-9]*\).*/\1/p' | head -n 1)
+        if [[ "$major" != 23 ]]; then
+          echo "Expected Clang 23 from Homebrew, found: $($clang --version | head -n 1)" >&2
+          exit 1
+        fi
+        echo "SEQUEL_CC=$clang" >> "$GITHUB_ENV"
+        echo "SEQUEL_CXX=$clangxx" >> "$GITHUB_ENV"
     - name: Install Clang on Windows
       if: runner.os == 'Windows'
       shell: pwsh
