@@ -32,7 +32,7 @@ and static/shared C SDK ZIPs for **Linux, macOS and Windows, each on x64 and
 ARM64**, plus Python wheels/sdist, a Rust source crate, complete binding sources
 and checksums. The static ZIP contains the CLI. Linux binaries are fully static;
 Windows uses the static CRT; macOS retains Apple's required system library.
-See [release installation and linking](docs/releases.md) for exact asset names,
+See [release installation and linking](RELEASE.md) for exact asset names,
 Python compatibility, CMake/Rust prebuilt linking and Go module usage.
 
 The CLI and bindings are independent: downloading the executable does not install

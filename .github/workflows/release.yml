@@ -179,6 +179,6 @@ jobs:
           python scripts/package_release.py assemble --tag "$RELEASE_TAG" --stage dist/downloaded --output dist/release
           python scripts/package_release.py checksums --tag "$RELEASE_TAG" --output dist/release
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file docs/releases.md
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file RELEASE.md
           fi
           gh release upload "$RELEASE_TAG" dist/release/* --clobber
