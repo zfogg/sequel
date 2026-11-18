@@ -1,5 +1,7 @@
 # sequel
 
+[Releases](https://github.com/zfogg/sequel/releases)
+
 [Documentation](https://zfogg.github.io/sequel/) ·
 [C API](https://zfogg.github.io/sequel/c/) ·
 [Python API](https://zfogg.github.io/sequel/python/) ·
