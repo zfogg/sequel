@@ -11,6 +11,10 @@ on:
         type: string
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -74,9 +78,13 @@ jobs:
         with:
           arch: ${{ matrix.msvc }}
       - if: matrix.os == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build patchelf
+        run: bash scripts/install-deps.sh linux
       - if: matrix.os == 'macos'
-        run: brew install ninja
+        run: bash scripts/install-deps.sh macos
+      - name: Validate Windows build tools
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: ./scripts/install-deps.ps1
       - run: uv pip install --system -r tests/requirements-format.txt
       - name: Test bundled Rust engine and C ABI
         run: cargo test --locked --features abi-check --target ${{ matrix.target }}
