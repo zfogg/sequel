@@ -242,3 +242,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sequelConfig.cmake
 configure_file(cmake/sequel.pc.in ${CMAKE_CURRENT_BINARY_DIR}/sequel.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sequel.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+configure_file(cmake/sequel-cxx.pc.in ${CMAKE_CURRENT_BINARY_DIR}/sequel-cxx.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sequel-cxx.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
