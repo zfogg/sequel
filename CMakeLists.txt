@@ -239,3 +239,6 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/sequelConfigVersion
   VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sequelConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/sequelConfigVersion.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sequel)
+configure_file(cmake/sequel.pc.in ${CMAKE_CURRENT_BINARY_DIR}/sequel.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/sequel.pc
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

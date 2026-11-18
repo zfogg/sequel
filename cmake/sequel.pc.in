@@ -1,0 +1,10 @@
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${exec_prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: sequel
+Description: SQL formatting and transformation library
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lsequel
+Cflags: -I${includedir}
