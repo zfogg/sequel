@@ -9,6 +9,8 @@ if(SEQUEL_PREFER_CLANG AND NOT DEFINED CMAKE_C_COMPILER AND NOT CMAKE_GENERATOR 
   endif()
 endif()
 project(sequel VERSION 0.2.0 LANGUAGES C CXX)
+include(${CMAKE_CURRENT_SOURCE_DIR}/deps/cmake-utils/CacheLauncher.cmake)
+cmake_utils_configure_cache_launcher()
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
