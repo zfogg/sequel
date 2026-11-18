@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-option(SEQUEL_PREFER_CLANG "Prefer clang/clang++ when no compiler was selected" ON)
+option(SEQUEL_PREFER_CLANG "Prefer clang/clang++ when no compiler was selected" OFF)
 if(SEQUEL_PREFER_CLANG AND NOT DEFINED CMAKE_C_COMPILER AND NOT CMAKE_GENERATOR MATCHES "Visual Studio")
   find_program(SEQUEL_CLANG clang)
   find_program(SEQUEL_CLANGXX clang++)
