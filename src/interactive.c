@@ -1,5 +1,6 @@
 /* A portable line-oriented SQL workbench. No SQL is ever executed. */
 #include "diagnostics.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef _WIN32

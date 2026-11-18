@@ -38,9 +38,10 @@ static PyObject *diagnose_sql(PyObject *self, PyObject *args) {
 
 static PyObject *metadata_sql(PyObject *self, PyObject *args) {
   const char *sql;
+  Py_ssize_t sql_length;
   int dialect, omit, keep;
   Py_ssize_t limit;
-  if (!PyArg_ParseTuple(args, "sinpp", &sql, &dialect, &limit, &omit, &keep))
+  if (!PyArg_ParseTuple(args, "s#inpp", &sql, &sql_length, &dialect, &limit, &omit, &keep))
     return NULL;
   if (limit < 0 || limit > SEQUEL_TEXT_MAX) {
     PyErr_SetString(PyExc_ValueError, "query text limit must be between 0 and SEQUEL_TEXT_MAX (1 GiB)");
@@ -54,7 +55,9 @@ static PyObject *metadata_sql(PyObject *self, PyObject *args) {
   sequel_metadata_t *metadata = PyMem_Malloc(sizeof(*metadata));
   if (!metadata)
     return PyErr_NoMemory();
-  sequel_status_t status = sequel_metadata(sql, &options, metadata);
+  /* Use the Python-provided length.  Besides avoiding a second unbounded scan,
+   * this makes embedded-NUL handling deterministic on every platform. */
+  sequel_status_t status = sequel_metadata_n(sql, (size_t)sql_length, &options, metadata);
   if (status != SEQUEL_OK) {
     sequel_metadata_free(metadata);
     PyMem_Free(metadata);
