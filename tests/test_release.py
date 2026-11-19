@@ -5,6 +5,7 @@ import struct
 import tempfile
 import unittest
 import zipfile
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,6 +14,8 @@ spec = importlib.util.spec_from_file_location("package_release", ROOT / "scripts
 assert spec and spec.loader
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
+TEST_RELEASE_TAG = f"v{tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version']}"
+TEST_RELEASE_VERSION = TEST_RELEASE_TAG[1:]
 
 
 def binary(system, arch, interpreter=False):
@@ -44,16 +47,16 @@ class ReleaseTests(unittest.TestCase):
                 for arch in ("x64", "arm64"):
                     prefix = stage / f"release-{system}-{arch}"
                     for linkage in ("static", "shared"):
-                        paths.append(prefix / "release" / f"sequel-v0.2.0-{system}-{arch}-{linkage}.zip")
-                    paths.append(prefix / "wheels" / f"sequel-0.2.0-{system}-{arch}.whl")
+                        paths.append(prefix / "release" / f"sequel-{TEST_RELEASE_TAG}-{system}-{arch}-{linkage}.zip")
+                    paths.append(prefix / "wheels" / f"sequel-{TEST_RELEASE_VERSION}-{system}-{arch}.whl")
             paths.extend(
                 stage / "sources" / name
-                for name in ("sequel-0.2.0.crate", "sequel-0.2.0.tar.gz", "sequel-bindings-v0.2.0.zip")
+                for name in (f"sequel-{TEST_RELEASE_VERSION}.crate", f"sequel-{TEST_RELEASE_VERSION}.tar.gz", f"sequel-bindings-{TEST_RELEASE_TAG}.zip")
             )
             for path in paths:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(path.name.encode())
-            release.assemble_release("v0.2.0", stage, output)
+            release.assemble_release(TEST_RELEASE_TAG, stage, output)
             self.assertEqual(len(list(output.iterdir())), 21)
             for path in paths:
                 self.assertEqual((output / path.name).read_bytes(), path.read_bytes())
@@ -61,11 +64,11 @@ class ReleaseTests(unittest.TestCase):
             duplicate.parent.mkdir()
             duplicate.write_bytes(b"conflicting upload")
             with self.assertRaisesRegex(ValueError, "Conflicting"):
-                release.assemble_release("v0.2.0", stage, output)
+                release.assemble_release(TEST_RELEASE_TAG, stage, output)
             duplicate.unlink()
             paths[0].unlink()
             with self.assertRaisesRegex(ValueError, "Incomplete"):
-                release.assemble_release("v0.2.0", stage, output)
+                release.assemble_release(TEST_RELEASE_TAG, stage, output)
 
     def test_universal_wheels_must_contain_both_native_slices(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -117,16 +120,16 @@ class ReleaseTests(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
             with patch.object(release, "revision", return_value="0" * 40):
-                result = release.package_native("v0.2.0", stage, "linux", "arm64", "static", root)
+                result = release.package_native(TEST_RELEASE_TAG, stage, "linux", "arm64", "static", root)
             with zipfile.ZipFile(result) as archive:
-                prefix = "sequel-v0.2.0-linux-arm64-static/"
+                prefix = f"sequel-{TEST_RELEASE_TAG}-linux-arm64-static/"
                 for path in files:
                     self.assertIn(prefix + path, archive.namelist())
                 self.assertIn(prefix + "README.md", archive.namelist())
                 self.assertIn(prefix + "manifest.json", archive.namelist())
             (stage / "lib/libsequel_utf8proc.a").unlink()
             with self.assertRaises(FileNotFoundError):
-                release.package_native("v0.2.0", stage, "linux", "arm64", "static", root)
+                release.package_native(TEST_RELEASE_TAG, stage, "linux", "arm64", "static", root)
 
     def test_version_and_unsupported_inputs(self):
         for tag in ("main", "../v0.2.0", "v1.2", "v9.8.7"):
@@ -134,6 +137,16 @@ class ReleaseTests(unittest.TestCase):
                 release.validate_version(tag)
         with self.assertRaises(ValueError):
             release.binary_target(b"not a native binary")
+
+    def test_manifest_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "pyproject.toml").write_text('[project]\nversion = "9.9.9"\n', encoding="utf-8")
+            (root / "Cargo.toml").write_text('[package]\nversion = "9.9.9"\n', encoding="utf-8")
+            (root / "CMakeLists.txt").write_text("project(sequel VERSION 9.9.9 LANGUAGES C CXX)\n", encoding="utf-8")
+            with patch.object(release, "ROOT", root):
+                with self.assertRaisesRegex(ValueError, "does not match"):
+                    release.validate_version(TEST_RELEASE_TAG)
 
 
 if __name__ == "__main__":
