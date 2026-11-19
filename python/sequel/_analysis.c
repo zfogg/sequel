@@ -19,6 +19,12 @@ static PyObject *analysis_map_dict(const sequel_source_map_t *map) {
   static const char *names[] = {"copy", "replace", "delete", "insert"};
   for (size_t i = 0; i < map->count; ++i) {
     const sequel_map_segment_t *s = &map->segments[i];
+    if ((unsigned)s->kind >= 4u) {
+      PyErr_SetString(PyExc_ValueError, "native analysis returned an invalid source-map kind");
+      Py_DECREF(result);
+      Py_DECREF(segments);
+      return NULL;
+    }
     PyObject *entry = Py_BuildValue("{s:n,s:n,s:n,s:n,s:s}", "from_start", (Py_ssize_t)s->from_start, "from_end", (Py_ssize_t)s->from_end, "to_start", (Py_ssize_t)s->to_start, "to_end",
                                     (Py_ssize_t)s->to_end, "kind", names[s->kind]);
     if (!entry) {
@@ -82,6 +88,11 @@ static PyObject *analysis_dict(const sequel_analysis_t *a) {
   static const char *styles[] = {"positional", "numbered", "named", "typed"};
   for (size_t i = 0; i < a->bind_count; ++i) {
     const sequel_bind_descriptor_t *b = &a->binds[i];
+    if ((unsigned)b->style >= 4u) {
+      PyErr_SetString(PyExc_ValueError, "native analysis returned an invalid bind style");
+      Py_DECREF(binds);
+      goto failed;
+    }
     PyObject *entry = Py_BuildValue("{s:n,s:n,s:n,s:n,s:n,s:s}", "ordinal", (Py_ssize_t)b->ordinal, "slot", (Py_ssize_t)b->slot, "statement_index", (Py_ssize_t)b->statement_index, "offset",
                                     (Py_ssize_t)b->offset, "end_offset", (Py_ssize_t)b->end_offset, "style", styles[b->style]);
     if (!entry) {
