@@ -39,11 +39,12 @@ def main() -> None:
         ]
         compiler = os.environ.get("SEQUEL_CC")
         cxx_compiler = os.environ.get("SEQUEL_CXX")
+        native_msvc = args.os == "windows" and compiler and os.path.basename(compiler).lower() in {"cl", "cl.exe"}
         if compiler:
             options.append(f"-DCMAKE_C_COMPILER={compiler}")
         if cxx_compiler:
             options.append(f"-DCMAKE_CXX_COMPILER={cxx_compiler}")
-        if args.os == "windows":
+        if args.os == "windows" and not native_msvc:
             options += [
                 f"-DCMAKE_C_COMPILER_TARGET={args.target}",
                 f"-DCMAKE_CXX_COMPILER_TARGET={args.target}",
@@ -71,7 +72,7 @@ def main() -> None:
             consumer_options.append(f"-DCMAKE_C_COMPILER={compiler}")
         if cxx_compiler:
             consumer_options.append(f"-DCMAKE_CXX_COMPILER={cxx_compiler}")
-        if args.os == "windows":
+        if args.os == "windows" and not native_msvc:
             consumer_options += [
                 f"-DCMAKE_C_COMPILER_TARGET={args.target}",
                 f"-DCMAKE_CXX_COMPILER_TARGET={args.target}",

@@ -64,6 +64,19 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-cxx2d
+        if: matrix.os == 'macos'
+      - name: Select GCC on Linux
+        if: matrix.os == 'linux'
+        shell: bash
+        run: |
+          echo 'SEQUEL_CC=gcc' >> "$GITHUB_ENV"
+          echo 'SEQUEL_CXX=g++' >> "$GITHUB_ENV"
+      - name: Select MSVC on Windows
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          'SEQUEL_CC=cl.exe' >> $env:GITHUB_ENV
+          'SEQUEL_CXX=cl.exe' >> $env:GITHUB_ENV
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'

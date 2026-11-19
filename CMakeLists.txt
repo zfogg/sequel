@@ -8,7 +8,7 @@ if(SEQUEL_PREFER_CLANG AND NOT DEFINED CMAKE_C_COMPILER AND NOT CMAKE_GENERATOR 
     set(CMAKE_CXX_COMPILER "${SEQUEL_CLANGXX}" CACHE FILEPATH "C++ compiler")
   endif()
 endif()
-project(sequel VERSION 0.2.4 LANGUAGES C CXX)
+project(sequel VERSION 0.2.5 LANGUAGES C CXX)
 include(${CMAKE_CURRENT_SOURCE_DIR}/deps/cmake-utils/CacheLauncher.cmake)
 cmake_utils_configure_cache_launcher()
 include(GNUInstallDirs)
