@@ -16,9 +16,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: release-${{ github.repository }}
-  cancel-in-progress: true
 jobs:
   validate:
     concurrency:
